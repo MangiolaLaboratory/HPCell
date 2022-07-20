@@ -20,14 +20,14 @@ output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
 # Load reference PBMC
 # reference_azimuth <- LoadH5Seurat("data//pbmc_multimodal.h5seurat")
 # reference_azimuth |> saveRDS("analysis/annotation_label_transfer/reference_azimuth.rds")
-reference_azimuth = readRDS("analysis/annotation_label_transfer/reference_azimuth.rds")
+
 
 # Readingh input
 input_file = readRDS(input_path)
 
 # Define common anchors
 anchors <- FindTransferAnchors(
-  reference = reference_azimuth,
+  reference = readRDS(reference_azimuth_path),
   query = input_file,
   normalization.method = "SCT",
   reference.reduction = "spca",
