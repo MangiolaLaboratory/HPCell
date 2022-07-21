@@ -32,7 +32,7 @@ $ conda activate cctools-env
 
 ```
 
-Create input and result direcotries 
+Create input and result directories 
 
 ```{bash}
 
@@ -50,7 +50,14 @@ code_directory=~/PostDoc/jascap
 # This is in a shared location 
 reference_azimuth_path=/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/reference_azimuth.rds
 ```
-Add input file in the input directory. For example
+Add input file in the input directory. Each input file should
+
+1) Be a seurat object
+2) Just inbclude row counts in the `RNA` assay
+3) Include only one sample
+4) Be named SAMPLE_NAME.rds
+
+You should copy those files in your input directory, for example 
 
 ```{bash}
 cp myfiles/* $input_directory
