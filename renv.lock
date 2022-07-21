@@ -4002,15 +4002,15 @@
     },
     "tidybulk": {
       "Package": "tidybulk",
-      "Version": "1.9.1",
+      "Version": "1.9.2",
       "Source": "GitHub",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
       "RemoteRepo": "tidybulk",
       "RemoteUsername": "stemangiola",
       "RemoteRef": "HEAD",
-      "RemoteSha": "9d162fefa39fdf9d1b3e780fb2cbe4110f4a4f8f",
-      "Hash": "3d0ac3f7d2004db4861ac0576cbaf01d",
+      "RemoteSha": "c8f85415142dd67d62f944ed815e17bcd2e9f730",
+      "Hash": "7e0352a32abc4fc5d1c70e664f0e8a22",
       "Requirements": [
         "GenomicRanges",
         "S4Vectors",
