@@ -56,6 +56,7 @@ Add input file in the input directory. Each input file should
 2) Just inbclude row counts in the `RNA` assay
 3) Include only one sample
 4) Be named SAMPLE_NAME.rds
+5) All SAMPLE_NAME should be unique for each sample (if a sample has different timepoints the SAMPLE_NAME should be made unique, for example SAMPLE_NAME_TIME_POINT)
 
 You should copy those files in your input directory, for example 
 
