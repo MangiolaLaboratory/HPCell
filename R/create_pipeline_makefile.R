@@ -16,6 +16,9 @@ input_directory = args[[2]]
 code_directory = args[[3]]
 reference_azimuth_path = args[[4]]
 
+# Create dir
+result_directory |> dir.create( showWarnings = FALSE, recursive = TRUE)
+
 renv::activate(project = code_directory)
 
 # This script slipts the dataset and creates the list of files in a specific directory
