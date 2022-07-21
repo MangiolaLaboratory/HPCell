@@ -7,7 +7,7 @@ input_path = args[[2]]
 reference_azimuth_path = args[[3]]
 output_path = args[[4]]
 
-renv::activate(project = code_directory)
+renv::load(project = code_directory)
 
 library(tidyverse)
 library(Seurat)

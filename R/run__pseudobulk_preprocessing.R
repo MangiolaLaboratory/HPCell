@@ -5,7 +5,7 @@ code_directory = args[[1]]
 input_path_preprocessing_output = args[2:(length(args)-1)]
 output_path = args[[length(args)]]
 
-renv::activate(project = code_directory)
+renv::load(project = code_directory)
 
 library(tidyverse)
 library(Seurat)

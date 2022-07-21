@@ -8,7 +8,7 @@ input_path_alive = args[[4]]
 input_path_annotation_label_transfer = args[[5]]
 output_path = args[[6]]
 
-renv::activate(project = code_directory)
+renv::load(project = code_directory)
 
 library(tidyverse)
 library(Seurat)

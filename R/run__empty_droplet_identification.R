@@ -10,7 +10,7 @@ output_path_result = args[[3]]
 output_path_plot_pdf = args[[4]]
 output_path_plot_rds = args[[5]]
 
-renv::activate(project = code_directory)
+renv::load(project = code_directory)
 
 library(tidyverse)
 library(purrr)

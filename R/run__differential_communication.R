@@ -9,7 +9,7 @@ output_path_plot_heatmap = args[[length(args)-2]]
 output_path_plot_circle = args[[length(args)-1]]
 output_path_values_communication = args[[length(args)]]
 
-renv::activate(project = code_directory)
+renv::load(project = code_directory)
 
 library(tidyverse)
 library(Seurat)

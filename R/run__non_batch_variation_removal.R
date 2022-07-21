@@ -13,7 +13,7 @@ input_path_demultiplexed = args[[2]]
 input_path_empty_droplets = args[[3]]
 output_path = args[[4]]
 
-renv::activate(project = code_directory)
+renv::load(project = code_directory)
 
 library(DropletUtils)
 library(EnsDb.Hsapiens.v86)
