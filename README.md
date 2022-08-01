@@ -47,6 +47,9 @@ mkdir $input_directory
 # The R directory in the same location where you cloned jascap
 code_directory=~/PostDoc/jascap
 
+# This is the location of the metadata, which should match by `sample` with the column in the seurat objects
+metadata_path=~/PostDoc/covid19pbmc/data/3_prime_batch_1/metadata.rds
+
 # This is in a shared location 
 reference_azimuth_path=/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/reference_azimuth.rds
 ```
@@ -68,7 +71,7 @@ Execute pipeline using `makeflow`
 
 ```{bash}
 # Create $input_directory/pipeline.makeflow
-Rscript $code_directory/R/create_pipeline_makefile.R $result_directory $input_directory $code_directory $reference_azimuth_path
+Rscript $code_directory/R/create_pipeline_makefile.R $result_directory $input_directory $code_directory $metadata_path $reference_azimuth_path
 
 # Execute makeflow
 conda activate cctools-env

@@ -9,7 +9,8 @@ args = commandArgs(trailingOnly=TRUE)
 code_directory = args[[1]]
 input_path_demultiplexed = args[[2]]
 input_path_empty_droplets = args[[3]]
-output_path = args[[4]]
+input_path_annotation_label_transfer = args[[4]]
+output_path = args[[5]]
 
 renv::load(project = code_directory)
 
@@ -46,10 +47,23 @@ mitochondrion =
   # Join mitochondrion statistics
   scuttle::perCellQCMetrics(subsets=list(Mito=which(location=="MT"))) |>
   as_tibble(rownames = ".cell") |>
-  dplyr::select(-sum, detected) |>
+  dplyr::select(-sum, -detected) |>
+
+  # Join cell types
+  left_join(readRDS(input_path_annotation_label_transfer), by = ".cell") |>
 
   # Label cells
-  mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"))
+  nest(data = -predicted.celltype.l2) |>
+  mutate(data = map(
+    data,
+    ~ .x |>
+      mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher")) |>
+
+      # For compatibility
+      mutate(high_mitochondrion = as.logical(high_mitochondrion))
+  )) |>
+  unnest(data)
+
 
 ribosome =
 
@@ -60,15 +74,32 @@ ribosome =
   # Join mitochondrion statistics
   mutate(mito_RPS = PercentageFeatureSet(input_file,  pattern = "^RPS|^RPL", assay = "RNA")[,1]  ) |>
 
-  # Label cells
-  mutate(high_RPS = isOutlier(mito_RPS, type="higher")) |>
+  # Join cell types
+  left_join(readRDS(input_path_annotation_label_transfer), by = ".cell") |>
 
-  as_tibble() |>
-  dplyr::select(.cell, mito_RPS, high_RPS)
+  # Label cells
+  nest(data = -predicted.celltype.l2) |>
+  mutate(data = map(
+    data,
+    ~ .x |>
+      # Label cells
+      mutate(high_RPS = isOutlier(mito_RPS, type="higher")) |>
+
+      # For compatibility
+      mutate(high_RPS = as.logical(high_RPS)) |>
+
+      as_tibble() |>
+      dplyr::select(.cell, mito_RPS, high_RPS)
+  )) |>
+  unnest(data)
+
+
+
 
 # Save
 mitochondrion |>
-  left_join(ribosome, by=".cell")|>
+  left_join(ribosome, by=".cell") |>
+  mutate(alive = !high_mitochondrion & !high_RPS ) |>
   saveRDS(output_path)
 
 # plot_QC =
