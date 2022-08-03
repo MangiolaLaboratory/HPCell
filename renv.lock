@@ -782,6 +782,14 @@
         "RcppEigen"
       ]
     },
+    "RcppParallel": {
+      "Package": "RcppParallel",
+      "Version": "5.1.5",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "f3e94e34ff656a7c8336ce01207bc2b8",
+      "Requirements": []
+    },
     "RcppProgress": {
       "Package": "RcppProgress",
       "Version": "0.4.2",
@@ -1009,6 +1017,17 @@
       "Repository": "CRAN",
       "Hash": "2042cd9759cc89a453c4aefef0ce9aae",
       "Requirements": []
+    },
+    "StanHeaders": {
+      "Package": "StanHeaders",
+      "Version": "2.21.0-7",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "0459d4dd7a8c239be18469a30c23dd4b",
+      "Requirements": [
+        "RcppEigen",
+        "RcppParallel"
+      ]
     },
     "SummarizedExperiment": {
       "Package": "SummarizedExperiment",
@@ -1332,6 +1351,16 @@
       "Requirements": [
         "rematch",
         "tibble"
+      ]
+    },
+    "checkmate": {
+      "Package": "checkmate",
+      "Version": "2.1.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "147e4db6909d8814bb30f671b49d7e06",
+      "Requirements": [
+        "backports"
       ]
     },
     "circlize": {
@@ -2061,6 +2090,20 @@
         "ggplot2"
       ]
     },
+    "ggupset": {
+      "Package": "ggupset",
+      "Version": "0.3.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "8e9eb92bf465601c07d17c5e8b75dce1",
+      "Requirements": [
+        "ggplot2",
+        "gtable",
+        "rlang",
+        "scales",
+        "tibble"
+      ]
+    },
     "gh": {
       "Package": "gh",
       "Version": "1.3.0",
@@ -2364,6 +2407,14 @@
       "Hash": "6154ec2223172bce8162d4153cda21f7",
       "Requirements": []
     },
+    "inline": {
+      "Package": "inline",
+      "Version": "0.3.19",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "1deaf1de3eac7e1d3377954b3a283652",
+      "Requirements": []
+    },
     "irlba": {
       "Package": "irlba",
       "Version": "2.3.5",
@@ -2553,6 +2604,17 @@
       "Hash": "ab000f1b849b9378c2b51487c70fe93c",
       "Requirements": [
         "lattice"
+      ]
+    },
+    "loo": {
+      "Package": "loo",
+      "Version": "2.5.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "31b53df2593afd03a4969ae028c437b1",
+      "Requirements": [
+        "checkmate",
+        "matrixStats"
       ]
     },
     "lubridate": {
@@ -3341,6 +3403,37 @@
       "Hash": "1de7ab598047a87bba48434ba35d497d",
       "Requirements": []
     },
+    "rstan": {
+      "Package": "rstan",
+      "Version": "2.21.5",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "61f94b51fc49feea6637bb09e7ac81f3",
+      "Requirements": [
+        "BH",
+        "Rcpp",
+        "RcppEigen",
+        "RcppParallel",
+        "StanHeaders",
+        "ggplot2",
+        "gridExtra",
+        "inline",
+        "loo",
+        "pkgbuild"
+      ]
+    },
+    "rstantools": {
+      "Package": "rstantools",
+      "Version": "2.2.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "8b57bc9062c6e274845f253808a9cbf9",
+      "Requirements": [
+        "Rcpp",
+        "RcppParallel",
+        "desc"
+      ]
+    },
     "rstatix": {
       "Package": "rstatix",
       "Version": "0.7.0",
@@ -3538,6 +3631,45 @@
       "Requirements": [
         "ggplot2",
         "scales"
+      ]
+    },
+    "sccomp": {
+      "Package": "sccomp",
+      "Version": "0.99.20",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "sccomp",
+      "RemoteUsername": "stemangiola",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "e112ed310d17054cca060edf593e74ac5d43970a",
+      "Hash": "a1f33873e03f6bfebf8bc31e291e5eeb",
+      "Requirements": [
+        "BH",
+        "Rcpp",
+        "RcppEigen",
+        "RcppParallel",
+        "SeuratObject",
+        "SingleCellExperiment",
+        "StanHeaders",
+        "boot",
+        "dplyr",
+        "forcats",
+        "ggplot2",
+        "ggrepel",
+        "lifecycle",
+        "magrittr",
+        "patchwork",
+        "purrr",
+        "readr",
+        "rlang",
+        "rstan",
+        "rstantools",
+        "scales",
+        "stringr",
+        "tibble",
+        "tidyr",
+        "tidyselect"
       ]
     },
     "scran": {
@@ -4000,17 +4132,37 @@
         "vctrs"
       ]
     },
+    "tidySummarizedExperiment": {
+      "Package": "tidySummarizedExperiment",
+      "Version": "1.7.3",
+      "Source": "Bioconductor",
+      "Hash": "38e6b5bad188003ee0d30397a97ec9b7",
+      "Requirements": [
+        "S4Vectors",
+        "SummarizedExperiment",
+        "cli",
+        "dplyr",
+        "ellipsis",
+        "fansi",
+        "ggplot2",
+        "lifecycle",
+        "magrittr",
+        "pillar",
+        "plotly",
+        "purrr",
+        "rlang",
+        "stringr",
+        "tibble",
+        "tidyr",
+        "tidyselect",
+        "vctrs"
+      ]
+    },
     "tidybulk": {
       "Package": "tidybulk",
       "Version": "1.9.2",
-      "Source": "GitHub",
-      "RemoteType": "github",
-      "RemoteHost": "api.github.com",
-      "RemoteRepo": "tidybulk",
-      "RemoteUsername": "stemangiola",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "c8f85415142dd67d62f944ed815e17bcd2e9f730",
-      "Hash": "7e0352a32abc4fc5d1c70e664f0e8a22",
+      "Source": "Bioconductor",
+      "Hash": "d52f4b58661b3b370d04683a169b1595",
       "Requirements": [
         "GenomicRanges",
         "S4Vectors",

@@ -57,7 +57,19 @@ commands =
   )
 
 
+# >>> CHECK IF SAMPLES WITHIN BATCH HAVE TECHNICAL VARIATION
+suffix = "__evaluation_sample_technical_variability"
+output_directory = glue("{result_directory}/preprocessing_results/evaluation_sample_technical_variability")
+output_path_data_umap =   glue("{output_directory}/data_umap_output.rds")
+output_path_plot_umap =   glue("{output_directory}/plot_umap_output.rds")
 
+# Create input
+commands =
+  commands |> c(
+    glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=11\nWALL_TIME=30000"),
+    glue("{output_path_data_umap} {output_path_plot_umap}:{metadata_path} {paste(input_path_demultiplexed, collapse=\" \")} {paste(output_path_empty_droplets, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {metadata_path} {paste(input_path_demultiplexed, collapse=\" \")} {paste(output_path_empty_droplets, collapse=\" \")} {output_path_data_umap} {output_path_plot_umap}")
+
+  )
 
 
 # >>> NORMALISATION
@@ -159,6 +171,19 @@ commands =
     glue("{output_path_pseudobulk_preprocessing}:{paste(output_path_preprocessing_results, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {paste(output_path_preprocessing_results, collapse=\" \")} {output_path_pseudobulk_preprocessing}")
 
   )
+
+
+# # VARIABLE GENES
+# suffix = "__variable_gene_identification"
+# output_directory = glue("{result_directory}/preprocessing_results/variable_gene_identification")
+# output_path_variable_gene_identification =   glue("{output_directory}/variable_gene_identification.rds")
+#
+# commands =
+#   commands |> c(
+#     glue("CATEGORY={suffix}\nMEMORY=20024\nCORES=1\nWALL_TIME=30000"),
+#     glue("{output_path_variable_gene_identification}:{input_path_demultiplexed} {output_path_empty_droplets}\n{tab}Rscript {R_code_directory}/run{suffix}.R {R_code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_path_variable_gene_identification} predicted.celltype.l2")
+#   )
+
 
 
 # # >>> COMMUNICATION FAST

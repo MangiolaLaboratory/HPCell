@@ -23,7 +23,7 @@ output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
 
 reference_azimuth = readRDS(reference_azimuth_path)
 
-# Readingh input
+# Reading input
 input_file = readRDS(input_path)
 
 # Define common anchors
