@@ -53,12 +53,12 @@ metadata_path=~/PostDoc/covid19pbmc/data/3_prime_batch_1/metadata.rds
 # This is in a shared location 
 reference_azimuth_path=/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/reference_azimuth.rds
 ```
-Add input file in the input directory. Each input file should
+Add input files in the input directory. 
 
-1) Be a seurat object
-2) Just inbclude row counts in the `RNA` assay
-3) Include only one sample
-4) Be named `SAMPLE_NAME`.rds
+1) Each input file should be a seurat object
+2) Each input file should just inbclude row counts in the `RNA` assay
+3) Each input file should include only one sample 
+4) Each input file should be named `SAMPLE_NAME`.rds
 5) All `SAMPLE_NAME` should be unique for each sample (if a sample has different timepoints the `SAMPLE_NAME` should be made unique, for example `SAMPLE_NAME_TIME_POINT`)
 
 You should copy those files in your input directory, for example 
