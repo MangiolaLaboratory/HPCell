@@ -38,7 +38,10 @@ readRDS(input_path_demultiplexed) |>
   SCTransform(assay="RNA") |>
 
   # Normalise antibodies
-  NormalizeData(normalization.method = 'CLR', margin = 2, assay="ADT") |>
+  when(
+    "ADT" %in% names(.@assays) ~ NormalizeData(., normalization.method = 'CLR', margin = 2, assay="ADT") ,
+    ~ (.)
+  ) |>
 
   # Save
   saveRDS(output_path)
