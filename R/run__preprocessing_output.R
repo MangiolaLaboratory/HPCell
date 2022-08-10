@@ -20,33 +20,19 @@ library(tidySingleCellExperiment)
 # Create dir
 output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
 
-preprocessing_output =
-  readRDS(input_path_non_batch_variation_removal) |>
+readRDS(input_path_non_batch_variation_removal) |>
 
-  # Filter dead
-  left_join(
-    readRDS(input_path_alive) |>
-
-      # Otherwise the joining down the pipeline fails because the variables are of the strange class otlr.flt
-      mutate(
-        high_mitochondrion = as.logical(high_mitochondrion),
-        high_RPS = as.logical(high_RPS)
-      ),
-    by = ".cell"
-  ) |>
-  filter(!high_mitochondrion & !high_RPS) |>
-
-  # Annotate
-  left_join(readRDS(input_path_annotation_label_transfer), by = ".cell") |>
+  # Filter dead cells
+  left_join(readRDS(input_path_alive) |> select(.cell, alive), by = ".cell") |>
+  filter(alive) |>
 
   # Filter doublets
-  filter(.cell %in% (
-    readRDS(input_path_doublet_identification) |>
-      filter( scDblFinder.class == "singlet") |>
-      pull(.cell)
-  ))
+  left_join(readRDS(input_path_doublet_identification) |> select(.cell, scDblFinder.class), by = ".cell") |>
+  filter(scDblFinder.class=="singlet") |>
 
-preprocessing_output |>
+  # Filter Red blood cells and platelets
+  left_join(readRDS(input_path_annotation_label_transfer), by = ".cell") |>
+  filter(!predicted.celltype.l2 %in% c("Eryth", "Platelet")) |>
 
   # Save
   saveRDS(output_path)
