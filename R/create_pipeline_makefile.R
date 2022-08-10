@@ -130,7 +130,6 @@ commands =
 
 
 # >>> WRITE PREPROCESSING RESULT
-
 suffix = "__preprocessing_output"
 output_directory = glue("{result_directory}/preprocessing_results/preprocessing_output")
 output_path_preprocessing_results =   glue("{output_directory}/{samples}{suffix}_output.rds")
@@ -160,6 +159,55 @@ commands =
     glue("{output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}:{paste(output_path_preprocessing_results, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {paste(output_path_preprocessing_results, collapse=\" \")} {output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}")
 
   )
+
+
+
+
+
+
+# >>> VARIABLE GENE SELECTION, BY BATCH AND BROAD CELL TYPE
+metadata = readRDS(metadata_path)
+suffix = "__variable_gene_identification"
+output_directory = glue("{result_directory}/preprocessing_results/variable_gene_identification")
+
+
+commands_variable_gene =
+  tibble(sample = samples, input_path_demultiplexed, output_path_empty_droplets, output_path_alive, output_path_doublet_identification, output_paths_annotation_label_transfer) |>
+
+  # Add batch
+  left_join(
+    readRDS(metadata_path) |>
+      distinct(sample, batch),
+    by="sample"
+  ) |>
+
+  # Create list of files
+  with_groups(
+    batch,
+    ~ summarise(.x, input_files = paste(
+      c(input_path_demultiplexed, output_path_empty_droplets, output_path_alive, output_path_doublet_identification, output_paths_annotation_label_transfer),
+      collapse = " "
+    ))
+  ) |>
+
+  # Output file
+  mutate(output_file = glue("{output_directory}/{batch}{suffix}_output.rds") ) |>
+
+  # create command
+  mutate(command =  glue("{output_file}:{input_files}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_files} predicted.celltype.l1 {output_file}")) |>
+  pull(command) |>
+  unlist()
+
+commands =
+  commands |> c(
+    glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=11\nWALL_TIME=30000"),
+    commands_variable_gene
+
+  )
+
+
+
+
 
 
 # # >>> COMMUNICATION FAST
@@ -232,6 +280,9 @@ commands =
     glue("{output_path_differential_composition_fast} {output_path_plot_credible_intervals} {output_path_plot_boxplot}:{metadata_path} {paste(output_paths_annotation_label_transfer, collapse=\" \") }\n{tab}Rscript {R_code_directory}/run__differential_composition.R {code_directory} {metadata_path} {paste(output_paths_annotation_label_transfer, collapse=\" \") } {output_path_differential_composition_fast} {output_path_plot_credible_intervals} {output_path_plot_boxplot}")
 
   )
+
+
+
 
 
 
