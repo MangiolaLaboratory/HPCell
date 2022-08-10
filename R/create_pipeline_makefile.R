@@ -150,13 +150,14 @@ commands =
 # >>> PSEUDOBULK PREPROCESSING
 suffix = "__pseudobulk_preprocessing"
 output_directory = glue("{result_directory}/preprocessing_results/pseudobulk_preprocessing")
-output_path_pseudobulk_preprocessing =   glue("{output_directory}/pseudobulk_preprocessing_output.rds")
+output_path_pseudobulk_preprocessing_sample_cell_type =   glue("{output_directory}/pseudobulk_preprocessing_sample_cell_type_output.rds")
+output_path_pseudobulk_preprocessing_sample =   glue("{output_directory}/pseudobulk_preprocessing_sample_output.rds")
 
 # Create input
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=11\nWALL_TIME=30000"),
-    glue("{output_path_pseudobulk_preprocessing}:{paste(output_path_preprocessing_results, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {paste(output_path_preprocessing_results, collapse=\" \")} {output_path_pseudobulk_preprocessing}")
+    glue("{output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}:{paste(output_path_preprocessing_results, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {paste(output_path_preprocessing_results, collapse=\" \")} {output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}")
 
   )
 
@@ -210,7 +211,7 @@ output_path_plot_significant =   glue("{output_directory}/plot_significant.rds")
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=70024\nCORES=1\nWALL_TIME=30000"),
-    glue("{output_path_differential_transcript_abundance_fast} {output_path_plot_densities} {output_path_plot_significant}:{output_path_pseudobulk_preprocessing} {metadata_path}\n{tab}Rscript {R_code_directory}/run__differential_transcript_abundance.R {code_directory} {output_path_pseudobulk_preprocessing} {metadata_path} {output_path_differential_transcript_abundance_fast} {output_path_plot_densities} {output_path_plot_significant}")
+    glue("{output_path_differential_transcript_abundance_fast} {output_path_plot_densities} {output_path_plot_significant}:{output_path_pseudobulk_preprocessing_sample_cell_type} {metadata_path}\n{tab}Rscript {R_code_directory}/run__differential_transcript_abundance.R {code_directory} {output_path_pseudobulk_preprocessing_sample_cell_type} {metadata_path} {output_path_differential_transcript_abundance_fast} {output_path_plot_densities} {output_path_plot_significant}")
 
   )
 
