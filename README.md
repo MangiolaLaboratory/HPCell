@@ -71,7 +71,10 @@ Execute pipeline using `makeflow`
 
 ```{bash}
 # Create $input_directory/pipeline.makeflow
-Rscript $code_directory/R/create_pipeline_makefile.R $result_directory $input_directory $code_directory $metadata_path $reference_azimuth_path
+#
+# The pipeline has 4 modes (first argument of create_pipeline_makefile.R)
+# preprocessing, fast_pipeline, slow_pipeline, complete
+Rscript $code_directory/R/create_pipeline_makefile.R complete_pipeline $result_directory $input_directory $code_directory $metadata_path $reference_azimuth_path
 
 # Execute makeflow
 conda activate cctools-env

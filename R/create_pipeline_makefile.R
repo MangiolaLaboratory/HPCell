@@ -9,20 +9,23 @@ commands = c()
 tab = "\t"
 
 # Read arguments
-# Read arguments
 args = commandArgs(trailingOnly=TRUE)
-result_directory = args[[1]]
-input_directory = args[[2]]
-code_directory = args[[3]]
-metadata_path = args[[4]]
-reference_azimuth_path = args[[5]]
+modality = args[[1]]
+result_directory = args[[2]]
+input_directory = args[[3]]
+code_directory = args[[4]]
+metadata_path = args[[5]]
+reference_azimuth_path = args[[6]]
+
+# Check modality
+if(!modality %in% c("preprocessing", "slow_pipeline", "fast_pipeline", "complete_pipeline"))
+  stop("jascap says: modality should be one of the following: preprocessing, slow_pipeline, fast_pipeline, all")
 
 # Create dir
 result_directory |> dir.create( showWarnings = FALSE, recursive = TRUE)
 
 renv::activate(project = code_directory)
 
-# This script slipts the dataset and creates the list of files in a specific directory
 library(tidyverse)
 library(glue)
 library(here)
@@ -207,80 +210,84 @@ commands =
 
 
 
+if(modality %in% c("fast_pipeline", "complete_pipeline")){
 
 
 
-# # >>> COMMUNICATION FAST
-#
-# cores = 4
-#
-# # Output
-# output_directory = glue("{result_directory}/fast_pipeline_results/communication")
-# output_path_ligand_receptor_count =   glue("{output_directory}/{samples}_ligand_receptor_count_output.rds")
-#
-#
-# # Create input
-# commands =
-#   commands |>
-#   c(
-#     "CATEGORY=communication1\nMEMORY=10024\nCORES=4\nWALL_TIME=9000",
-#     glue("{output_path_ligand_receptor_count}:{output_path_preprocessing_results}\n{tab}Rscript {R_code_directory}/run__ligand_receptor_count.R {code_directory} {output_path_preprocessing_results} {output_path_ligand_receptor_count}")
-#
-#   )
-#
-# # CellChat results
-# #output_path_communication_hypothesis_testing =   glue("{output_directory}/communication_output.rds")
-# output_path_plot_overall =  glue("{output_directory}/plot_communication_overall.pdf")
-# output_path_plot_heatmap =  glue("{output_directory}/plot_communication_heatmap.pdf")
-# output_path_plot_circle =  glue("{output_directory}/plot_communication_circle.pdf")
-# output_path_values_communication =  glue("{output_directory}/values_communication.rds")
-#
-# commands =
-#   commands |>
-#   c(
-#     "CATEGORY=communication2\nMEMORY=50024\nCORES=2\nWALL_TIME=18000",
-#     glue("{output_path_plot_overall} {output_path_plot_heatmap} {output_path_plot_circle} {output_path_values_communication}:{paste(output_path_ligand_receptor_count, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run__differential_communication.R {code_directory} {paste(output_path_result, collapse=\" \")} {result_directory}/metadata.rds {output_path_plot_overall} {output_path_plot_heatmap} {output_path_plot_circle} {output_path_values_communication}")
-#
-#   )
-#
-#
+  # # >>> COMMUNICATION FAST
+  #
+  # cores = 4
+  #
+  # # Output
+  # output_directory = glue("{result_directory}/fast_pipeline_results/communication")
+  # output_path_ligand_receptor_count =   glue("{output_directory}/{samples}_ligand_receptor_count_output.rds")
+  #
+  #
+  # # Create input
+  # commands =
+  #   commands |>
+  #   c(
+  #     "CATEGORY=communication1\nMEMORY=10024\nCORES=4\nWALL_TIME=9000",
+  #     glue("{output_path_ligand_receptor_count}:{output_path_preprocessing_results}\n{tab}Rscript {R_code_directory}/run__ligand_receptor_count.R {code_directory} {output_path_preprocessing_results} {output_path_ligand_receptor_count}")
+  #
+  #   )
+  #
+  # # CellChat results
+  # #output_path_communication_hypothesis_testing =   glue("{output_directory}/communication_output.rds")
+  # output_path_plot_overall =  glue("{output_directory}/plot_communication_overall.pdf")
+  # output_path_plot_heatmap =  glue("{output_directory}/plot_communication_heatmap.pdf")
+  # output_path_plot_circle =  glue("{output_directory}/plot_communication_circle.pdf")
+  # output_path_values_communication =  glue("{output_directory}/values_communication.rds")
+  #
+  # commands =
+  #   commands |>
+  #   c(
+  #     "CATEGORY=communication2\nMEMORY=50024\nCORES=2\nWALL_TIME=18000",
+  #     glue("{output_path_plot_overall} {output_path_plot_heatmap} {output_path_plot_circle} {output_path_values_communication}:{paste(output_path_ligand_receptor_count, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run__differential_communication.R {code_directory} {paste(output_path_result, collapse=\" \")} {result_directory}/metadata.rds {output_path_plot_overall} {output_path_plot_heatmap} {output_path_plot_circle} {output_path_values_communication}")
+  #
+  #   )
+  #
+  #
 
 
 
 
-# >>> PSEUDO BULK DIFFERENTIAL GENE TRANSCRIPT ABUNDANCE
-suffix = "__differential_transcript_abundance_fast"
-output_directory = glue("{result_directory}/fast_pipeline_results/differential_transcript_abundance")
-output_path_differential_transcript_abundance_fast=   glue("{output_directory}/differential_transcript_abundance_output.rds")
-output_path_plot_densities =   glue("{output_directory}/plot_densities.rds")
-output_path_plot_significant =   glue("{output_directory}/plot_significant.rds")
+  # >>> PSEUDO BULK DIFFERENTIAL GENE TRANSCRIPT ABUNDANCE
+  suffix = "__differential_transcript_abundance_fast"
+  output_directory = glue("{result_directory}/fast_pipeline_results/differential_transcript_abundance")
+  output_path_differential_transcript_abundance_fast=   glue("{output_directory}/differential_transcript_abundance_output.rds")
+  output_path_plot_densities =   glue("{output_directory}/plot_densities.rds")
+  output_path_plot_significant =   glue("{output_directory}/plot_significant.rds")
 
-# Create input
-commands =
-  commands |> c(
-    glue("CATEGORY={suffix}\nMEMORY=70024\nCORES=1\nWALL_TIME=30000"),
-    glue("{output_path_differential_transcript_abundance_fast} {output_path_plot_densities} {output_path_plot_significant}:{output_path_pseudobulk_preprocessing_sample_cell_type} {metadata_path}\n{tab}Rscript {R_code_directory}/run__differential_transcript_abundance.R {code_directory} {output_path_pseudobulk_preprocessing_sample_cell_type} {metadata_path} {output_path_differential_transcript_abundance_fast} {output_path_plot_densities} {output_path_plot_significant}")
+  # Create input
+  commands =
+    commands |> c(
+      glue("CATEGORY={suffix}\nMEMORY=70024\nCORES=1\nWALL_TIME=30000"),
+      glue("{output_path_differential_transcript_abundance_fast} {output_path_plot_densities} {output_path_plot_significant}:{output_path_pseudobulk_preprocessing_sample_cell_type} {metadata_path}\n{tab}Rscript {R_code_directory}/run__differential_transcript_abundance.R {code_directory} {output_path_pseudobulk_preprocessing_sample_cell_type} {metadata_path} {output_path_differential_transcript_abundance_fast} {output_path_plot_densities} {output_path_plot_significant}")
 
-  )
-
-
-
-# >>> PSEUDO BULK DIFFERENTIAL COMPOSITION
-suffix = "__differential_composition_fast"
-output_directory = glue("{result_directory}/fast_pipeline_results/differential_composition")
-output_path_differential_composition_fast = glue("{output_directory}/differential_composition_output.rds")
-output_path_plot_credible_intervals = glue("{output_directory}/plot_credible_intervals.rds")
-output_path_plot_boxplot = glue("{output_directory}/plot_boxplot.rds")
+    )
 
 
-# Create input
-commands =
-  commands |> c(
-    glue("CATEGORY={suffix}\nMEMORY=70024\nCORES=1\nWALL_TIME=30000"),
-    glue("{output_path_differential_composition_fast} {output_path_plot_credible_intervals} {output_path_plot_boxplot}:{metadata_path} {paste(output_paths_annotation_label_transfer, collapse=\" \") }\n{tab}Rscript {R_code_directory}/run__differential_composition.R {code_directory} {metadata_path} {paste(output_paths_annotation_label_transfer, collapse=\" \") } {output_path_differential_composition_fast} {output_path_plot_credible_intervals} {output_path_plot_boxplot}")
 
-  )
+  # >>> PSEUDO BULK DIFFERENTIAL COMPOSITION
+  suffix = "__differential_composition_fast"
+  output_directory = glue("{result_directory}/fast_pipeline_results/differential_composition")
+  output_path_differential_composition_fast = glue("{output_directory}/differential_composition_output.rds")
+  output_path_plot_credible_intervals = glue("{output_directory}/plot_credible_intervals.rds")
+  output_path_plot_boxplot = glue("{output_directory}/plot_boxplot.rds")
 
+
+  # Create input
+  commands =
+    commands |> c(
+      glue("CATEGORY={suffix}\nMEMORY=70024\nCORES=1\nWALL_TIME=30000"),
+      glue("{output_path_differential_composition_fast} {output_path_plot_credible_intervals} {output_path_plot_boxplot}:{metadata_path} {paste(output_paths_annotation_label_transfer, collapse=\" \") }\n{tab}Rscript {R_code_directory}/run__differential_composition.R {code_directory} {metadata_path} {paste(output_paths_annotation_label_transfer, collapse=\" \") } {output_path_differential_composition_fast} {output_path_plot_credible_intervals} {output_path_plot_boxplot}")
+
+    )
+
+
+
+}
 
 
 
