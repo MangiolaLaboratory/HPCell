@@ -167,53 +167,6 @@ commands =
 
 
 
-
-
-
-# >>> VARIABLE GENE SELECTION, BY BATCH AND BROAD CELL TYPE
-metadata = readRDS(metadata_path)
-suffix = "__variable_gene_identification"
-output_directory = glue("{result_directory}/preprocessing_results/variable_gene_identification")
-
-
-commands_variable_gene =
-  tibble(sample = samples, input_path_demultiplexed, output_path_empty_droplets, output_path_alive, output_path_doublet_identification, output_paths_annotation_label_transfer) |>
-
-  # Add batch
-  left_join(
-    readRDS(metadata_path) |>
-      distinct(sample, batch),
-    by="sample"
-  ) |>
-
-  # Create list of files
-  with_groups(
-    batch,
-    ~ summarise(.x, input_files = paste(
-      c(input_path_demultiplexed, output_path_empty_droplets, output_path_alive, output_path_doublet_identification, output_paths_annotation_label_transfer),
-      collapse = " "
-    ))
-  ) |>
-
-  # Output file
-  mutate(output_file = glue("{output_directory}/{batch}{suffix}_output.rds") ) |>
-
-  # create command
-  mutate(command =  glue("{output_file}:{input_files}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_files} predicted.celltype.l1 {output_file}"))
-
-output_path_marged_variable_genes =   glue("{output_directory}/merged_{suffix}_output.rds")
-
-commands =
-  commands |> c(
-    glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=11\nWALL_TIME=30000"),
-    commands_variable_gene  |> pull(command) |> unlist(),
-    glue("{output_path_marged_variable_genes}:{paste(commands_variable_gene |> pull(output_file), collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}_merge.R {code_directory} {paste(commands_variable_gene |> pull(output_file), collapse=\" \")} {output_path_marged_variable_genes}")
-  )
-
-
-
-
-
 if(modality %in% c("fast_pipeline", "complete_pipeline")){
 
 
