@@ -65,21 +65,6 @@ commands =
 
 
 
-# >>> NORMALISATION
-suffix = "__non_batch_variation_removal"
-output_directory = glue("{result_directory}/preprocessing_results/non_batch_variation_removal")
-output_path_non_batch_variation_removal =   glue("{output_directory}/{samples}{suffix}_output.rds")
-
-# Create input
-commands =
-  commands |> c(
-    glue("CATEGORY={suffix}\nMEMORY=40024\nCORES=1\nWALL_TIME=30000"),
-    glue("{output_path_non_batch_variation_removal}:{input_path_demultiplexed} {output_path_empty_droplets}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_path_non_batch_variation_removal}")
-  )
-
-
-
-
 # >>> AZIMUTH ANNOTATION
 suffix = "__annotation_label_transfer"
 output_directory = glue("{result_directory}/preprocessing_results/annotation_label_transfer")
@@ -90,15 +75,16 @@ commands =
   commands |>
   c(
     glue("CATEGORY={suffix}\nMEMORY=30024\nCORES=1\nWALL_TIME=10000"),
-    output_path_non_batch_variation_removal %>%
-      enframe(value = "input_path") %>%
-      mutate(input_file =  basename(input_path)) %>%
-      extract(input_path,into = c("sample"), "([A-Za-z0-9_-]+)___.+", remove = FALSE) %>%
-      mutate(output_path = glue("{output_directory}/{sample}{suffix}.rds")) %>%
-      mutate(command = glue(
-        "{output_paths_annotation_label_transfer}:{output_path_non_batch_variation_removal}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {output_path_non_batch_variation_removal} {reference_azimuth_path} {output_paths_annotation_label_transfer}"
-      )) %>%
-      pull(command)
+    glue("{output_paths_annotation_label_transfer}:{input_path_demultiplexed} {output_path_empty_droplets}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {reference_azimuth_path} {output_paths_annotation_label_transfer}")
+    # output_path_non_batch_variation_removal %>%
+    #   enframe(value = "input_path") %>%
+    #   mutate(input_file =  basename(input_path)) %>%
+    #   extract(input_path,into = c("sample"), "([A-Za-z0-9_-]+)___.+", remove = FALSE) %>%
+    #   mutate(output_path = glue("{output_directory}/{sample}{suffix}.rds")) %>%
+    #   mutate(command = glue(
+    #     "{output_paths_annotation_label_transfer}:{input_path_demultiplexed} {output_path_empty_droplets}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {reference_azimuth_path} {output_paths_annotation_label_transfer}"
+    #   )) %>%
+    #   pull(command)
   )
 
 
@@ -130,41 +116,6 @@ commands =
     glue("{output_path_doublet_identification}:{input_path_demultiplexed} {output_path_empty_droplets} {output_path_alive} {output_paths_annotation_label_transfer}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification}")
 
   )
-
-
-
-
-# >>> WRITE PREPROCESSING RESULT
-suffix = "__preprocessing_output"
-output_directory = glue("{result_directory}/preprocessing_results/preprocessing_output")
-output_path_preprocessing_results =   glue("{output_directory}/{samples}{suffix}_output.rds")
-
-# Create input
-commands =
-  commands |> c(
-    glue("CATEGORY={suffix}\nMEMORY=10024\nCORES=2\nWALL_TIME=30000"),
-    glue("{output_path_preprocessing_results}:{output_path_non_batch_variation_removal} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {output_path_non_batch_variation_removal} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification} {output_path_preprocessing_results}")
-
-  )
-
-
-
-
-
-# >>> PSEUDOBULK PREPROCESSING
-suffix = "__pseudobulk_preprocessing"
-output_directory = glue("{result_directory}/preprocessing_results/pseudobulk_preprocessing")
-output_path_pseudobulk_preprocessing_sample_cell_type =   glue("{output_directory}/pseudobulk_preprocessing_sample_cell_type_output.rds")
-output_path_pseudobulk_preprocessing_sample =   glue("{output_directory}/pseudobulk_preprocessing_sample_output.rds")
-
-# Create input
-commands =
-  commands |> c(
-    glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=11\nWALL_TIME=30000"),
-    glue("{output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}:{paste(output_path_preprocessing_results, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {paste(output_path_preprocessing_results, collapse=\" \")} {output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}")
-
-  )
-
 
 
 
@@ -209,6 +160,57 @@ commands =
     commands_variable_gene  |> pull(command) |> unlist(),
     glue("{output_path_marged_variable_genes}:{paste(commands_variable_gene |> pull(output_file), collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}_merge.R {code_directory} {paste(commands_variable_gene |> pull(output_file), collapse=\" \")} {output_path_marged_variable_genes}")
   )
+
+
+
+
+# >>> NORMALISATION
+suffix = "__non_batch_variation_removal"
+output_directory = glue("{result_directory}/preprocessing_results/non_batch_variation_removal")
+output_path_non_batch_variation_removal =   glue("{output_directory}/{samples}{suffix}_output.rds")
+
+# Create input
+commands =
+  commands |> c(
+    glue("CATEGORY={suffix}\nMEMORY=40024\nCORES=1\nWALL_TIME=30000"),
+    glue("{output_path_non_batch_variation_removal}:{input_path_demultiplexed} {output_path_empty_droplets} {output_path_marged_variable_genes}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_path_marged_variable_genes} {output_path_non_batch_variation_removal}")
+  )
+
+
+
+# >>> WRITE PREPROCESSING RESULT
+suffix = "__preprocessing_output"
+output_directory = glue("{result_directory}/preprocessing_results/preprocessing_output")
+output_path_preprocessing_results =   glue("{output_directory}/{samples}{suffix}_output.rds")
+
+# Create input
+commands =
+  commands |> c(
+    glue("CATEGORY={suffix}\nMEMORY=10024\nCORES=2\nWALL_TIME=30000"),
+    glue("{output_path_preprocessing_results}:{output_path_non_batch_variation_removal} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {output_path_non_batch_variation_removal} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification} {output_path_preprocessing_results}")
+
+  )
+
+
+
+
+
+# >>> PSEUDOBULK PREPROCESSING
+suffix = "__pseudobulk_preprocessing"
+output_directory = glue("{result_directory}/preprocessing_results/pseudobulk_preprocessing")
+output_path_pseudobulk_preprocessing_sample_cell_type =   glue("{output_directory}/pseudobulk_preprocessing_sample_cell_type_output.rds")
+output_path_pseudobulk_preprocessing_sample =   glue("{output_directory}/pseudobulk_preprocessing_sample_output.rds")
+
+# Create input
+commands =
+  commands |> c(
+    glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=11\nWALL_TIME=30000"),
+    glue("{output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}:{paste(output_path_preprocessing_results, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {paste(output_path_preprocessing_results, collapse=\" \")} {output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}")
+
+  )
+
+
+
 
 
 

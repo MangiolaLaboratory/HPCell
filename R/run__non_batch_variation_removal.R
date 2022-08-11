@@ -11,7 +11,8 @@ args = commandArgs(trailingOnly = TRUE)
 code_directory = args[[1]]
 input_path_demultiplexed = args[[2]]
 input_path_empty_droplets = args[[3]]
-output_path = args[[4]]
+input_path_marged_variable_genes = args[[4]]
+output_path = args[[5]]
 
 renv::load(project = code_directory)
 
@@ -35,7 +36,7 @@ readRDS(input_path_demultiplexed) |>
   # tidyseurat::filter(!high_mitochondrion | !high_RPS) |>
 
   # Normalise RNA
-  SCTransform(assay="RNA") |>
+  SCTransform(assay="RNA", residual.features = readRDS(input_path_marged_variable_genes)) |>
 
   # Normalise antibodies
   when(

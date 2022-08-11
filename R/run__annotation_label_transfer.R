@@ -3,9 +3,10 @@
 # Read arguments
 args = commandArgs(trailingOnly=TRUE)
 code_directory = args[[1]]
-input_path = args[[2]]
-reference_azimuth_path = args[[3]]
-output_path = args[[4]]
+input_path_demultiplexed = args[[2]]
+input_path_empty_droplets = args[[3]]
+reference_azimuth_path = args[[4]]
+output_path = args[[5]]
 
 renv::load(project = code_directory)
 
@@ -24,7 +25,22 @@ output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
 reference_azimuth = readRDS(reference_azimuth_path)
 
 # Readingh input
-input_file = readRDS(input_path)
+input_file =
+
+  readRDS(input_path_demultiplexed) |>
+
+  # Filter empty
+  left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
+  tidyseurat::filter(!empty_droplet) |>
+
+  # Normalise RNA - not informed by smartly selected variable genes
+  SCTransform(assay="RNA") |>
+
+  # Normalise antibodies
+  when(
+    "ADT" %in% names(.@assays) ~ NormalizeData(., normalization.method = 'CLR', margin = 2, assay="ADT") ,
+    ~ (.)
+  )
 
 # Define common anchors
 anchors <- FindTransferAnchors(
