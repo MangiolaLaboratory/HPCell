@@ -11,6 +11,10 @@ tab = "\t"
 # Read arguments
 args = commandArgs(trailingOnly=TRUE)
 modality = args[[1]]
+
+if(!modality %in% c("preprocessing", "slow_pipeline", "fast_pipeline", "complete_pipeline"))
+  stop("jascap says: modality (the first argument) should be one of the following: preprocessing, slow_pipeline, fast_pipeline, complete_pipeline")
+
 result_directory = args[[2]]
 input_directory = args[[3]]
 code_directory = args[[4]]
@@ -18,8 +22,6 @@ metadata_path = args[[5]]
 reference_azimuth_path = args[[6]]
 
 # Check modality
-if(!modality %in% c("preprocessing", "slow_pipeline", "fast_pipeline", "complete_pipeline"))
-  stop("jascap says: modality should be one of the following: preprocessing, slow_pipeline, fast_pipeline, all")
 
 # Create dir
 result_directory |> dir.create( showWarnings = FALSE, recursive = TRUE)
@@ -197,16 +199,18 @@ commands_variable_gene =
   mutate(output_file = glue("{output_directory}/{batch}{suffix}_output.rds") ) |>
 
   # create command
-  mutate(command =  glue("{output_file}:{input_files}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_files} predicted.celltype.l1 {output_file}")) |>
-  pull(command) |>
-  unlist()
+  mutate(command =  glue("{output_file}:{input_files}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_files} predicted.celltype.l1 {output_file}"))
+
+output_path_marged_variable_genes =   glue("{output_directory}/merged_{suffix}_output.rds")
 
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=11\nWALL_TIME=30000"),
-    commands_variable_gene
-
+    commands_variable_gene  |> pull(command) |> unlist(),
+    glue("{output_path_marged_variable_genes}:{paste(commands_variable_gene |> pull(output_file), collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}_merge.R {code_directory} {paste(commands_variable_gene |> pull(output_file), collapse=\" \")} {output_path_marged_variable_genes}")
   )
+
+
 
 
 
