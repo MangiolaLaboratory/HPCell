@@ -51,6 +51,7 @@ barcode_table =
   emptyDrops( test.ambient = TRUE) |>
   as_tibble(rownames = ".cell") |>
   mutate(empty_droplet = !FDR< significance_threshold) |>
+  replace_na(list(empty_droplet = TRUE)) |>
 
   # barcode ranks
   left_join(
@@ -70,7 +71,7 @@ plot_barcode_ranks =
   barcode_table %>%
   ggplot2::ggplot(aes(rank, total)) +
   geom_point(aes(color = empty_droplet, size = empty_droplet )) +
-  geom_line(aes(rank, fitted), color="red") +
+  geom_line(aes(rank, fitted), color="purple") +
   geom_hline(aes(yintercept = knee), color="dodgerblue") +
   geom_hline(aes(yintercept = inflection), color="forestgreen") +
   scale_x_log10() +
