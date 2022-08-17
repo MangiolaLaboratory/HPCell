@@ -61,7 +61,7 @@ estimates_time =
   cell_data |>
   filter(!is.na(days_since_symptom_onset_log)) |>
   sccomp_glm(
-    formula_composition = ~ days_since_symptom_onset_log + severity,
+    formula_composition = ~ days_since_symptom_onset_log + severity + donor,
     formula_variability = ~ days_since_symptom_onset_log + severity,
     .sample = sample,
     .cell_group = predicted.celltype.l2,
