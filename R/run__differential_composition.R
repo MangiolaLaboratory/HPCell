@@ -42,6 +42,12 @@ cell_data =
 estimates =
   cell_data |>
 
+  # Only select one sample per donor
+  replace_na(list(days_since_symptom_onset = 0)) |>
+  with_groups(donor, ~ .x |>  mutate(median_timepoint = days_since_symptom_onset |> median()))  |>
+  mutate(diff = days_since_symptom_onset- median_timepoint) |>
+  with_groups(donor, ~ .x |> arrange(median_timepoint) |> slice(1)) |>
+
   # This will not be needed with contrasts
   sccomp_glm(
     formula_composition = ~ 0 + severity,
@@ -100,10 +106,58 @@ plots_CI_time =
   plot_layout(guides = 'collect') &
   theme( plot.margin = margin(0, 0, 0, 0, "pt"), legend.position = "bottom")
 
+replicate_data =
+  estimates_time |>
+  filter(parameter == "days_since_symptom_onset_log") |>
+
+  # Significant
+  filter(c_FDR<0.05) |>
+
+  # Group by changes
+  mutate(increase = if_else( c_effect > 0, "Increasing", "Decreasing")) |>
+
+  # Get mean Proportions
+  left_join(
+    estimates_time |>
+      replicate_data(
+        formula_composition = ~ days_since_symptom_onset_log,
+        formula_variability = ~ days_since_symptom_onset_log,
+        number_of_draws = 100,
+        mcmc_seed = 42
+      )  |>
+      left_join(cell_data |> distinct(sample, days_since_symptom_onset_log, days_since_symptom_onset)) ,
+    by = "predicted.celltype.l2"
+  )
+
+
+
+plot_point_time =
+
+    replicate_data |>
+
+  #left_join(proportion_df) |>
+
+  ggplot(aes(days_since_symptom_onset, generated_proportions, color = predicted.celltype.l2, group=predicted.celltype.l2)) +
+  stat_summary(
+    geom="ribbon",
+    fun.min = function(z) { quantile(z,0.25) },
+    fun.max = function(z) { quantile(z,0.75) },
+    aes(fill=predicted.celltype.l2), alpha=0.3
+  ) +
+  geom_point(
+    data = replicate_data |> with_groups(c(sample, predicted.celltype.l2), ~ slice(.x,1)) ,
+    aes(days_since_symptom_onset, generated_proportions),
+    size=0.2
+  ) +
+  facet_wrap(~ increase) +
+  scale_x_log10() +
+  xlab("Days since synthoms") + ylab("Adjusted cell-type proportion")
+
 # Plot
 list(
   plots,
-  plots_CI_time
+  plots_CI_time,
+  plot_point_time
 ) |>
   saveRDS(output_path_plot_credible_intervals)
 
