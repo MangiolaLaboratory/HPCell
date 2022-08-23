@@ -46,7 +46,7 @@ estimates =
   replace_na(list(days_since_symptom_onset = 0)) |>
   with_groups(donor, ~ .x |>  mutate(median_timepoint = days_since_symptom_onset |> median()))  |>
   mutate(diff = days_since_symptom_onset- median_timepoint) |>
-  with_groups(donor, ~ .x |> arrange(median_timepoint) |> slice(1)) |>
+  with_groups(c(donor, predicted.celltype.l2), ~ .x |> arrange(median_timepoint) |> slice(1))  |>
 
   # This will not be needed with contrasts
   sccomp_glm(
