@@ -220,40 +220,40 @@ if(modality %in% c("fast_pipeline", "complete_pipeline")){
 
 
 
-  # # >>> COMMUNICATION FAST
-  #
-  # cores = 4
-  #
-  # # Output
-  # output_directory = glue("{result_directory}/fast_pipeline_results/communication")
-  # output_path_ligand_receptor_count =   glue("{output_directory}/{samples}_ligand_receptor_count_output.rds")
-  #
-  #
-  # # Create input
-  # commands =
-  #   commands |>
-  #   c(
-  #     "CATEGORY=communication1\nMEMORY=10024\nCORES=4\nWALL_TIME=9000",
-  #     glue("{output_path_ligand_receptor_count}:{output_path_preprocessing_results}\n{tab}Rscript {R_code_directory}/run__ligand_receptor_count.R {code_directory} {output_path_preprocessing_results} {output_path_ligand_receptor_count}")
-  #
-  #   )
-  #
-  # # CellChat results
-  # #output_path_communication_hypothesis_testing =   glue("{output_directory}/communication_output.rds")
-  # output_path_plot_overall =  glue("{output_directory}/plot_communication_overall.pdf")
-  # output_path_plot_heatmap =  glue("{output_directory}/plot_communication_heatmap.pdf")
-  # output_path_plot_circle =  glue("{output_directory}/plot_communication_circle.pdf")
-  # output_path_values_communication =  glue("{output_directory}/values_communication.rds")
-  #
-  # commands =
-  #   commands |>
-  #   c(
-  #     "CATEGORY=communication2\nMEMORY=50024\nCORES=2\nWALL_TIME=18000",
-  #     glue("{output_path_plot_overall} {output_path_plot_heatmap} {output_path_plot_circle} {output_path_values_communication}:{paste(output_path_ligand_receptor_count, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run__differential_communication.R {code_directory} {paste(output_path_result, collapse=\" \")} {result_directory}/metadata.rds {output_path_plot_overall} {output_path_plot_heatmap} {output_path_plot_circle} {output_path_values_communication}")
-  #
-  #   )
-  #
-  #
+  # >>> COMMUNICATION FAST
+
+  cores = 4
+
+  # Output
+  output_directory = glue("{result_directory}/fast_pipeline_results/communication")
+  output_path_ligand_receptor_count =   glue("{output_directory}/{samples}_ligand_receptor_count_output.rds")
+
+
+  # Create input
+  commands =
+    commands |>
+    c(
+      "CATEGORY=communication1\nMEMORY=10024\nCORES=4\nWALL_TIME=9000",
+      glue("{output_path_ligand_receptor_count}:{output_path_preprocessing_results}\n{tab}Rscript {R_code_directory}/run__ligand_receptor_count.R {code_directory} {output_path_preprocessing_results} {output_path_ligand_receptor_count}")
+
+    )
+
+  # CellChat results
+  #output_path_communication_hypothesis_testing =   glue("{output_directory}/communication_output.rds")
+  output_path_plot_overall =  glue("{output_directory}/plot_communication_overall.rds")
+  output_path_plot_heatmap =  glue("{output_directory}/plot_communication_heatmap.rds")
+  output_path_plot_circle =  glue("{output_directory}/plot_communication_circle.rds")
+  output_path_values_communication =  glue("{output_directory}/values_communication.rds")
+
+  commands =
+    commands |>
+    c(
+      "CATEGORY=communication2\nMEMORY=50024\nCORES=2\nWALL_TIME=18000",
+      glue("{output_path_plot_overall} {output_path_plot_heatmap} {output_path_plot_circle} {output_path_values_communication}:{paste(output_path_ligand_receptor_count, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run__differential_communication.R {code_directory} {paste(output_path_ligand_receptor_count, collapse=\" \")} {result_directory}/metadata.rds {output_path_plot_overall} {output_path_plot_heatmap} {output_path_plot_circle} {output_path_values_communication}")
+
+    )
+
+
 
 
 

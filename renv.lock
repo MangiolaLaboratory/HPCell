@@ -3628,8 +3628,8 @@
       "RemoteRepo": "sccomp",
       "RemoteUsername": "stemangiola",
       "RemoteRef": "HEAD",
-      "RemoteSha": "6b43b79cc9ab58d7e9eeae22d5afe4faf300e9f7",
-      "Hash": "133ccaa603661bf516ff68d4dd5f5e2e",
+      "RemoteSha": "d89cfdfbe00cf4aa1ce73e8c5b5a27f550077387",
+      "Hash": "79a18dd3fa3673faa6c555fdea17c707",
       "Requirements": [
         "BH",
         "Rcpp",
