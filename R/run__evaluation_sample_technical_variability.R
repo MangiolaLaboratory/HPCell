@@ -86,7 +86,7 @@ data_umap =
 
   # UMAP
   RunPCA(dims = 1:30, assay=assay_of_choice) |>
-  RunUMAP(dims = 1:30, n.components = 3L, spread = 0.5,min.dist  = 0.01, n.neighbors = 10L) |>
+  RunUMAP(dims = 1:30, spread = 0.5,min.dist  = 0.01, n.neighbors = 10L) |>
   as_tbble()
 
 # Plot
