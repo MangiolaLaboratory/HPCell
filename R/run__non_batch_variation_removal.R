@@ -36,7 +36,7 @@ readRDS(input_path_demultiplexed) |>
   # tidyseurat::filter(!high_mitochondrion | !high_RPS) |>
 
   # Normalise RNA
-  SCTransform(assay="RNA", residual.features = readRDS(input_path_marged_variable_genes)) |>
+  SCTransform(assay="RNA", residual.features = readRDS(input_path_marged_variable_genes), return.only.var.genes=FALSE) |>
 
   # Normalise antibodies
   when(

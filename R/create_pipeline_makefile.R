@@ -62,7 +62,19 @@ commands =
   )
 
 
+# >>> CHECK IF SAMPLES WITHIN BATCH HAVE TECHNICAL VARIATION
+suffix = "__evaluation_sample_technical_variability"
+output_directory = glue("{result_directory}/preprocessing_results/evaluation_sample_technical_variability")
+output_path_data_umap =   glue("{output_directory}/data_umap_output.rds")
+output_path_plot_umap =   glue("{output_directory}/plot_umap_output.rds")
 
+# Create input
+commands =
+  commands |> c(
+    glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=11\nWALL_TIME=30000"),
+    glue("{output_path_data_umap} {output_path_plot_umap}:{metadata_path} {paste(input_path_demultiplexed, collapse=\" \")} {paste(output_path_empty_droplets, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {metadata_path} {paste(input_path_demultiplexed, collapse=\" \")} {paste(output_path_empty_droplets, collapse=\" \")} {output_path_data_umap} {output_path_plot_umap}")
+
+  )
 
 
 # >>> AZIMUTH ANNOTATION
@@ -208,11 +220,6 @@ commands =
     glue("{output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}:{paste(output_path_preprocessing_results, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {paste(output_path_preprocessing_results, collapse=\" \")} {output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}")
 
   )
-
-
-
-
-
 
 
 
