@@ -42,15 +42,15 @@ cell_data =
 estimates =
   cell_data |>
 
-  # Only select one sample per donor
-  replace_na(list(days_since_symptom_onset = 0)) |>
-  with_groups(donor, ~ .x |>  mutate(median_timepoint = days_since_symptom_onset |> median()))  |>
-  mutate(diff = days_since_symptom_onset- median_timepoint) |>
-  with_groups(c(donor, predicted.celltype.l2), ~ .x |> arrange(median_timepoint) |> slice(1))  |>
+  # # Only select one sample per donor
+  # replace_na(list(days_since_symptom_onset = 0)) |>
+  # with_groups(donor, ~ .x |>  mutate(median_timepoint = days_since_symptom_onset |> median()))  |>
+  # mutate(diff = days_since_symptom_onset- median_timepoint) |>
+  # with_groups(c(donor, predicted.celltype.l2), ~ .x |> arrange(median_timepoint) |> slice(1))  |>
 
   # This will not be needed with contrasts
   sccomp_glm(
-    formula_composition = ~ 0 + severity,
+    formula_composition = ~ 0 + severity + (severity | donor),
     formula_variability = ~ 0 + severity,
     .sample = sample,
     .cell_group = predicted.celltype.l2,
