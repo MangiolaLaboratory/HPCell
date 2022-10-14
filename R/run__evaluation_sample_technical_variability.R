@@ -87,7 +87,7 @@ data_umap =
   # UMAP
   RunPCA(dims = 1:30, assay=assay_of_choice) |>
   RunUMAP(dims = 1:30, spread = 0.5,min.dist  = 0.01, n.neighbors = 10L) |>
-  as_tbble()
+  as_tibble()
 
 # Plot
 plot_sample_color =
@@ -131,6 +131,8 @@ plot_batch_color =
  # Save
 saveRDS(data_umap, output_path_dataframe)
 saveRDS(list(
-  plot_sample_color, plot_severity_color, plot_batch_color
+  plot_sample_color,
+   plot_severity_color,
+  plot_batch_color
 ), output_path_plot_umap) +
   theme_multipanel
