@@ -62,22 +62,19 @@ commands =
   )
 
 
-
-
-
-# >>> NORMALISATION
-suffix = "__non_batch_variation_removal"
-output_directory = glue("{result_directory}/preprocessing_results/non_batch_variation_removal")
-output_path_non_batch_variation_removal =   glue("{output_directory}/{samples}{suffix}_output.rds")
+# >>> CHECK IF SAMPLES WITHIN BATCH HAVE TECHNICAL VARIATION
+suffix = "__evaluation_sample_technical_variability"
+output_directory = glue("{result_directory}/preprocessing_results/evaluation_sample_technical_variability")
+output_path_data_umap =   glue("{output_directory}/data_umap_output.rds")
+output_path_plot_umap =   glue("{output_directory}/plot_umap_output.rds")
 
 # Create input
 commands =
   commands |> c(
-    glue("CATEGORY={suffix}\nMEMORY=40024\nCORES=1\nWALL_TIME=30000"),
-    glue("{output_path_non_batch_variation_removal}:{input_path_demultiplexed} {output_path_empty_droplets}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_path_non_batch_variation_removal}")
+    glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=11\nWALL_TIME=30000"),
+    glue("{output_path_data_umap} {output_path_plot_umap}:{metadata_path} {paste(input_path_demultiplexed, collapse=\" \")} {paste(output_path_empty_droplets, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {metadata_path} {paste(input_path_demultiplexed, collapse=\" \")} {paste(output_path_empty_droplets, collapse=\" \")} {output_path_data_umap} {output_path_plot_umap}")
+
   )
-
-
 
 
 # >>> AZIMUTH ANNOTATION
@@ -90,15 +87,16 @@ commands =
   commands |>
   c(
     glue("CATEGORY={suffix}\nMEMORY=30024\nCORES=1\nWALL_TIME=10000"),
-    output_path_non_batch_variation_removal %>%
-      enframe(value = "input_path") %>%
-      mutate(input_file =  basename(input_path)) %>%
-      extract(input_path,into = c("sample"), "([A-Za-z0-9_-]+)___.+", remove = FALSE) %>%
-      mutate(output_path = glue("{output_directory}/{sample}{suffix}.rds")) %>%
-      mutate(command = glue(
-        "{output_paths_annotation_label_transfer}:{output_path_non_batch_variation_removal}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {output_path_non_batch_variation_removal} {reference_azimuth_path} {output_paths_annotation_label_transfer}"
-      )) %>%
-      pull(command)
+    glue("{output_paths_annotation_label_transfer}:{input_path_demultiplexed} {output_path_empty_droplets}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {reference_azimuth_path} {output_paths_annotation_label_transfer}")
+    # output_path_non_batch_variation_removal %>%
+    #   enframe(value = "input_path") %>%
+    #   mutate(input_file =  basename(input_path)) %>%
+    #   extract(input_path,into = c("sample"), "([A-Za-z0-9_-]+)___.+", remove = FALSE) %>%
+    #   mutate(output_path = glue("{output_directory}/{sample}{suffix}.rds")) %>%
+    #   mutate(command = glue(
+    #     "{output_paths_annotation_label_transfer}:{input_path_demultiplexed} {output_path_empty_droplets}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {reference_azimuth_path} {output_paths_annotation_label_transfer}"
+    #   )) %>%
+    #   pull(command)
   )
 
 
@@ -133,6 +131,60 @@ commands =
 
 
 
+# >>> VARIABLE GENE SELECTION, BY BATCH AND BROAD CELL TYPE
+metadata = readRDS(metadata_path)
+suffix = "__variable_gene_identification"
+output_directory = glue("{result_directory}/preprocessing_results/variable_gene_identification")
+
+
+commands_variable_gene =
+  tibble(sample = samples, input_path_demultiplexed, output_path_empty_droplets, output_path_alive, output_path_doublet_identification, output_paths_annotation_label_transfer) |>
+
+  # Add batch
+  left_join(
+    readRDS(metadata_path) |>
+      distinct(sample, batch),
+    by="sample"
+  ) |>
+
+  # Create list of files
+  with_groups(
+    batch,
+    ~ summarise(.x, input_files = paste(
+      c(input_path_demultiplexed, output_path_empty_droplets, output_path_alive, output_path_doublet_identification, output_paths_annotation_label_transfer),
+      collapse = " "
+    ))
+  ) |>
+
+  # Output file
+  mutate(output_file = glue("{output_directory}/{batch}{suffix}_output.rds") ) |>
+
+  # create command
+  mutate(command =  glue("{output_file}:{input_files}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_files} predicted.celltype.l1 {output_file}"))
+
+output_path_marged_variable_genes =   glue("{output_directory}/merged_{suffix}_output.rds")
+
+commands =
+  commands |> c(
+    glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=11\nWALL_TIME=30000"),
+    commands_variable_gene  |> pull(command) |> unlist(),
+    glue("{output_path_marged_variable_genes}:{paste(commands_variable_gene |> pull(output_file), collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}_merge.R {code_directory} {paste(commands_variable_gene |> pull(output_file), collapse=\" \")} {output_path_marged_variable_genes}")
+  )
+
+
+
+
+# >>> NORMALISATION
+suffix = "__non_batch_variation_removal"
+output_directory = glue("{result_directory}/preprocessing_results/non_batch_variation_removal")
+output_path_non_batch_variation_removal =   glue("{output_directory}/{samples}{suffix}_output.rds")
+
+# Create input
+commands =
+  commands |> c(
+    glue("CATEGORY={suffix}\nMEMORY=40024\nCORES=1\nWALL_TIME=30000"),
+    glue("{output_path_non_batch_variation_removal}:{input_path_demultiplexed} {output_path_empty_droplets} {output_path_marged_variable_genes}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_path_marged_variable_genes} {output_path_non_batch_variation_removal}")
+  )
 
 # >>> WRITE PREPROCESSING RESULT
 suffix = "__preprocessing_output"
@@ -171,40 +223,40 @@ if(modality %in% c("fast_pipeline", "complete_pipeline")){
 
 
 
-  # # >>> COMMUNICATION FAST
-  #
-  # cores = 4
-  #
-  # # Output
-  # output_directory = glue("{result_directory}/fast_pipeline_results/communication")
-  # output_path_ligand_receptor_count =   glue("{output_directory}/{samples}_ligand_receptor_count_output.rds")
-  #
-  #
-  # # Create input
-  # commands =
-  #   commands |>
-  #   c(
-  #     "CATEGORY=communication1\nMEMORY=10024\nCORES=4\nWALL_TIME=9000",
-  #     glue("{output_path_ligand_receptor_count}:{output_path_preprocessing_results}\n{tab}Rscript {R_code_directory}/run__ligand_receptor_count.R {code_directory} {output_path_preprocessing_results} {output_path_ligand_receptor_count}")
-  #
-  #   )
-  #
-  # # CellChat results
-  # #output_path_communication_hypothesis_testing =   glue("{output_directory}/communication_output.rds")
-  # output_path_plot_overall =  glue("{output_directory}/plot_communication_overall.pdf")
-  # output_path_plot_heatmap =  glue("{output_directory}/plot_communication_heatmap.pdf")
-  # output_path_plot_circle =  glue("{output_directory}/plot_communication_circle.pdf")
-  # output_path_values_communication =  glue("{output_directory}/values_communication.rds")
-  #
-  # commands =
-  #   commands |>
-  #   c(
-  #     "CATEGORY=communication2\nMEMORY=50024\nCORES=2\nWALL_TIME=18000",
-  #     glue("{output_path_plot_overall} {output_path_plot_heatmap} {output_path_plot_circle} {output_path_values_communication}:{paste(output_path_ligand_receptor_count, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run__differential_communication.R {code_directory} {paste(output_path_result, collapse=\" \")} {result_directory}/metadata.rds {output_path_plot_overall} {output_path_plot_heatmap} {output_path_plot_circle} {output_path_values_communication}")
-  #
-  #   )
-  #
-  #
+  # >>> COMMUNICATION FAST
+
+  cores = 4
+
+  # Output
+  output_directory = glue("{result_directory}/fast_pipeline_results/communication")
+  output_path_ligand_receptor_count =   glue("{output_directory}/{samples}_ligand_receptor_count_output.rds")
+
+
+  # Create input
+  commands =
+    commands |>
+    c(
+      "CATEGORY=communication1\nMEMORY=10024\nCORES=4\nWALL_TIME=9000",
+      glue("{output_path_ligand_receptor_count}:{output_path_preprocessing_results}\n{tab}Rscript {R_code_directory}/run__ligand_receptor_count.R {code_directory} {output_path_preprocessing_results} {output_path_ligand_receptor_count}")
+
+    )
+
+  # CellChat results
+  #output_path_communication_hypothesis_testing =   glue("{output_directory}/communication_output.rds")
+  output_path_plot_overall =  glue("{output_directory}/plot_communication_overall.rds")
+  output_path_plot_heatmap =  glue("{output_directory}/plot_communication_heatmap.rds")
+  output_path_plot_circle =  glue("{output_directory}/plot_communication_circle.rds")
+  output_path_values_communication =  glue("{output_directory}/values_communication.rds")
+
+  commands =
+    commands |>
+    c(
+      "CATEGORY=communication2\nMEMORY=50024\nCORES=2\nWALL_TIME=18000",
+      glue("{output_path_plot_overall} {output_path_plot_heatmap} {output_path_plot_circle} {output_path_values_communication}:{paste(output_path_ligand_receptor_count, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run__differential_communication.R {code_directory} {paste(output_path_ligand_receptor_count, collapse=\" \")} {result_directory}/metadata.rds {output_path_plot_overall} {output_path_plot_heatmap} {output_path_plot_circle} {output_path_values_communication}")
+
+    )
+
+
 
 
 

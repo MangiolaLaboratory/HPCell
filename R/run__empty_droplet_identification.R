@@ -43,12 +43,24 @@ ribosome_genes = rownames(input_file) |> str_subset("^RPS|^RPL")
 # Calculate bar-codes ranks
 barcode_ranks = barcodeRanks(input_file)
 
+# Set the minimum total RNA per cell for ambient RNA
+if(min(barcode_ranks$total) < 100) { lower = 100 } else {
+  lower = quantile(barcode_ranks$total, 0.05)
+
+  write_lines(
+    glue("{input_path} has supposely empty droplets with a lot of RNAm maybe a lot of ambient RNA? Please investigate"),
+    file = glue("{dirname(output_path_result)}/warnings_emptyDrops.txt"),
+    append = T
+  )
+}
+
+
 # Remove genes from input
 barcode_table =
 
   # Proper classification
   input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
-  emptyDrops( test.ambient = TRUE) |>
+  emptyDrops( test.ambient = TRUE, lower=lower) |>
   as_tibble(rownames = ".cell") |>
   mutate(empty_droplet = !FDR< significance_threshold) |>
   replace_na(list(empty_droplet = TRUE)) |>

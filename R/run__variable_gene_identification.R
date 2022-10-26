@@ -1,7 +1,8 @@
+
 set.seed(42)
 
-number_features_overall = 200
-number_features_per_cell_type = 200
+number_features_overall = 300
+number_features_per_cell_type = 300
 
 # Read arguments
 args = commandArgs(trailingOnly=TRUE)

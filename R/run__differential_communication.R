@@ -32,18 +32,79 @@ factor_of_interest = as.symbol("factor_of_interest")
 
 # input_path_ligand_receptor_count_output = dir("data/fast_pipeline_results/communication", full.names = TRUE)
 
+# factor_of_interest = "severity"
+
+cellchat_process_sample_signal = function (object, signaling = NULL, pattern = c("outgoing",
+                                                                                 "incoming", "all"), slot.name = "netP", color.use = NULL,
+                                           color.heatmap = "BuGn", title = NULL, width = 10, height = 8,
+                                           font.size = 8, font.size.title = 10, cluster.rows = FALSE,
+                                           cluster.cols = FALSE)
+{
+  pattern <- match.arg(pattern)
+  if (length(slot(object, slot.name)$centr) == 0) {
+    stop("Please run `netAnalysis_computeCentrality` to compute the network centrality scores! ")
+  }
+  centr <- slot(object, slot.name)$centr
+  outgoing <- matrix(0, nrow = nlevels(object@idents), ncol = length(centr))
+  incoming <- matrix(0, nrow = nlevels(object@idents), ncol = length(centr))
+  dimnames(outgoing) <- list(levels(object@idents), names(centr))
+  dimnames(incoming) <- dimnames(outgoing)
+  for (i in 1:length(centr)) {
+    outgoing[, i] <- centr[[i]]$outdeg
+    incoming[, i] <- centr[[i]]$indeg
+  }
+  if (pattern == "outgoing") {
+    mat <- t(outgoing)
+    legend.name <- "Outgoing"
+  }
+  else if (pattern == "incoming") {
+    mat <- t(incoming)
+    legend.name <- "Incoming"
+  }
+  else if (pattern == "all") {
+    mat <- t(outgoing + incoming)
+    legend.name <- "Overall"
+  }
+  if (is.null(title)) {
+    title <- paste0(legend.name, " signaling patterns")
+  }
+  else {
+    title <- paste0(paste0(legend.name, " signaling patterns"),
+                    " - ", title)
+  }
+  if (!is.null(signaling)) {
+    mat1 <- mat[rownames(mat) %in% signaling, , drop = FALSE]
+    mat <- matrix(0, nrow = length(signaling), ncol = ncol(mat))
+    idx <- match(rownames(mat1), signaling)
+    mat[idx[!is.na(idx)], ] <- mat1
+    dimnames(mat) <- list(signaling, colnames(mat1))
+  }
+  mat.ori <- mat
+  mat <- sweep(mat, 1L, apply(mat, 1, max), "/", check.margin = FALSE)
+  mat[mat == 0] <- NA
+
+  mat %>%
+    as_tibble(rownames = "gene") %>%
+    gather(cell_type, value, -gene) %>%
+    mutate(value = if_else(value %in% c(NaN, NA), 0, value))
+}
+
 integrated_cellchat_plot_df =
   input_path_ligand_receptor_count_output |>
   map_df(~ readRDS(.x)) |>
 
   # Add metadata
-  left_join( readRDS("data/metadata.rds"), by = "sample") |>
+  left_join( readRDS(input_metadata), by = "sample") |>
+
+  # Filter if not results otherwise it fails
+  filter(map_lgl(data, ~ !is.na(.x))) |>
 
   # Nest
   nest(data_DB = -DB) |>
+
   mutate(joint = map(data_DB, ~ {
     object.list <- .x$data
-    mergeCellChat(object.list, add.names = paste(.x$sample, pull(.x, !!factor_of_interest), sep="___"))
+    mergeCellChat(object.list, add.names = paste(.x$sample, pull(.x, severity), sep="___"))
   })) |>
 
   # Add histogram
@@ -52,8 +113,8 @@ integrated_cellchat_plot_df =
 
     when(is.na(s) ~ 0 , ~s) |>
     as.data.frame() |>
-    as_tibble(rownames = quo_name(factor_of_interest)) |>
-    setNames(c( quo_name(factor_of_interest), "tot"))
+    as_tibble(rownames = "severity") |>
+    setNames(c( "severity", "tot"))
   })) |>
   select(-joint) |>
 
@@ -62,8 +123,8 @@ integrated_cellchat_plot_df =
   mutate(plot_information_flow = map2(plot_histogram,DB, ~ {
 
     .x	|>
-      separate(!!factor_of_interest, c(  "sample", quo_name(factor_of_interest)), "___") |>
-      ggplot(aes(!!factor_of_interest, tot, fill=!!factor_of_interest)) +
+      separate(severity, c(  "sample", "severity"), "___") |>
+      ggplot(aes(severity, tot, fill=severity)) +
       geom_boxplot() +
       geom_point() +
       ggpubr::stat_compare_means() +
@@ -72,24 +133,54 @@ integrated_cellchat_plot_df =
   ))
 
 # Plot overall counts
-p =
+plot_overall_counts =
   integrated_cellchat_plot_df |>
   pull(plot_information_flow) |>
   wrap_plots(nrow = 1) +
   plot_layout(guides = 'collect' ) &
   theme( plot.margin = margin(0, 0, 0, 0, "pt"),  legend.key.size = unit(0.2, 'cm'), legend.position="bottom")
 
-ggsave(
-  plot = p,
-  filename = output_path_plot_overall,
-  units = "mm",
-  width = 60*sqrt(length(p)),
-  height = 60*sqrt(length(p)),
-  device = "pdf"
-)
 
 
-# integrated_cellchat_plot_df |> saveRDS("cancer_only_analyses/integrated_cellchat_plot_df_sample_wise.rds")
+netAnalysis_computeCentrality =
+  function (object = NULL, slot.name = "netP", net = NULL, net.name = NULL,  thresh = 0.05){
+  if (is.null(net)) {
+    prob <- methods::slot(object, slot.name)$prob
+    pval <- methods::slot(object, slot.name)$pval
+    pval[prob == 0] <- 1
+    prob[pval >= thresh] <- 0
+    net = prob
+  }
+
+    # If result is only one
+    if(length(dimnames(net))<3)
+      net = abind::abind(net, along = 3)
+
+  if (is.null(net.name)) {
+    net.name <- dimnames(net)[[3]]
+  }
+  if (length(dim(net)) == 3) {
+    nrun <- dim(net)[3]
+    my.sapply <- ifelse(test = future::nbrOfWorkers() ==
+                          1, yes = pbapply::pbsapply, no = future.apply::future_sapply)
+    centr.all = my.sapply(X = 1:nrun, FUN = function(x) {
+      net0 <- net[, , x]
+      return(CellChat:::computeCentralityLocal(net0))
+    }, simplify = FALSE)
+  }
+  else {
+    centr.all <- as.list(CellChat:::computeCentralityLocal(net))
+  }
+  names(centr.all) <- net.name
+  if (is.null(object)) {
+    return(centr.all)
+  }
+  else {
+    slot(object, slot.name)$centr <- centr.all
+    return(object)
+  }
+}
+
 
 values_df_for_heatmap =
   integrated_cellchat_plot_df |>
@@ -105,25 +196,23 @@ values_df_for_heatmap =
           pattern = "all", signaling = .x@netP$pathways,
           title = .y, width = 5, height = 6, color.heatmap = "OrRd"
         ),
-      ~ (.)
+      ~ tibble(gene = character(), cell_type = character(), value = double())
       )
   )) |>
   unnest(data)  |>
-  complete(nesting(DB, gene), nesting(!!factor_of_interest, sample), cell_type, fill = list(value = 0))
+  complete(nesting(DB, gene), nesting(severity, sample), cell_type, fill = list(value = 0))
 
-# Save for machine learning
-values_df_for_heatmap |> saveRDS(output_path_values_communication)
 
 signal_df_for_heatmap =
   values_df_for_heatmap |>
-  nest(value_data = -c(DB  ,   gene ,  !!factor_of_interest,  cell_type)) |>
+  nest(value_data = -c(DB  ,   gene ,  severity,  cell_type)) |>
   mutate(value = map_dbl(value_data, ~ mean(.x$value))) |>
 
   select(-value_data ) |>
-  spread(!!factor_of_interest, value) |>
+  spread(severity, value) |>
 
   # THIS SHOULD CHANGE WITH THE RIGHT VALUES OF FACTOR OF INTEREST
-  mutate(diff = high - low) |>
+  mutate(diff = severe - moderate) |>
 
   # Fix CD40
   mutate(gene = if_else(gene=="CD40" & DB=="Cell-Cell Contact" , "CD40_",  gene)) |>
@@ -132,7 +221,8 @@ signal_df_for_heatmap =
   filter(abs(max_diff)>0.34)
 
 # Plot
-signal_df_for_heatmap |>
+plot_heatmap =
+  signal_df_for_heatmap |>
   group_by(cell_type) |>
   mutate(sum_cell_diff = sum(diff)) |>
   group_by(gene) |>
@@ -147,13 +237,84 @@ signal_df_for_heatmap |>
     scale="none"
   ) |>
   add_bar(sum_cell_diff) |>
-  add_bar(sum_gene_diff) |>
-  save_pdf(output_path_plot_heatmap)
+  add_bar(sum_gene_diff)
+
+select_genes_for_circle_plot = function(x, pathway){
+  paste(
+    c(
+      x@data.signaling[rownames(x@data.signaling) %in% (CellChatDB$interaction %>% filter(pathway_name == pathway) %>% distinct(ligand) %>% pull(1)),, drop=F] %>% rowSums() %>% .[(.)>100] %>% names(),
+      x@data.signaling[rownames(x@data.signaling) %in% (CellChatDB$interaction %>% filter(pathway_name == pathway) %>% distinct(receptor) %>% pull(1)),, drop=F] %>% rowSums() %>% .[(.)>100] %>% names()
+    ) %>% unique(),
+    collapse = ","
+  )
+
+}
 
 
 
-# plot_circla_communication_all
-plot_circla_communication_all =
+cellchat_matrix_for_circle = function (object, signaling, signaling.name = NULL, color.use = NULL,
+                                       vertex.receiver = NULL, sources.use = NULL, targets.use = NULL,
+                                       top = 1, remove.isolate = FALSE, vertex.weight = NULL, vertex.weight.max = NULL,
+                                       vertex.size.max = 15, weight.scale = TRUE, edge.weight.max = NULL,
+                                       edge.width.max = 8, layout = c("hierarchy", "circle", "chord"),
+                                       thresh = 0.05, from = NULL, to = NULL, bidirection = NULL,
+                                       vertex.size = NULL, pt.title = 12, title.space = 6, vertex.label.cex = 0.8,
+                                       group = NULL, cell.order = NULL, small.gap = 1, big.gap = 10,
+                                       scale = FALSE, reduce = -1, show.legend = FALSE, legend.pos.x = 20,
+                                       legend.pos.y = 20, ...) {
+
+  if(object@LR$LRsig %>% filter(pathway_name == signaling) %>% nrow %>% magrittr::equals(0)) return(NULL)
+
+  layout <- match.arg(layout)
+  if (!is.null(vertex.size)) {
+    warning("'vertex.size' is deprecated. Use `vertex.weight`")
+  }
+  if (is.null(vertex.weight)) {
+    vertex.weight <- as.numeric(table(object@idents))
+  }
+  pairLR <- searchPair(signaling = signaling, pairLR.use = object@LR$LRsig,
+                       key = "pathway_name", matching.exact = T, pair.only = T)
+  if (is.null(signaling.name)) {
+    signaling.name <- signaling
+  }
+  net <- object@net
+  pairLR.use.name <- dimnames(net$prob)[[3]]
+  pairLR.name <- intersect(rownames(pairLR), pairLR.use.name)
+  pairLR <- pairLR[pairLR.name, ]
+  prob <- net$prob
+  pval <- net$pval
+  prob[pval > thresh] <- 0
+  if (length(pairLR.name) > 1) {
+    pairLR.name.use <- pairLR.name[apply(prob[, , pairLR.name],
+                                         3, sum) != 0]
+  }
+  else {
+    pairLR.name.use <- pairLR.name[sum(prob[, , pairLR.name]) !=
+                                     0]
+  }
+  if (length(pairLR.name.use) == 0) {
+    return(NULL)
+    #stop(paste0("There is no significant communication of ", 					signaling.name))
+  }
+  else {
+    pairLR <- pairLR[pairLR.name.use, ]
+  }
+  nRow <- length(pairLR.name.use)
+  prob <- prob[, , pairLR.name.use]
+  pval <- pval[, , pairLR.name.use]
+  if (length(dim(prob)) == 2) {
+    prob <- replicate(1, prob, simplify = "array")
+    pval <- replicate(1, pval, simplify = "array")
+  }
+  prob.sum <- apply(prob, c(1, 2), sum)
+
+  prob.sum
+}
+
+CellChatDB <- CellChatDB.human
+
+# plot_circle_communication_all
+plot_circle_communication_all =
   integrated_cellchat_plot_df |>
 
   unnest(data_DB) |>
@@ -205,7 +366,8 @@ plot_circla_communication_all =
   ) |>
 
   # Summarise
-  nest(data_path_type = -c(gene, !!factor_of_interest)) |>
+  nest(data_path_type = -c(gene, severity)) |>
+
   mutate(
     pathway_mean = map(data_path_type, ~ purrr::reduce(.x$plot_cell_Cell_pathway, `+`)),
     line_weights_sum = map(
@@ -217,16 +379,23 @@ plot_circla_communication_all =
       ~ .x$genes_in_pathway |> unlist() |> unique()
     )
   ) |>
-  arrange(!!factor_of_interest) |>
+  arrange(severity) |>
+
+  # JUST SELECT COVID PATIENTS FOR NOW FOR TESTING
+  filter(severity != "NA") |>
+
+  # ADAPT TO OLD CODE
+  mutate(severity = as.character(severity)) |>
+
   nest(data_type_path = -c(gene)) |>
   mutate(
     plot_diff = map(
       data_type_path,
       ~  when(
-        pull(.x, !!factor_of_interest),
-        unlist(.) |>  identical("low") ~ -.x$pathway_mean[[1]],
-        unlist(.) |>  identical("high") ~ .x$pathway_mean[[1]],
-        unlist(.) |> identical(c("high", "low")) ~ .x$pathway_mean[[1]] - .x$pathway_mean[[2]],
+        pull(.x, severity),
+        unlist(.) |>  identical("moderate") ~ -.x$pathway_mean[[1]],
+        unlist(.) |>  identical("severe") ~ .x$pathway_mean[[1]],
+        unlist(.) |> identical(c("moderate", "severe")) ~ .x$pathway_mean[[2]] - .x$pathway_mean[[1]],
         ~ stop("something went wrong")
       )
     ),
@@ -240,34 +409,31 @@ plot_circla_communication_all =
     )
   ) |>
   mutate(plot_diff_max = map_dbl(plot_diff, ~ max(abs(.x)))) |>
-  mutate(plot_diff_quant = quantile(plot_diff_max, 0.25)) |>
-  mutate(circle_plot = pmap(
-    list(plot_diff, line_weights_sum_sum, gene, genes_in_pathway, plot_diff_quant),
-    ~ {print(".");
+  mutate(plot_diff_quant = quantile(plot_diff_max, 0.25))
 
-        draw_cellchat_circle_plot(
-        ..1,
-        vertex.weight = ..2,
-        title.name =  paste(..3, "\n", ..4),
-        edge.width.max = 4,
-        remove.isolate = TRUE,
-        top_absolute=..5,
-        top = 0.2,
-        arrow.width = 4
-      )
-    }
-  ))
 
-p = plot_circla_communication_all |>
-  pull(circle_plot) |>
-  discard(is.null)
 
-ggsave(
-  plot = purrr::reduce(p, `+`) + plot_layout( ncol = ceiling(sqrt(length(p))), nrow = ceiling(sqrt(length(p)))),
-  filename = output_path_plot_circle,
-  units = "mm",
-  width = 60*sqrt(length(p)),
-  height = 60*sqrt(length(p)),
-  device = "pdf"
-)
+
+
+
+# Save
+plot_overall_counts |> saveRDS(output_path_plot_overall)
+plot_heatmap |> saveRDS(output_path_plot_heatmap)
+plot_circle_communication_all |> saveRDS(output_path_plot_circle)
+list(
+  signal_df_for_heatmap = signal_df_for_heatmap,
+  integrated_cellchat_plot_df = integrated_cellchat_plot_df
+) |>
+  saveRDS(output_path_values_communication)
+
+
+# ggsave(
+#   plot = purrr::reduce(p, `+`) + plot_layout( ncol = ceiling(sqrt(length(p))), nrow = ceiling(sqrt(length(p)))),
+#   filename = output_path_plot_circle,
+#   units = "mm",
+#   width = 60*sqrt(length(p)),
+#   height = 60*sqrt(length(p)),
+#   device = "pdf"
+# )
+
 

@@ -26,7 +26,11 @@ output_path_results |> dirname() |> dir.create( showWarnings = FALSE, recursive 
 scaled_counts =
   readRDS(input_pseudobulk) |>
 
-  left_join(readRDS(input_metadata), by="sample") |>
+  left_join(
+    readRDS(input_metadata)  |>
+      mutate(severity = if_else(severity=="NA", "healthy", as.character(severity))) ,
+    by="sample"
+  ) |>
 
   identify_abundant(factor_of_interest = c(severity, predicted.celltype.l2)) |>
   scale_abundance(method="TMMwsp")
