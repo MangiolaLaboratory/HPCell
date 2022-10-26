@@ -131,8 +131,6 @@ commands =
 
 
 
-
-
 # >>> VARIABLE GENE SELECTION, BY BATCH AND BROAD CELL TYPE
 metadata = readRDS(metadata_path)
 suffix = "__variable_gene_identification"
@@ -187,8 +185,6 @@ commands =
     glue("CATEGORY={suffix}\nMEMORY=40024\nCORES=1\nWALL_TIME=30000"),
     glue("{output_path_non_batch_variation_removal}:{input_path_demultiplexed} {output_path_empty_droplets} {output_path_marged_variable_genes}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_path_marged_variable_genes} {output_path_non_batch_variation_removal}")
   )
-
-
 
 # >>> WRITE PREPROCESSING RESULT
 suffix = "__preprocessing_output"
