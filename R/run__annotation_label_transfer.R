@@ -1,5 +1,12 @@
 # https://satijalab.org/seurat/articles/multimodal_reference_mapping.html
 
+# Rscript /home/users/allstaff/mangiola.s/PostDoc/jascap/R/run__annotation_label_transfer.R
+# input_path_demultiplexed = "data/3_prime_batch_1/input_files/0483-002_NA.rds"
+# input_path_empty_droplets = "data/3_prime_batch_1/preprocessing_results/empty_droplet_identification/0483-002_NA__empty_droplet_identification_output.rds"
+# reference_azimuth_path = "/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/reference_azimuth.rds"
+# output_path = "data/3_prime_batch_1/preprocessing_results/annotation_label_transfer/0483-002_NA__annotation_label_transfer_output.rds"
+
+
 # Read arguments
 args = commandArgs(trailingOnly=TRUE)
 code_directory = args[[1]]
@@ -14,6 +21,9 @@ library(tidyverse)
 library(Seurat)
 library(tidyseurat)
 library(glue)
+library(SingleR)
+library(celldex)
+library(scuttle)
 
 # Create dir
 output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
@@ -52,22 +62,77 @@ anchors <- FindTransferAnchors(
 )
 
 # Mapping
- MapQuery(
-  anchorset = anchors,
-  query = input_file,
-  reference = reference_azimuth ,
-  refdata = list(
-    celltype.l1 = "celltype.l1",
-    celltype.l2 = "celltype.l2",
-    predicted_ADT = "ADT"
-  ),
-  reference.reduction = "spca",
-  reduction.model = "wnn.umap"
-) |>
+azimuth_annotation =
+  MapQuery(
+    anchorset = anchors,
+    query = input_file,
+    reference = reference_azimuth ,
+    refdata = list(
+      celltype.l1 = "celltype.l1",
+      celltype.l2 = "celltype.l2",
+      predicted_ADT = "ADT"
+    ),
+    reference.reduction = "spca",
+    reduction.model = "wnn.umap"
+  ) |>
 
    # Just select essential information
    as_tibble() |>
-   select(.cell, predicted.celltype.l1, predicted.celltype.l2, contains("refUMAP")) |>
+   select(.cell, predicted.celltype.l1, predicted.celltype.l2, contains("refUMAP"))
+
+rm(input_file)
+gc()
+
+# SingleR
+
+
+
+
+  input_file_sce =
+  readRDS(input_path_demultiplexed) |>
+
+  # Filter empty
+  left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
+  tidyseurat::filter(!empty_droplet) |>
+  as.SingleCellExperiment() |>
+    logNormCounts()
+
+  # Blueprint
+  blueprint <- BlueprintEncodeData()
+  blueprint_annotation =
+    input_file_sce |>
+   SingleR(ref = blueprint,
+           assay.type.test=1,
+           labels = blueprint$label.fine
+          ) |>
+    as_tibble(rownames = ".cell") |>
+    select(.cell, blueprint_first.labels = first.labels)
+
+  rm(blueprint)
+  gc()
+
+  # Monaco
+  MonacoImmuneData = MonacoImmuneData()
+  monaco_annotation =
+    input_file_sce |>
+    SingleR(ref = MonacoImmuneData,
+            assay.type.test=1,
+            labels = MonacoImmuneData$label.fine
+          ) |>
+    as_tibble(rownames = ".cell") |>
+    select(.cell, monaco_first.labels = first.labels)
+
+  rm(MonacoImmuneData)
+  gc()
+
+  # Clean
+  rm(input_file_sce)
+  gc()
+
+  # Join annotation
+  azimuth_annotation |>
+    left_join(blueprint_annotation) |>
+    left_join(monaco_annotation) |>
 
    # Save
    saveRDS(output_path)
