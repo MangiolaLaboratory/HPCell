@@ -99,28 +99,46 @@ gc()
 
   # Blueprint
   blueprint <- BlueprintEncodeData()
-  blueprint_annotation =
+  blueprint_annotation_fine =
     input_file_sce |>
    SingleR(ref = blueprint,
            assay.type.test=1,
            labels = blueprint$label.fine
           ) |>
     as_tibble(rownames = ".cell") |>
-    select(.cell, blueprint_first.labels = first.labels)
+    select(.cell, blueprint_first.labels.fine = first.labels)
+
+  blueprint_annotation_coarse =
+    input_file_sce |>
+    SingleR(ref = blueprint,
+            assay.type.test=1,
+            labels = blueprint$label.main
+    ) |>
+    as_tibble(rownames = ".cell") |>
+    select(.cell, blueprint_first.labels.coarse = first.labels)
 
   rm(blueprint)
   gc()
 
   # Monaco
   MonacoImmuneData = MonacoImmuneData()
-  monaco_annotation =
+  monaco_annotation_fine =
     input_file_sce |>
     SingleR(ref = MonacoImmuneData,
             assay.type.test=1,
             labels = MonacoImmuneData$label.fine
           ) |>
     as_tibble(rownames = ".cell") |>
-    select(.cell, monaco_first.labels = first.labels)
+    select(.cell, monaco_first.labels.fine = first.labels)
+
+  monaco_annotation_coarse =
+    input_file_sce |>
+    SingleR(ref = MonacoImmuneData,
+            assay.type.test=1,
+            labels = MonacoImmuneData$label.main
+    ) |>
+    as_tibble(rownames = ".cell") |>
+    select(.cell, monaco_first.labels.coarse = first.labels)
 
   rm(MonacoImmuneData)
   gc()
@@ -131,8 +149,10 @@ gc()
 
   # Join annotation
   azimuth_annotation |>
-    left_join(blueprint_annotation) |>
-    left_join(monaco_annotation) |>
+    left_join(blueprint_annotation_fine) |>
+    left_join(blueprint_annotation_coarse) |>
+    left_join(monaco_annotation_fine) |>
+    left_join(monaco_annotation_coarse) |>
 
    # Save
    saveRDS(output_path)
