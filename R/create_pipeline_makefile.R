@@ -40,15 +40,15 @@ R_code_directory = glue("{code_directory}/R")
 
 # Check modality
 reference_label_fine = tissue |> when(
-  str_detect(., "pbmc") ~ "predicted.celltype.l2",
-  str_detect(., "solid") ~ "blueprint_first.labels.fine"
-  str_detect(., "atypical") ~ "none"
+  (.) == "pbmc" ~ "predicted.celltype.l2",
+  (.) =="solid" ~ "blueprint_first.labels.fine",
+  (.) == "atypical" ~ "none"
 )
 
 reference_label_coarse = tissue |> when(
-  str_detect(., "pbmc") ~ "predicted.celltype.l1",
-  str_detect(., "solid") ~ "blueprint_first.labels.coarse"
-  str_detect(., "atypical") ~ "none"
+  (.) == "pbmc" ~ "predicted.celltype.l1",
+  (.) == "solid" ~ "blueprint_first.labels.coarse",
+  (.) == "atypical" ~ "none"
 )
 
 # Input demultiplexed THOSE FILES MUST EXIST!
@@ -144,20 +144,22 @@ commands =
 
 
 # >>> VARIABLE GENE SELECTION, BY BATCH AND BROAD CELL TYPE
-metadata = readRDS(metadata_path)
 suffix = "__variable_gene_identification"
 output_directory = glue("{result_directory}/preprocessing_results/variable_gene_identification")
 
 
 commands_variable_gene =
-  tibble(sample = samples, input_path_demultiplexed, output_path_empty_droplets, output_path_alive, output_path_doublet_identification, output_paths_annotation_label_transfer) |>
+  tibble(
+    sample = samples,
+    input_path_demultiplexed,
+    output_path_empty_droplets,
+    output_path_alive,
+    output_path_doublet_identification,
+    output_paths_annotation_label_transfer
+  ) |>
 
   # Add batch
-  left_join(
-    readRDS(metadata_path) |>
-      distinct(sample, batch),
-    by="sample"
-  ) |>
+  left_join(readRDS(metadata_path) |>  distinct(sample, batch), by="sample" ) |>
 
   # Create list of files
   with_groups(
