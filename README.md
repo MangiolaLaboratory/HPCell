@@ -69,12 +69,22 @@ cp myfiles/* $input_directory
 
 Execute pipeline using `makeflow`
 
+*The available modalities are*
+- preprocessing (filtering and annotation without integration)
+- fast (preprocessing + differential transcription, tissue composition, and cell communication analyses)
+- complete (still not ready)
+
+*The available tissue annotation are*
+- pbmc (preprocessing based on Seurat Azimuth pbmc annotation)
+- solid (preprocessing based on SingleR blueprint annotation)
+- atypical (preprocessing based on unsupervised clustering)
+
 ```{bash}
 # Create $input_directory/pipeline.makeflow
 #
 # The pipeline has 4 modes (first argument of create_pipeline_makefile.R)
 # preprocessing, fast_pipeline, slow_pipeline, complete
-Rscript $code_directory/R/create_pipeline_makefile.R complete_pipeline $result_directory $input_directory $code_directory $metadata_path $reference_azimuth_path
+Rscript $code_directory/R/create_pipeline_makefile.R complete pbmc $result_directory $input_directory $code_directory $metadata_path $reference_azimuth_path
 
 # Execute makeflow
 conda activate cctools-env

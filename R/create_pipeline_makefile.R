@@ -11,17 +11,18 @@ tab = "\t"
 # Read arguments
 args = commandArgs(trailingOnly=TRUE)
 modality = args[[1]]
+tissue = args[[2]]
 
 if(!modality %in% c("preprocessing", "slow_pipeline", "fast_pipeline", "complete_pipeline"))
   stop("jascap says: modality (the first argument) should be one of the following: preprocessing, slow_pipeline, fast_pipeline, complete_pipeline")
 
-result_directory = args[[2]]
-input_directory = args[[3]]
-code_directory = args[[4]]
-metadata_path = args[[5]]
-reference_azimuth_path = args[[6]]
+result_directory = args[[3]]
+input_directory = args[[4]]
+code_directory = args[[5]]
+metadata_path = args[[6]]
+reference_azimuth_path = args[[7]]
 
-# Check modality
+
 
 # Create dir
 result_directory |> dir.create( showWarnings = FALSE, recursive = TRUE)
@@ -37,13 +38,24 @@ library(tidyseurat)
 
 R_code_directory = glue("{code_directory}/R")
 
+# Check modality
+reference_label_fine = tissue |> when(
+  (.) == "pbmc" ~ "predicted.celltype.l2",
+  (.) =="solid" ~ "blueprint_first.labels.fine",
+  (.) == "atypical" ~ "none"
+)
+
+reference_label_coarse = tissue |> when(
+  (.) == "pbmc" ~ "predicted.celltype.l1",
+  (.) == "solid" ~ "blueprint_first.labels.coarse",
+  (.) == "atypical" ~ "none"
+)
 
 # Input demultiplexed THOSE FILES MUST EXIST!
 input_directory_demultiplexed = input_directory
 input_files_demultiplexed = dir(input_directory_demultiplexed, pattern = ".rds")
 input_path_demultiplexed = glue("{input_directory_demultiplexed}/{input_files_demultiplexed}")
 samples = input_files_demultiplexed |> str_remove(".rds")
-
 
 
 # >>> EMPTY droplets
@@ -125,27 +137,29 @@ output_path_doublet_identification =   glue("{output_directory}/{samples}{suffix
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=10024\nCORES=2\nWALL_TIME=30000"),
-    glue("{output_path_doublet_identification}:{input_path_demultiplexed} {output_path_empty_droplets} {output_path_alive} {output_paths_annotation_label_transfer}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification}")
+    glue("{output_path_doublet_identification}:{input_path_demultiplexed} {output_path_empty_droplets} {output_path_alive} {output_paths_annotation_label_transfer}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {reference_label_fine} {output_path_empty_droplets} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification}")
 
   )
 
 
 
 # >>> VARIABLE GENE SELECTION, BY BATCH AND BROAD CELL TYPE
-metadata = readRDS(metadata_path)
 suffix = "__variable_gene_identification"
 output_directory = glue("{result_directory}/preprocessing_results/variable_gene_identification")
 
 
 commands_variable_gene =
-  tibble(sample = samples, input_path_demultiplexed, output_path_empty_droplets, output_path_alive, output_path_doublet_identification, output_paths_annotation_label_transfer) |>
+  tibble(
+    sample = samples,
+    input_path_demultiplexed,
+    output_path_empty_droplets,
+    output_path_alive,
+    output_path_doublet_identification,
+    output_paths_annotation_label_transfer
+  ) |>
 
   # Add batch
-  left_join(
-    readRDS(metadata_path) |>
-      distinct(sample, batch),
-    by="sample"
-  ) |>
+  left_join(readRDS(metadata_path) |>  distinct(sample, batch), by="sample" ) |>
 
   # Create list of files
   with_groups(
@@ -160,7 +174,7 @@ commands_variable_gene =
   mutate(output_file = glue("{output_directory}/{batch}{suffix}_output.rds") ) |>
 
   # create command
-  mutate(command =  glue("{output_file}:{input_files}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_files} predicted.celltype.l1 {output_file}"))
+  mutate(command =  glue("{output_file}:{input_files}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_files} {reference_label_coarse} {output_file}"))
 
 output_path_marged_variable_genes =   glue("{output_directory}/merged_{suffix}_output.rds")
 
@@ -219,7 +233,7 @@ commands =
 
 
 
-if(modality %in% c("fast_pipeline", "complete_pipeline")){
+if(modality %in% c("fast", "complete")){
 
 
 
