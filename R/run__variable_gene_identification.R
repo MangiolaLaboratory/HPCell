@@ -88,13 +88,12 @@ bind_rows(
 
   # If cell_type_column_for_subsetting == null calculate clusters
   when(
-    cell_type_column_for_subsetting=="null" ~
+    cell_type_column_for_subsetting=="none" ~
       counts |>
-      FindVariableFeatures(
-        nfeatures = number_features_overall,
-        assay="SCT"
-      ) |>
-      RunPCA() |>
+      FindVariableFeatures(nfeatures = number_features_overall, assay="RNA")  |>
+      NormalizeData(assay="RNA") |>
+      ScaleData(assay="RNA") |>
+      RunPCA(assay="RNA") |>
       FindNeighbors(dims = 1:20) |>
       FindClusters(resolution = 0.5) |>
       nest(data = -seurat_clusters),
@@ -112,6 +111,12 @@ bind_rows(
   )) |>
   select(-data) |>
   unnest(variable_features) |>
-  rename(group := !!as.symbol(cell_type_column_for_subsetting) )
+
+  # Rename group column with cluster
+  when(
+    cell_type_column_for_subsetting!="none" ~ rename(., group := !!as.symbol(cell_type_column_for_subsetting) ),
+    ~ rename(., group := seurat_clusters )
+  )
+
 ) %>%
   saveRDS(output_path)

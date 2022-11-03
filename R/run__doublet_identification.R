@@ -38,7 +38,7 @@ readRDS(input_path_demultiplexed) |>
   as.SingleCellExperiment() |>
 
   # Double identification. If no ;abel provided calculate clusters
-  scDblFinder(clusters = ifelse(reference_label=="null", TRUE, reference_label)) |>
+  scDblFinder(clusters = ifelse(reference_label=="none", TRUE, reference_label)) |>
 
   # Parse
   as_tibble() |>
