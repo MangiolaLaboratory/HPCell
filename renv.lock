@@ -45,6 +45,31 @@
         "lazyeval"
       ]
     },
+    "AnnotationHub": {
+      "Package": "AnnotationHub",
+      "Version": "3.4.0",
+      "Source": "Bioconductor",
+      "git_url": "https://git.bioconductor.org/packages/AnnotationHub",
+      "git_branch": "RELEASE_3_15",
+      "git_last_commit": "e74e54c",
+      "git_last_commit_date": "2022-04-26",
+      "Hash": "9e6dd4e9cf2b733f1cd4c4aa084bb9e8",
+      "Requirements": [
+        "AnnotationDbi",
+        "BiocFileCache",
+        "BiocGenerics",
+        "BiocManager",
+        "BiocVersion",
+        "RSQLite",
+        "S4Vectors",
+        "curl",
+        "dplyr",
+        "httr",
+        "interactiveDisplayBase",
+        "rappdirs",
+        "yaml"
+      ]
+    },
     "BH": {
       "Package": "BH",
       "Version": "1.78.0-0",
@@ -285,6 +310,22 @@
       "Hash": "b2866e62bab9378c3cc9476a1954226b",
       "Requirements": []
     },
+    "DT": {
+      "Package": "DT",
+      "Version": "0.26",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "c66a72c4d3499e14ae179ccb742e740a",
+      "Requirements": [
+        "crosstalk",
+        "htmltools",
+        "htmlwidgets",
+        "jquerylib",
+        "jsonlite",
+        "magrittr",
+        "promises"
+      ]
+    },
     "DelayedArray": {
       "Package": "DelayedArray",
       "Version": "0.22.0",
@@ -360,6 +401,25 @@
       "Hash": "626af36a8d6de3c44779ff2a073952e6",
       "Requirements": [
         "ensembldb"
+      ]
+    },
+    "ExperimentHub": {
+      "Package": "ExperimentHub",
+      "Version": "2.4.0",
+      "Source": "Bioconductor",
+      "git_url": "https://git.bioconductor.org/packages/ExperimentHub",
+      "git_branch": "RELEASE_3_15",
+      "git_last_commit": "bdce35d",
+      "git_last_commit_date": "2022-04-26",
+      "Hash": "679c9ee12de93ff7b017825b91bf94f9",
+      "Requirements": [
+        "AnnotationHub",
+        "BiocFileCache",
+        "BiocGenerics",
+        "BiocManager",
+        "S4Vectors",
+        "curl",
+        "rappdirs"
       ]
     },
     "FNN": {
@@ -1453,6 +1513,25 @@
         "withr"
       ]
     },
+    "celldex": {
+      "Package": "celldex",
+      "Version": "1.6.0",
+      "Source": "Bioconductor",
+      "git_url": "https://git.bioconductor.org/packages/celldex",
+      "git_branch": "RELEASE_3_15",
+      "git_last_commit": "c2ebef9",
+      "git_last_commit_date": "2022-04-26",
+      "Hash": "892d66add35d581cfbe6fdd6da987f8b",
+      "Requirements": [
+        "AnnotationDbi",
+        "AnnotationHub",
+        "DelayedArray",
+        "DelayedMatrixStats",
+        "ExperimentHub",
+        "S4Vectors",
+        "SummarizedExperiment"
+      ]
+    },
     "checkmate": {
       "Package": "checkmate",
       "Version": "2.1.0",
@@ -2434,6 +2513,21 @@
       "Repository": "CRAN",
       "Hash": "1deaf1de3eac7e1d3377954b3a283652",
       "Requirements": []
+    },
+    "interactiveDisplayBase": {
+      "Package": "interactiveDisplayBase",
+      "Version": "1.34.0",
+      "Source": "Bioconductor",
+      "git_url": "https://git.bioconductor.org/packages/interactiveDisplayBase",
+      "git_branch": "RELEASE_3_15",
+      "git_last_commit": "fafbb13",
+      "git_last_commit_date": "2022-04-26",
+      "Hash": "b978a61839ca0d4d3601076f477ea9c8",
+      "Requirements": [
+        "BiocGenerics",
+        "DT",
+        "shiny"
+      ]
     },
     "irlba": {
       "Package": "irlba",
@@ -4102,9 +4196,15 @@
     },
     "tidybulk": {
       "Package": "tidybulk",
-      "Version": "1.9.2",
-      "Source": "Bioconductor",
-      "Hash": "d52f4b58661b3b370d04683a169b1595",
+      "Version": "1.9.4",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "tidybulk",
+      "RemoteUsername": "stemangiola",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "a8f7472de5b30e93cd6c35f3b8196c8a71ff7865",
+      "Hash": "660373c849ee8df735a3bbec74e75454",
       "Requirements": [
         "GenomicRanges",
         "S4Vectors",
@@ -4148,8 +4248,14 @@
     "tidysc": {
       "Package": "tidysc",
       "Version": "0.1.3",
-      "Source": "Bioconductor",
-      "Hash": "79c55ed50a325bef685e48a6ac8dfa7a",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "tidysc",
+      "RemoteUsername": "stemangiola",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "bae1dfdf552c87f8e7781cd46a9b5bc4963acc87",
+      "Hash": "a068c626557df765d759da6ec7c80439",
       "Requirements": [
         "Matrix",
         "PRROC",
