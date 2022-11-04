@@ -10,7 +10,7 @@ output_path_plot_significant = args[[6]]
 
 renv::load(project = code_directory)
 
-library(tidyverse)
+library(dplyr); library(tidyr); library(ggplot2)
 library(glue)
 library(tidybulk)
 library(tidySummarizedExperiment)

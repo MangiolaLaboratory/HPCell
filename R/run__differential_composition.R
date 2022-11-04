@@ -12,7 +12,7 @@ output_path_plot_boxplot = args[[length(args)]]
 
 renv::load(project = code_directory)
 
-library(tidyverse)
+library(dplyr); library(tidyr); library(ggplot2)
 library(glue)
 library(sccomp)
 library(stringr)

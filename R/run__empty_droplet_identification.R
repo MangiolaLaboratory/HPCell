@@ -12,7 +12,7 @@ output_path_plot_rds = args[[5]]
 
 renv::load(project = code_directory)
 
-library(tidyverse)
+library(dplyr); library(tidyr); library(ggplot2)
 library(purrr)
 library(Seurat)
 library(tidyseurat)

@@ -14,7 +14,7 @@ input_empty_droplets = input_files[((length(input_files)/2)+1):length(input_file
 
 renv::load(project = code_directory)
 
-library(tidyverse)
+library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)
 library(tidyseurat)
 library(glue)

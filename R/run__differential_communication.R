@@ -11,7 +11,7 @@ output_path_values_communication = args[[length(args)]]
 
 renv::load(project = code_directory)
 
-library(tidyverse)
+library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)
 library(glue)
 library(CellChat)

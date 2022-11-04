@@ -18,7 +18,7 @@ renv::load(project = code_directory)
 
 library(DropletUtils)
 library(EnsDb.Hsapiens.v86)
-library(tidyverse)
+library(dplyr); library(tidyr); library(ggplot2)
 library(purrr)
 library(Seurat)
 library(tidyseurat)

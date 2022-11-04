@@ -13,7 +13,7 @@ output_path = args[[length(args)]]
 
 renv::load(project = code_directory)
 
-library(tidyverse)
+library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)
 library(tidyseurat)
 library(glue)

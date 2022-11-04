@@ -28,7 +28,7 @@ result_directory |> dir.create( showWarnings = FALSE, recursive = TRUE)
 
 renv::activate(project = code_directory)
 
-library(tidyverse)
+library(dplyr); library(tidyr); library(ggplot2)
 library(glue)
 library(here)
 library(stringr)
