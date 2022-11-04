@@ -3,10 +3,11 @@
 args = commandArgs(trailingOnly=TRUE)
 code_directory = args[[1]]
 input_path_demultiplexed = args[[2]]
-input_path_empty_droplets = args[[3]]
-input_path_alive = args[[4]]
-input_path_annotation_label_transfer = args[[5]]
-output_path = args[[6]]
+reference_label = args[[3]]
+input_path_empty_droplets = args[[4]]
+input_path_alive = args[[5]]
+input_path_annotation_label_transfer = args[[6]]
+output_path = args[[7]]
 
 renv::load(project = code_directory)
 
@@ -36,8 +37,8 @@ readRDS(input_path_demultiplexed) |>
   # Convert
   as.SingleCellExperiment() |>
 
-  # Double identification
-  scDblFinder(clusters = "predicted.celltype.l2") |>
+  # Double identification. If no ;abel provided calculate clusters
+  scDblFinder(clusters = ifelse(reference_label=="none", TRUE, reference_label)) |>
 
   # Parse
   as_tibble() |>

@@ -21,6 +21,8 @@ library(furrr)
 options(future.globals.maxSize = 49 * 1024 ^ 3) # 50Gb
 plan(strategy = "multisession", workers = 10)
 
+# Do we have RNA and also ADT
+assays = readRDS(input_path_preprocessing_output[1])@assays |> names() |> intersect(c("RNA", "ADT"))
 
 # Create dir
 output_path_sample |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
@@ -31,19 +33,19 @@ input_path_preprocessing_output |>
   # Aggregate
   future_map_dfr(~
         readRDS(.x) |>
-          aggregate_cells(c(sample, predicted.celltype.l2), slot = "counts", assays=c("RNA", "ADT"))
+          aggregate_cells(c(sample, predicted.celltype.l2), slot = "counts", assays=assays)
     ) |>
 
   # Reshape to make RNA and ADT both features
   pivot_longer(
-    cols = c(abundance_ADT, abundance_RNA),
+    cols = assays,
     names_to = "data_source",
     values_to = "count"
   ) |>
   filter(!count |> is.na()) |>
 
   # Some manipulation to get unique feature because RNa and ADT both can have sma name genes
-  rename(symbol = transcript) |>
+  rename(symbol = feature) |>
   mutate(data_source = str_remove(data_source, "abundance_")) |>
   unite( ".feature", c(symbol, data_source), remove = FALSE) |>
 
@@ -64,19 +66,19 @@ input_path_preprocessing_output |>
   # Aggregate
   future_map_dfr(~
                    readRDS(.x) |>
-                   aggregate_cells(c(sample), slot = "counts", assays=c("RNA", "ADT"))
+                   aggregate_cells(c(sample), slot = "counts", assays=assays)
   ) |>
 
   # Reshape to make RNA and ADT both features
   pivot_longer(
-    cols = c(abundance_ADT, abundance_RNA),
+    cols = assays,
     names_to = "data_source",
     values_to = "count"
   ) |>
   filter(!count |> is.na()) |>
 
   # Some manipulation to get unique feature because RNa and ADT both can have sma name genes
-  rename(symbol = transcript) |>
+  rename(symbol = feature) |>
   mutate(data_source = str_remove(data_source, "abundance_")) |>
   unite( ".feature", c(symbol, data_source), remove = FALSE) |>
 

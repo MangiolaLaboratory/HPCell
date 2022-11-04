@@ -28,15 +28,20 @@ library(scater)
 # Create dir
 output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
 
-readRDS(input_path_demultiplexed) |>
+counts =
+  readRDS(input_path_demultiplexed) |>
   left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
-  tidyseurat::filter(!empty_droplet) |>
+  tidyseurat::filter(!empty_droplet)
 
   # left_join(readRDS(input_path_alive), by=".cell") |>
-  # tidyseurat::filter(!high_mitochondrion | !high_RPS) |>
+  # tidyseurat::filter(!high_mitochondrion | !high_RPS)
+
+  VariableFeatures(counts) = readRDS(input_path_marged_variable_genes)
+
+  counts |>
 
   # Normalise RNA
-  SCTransform(assay="RNA", residual.features = readRDS(input_path_marged_variable_genes), return.only.var.genes=FALSE) |>
+  SCTransform(assay="RNA", return.only.var.genes=FALSE) |>
 
   # Normalise antibodies
   when(

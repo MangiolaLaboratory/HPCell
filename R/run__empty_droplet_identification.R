@@ -6,9 +6,10 @@ set.seed(42)
 args = commandArgs(trailingOnly=TRUE)
 code_directory = args[[1]]
 input_path = args[[2]]
-output_path_result = args[[3]]
-output_path_plot_pdf = args[[4]]
-output_path_plot_rds = args[[5]]
+filtered = args[[3]]
+output_path_result = args[[4]]
+output_path_plot_pdf = args[[5]]
+output_path_plot_rds = args[[6]]
 
 renv::load(project = code_directory)
 
@@ -62,8 +63,11 @@ barcode_table =
   input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
   emptyDrops( test.ambient = TRUE, lower=lower) |>
   as_tibble(rownames = ".cell") |>
-  mutate(empty_droplet = !FDR< significance_threshold) |>
+  mutate(empty_droplet = FDR >= significance_threshold) |>
   replace_na(list(empty_droplet = TRUE)) |>
+
+  # If already filtered override stats
+  when(filtered == "filtered" ~ mutate(., empty_droplet = FALSE), ~ (.)) |>
 
   # barcode ranks
   left_join(

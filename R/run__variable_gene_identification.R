@@ -24,7 +24,7 @@ input_paths_chunks = input_paths |> split( rep_len(1:5, length(input_paths)) |> 
 # Create dir
 output_path |> dirname() |> dir.create( showWarnings = FALSE)
 
-
+# Filter data
 counts =
   tibble(
   input_data_paths = input_paths_chunks[[1]],
@@ -49,7 +49,7 @@ counts =
       left_join(readRDS(..4) |> select(.cell, scDblFinder.class), by = ".cell") |>
       filter(scDblFinder.class=="singlet") |>
 
-      # Filter Red blood cells and platelets
+      # Filter Red blood cells and platelets using pbmc seurat for any tissue
       left_join(readRDS(..5), by = ".cell") |>
       filter(!predicted.celltype.l2 %in% c("Eryth", "Platelet"))
 
@@ -85,7 +85,24 @@ bind_rows(
 
 # Per cell type
   counts |>
-  nest(data = -!!as.symbol(cell_type_column_for_subsetting)) |>
+
+  # If cell_type_column_for_subsetting == null calculate clusters
+  when(
+    cell_type_column_for_subsetting=="none" ~
+      counts |>
+      FindVariableFeatures(nfeatures = number_features_overall, assay="RNA")  |>
+      NormalizeData(assay="RNA") |>
+      ScaleData(assay="RNA") |>
+      RunPCA(assay="RNA") |>
+      FindNeighbors(dims = 1:20) |>
+      FindClusters(resolution = 0.5) |>
+      nest(data = -seurat_clusters),
+
+    # If I have label
+    ~ nest(., data = -!!as.symbol(cell_type_column_for_subsetting))
+  ) |>
+
+  # Get feature within each cluster/cell-type
   mutate(variable_features = map(
     data,
     ~ .x |>
@@ -94,6 +111,12 @@ bind_rows(
   )) |>
   select(-data) |>
   unnest(variable_features) |>
-  rename(group := !!as.symbol(cell_type_column_for_subsetting) )
+
+  # Rename group column with cluster
+  when(
+    cell_type_column_for_subsetting!="none" ~ rename(., group := !!as.symbol(cell_type_column_for_subsetting) ),
+    ~ rename(., group := seurat_clusters )
+  )
+
 ) %>%
   saveRDS(output_path)
