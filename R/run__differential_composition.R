@@ -1,6 +1,6 @@
 
 # Read arguments
-args = commandArgs(trailingOnly=TRUE)
+args = commandArgs()
 code_directory = args[[1]]
 input_metadata = args[[2]]
 input_annotation_label_transfer = args[3:(length(args)-3)]
@@ -10,7 +10,7 @@ output_path_plot_credible_intervals = args[[length(args)-1]]
 output_path_plot_boxplot = args[[length(args)]]
 
 
-renv::load(project = code_directory)
+#renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(glue)

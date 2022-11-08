@@ -5,14 +5,14 @@
 set.seed(42)
 
 # Read arguments
-args = commandArgs(trailingOnly=TRUE)
+args = commandArgs()
 code_directory = args[[1]]
 input_path_demultiplexed = args[[2]]
 input_path_empty_droplets = args[[3]]
 input_path_annotation_label_transfer = args[[4]]
 output_path = args[[5]]
 
-renv::load(project = code_directory)
+#renv::load(project = code_directory)
 
 library(DropletUtils)
 library(EnsDb.Hsapiens.v86)

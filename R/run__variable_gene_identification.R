@@ -5,13 +5,13 @@ number_features_overall = 300
 number_features_per_cell_type = 300
 
 # Read arguments
-args = commandArgs(trailingOnly=TRUE)
+args = commandArgs()
 code_directory = args[[1]]
 input_paths = args[2:(length(args)-2)]
 cell_type_column_for_subsetting = args[[length(args)-1]]
 output_path = args[[length(args)]]
 
-renv::load(project = code_directory)
+#renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)

@@ -1,6 +1,6 @@
 
 # Read arguments
-args = commandArgs(trailingOnly=TRUE)
+args = commandArgs()
 code_directory = args[[1]]
 input_path_ligand_receptor_count_output = args[2:(length(args)-5)]
 input_metadata = args[[length(args)-4]]
@@ -9,7 +9,7 @@ output_path_plot_heatmap = args[[length(args)-2]]
 output_path_plot_circle = args[[length(args)-1]]
 output_path_values_communication = args[[length(args)]]
 
-renv::load(project = code_directory)
+#renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)

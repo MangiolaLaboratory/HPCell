@@ -1,12 +1,12 @@
 
 # Read arguments
-args = commandArgs(trailingOnly=TRUE)
+args = commandArgs()
 code_directory = args[[1]]
 input_path_preprocessing_output = args[2:(length(args)-2)]
 output_path_sample_cell_type = args[[length(args)-1]]
 output_path_sample = args[[length(args)]]
 
-renv::load(project = code_directory)
+#renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)

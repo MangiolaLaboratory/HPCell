@@ -9,7 +9,7 @@ commands = c()
 tab = "\t"
 
 # Read arguments
-args = commandArgs(trailingOnly=TRUE)
+args = commandArgs()
 modality = args[[1]]
 tissue = args[[2]]
 filtered = args[[3]]
@@ -28,7 +28,7 @@ reference_azimuth_path = args[[8]]
 # Create dir
 result_directory |> dir.create( showWarnings = FALSE, recursive = TRUE)
 
-renv::activate(project = code_directory)
+#renv::activate(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(glue)
@@ -37,7 +37,7 @@ library(stringr)
 library(Seurat)
 library(tidyseurat)
 
-R_code_directory = glue("{code_directory}/R")
+R_code_directory = glue("{code_directory}/dev")
 
 # Check modality
 reference_label_fine = tissue |> when(

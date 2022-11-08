@@ -8,14 +8,14 @@
 
 
 # Read arguments
-args = commandArgs(trailingOnly=TRUE)
+args = commandArgs()
 code_directory = args[[1]]
 input_path_demultiplexed = args[[2]]
 input_path_empty_droplets = args[[3]]
 reference_azimuth_path = args[[4]]
 output_path = args[[5]]
 
-renv::load(project = code_directory)
+#renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)
@@ -156,3 +156,6 @@ gc()
 
    # Save
    saveRDS(output_path)
+
+    
+

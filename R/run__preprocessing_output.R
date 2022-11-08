@@ -1,6 +1,6 @@
 
 # Read arguments
-args = commandArgs(trailingOnly=TRUE)
+args = commandArgs()
 code_directory = args[[1]]
 input_path_non_batch_variation_removal = args[[2]]
 input_path_alive = args[[3]]
@@ -8,7 +8,7 @@ input_path_annotation_label_transfer = args[[4]]
 input_path_doublet_identification = args[[5]]
 output_path = args[[6]]
 
-renv::load(project = code_directory)
+#renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)

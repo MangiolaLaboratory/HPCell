@@ -1,7 +1,7 @@
 # https://satijalab.org/seurat/articles/multimodal_reference_mapping.html
 
 # Read arguments
-args = commandArgs(trailingOnly=TRUE)
+args = commandArgs()
 code_directory = args[[1]]
 input_metadata = args[[2]]
 input_files = args[3:(length(args)-2)]
@@ -12,7 +12,7 @@ output_path_plot_umap = args[[length(args)]]
 input_demulatiplexed = input_files[1:(length(input_files)/2)]
 input_empty_droplets = input_files[((length(input_files)/2)+1):length(input_files)]
 
-renv::load(project = code_directory)
+#renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)

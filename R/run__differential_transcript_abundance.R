@@ -1,6 +1,6 @@
 
 # Read arguments
-args = commandArgs(trailingOnly=TRUE)
+args = commandArgs()
 code_directory = args[[1]]
 input_pseudobulk = args[[2]]
 input_metadata = args[[3]]
@@ -8,7 +8,7 @@ output_path_results = args[[4]]
 output_path_plot_densities = args[[5]]
 output_path_plot_significant = args[[6]]
 
-renv::load(project = code_directory)
+#renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(glue)
