@@ -5,7 +5,7 @@ number_features_overall = 300
 number_features_per_cell_type = 300
 
 # Read arguments
-args = commandArgs()
+args = commandArgs(trailingOnly = TRUE)
 code_directory = args[[1]]
 input_paths = args[2:(length(args)-2)]
 cell_type_column_for_subsetting = args[[length(args)-1]]

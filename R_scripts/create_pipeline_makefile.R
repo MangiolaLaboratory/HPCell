@@ -9,10 +9,12 @@ commands = c()
 tab = "\t"
 
 # Read arguments
-args = commandArgs()
+args = commandArgs(trailingOnly = TRUE)
 modality = args[[1]]
 tissue = args[[2]]
 filtered = args[[3]]
+
+print(modality)
 
 if(!modality %in% c("preprocessing", "slow_pipeline", "fast_pipeline", "complete_pipeline"))
   stop("jascap says: modality (the first argument) should be one of the following: preprocessing, slow_pipeline, fast_pipeline, complete_pipeline")
@@ -36,8 +38,10 @@ library(here)
 library(stringr)
 library(Seurat)
 library(tidyseurat)
+library(purrr)
+library(readr)
 
-R_code_directory = glue("{code_directory}/dev")
+R_code_directory = glue("{code_directory}/R_scripts")
 
 # Check modality
 reference_label_fine = tissue |> when(

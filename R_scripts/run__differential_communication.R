@@ -1,6 +1,6 @@
 
 # Read arguments
-args = commandArgs()
+args = commandArgs(trailingOnly = TRUE)
 code_directory = args[[1]]
 input_path_ligand_receptor_count_output = args[2:(length(args)-5)]
 input_metadata = args[[length(args)-4]]

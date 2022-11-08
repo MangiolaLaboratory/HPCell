@@ -1,7 +1,7 @@
 # https://satijalab.org/seurat/articles/multimodal_reference_mapping.html
 
 # Read arguments
-args = commandArgs()
+args = commandArgs(trailingOnly = TRUE)
 code_directory = args[[1]]
 input_metadata = args[[2]]
 input_files = args[3:(length(args)-2)]

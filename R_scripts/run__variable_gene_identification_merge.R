@@ -1,7 +1,7 @@
 set.seed(42)
 
 # Read arguments
-args = commandArgs()
+args = commandArgs(trailingOnly = TRUE)
 code_directory = args[[1]]
 input_paths = args[2:(length(args)-1)]
 output_path = args[[length(args)]]

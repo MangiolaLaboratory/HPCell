@@ -1,6 +1,6 @@
 
 # Read arguments
-args = commandArgs()
+args = commandArgs(trailingOnly = TRUE)
 code_directory = args[[1]]
 input_path_non_batch_variation_removal = args[[2]]
 input_path_alive = args[[3]]

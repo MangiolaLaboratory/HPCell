@@ -1,6 +1,6 @@
 
 # Read arguments
-args = commandArgs()
+args = commandArgs(trailingOnly = TRUE)
 code_directory = args[[1]]
 input_path_demultiplexed = args[[2]]
 reference_label = args[[3]]

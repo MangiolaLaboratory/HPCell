@@ -7,7 +7,7 @@
 set.seed(42)
 
 # Read arguments
-args = commandArgs()
+args = commandArgs(trailingOnly = TRUE)
 code_directory = args[[1]]
 input_path_demultiplexed = args[[2]]
 input_path_empty_droplets = args[[3]]

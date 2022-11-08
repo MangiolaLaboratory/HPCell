@@ -1,6 +1,6 @@
 
 # Read arguments
-args = commandArgs()
+args = commandArgs(trailingOnly = TRUE)
 code_directory = args[[1]]
 input_path_preprocessing = args[[2]]
 output_path = args[[3]]

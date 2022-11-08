@@ -1,6 +1,6 @@
 
 # Read arguments
-args = commandArgs()
+args = commandArgs(trailingOnly = TRUE)
 code_directory = args[[1]]
 input_metadata = args[[2]]
 input_annotation_label_transfer = args[3:(length(args)-3)]

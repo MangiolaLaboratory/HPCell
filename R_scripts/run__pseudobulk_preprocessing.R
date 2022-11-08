@@ -1,6 +1,6 @@
 
 # Read arguments
-args = commandArgs()
+args = commandArgs(trailingOnly = TRUE)
 code_directory = args[[1]]
 input_path_preprocessing_output = args[2:(length(args)-2)]
 output_path_sample_cell_type = args[[length(args)-1]]

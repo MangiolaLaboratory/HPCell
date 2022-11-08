@@ -3,7 +3,7 @@
 set.seed(42)
 
 # Read arguments
-args = commandArgs()
+args = commandArgs(trailingOnly = TRUE)
 code_directory = args[[1]]
 input_path = args[[2]]
 filtered = args[[3]]
