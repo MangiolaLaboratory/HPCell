@@ -2,3 +2,5 @@
 ^renv\.lock$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+R\run__*
+R/create_pipeline_makefile.R

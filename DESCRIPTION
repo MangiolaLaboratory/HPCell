@@ -7,5 +7,36 @@ Maintainer: The package maintainer <yourself@somewhere.net>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
 License: What license is it under?
+Depends:
+  R (>= 4.1.0)
+Imports:
+  DropletUtils,
+  EnsDb.Hsapiens.v86,
+  dplyr,
+  tidyr,
+  ggplot2,
+  purrr,
+  Seurat,
+  tidyseurat,
+  glue,
+  scater,
+  SingleR,
+  celldex,
+  scuttle,
+  CellChat,
+  tidySingleCellExperiment,
+  tidyHeatmap,
+  patchwork,
+  cowplot,
+  gridGraphics,
+  glue,
+  sccomp,
+  stringr,
+  tidybulk,
+  tidySummarizedExperiment,
+  scDblFinder,
+  here,
+  ggupset,
+  tidysc
 Encoding: UTF-8
 LazyData: true
