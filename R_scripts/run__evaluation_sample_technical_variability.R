@@ -9,7 +9,7 @@ output_path_dataframe = args[[length(args)-1]]
 output_path_plot_umap = args[[length(args)]]
 
 # Divide input
-input_demulatiplexed = input_files[1:(length(input_files)/2)]
+input_demultiplexed = input_files[1:(length(input_files)/2)]
 input_empty_droplets = input_files[((length(input_files)/2)+1):length(input_files)]
 
 #renv::load(project = code_directory)
@@ -20,6 +20,7 @@ library(tidyseurat)
 library(glue)
 library(purrr)
 library(ggupset)
+
 load(glue("{code_directory}/data/theme_multipanel.rda"))
 
 assay_of_choice = "RNA"
@@ -33,7 +34,7 @@ variable_genes_per_sample =
 
   # Reading input
   tibble(
-    seurat_obj_list = input_demulatiplexed |> map(readRDS),
+    seurat_obj_list = input_demultiplexed |> map(readRDS),
     empty_droplets_obj_list = input_empty_droplets |> map(readRDS)
   ) |>
 

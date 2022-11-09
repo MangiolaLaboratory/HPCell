@@ -24,6 +24,7 @@ library(glue)
 library(SingleR)
 library(celldex)
 library(scuttle)
+library(purrr)
 
 # Create dir
 output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
