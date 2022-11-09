@@ -17,6 +17,7 @@ library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)
 library(tidyseurat)
 library(glue)
+library(purrr)
 
 # Divide into 5 chunks
 input_paths_chunks = input_paths |> split( rep_len(1:5, length(input_paths)) |> sort())
