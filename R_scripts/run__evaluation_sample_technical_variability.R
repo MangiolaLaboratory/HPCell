@@ -21,6 +21,7 @@ library(glue)
 library(purrr)
 library(ggupset)
 
+
 load(glue("{code_directory}/data/theme_multipanel.rda"))
 
 assay_of_choice = "RNA"
@@ -28,7 +29,7 @@ assay_of_choice = "RNA"
 # Create dir
 output_path_dataframe |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
 
-metadata =
+# metadata =
 
 variable_genes_per_sample =
 
@@ -72,14 +73,14 @@ data_umap =
   unnest(data) %>%
   ScaleData(assay=assay_of_choice, return.only.var.genes=FALSE) %>%
   # Variable genes
-  {
+  { 
     .x = (.)
     VariableFeatures(.x) =
       variable_genes_per_sample |>
       select(sample, variable_genes) |>
       unnest(variable_genes) |>
       add_count(variable_genes) |>
-      filter(n>3) |>
+      filter(n >= min(length(input_demultiplexed), 4)) |>
       pull(variable_genes) |>
       unique()
     .x
