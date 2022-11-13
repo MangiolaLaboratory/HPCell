@@ -59,7 +59,7 @@ metadata_path=~/PostDoc/covid19pbmc/data/3_prime_batch_1/metadata.rds
 reference_azimuth_path=/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/reference_azimuth.rds
 ```
 
-If no `metadata.rds` is available: create a data frame with 2 columns (sample | batch) with the `samples` matching the `SAMPLE_NAME` in the input file, as described below. Set `batch` as Sample_name.
+>*Note: If no `metadata.rds` is available: create a data frame with 2 columns (sample | batch) with the `samples` matching the `SAMPLE_NAME` in the input file, >as described below. Set `batch` as Sample_name.*
 
 | sample | batch |
 | :---: | :---: |
