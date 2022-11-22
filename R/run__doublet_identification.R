@@ -24,11 +24,11 @@ output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
 readRDS(input_path_demultiplexed) |>
 
   # Filtering empty
-  left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
+  left_join(readRDS(input_path_empty_droplets) |> select(.cell, empty_droplet), by = ".cell") |>
   filter(!empty_droplet) |>
 
   # Filter dead
-  left_join(readRDS(input_path_alive), by = ".cell") |>
+  left_join(readRDS(input_path_alive) |> select(.cell, high_mitochondrion, high_RPS), by = ".cell") |>
   filter(!high_mitochondrion & !high_RPS) |>
 
   # Annotate
