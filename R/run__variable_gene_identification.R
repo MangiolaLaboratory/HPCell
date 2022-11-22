@@ -17,6 +17,7 @@ library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)
 library(tidyseurat)
 library(glue)
+library(purrr)
 
 # Divide into 5 chunks
 input_paths_chunks = input_paths |> split( rep_len(1:5, length(input_paths)) |> sort())
@@ -101,6 +102,9 @@ bind_rows(
     # If I have label
     ~ nest(., data = -!!as.symbol(cell_type_column_for_subsetting))
   ) |>
+
+  # Filter more than 10 cells
+  filter(map_int(data, ncol) > 10) |>
 
   # Get feature within each cluster/cell-type
   mutate(variable_features = map(

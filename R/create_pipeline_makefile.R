@@ -101,7 +101,7 @@ output_paths_annotation_label_transfer =   glue("{output_directory}/{samples}{su
 commands =
   commands |>
   c(
-    glue("CATEGORY={suffix}\nMEMORY=30024\nCORES=1\nWALL_TIME=10000"),
+    glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=1\nWALL_TIME=10000"),
     glue("{output_paths_annotation_label_transfer}:{input_path_demultiplexed} {output_path_empty_droplets}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {reference_azimuth_path} {output_paths_annotation_label_transfer}")
     # output_path_non_batch_variation_removal %>%
     #   enframe(value = "input_path") %>%

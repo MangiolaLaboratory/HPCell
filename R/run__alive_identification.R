@@ -22,7 +22,7 @@ library(Seurat)
 library(tidyseurat)
 library(glue)
 library(scater)
-
+library(stringr)
 
 
 # Create dir
@@ -40,12 +40,14 @@ location <- mapIds(
   keytype="SYMBOL"
 )
 
+which_mito = rownames(input_file) |> str_which("^MT-")
+
 mitochondrion =
   input_file |>
   GetAssayData( slot = "counts", assay="RNA") |>
 
   # Join mitochondrion statistics
-  scuttle::perCellQCMetrics(subsets=list(Mito=which(location=="MT"))) |>
+  scuttle::perCellQCMetrics(subsets=list(Mito=which_mito)) |>
   as_tibble(rownames = ".cell") |>
   dplyr::select(-sum, -detected) |>
 
