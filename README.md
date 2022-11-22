@@ -13,6 +13,11 @@ git clone git@github.com:Melbourne-COVID-Predict/jascap.git
 Enter in the jascap directory within R and activate renv, for reproducibility
 
 ```{r}
+module load R/4.2.1
+```
+open R in the terminal:
+
+```{r}
 install.packages("renv")
  renv::activate()
  renv::restore()
@@ -47,12 +52,20 @@ mkdir $input_directory
 # The R directory in the same location where you cloned jascap
 code_directory=~/PostDoc/jascap
 
-# This is the location of the metadata, which should match by `sample` with the column in the seurat objects
+# This is the location of the metadata, which should match by `sample` with the column in the seurat objects. The metadata file needs to be in a different directory than the input file.
 metadata_path=~/PostDoc/covid19pbmc/data/3_prime_batch_1/metadata.rds
 
 # This is in a shared location 
 reference_azimuth_path=/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/reference_azimuth.rds
 ```
+
+>*Note: If no `metadata.rds` is available: create a data frame with 2 columns (sample | batch) with the `samples` matching the `SAMPLE_NAME` in the input file, >as described below. Set `batch` as Sample_name.*
+
+| sample | batch |
+| :---: | :---: |
+| spleen | spleen|
+| liver | liver |
+
 Add input files in the input directory. 
 
 1) Each input file should be a seurat object
