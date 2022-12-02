@@ -79,7 +79,7 @@ azimuth_annotation =
 
    # Just select essential information
    as_tibble() |>
-   select(.cell, predicted.celltype.l1, predicted.celltype.l2, contains("refUMAP"))
+   dplyr::select(.cell, predicted.celltype.l1, predicted.celltype.l2, contains("refUMAP"))
 
 rm(input_file)
 gc()
@@ -107,7 +107,7 @@ gc()
            labels = blueprint$label.fine
           ) |>
     as_tibble(rownames = ".cell") |>
-    select(.cell, blueprint_first.labels.fine = first.labels)
+    select(.cell, blueprint_first.labels.fine = labels)
 
   blueprint_annotation_coarse =
     input_file_sce |>
@@ -116,7 +116,7 @@ gc()
             labels = blueprint$label.main
     ) |>
     as_tibble(rownames = ".cell") |>
-    select(.cell, blueprint_first.labels.coarse = first.labels)
+    select(.cell, blueprint_first.labels.coarse = labels)
 
   rm(blueprint)
   gc()
@@ -130,7 +130,7 @@ gc()
             labels = MonacoImmuneData$label.fine
           ) |>
     as_tibble(rownames = ".cell") |>
-    select(.cell, monaco_first.labels.fine = first.labels)
+    select(.cell, monaco_first.labels.fine = labels)
 
   monaco_annotation_coarse =
     input_file_sce |>
@@ -139,7 +139,7 @@ gc()
             labels = MonacoImmuneData$label.main
     ) |>
     as_tibble(rownames = ".cell") |>
-    select(.cell, monaco_first.labels.coarse = first.labels)
+    select(.cell, monaco_first.labels.coarse = labels)
 
   rm(MonacoImmuneData)
   gc()
