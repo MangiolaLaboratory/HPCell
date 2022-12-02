@@ -15,6 +15,8 @@ library(tidyseurat)
 library(tidySingleCellExperiment)
 library(tidysc)
 library(tidybulk)
+library(rlang)
+library(stringr)
 
 # Parallelise internally
 library(furrr)
@@ -31,10 +33,11 @@ output_path_sample |> dirname() |> dir.create( showWarnings = FALSE, recursive =
 input_path_preprocessing_output |>
 
   # Aggregate
-  future_map_dfr(~
-        readRDS(.x) |>
-          aggregate_cells(c(sample, predicted.celltype.l2), slot = "counts", assays=assays)
-    ) |>
+  future_map_dfr(~ {
+    library(rlang)
+    readRDS(.x) |>
+      aggregate_cells(c(sample, predicted.celltype.l2), slot = "counts", assays=assays)
+  }) |>
 
   # Reshape to make RNA and ADT both features
   pivot_longer(

@@ -12,6 +12,7 @@ library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)
 library(tidyseurat)
 library(glue)
+library(purrr)
 
 # Create dir
 output_path |> dirname() |> dir.create( showWarnings = FALSE)
