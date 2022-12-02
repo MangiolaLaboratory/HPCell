@@ -104,7 +104,7 @@ bind_rows(
   ) |>
 
   # Filter more than 10 cells
-  filter(map_int(data, ncol) > 10) |>
+  filter(map_int(data, ncol) > 100) |>
 
   # Get feature within each cluster/cell-type
   mutate(variable_features = map(
