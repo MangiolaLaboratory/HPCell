@@ -53,33 +53,43 @@ input_file =
     ~ (.)
   )
 
-# Define common anchors
-anchors <- FindTransferAnchors(
-  reference = reference_azimuth,
-  query = input_file,
-  normalization.method = "SCT",
-  reference.reduction = "spca",
-  dims = 1:30
-)
+if(ncol(input_file)>200){
 
-# Mapping
-azimuth_annotation =
-  MapQuery(
-    anchorset = anchors,
+  # Define common anchors
+  anchors <- FindTransferAnchors(
+    reference = reference_azimuth,
     query = input_file,
-    reference = reference_azimuth ,
-    refdata = list(
-      celltype.l1 = "celltype.l1",
-      celltype.l2 = "celltype.l2",
-      predicted_ADT = "ADT"
-    ),
+    normalization.method = "SCT",
     reference.reduction = "spca",
-    reduction.model = "wnn.umap"
-  ) |>
+    dims = 1:30
+  )
 
-   # Just select essential information
-   as_tibble() |>
-   dplyr::select(.cell, predicted.celltype.l1, predicted.celltype.l2, contains("refUMAP"))
+  # Mapping
+  azimuth_annotation =
+    MapQuery(
+      anchorset = anchors,
+      query = input_file,
+      reference = reference_azimuth ,
+      refdata = list(
+        celltype.l1 = "celltype.l1",
+        celltype.l2 = "celltype.l2",
+        predicted_ADT = "ADT"
+      ),
+      reference.reduction = "spca",
+      reduction.model = "wnn.umap"
+    ) |>
+
+    # Just select essential information
+    as_tibble() |>
+    dplyr::select(.cell, predicted.celltype.l1, predicted.celltype.l2, contains("refUMAP"))
+
+} else {
+  azimuth_annotation =
+    input_file |>
+    as_tibble() |>
+    select(.cell) |>
+    mutate(predicted.celltype.l1 = "unknown_due_to_too_few_cells", predicted.celltype.l2 = "unknown_due_to_too_few_cells")
+}
 
 rm(input_file)
 gc()
