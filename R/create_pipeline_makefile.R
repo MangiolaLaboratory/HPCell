@@ -40,7 +40,7 @@ library(purrr)
 library(readr)
 
 R_code_directory = glue("{code_directory}/R")
-
+R_code_directory_reports =  glue("{code_directory}/R_scripts")
 # Check modality
 reference_label_fine = tissue |> when(
   (.) == "pbmc" ~ "predicted.celltype.l2",
@@ -60,32 +60,37 @@ input_files_demultiplexed = dir(input_directory_demultiplexed, pattern = ".rds")
 input_path_demultiplexed = glue("{input_directory_demultiplexed}/{input_files_demultiplexed}")
 samples = input_files_demultiplexed |> str_remove(".rds")
 
+# Report directory
+reports_directory = glue("{result_directory}/preprocessing_results/reports")
 
 # >>> EMPTY droplets
 suffix = "__empty_droplet_identification"
-output_directory = glue("{result_directory}/preprocessing_results/empty_droplet_identification")
-output_path_empty_droplets =   glue("{output_directory}/{samples}{suffix}_output.rds")
-output_path_plot_pdf =  glue("{output_directory}/{samples}{suffix}_plot.pdf")
-output_path_plot_rds =  glue("{output_directory}/{samples}{suffix}_plot.rds")
+output_directory_empty_droplets = glue("{result_directory}/preprocessing_results/empty_droplet_identification")
+output_path_empty_droplets =   glue("{output_directory_empty_droplets}/{samples}{suffix}_output.rds")
+output_path_plot_pdf =  glue("{output_directory_empty_droplets}/{samples}{suffix}_plot.pdf")
+output_path_plot_rds =  glue("{output_directory_empty_droplets}/{samples}{suffix}_plot.rds")
+report_empty_droplets = glue("{reports_directory}/report{suffix}.md")
 
 # Create input
 commands =
   commands |>
   c(
     glue("CATEGORY={suffix}\nMEMORY=10024\nCORES=1\nWALL_TIME=30000"),
-    glue("{output_path_empty_droplets} {output_path_plot_pdf} {output_path_plot_rds}:{input_path_demultiplexed}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {filtered} {output_path_empty_droplets} {output_path_plot_pdf} {output_path_plot_rds}")
+    glue("{output_path_empty_droplets} {output_path_plot_pdf} {output_path_plot_rds}:{input_path_demultiplexed}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {filtered} {output_path_empty_droplets} {output_path_plot_pdf} {output_path_plot_rds}"),
+    glue("CATEGORY={suffix}_report\nMEMORY=30024\nCORES=2"),
+    glue("{report_empty_droplets}:{input_path_demultiplexed |> str_c(collapse=' ')} {output_path_empty_droplets |> str_c(collapse=' ')}\n{tab}module load pandoc; Rscript -e \"rmarkdown::render('{R_code_directory_reports}/report{suffix}.Rmd', output_dir = '{reports_directory}', params=list(reports_directory = '{reports_directory}', file1 = '{input_directory_demultiplexed}', file2='{output_directory_empty_droplets}'))\"")
   )
 
 
 # >>> CHECK IF SAMPLES WITHIN BATCH HAVE TECHNICAL VARIATION
 suffix = "__evaluation_sample_technical_variability"
+output_directory_variable = glue("{result_directory}/preprocessing_results/evaluation_sample_technical_variability")
 
 commands_variable_gene =
   tibble(
     sample = samples,
     input_path_demultiplexed,
-    output_path_empty_droplets,
-    output_directory = glue("{result_directory}/preprocessing_results/evaluation_sample_technical_variability")
+    output_path_empty_droplets
   ) |>
 
   # Add batch
@@ -102,8 +107,8 @@ commands_variable_gene =
 
   # Output file
   mutate(
-    output_path_data_umap = glue("{output_directory}/data_umap_output_{batch}.rds"),
-    output_path_plot_umap = glue("{output_directory}/plot_umap_output_{batch}.rds")
+    output_path_data_umap = glue("{output_directory_variable}/data_umap_output_{batch}.rds"),
+    output_path_plot_umap = glue("{output_directory_variable}/plot_umap_output_{batch}.rds")
   ) |>
 
   # create command
@@ -255,7 +260,7 @@ output_path_pseudobulk_preprocessing_sample =   glue("{output_directory}/pseudob
 # Create input
 commands =
   commands |> c(
-    glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=11\nWALL_TIME=30000"),
+    glue("CATEGORY={suffix}\nMEMORY=100024\nCORES=2\nWALL_TIME=30000"),
     glue("{output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}:{paste(output_path_preprocessing_results, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {paste(output_path_preprocessing_results, collapse=\" \")} {output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}")
 
   )

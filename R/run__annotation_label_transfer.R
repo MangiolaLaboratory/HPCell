@@ -41,7 +41,7 @@ input_file =
   readRDS(input_path_demultiplexed) |>
 
   # Filter empty
-  left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
+  tidyseurat::left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
   tidyseurat::filter(!empty_droplet) |>
 
   # Normalise RNA - not informed by smartly selected variable genes
@@ -85,11 +85,7 @@ rm(input_file)
 gc()
 
 # SingleR
-
-
-
-
-  input_file_sce =
+input_file_sce =
   readRDS(input_path_demultiplexed) |>
 
   # Filter empty

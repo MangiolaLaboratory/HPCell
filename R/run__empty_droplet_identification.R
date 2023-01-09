@@ -59,16 +59,23 @@ if(min(barcode_ranks$total) < 100) { lower = 100 } else {
 
 # Remove genes from input
 barcode_table =
+  input_file |>
+  when(
 
-  # Proper classification
-  input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
-  emptyDrops( test.ambient = TRUE, lower=lower) |>
-  as_tibble(rownames = ".cell") |>
-  mutate(empty_droplet = FDR >= significance_threshold) |>
-  replace_na(list(empty_droplet = TRUE)) |>
+    # If filtered
+    filtered == "unfiltered" ~
+      (.)@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
+      emptyDrops( test.ambient = TRUE, lower=lower) |>
+      as_tibble(rownames = ".cell") |>
+      mutate(empty_droplet = FDR >= significance_threshold) |>
+      replace_na(list(empty_droplet = TRUE)),
 
-  # If already filtered override stats
-  when(filtered == "filtered" ~ mutate(., empty_droplet = FALSE), ~ (.)) |>
+    # If unfiltered
+    filtered == "filtered" ~
+      tidyseurat::select(., .cell) |>
+      as_tibble() |>
+      mutate( empty_droplet = FALSE)
+  ) |>
 
   # barcode ranks
   left_join(

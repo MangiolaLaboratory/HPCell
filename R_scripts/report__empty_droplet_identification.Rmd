@@ -1,0 +1,163 @@
+---
+title: "Empty droplets"
+author: "Elisa Roesti"
+date: '2022-08-31'
+params:
+  reports_directory:
+  file1: 
+  file2:
+output: md_document
+---
+
+```{r setup, include=FALSE}
+library(DropletUtils)
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(tidyseurat)
+library(glue)
+library(purrr)
+library(edgeR)
+library(here)
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+# Create dir
+params$reports_directory |> dir.create( showWarnings = FALSE, recursive = TRUE)
+
+# Read files
+demultiplexed = dir(params$file1, full.names = TRUE)
+empty_droplet_identification_output = dir(params$file2, full.names = TRUE, pattern = "output.rds")
+
+#read empty information
+empty_df <- 
+  empty_droplet_identification_output |>
+  enframe(value = "file") |> 
+  extract(file, "sample", "/([a-zA-Z0-9]+)__empty_droplet_identification_output.rds", remove = FALSE) |> 
+  mutate(data = map(file, readRDS)) |> 
+  unnest(data)
+
+
+
+#define mito and ribo genes and add the plot:
+demultiplexed_empty = demultiplexed[1] |> readRDS()
+
+mito_genes <- grep("^MT-", rownames(demultiplexed_empty[["RNA"]]), value=T)
+ribo_genes <-grep("^RP(S|L)", rownames(demultiplexed_empty[["RNA"]]), value=T)
+
+
+# ma plot: mito is green, ribo is red
+col <- rep('black',ncol(demultiplexed_empty))
+col[rownames(demultiplexed_empty) %in% mito_genes] <-'green'
+col[rownames(demultiplexed_empty) %in% ribo_genes] <-'red'
+  
+```
+
+
+Visualize barcode rank plots for each sample
+
+```{r, fig.height=10, fig.width=10,  warning=FALSE, message=FALSE, echo=FALSE}
+#Code used to calculate the ranking (which is already present in our seurat), can be find at https://github.com/Melbourne-COVID-Predict/PBMC/blob/main/analysis/pseudobulk/pseudobulk_analysis_1.Rmd
+
+#plot the graphs faceted:
+  empty_df%>%
+  sample_frac(0.1) %>% #between 0-1, 1=all cells
+  ggplot2::ggplot(aes(rank, total)) + 
+  geom_point() + 
+  facet_wrap(~sample, nrow=4) + 
+  geom_line(aes(rank, fitted), color="red") + 
+  geom_hline(aes(yintercept = knee), color="dodgerblue") +
+  geom_hline(aes(yintercept = inflection), color="forestgreen") +
+  scale_x_log10() + 
+  scale_y_log10() + 
+  theme_bw() +
+  theme(aspect.ratio=1) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+
+```
+
+
+```{r}
+empty_df  |> select(empty_droplet) |> table()
+
+```
+
+
+
+Number of non-empty droplets, everything above knee is retained.
+
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+# Number of non-empty droplets -------------------------------------------------
+summary(empty_df$FDR < 0.001)
+```
+
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+is.cell <- empty_df$FDR <= 0.001
+table(is.cell) #true 81090 cells, 8429 false
+```
+
+Check if p-values are lower-bounded by 'niters' (increase 'niters' if any Limited==TRUE and Sig==FALSE), with niters being: An integer scalar specifying the number of iterations to use for the Monte Carlo p-value calculations.
+
+```{r,warning=FALSE, message=FALSE, echo=FALSE}
+table(Sig=is.cell, Limited=empty_df$Limited)
+```
+
+
+MA plot (only if empty droplets have been identified)
+
+```{r, fig.height=10, fig.width=10, warning=FALSE, message=FALSE, echo=FALSE}
+if(empty_df |> filter(empty_droplet) |> nrow() != 0)
+  tibble(
+  input_files = demultiplexed,
+  empty_droplets = empty_droplet_identification_output
+) |> 
+  mutate(MA_plot = map2(
+    input_files, empty_droplets,
+    ~ {
+      
+      demultiplexed_empty = readRDS(here(.x))
+      empty_df = readRDS(here(.y))
+      
+      extra <- empty_df |> filter(FDR < 0.001) |> pull(.cell)
+      amb  <- empty_df |> filter(is.na(FDR)) |> pull(.cell)
+      extra.mu <- demultiplexed_empty |> filter(.cell %in% extra) |> GetAssayData("RNA",slot = "counts") |> rowSums()
+      amb.mu  <-demultiplexed_empty |> filter(.cell %in% amb) |> GetAssayData("RNA",slot = "counts") |> rowSums()
+      
+
+      edgeR::maPlot(extra.mu, amb.mu, normalize = TRUE, col = col, plot.it = FALSE) |> 
+        
+      # ggplot
+      enframe() |> 
+        pivot_wider() |> 
+        unnest(A, M, w, v) |> 
+        ggplot(aes(A, M, color = col, size = col)) + 
+        geom_point() + 
+        scale_color_manual(values = c("black", "red", "blue")) + 
+        scale_size_manual(values = c(0.2, 2, 2)) +
+        theme_bw()
+
+
+    }
+  )) |> 
+  pull(MA_plot)
+
+```
+
+(mitochondria genes in green, ribosomal genes in red)
+
+
+
+Histogram of p-values: (only if empty droplets have been identified)
+
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+if(empty_df |> filter(empty_droplet) |> nrow() != 0){
+  q = quantile(empty_df$Total, 0.1)
+
+hist(empty_df$PValue[empty_df$Total <= q & empty_df$Total > 0],
+     main = glue("Droplets with 0 < libsize <= {q}"),
+     xlab = "P-value")
+}
+
+```
+

@@ -17,11 +17,12 @@ library(tidysc)
 library(tidybulk)
 library(rlang)
 library(stringr)
+library(purrr)
 
-# Parallelise internally
-library(furrr)
-options(future.globals.maxSize = 49 * 1024 ^ 3) # 50Gb
-plan(strategy = "multisession", workers = 10)
+# # Parallelise internally
+# library(furrr)
+# options(future.globals.maxSize = 49 * 1024 ^ 3) # 50Gb
+# plan(strategy = "multisession", workers = 10)
 
 # Do we have RNA and also ADT
 assays = readRDS(input_path_preprocessing_output[1])@assays |> names() |> intersect(c("RNA", "ADT"))
@@ -33,7 +34,7 @@ output_path_sample |> dirname() |> dir.create( showWarnings = FALSE, recursive =
 input_path_preprocessing_output |>
 
   # Aggregate
-  future_map_dfr(~ {
+  map_dfr(~ {
     library(rlang)
     readRDS(.x) |>
       aggregate_cells(c(sample, predicted.celltype.l2), slot = "counts", assays=assays)
@@ -62,12 +63,13 @@ input_path_preprocessing_output |>
   # Save
   saveRDS(output_path_sample_cell_type)
 
+gc()
 
 # ONLY SAMPLE
 input_path_preprocessing_output |>
 
   # Aggregate
-  future_map_dfr(~
+  map_dfr(~
                    readRDS(.x) |>
                    aggregate_cells(c(sample), slot = "counts", assays=assays)
   ) |>

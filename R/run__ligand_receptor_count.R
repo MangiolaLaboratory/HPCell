@@ -60,6 +60,8 @@ computeCommunProbPathway = function (object = NULL, net = NULL, pairLR.use = NUL
   }
 }
 
+
+
 tibble(DB = c("Secreted Signaling", "ECM-Receptor" , "Cell-Cell Contact" )) |>
   mutate(sample =  input_path_preprocessing |> basename() |> str_remove("__.+")) |>
   mutate(data = list(counts_cellchat)) |>
@@ -74,11 +76,11 @@ tibble(DB = c("Secreted Signaling", "ECM-Receptor" , "Cell-Cell Contact" )) |>
         identifyOverExpressedGenes() |>
         identifyOverExpressedInteractions() |>
         projectData(PPI.human)
-browser()
+
     if(nrow(x@LR$LRsig)==0) return(NA)
 
      x |>
-        computeCommunProb(do.fast = FALSE) |>
+        computeCommunProb() |>
         filterCommunication() |>
         computeCommunProbPathway() |>
         aggregateNet()
