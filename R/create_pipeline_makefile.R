@@ -23,6 +23,14 @@ code_directory = args[[6]]
 metadata_path = args[[7]]
 reference_azimuth_path = args[[8]]
 
+# modality = "preprocessing"
+# tissue = "pbmc"
+# filtered = "filtered"
+# result_directory = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches"
+# input_directory = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches/input_files"
+# code_directory = "/home/users/allstaff/mangiola.s/PostDoc/jascap"
+# metadata_path = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches/metadata.rds"
+# reference_azimuth_path = "/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/reference_azimuth.rds"
 
 
 # Create dir
