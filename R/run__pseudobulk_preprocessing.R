@@ -30,35 +30,52 @@ assays = readRDS(input_path_preprocessing_output[1])@assays |> names() |> inters
 # Create dir
 output_path_sample |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
 
-
-input_path_preprocessing_output |>
+pseudobulk =
+  input_path_preprocessing_output |>
 
   # Aggregate
-  map_dfr(~ {
+  map(~ {
     library(rlang)
     readRDS(.x) |>
-      aggregate_cells(c(sample, predicted.celltype.l2), slot = "counts", assays=assays)
-  }) |>
+      aggregate_cells(c(sample, predicted.celltype.l2), slot = "counts", assays=assays) |>
 
-  # Reshape to make RNA and ADT both features
-  pivot_longer(
-    cols = assays,
-    names_to = "data_source",
-    values_to = "count"
-  ) |>
-  filter(!count |> is.na()) |>
+      # Reshape to make RNA and ADT both features
+      pivot_longer(
+        cols = assays,
+        names_to = "data_source",
+        values_to = "count"
+      ) |>
+      filter(!count |> is.na()) |>
 
-  # Some manipulation to get unique feature because RNa and ADT both can have sma name genes
-  rename(symbol = feature) |>
-  mutate(data_source = str_remove(data_source, "abundance_")) |>
-  unite( ".feature", c(symbol, data_source), remove = FALSE) |>
+      # Some manipulation to get unique feature because RNA and ADT
+      # both can have sma name genes
+      rename(symbol = feature) |>
+      mutate(data_source = str_remove(data_source, "abundance_")) |>
+      unite( ".feature", c(symbol, data_source), remove = FALSE) |>
 
-  # Covert
-  as_SummarizedExperiment(
-    .sample = c( sample,predicted.celltype.l2),
-    .transcript = .feature,
-    .abundance = count
-  ) |>
+      # Covert
+      as_SummarizedExperiment(
+        .sample = c( sample,predicted.celltype.l2),
+        .transcript = .feature,
+        .abundance = count
+      )
+
+  })
+
+# This should not be needed if I create count files weel form the beginning
+# Select only common column
+common_columns =
+  pseudobulk |>
+  map(~ .x |> tidySummarizedExperiment::as_tibble() |> colnames()) |>
+  unlist() |>
+  table() %>%
+  .[.==max(.)] |>
+  names()
+
+# Select and save
+pseudobulk |>
+  map(~ .x |> tidySummarizedExperiment::select(all_of(common_columns)))   %>%
+  do.call(cbind, .) |>
 
   # Save
   saveRDS(output_path_sample_cell_type)
@@ -66,33 +83,49 @@ input_path_preprocessing_output |>
 gc()
 
 # ONLY SAMPLE
-input_path_preprocessing_output |>
+pseudobulk =
+  input_path_preprocessing_output |>
 
   # Aggregate
-  map_dfr(~
+  map(~
                    readRDS(.x) |>
-                   aggregate_cells(c(sample), slot = "counts", assays=assays)
-  ) |>
+                   aggregate_cells(c(sample), slot = "counts", assays=assays) |>
 
-  # Reshape to make RNA and ADT both features
-  pivot_longer(
-    cols = assays,
-    names_to = "data_source",
-    values_to = "count"
-  ) |>
-  filter(!count |> is.na()) |>
+            # Reshape to make RNA and ADT both features
+            pivot_longer(
+              cols = assays,
+              names_to = "data_source",
+              values_to = "count"
+            ) |>
+            filter(!count |> is.na()) |>
 
-  # Some manipulation to get unique feature because RNa and ADT both can have sma name genes
-  rename(symbol = feature) |>
-  mutate(data_source = str_remove(data_source, "abundance_")) |>
-  unite( ".feature", c(symbol, data_source), remove = FALSE) |>
+            # Some manipulation to get unique feature because RNa and ADT both can have sma name genes
+            rename(symbol = feature) |>
+            mutate(data_source = str_remove(data_source, "abundance_")) |>
+            unite( ".feature", c(symbol, data_source), remove = FALSE) |>
 
-  # Covert
-  as_SummarizedExperiment(
-    .sample = c( sample),
-    .transcript = .feature,
-    .abundance = count
-  ) |>
+            # Covert
+            as_SummarizedExperiment(
+              .sample = c( sample),
+              .transcript = .feature,
+              .abundance = count
+            )
+  )
+
+# This should not be needed if I create count files weel form the beginning
+# Select only common column
+common_columns =
+  pseudobulk |>
+  map(~ .x |> tidySummarizedExperiment::as_tibble() |> colnames()) |>
+  unlist() |>
+  table() %>%
+  .[.==max(.)] |>
+  names()
+
+# Select and save
+pseudobulk |>
+  map(~ .x |> tidySummarizedExperiment::select(all_of(common_columns)))   %>%
+  do.call(cbind, .) |>
 
   # Save
   saveRDS(output_path_sample)

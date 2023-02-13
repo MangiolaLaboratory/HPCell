@@ -4,9 +4,7 @@
 # makeflow -T slurm -J 200 analysis/empty_droplet_identification/empty_droplet_identification.makeflow
 
 
-# commands
-commands = c()
-tab = "\t"
+
 
 # Read arguments
 args = commandArgs(trailingOnly=TRUE)
@@ -32,6 +30,9 @@ reference_azimuth_path = args[[8]]
 # metadata_path = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches/metadata.rds"
 # reference_azimuth_path = "/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/reference_azimuth.rds"
 
+# commands
+commands = c()
+tab = "\t"
 
 # Create dir
 result_directory |> dir.create( showWarnings = FALSE, recursive = TRUE)
@@ -125,16 +126,22 @@ commands_variable_gene =
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=100024\nCORES=11\nWALL_TIME=30000"),
-    commands_variable_gene  |> pull(command) |> unlist()
-    #,
-    #glue("{output_path_marged_variable_genes}:{paste(commands_variable_gene |> pull(output_file), collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}_merge.R {code_directory} {paste(commands_variable_gene |> pull(output_file), collapse=\" \")} {output_path_marged_variable_genes}")
+    commands_variable_gene  |> pull(command) |> unlist(),
+    glue("CATEGORY=_{suffix}_report\nMEMORY=30024\nCORES=2"),
+    glue("{reports_directory}/report{suffix}.md:{commands_variable_gene |> pull(output_path_plot_umap) |> unique() |> str_c(collapse=' ')}\n{tab}module load pandoc; Rscript -e \"rmarkdown::render('{R_code_directory_reports}/report{suffix}.Rmd', output_dir = '{reports_directory}', params=list(reports_directory = '{reports_directory}', dir1 = '{output_directory_variable}'))\"")
   )
+
+
+
+
+
+
 
 
 # >>> AZIMUTH ANNOTATION
 suffix = "__annotation_label_transfer"
-output_directory = glue("{result_directory}/preprocessing_results/annotation_label_transfer")
-output_paths_annotation_label_transfer =   glue("{output_directory}/{samples}{suffix}_output.rds")
+output_directory_label_transfer = glue("{result_directory}/preprocessing_results/annotation_label_transfer")
+output_paths_annotation_label_transfer =   glue("{output_directory_label_transfer}/{samples}{suffix}_output.rds")
 
 # Create input
 commands =
@@ -172,15 +179,15 @@ commands =
 
 # >>> DOUBLET IDENTIFICATION
 suffix = "__doublet_identification"
-output_directory = glue("{result_directory}/preprocessing_results/doublet_identification")
-output_path_doublet_identification =   glue("{output_directory}/{samples}{suffix}_output.rds")
+output_directory_doublet = glue("{result_directory}/preprocessing_results/doublet_identification")
+output_path_doublet_identification =   glue("{output_directory_doublet}/{samples}{suffix}_output.rds")
+
 
 # Create input
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=10024\nCORES=2\nWALL_TIME=30000"),
     glue("{output_path_doublet_identification}:{input_path_demultiplexed} {output_path_empty_droplets} {output_path_alive} {output_paths_annotation_label_transfer}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {reference_label_fine} {output_path_empty_droplets} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification}")
-
   )
 
 
@@ -232,8 +239,8 @@ commands =
 
 # >>> NORMALISATION
 suffix = "__non_batch_variation_removal"
-output_directory = glue("{result_directory}/preprocessing_results/non_batch_variation_removal")
-output_path_non_batch_variation_removal =   glue("{output_directory}/{samples}{suffix}_output.rds")
+output_directory_non_batch_variation_removal = glue("{result_directory}/preprocessing_results/non_batch_variation_removal")
+output_path_non_batch_variation_removal =   glue("{output_directory_non_batch_variation_removal}/{samples}{suffix}_output.rds")
 
 # Create input
 commands =
@@ -256,6 +263,14 @@ commands =
   )
 
 
+# REPORT DOUBLETS
+commands =
+  commands |> c(
+    glue("CATEGORY=__doublet_identification_report\nMEMORY=30024\nCORES=2"),
+    glue("{reports_directory}/report__doublet_identification.md:{output_path_non_batch_variation_removal  |> str_c(collapse=' ')} {output_paths_annotation_label_transfer |> str_c(collapse=' ')} {output_path_doublet_identification |> str_c(collapse=' ') } {metadata_path} {output_path_marged_variable_genes}\n{tab}module load pandoc; Rscript -e \"rmarkdown::render('{R_code_directory_reports}/report__doublet_identification.Rmd', output_dir = '{reports_directory}', params=list(dir1 = '{output_directory_non_batch_variation_removal}', dir2='{output_directory_label_transfer}', dir3='{output_directory_doublet}', metadata_path='{metadata_path}', output_path_marged_variable_genes = '{output_path_marged_variable_genes}'))\"")
+
+  )
+
 
 
 
@@ -269,10 +284,11 @@ output_path_pseudobulk_preprocessing_sample =   glue("{output_directory}/pseudob
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=100024\nCORES=2\nWALL_TIME=30000"),
-    glue("{output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}:{paste(output_path_preprocessing_results, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {paste(output_path_preprocessing_results, collapse=\" \")} {output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}")
+    glue("{output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}:{paste(output_path_preprocessing_results, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {paste(output_path_preprocessing_results, collapse=\" \")} {output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}"),
+    glue("CATEGORY=_{suffix}_report\nMEMORY=30024\nCORES=2"),
+    glue("{reports_directory}/report{suffix}.md:{output_path_pseudobulk_preprocessing_sample}\n{tab}module load pandoc; Rscript -e \"rmarkdown::render('{R_code_directory_reports}/report{suffix}.Rmd', output_dir = '{reports_directory}', params=list(file1 = '{output_path_pseudobulk_preprocessing_sample}', metadata_path='{metadata_path}'))\"")
 
   )
-
 
 
 if(modality %in% c("fast", "complete")){

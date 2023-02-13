@@ -27,67 +27,115 @@ assay_of_choice = "RNA"
 # Create dir
 output_path_dataframe |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
 
-metadata =
-
 variable_genes_per_sample =
 
-  # Reading input
+  # input
   tibble(
-    seurat_obj_list = input_demulatiplexed |> map(readRDS),
-    empty_droplets_obj_list = input_empty_droplets |> map(readRDS)
+    seurat_obj_list = input_demulatiplexed,
+    empty_droplets_obj_list = input_empty_droplets
   ) |>
 
-  # Filter
-  mutate(seurat_obj_list = map2(seurat_obj_list, empty_droplets_obj_list, ~ .x |> left_join(.y) |> filter(!empty_droplet))) |>
-  select(seurat_obj_list) |>
-  tidyseurat:::unnest.tidyseurat_nested(seurat_obj_list) |>
-  ScaleData(assay=assay_of_choice, return.only.var.genes=FALSE)  |>
+  # Reading input
+  mutate(variable_genes = map2(
+    seurat_obj_list, empty_droplets_obj_list,
+    ~ {
+      seu = readRDS(.x)
+      seu[["HTO"]] = NULL
+      seu[["ADT"]] = NULL
 
-  # Add metadata
-  left_join(readRDS(input_metadata)) |>
 
-  # Get variable genes
-  nest(data = -sample) |>
-  mutate(variable_genes = map(
-    data,
-    ~ .x |>
-      FindVariableFeatures(assay=assay_of_choice, nfeatures = 500) |>
-      VariableFeatures(assay=assay_of_choice)
-  ))  |>
+      # Filter
+      seu |>
+        left_join(readRDS(.y)) |>
+        filter(!empty_droplet) |>
 
-  # Subset
-  mutate(n = map_int(data, ~ ncol(.x))) %>%
-  mutate(upper_quantile = quantile(n, 0.50) %>% as.integer()) %>%
-  mutate(data = map2(
-    data, upper_quantile,
-    ~ sample_n(.x, min(ncol(.x), .y), replace = FALSE)
+        # Scale
+        ScaleData(assay=assay_of_choice, return.only.var.genes=FALSE) |>
+
+        # Variable features
+        FindVariableFeatures(assay=assay_of_choice, nfeatures = 500) |>
+        VariableFeatures(assay=assay_of_choice)
+    }
   ))
 
 
 
+  # # Filter
+  # mutate(seurat_obj_list = map2(seurat_obj_list, empty_droplets_obj_list, ~ .x |> left_join(.y) |> filter(!empty_droplet))) |>
+  # select(seurat_obj_list) |>
+  # tidyseurat:::unnest.tidyseurat_nested(seurat_obj_list) |>
+  # ScaleData(assay=assay_of_choice, return.only.var.genes=FALSE)  |>
+  #
+  # # Add metadata
+  # left_join(readRDS(input_metadata)) |>
+  #
+  # # Get variable genes
+  # nest(data = -sample) |>
+  # mutate(variable_genes = map(
+  #   data,
+  #   ~ .x |>
+  #     FindVariableFeatures(assay=assay_of_choice, nfeatures = 500) |>
+  #     VariableFeatures(assay=assay_of_choice)
+  # ))  |>
+  #
+  # # Subset
+  # mutate(n = map_int(data, ~ ncol(.x))) %>%
+  # mutate(upper_quantile = quantile(n, 0.50) %>% as.integer()) %>%
+  # mutate(data = map2(
+  #   data, upper_quantile,
+  #   ~ slice_sample(.x, n=min(ncol(.x), .y), replace = FALSE )
+  # ))
+
+
+my_variable_genes = variable_genes_per_sample |> pull(variable_genes) |> unlist() |>  unique()
+
 data_umap =
-  variable_genes_per_sample |>
-  select(sample, data) |>
-  unnest(data) %>%
+
+
+  # input
+  tibble(
+    seurat_obj_list = input_demulatiplexed,
+    empty_droplets_obj_list = input_empty_droplets
+  ) |>
+
+  # Reading input
+  mutate(variable_genes = map2(
+    seurat_obj_list, empty_droplets_obj_list,
+    ~ {
+      seu = readRDS(.x)
+      seu[["HTO"]] = NULL
+      seu[["ADT"]] = NULL
+
+      # Filter
+      seu =
+        seu |>
+        left_join(readRDS(.y)) |>
+        filter(!empty_droplet)
+
+
+      seu =
+        seu[my_variable_genes,] |>
+        slice_sample( n=min(ncol(seu), 1000), replace = FALSE )
+
+
+    }
+  )) |>
+
+  unnest_seurat(variable_genes) %>%
   ScaleData(assay=assay_of_choice, return.only.var.genes=FALSE) %>%
   # Variable genes
   {
     .x = (.)
-    VariableFeatures(.x) =
-      variable_genes_per_sample |>
-      select(sample, variable_genes) |>
-      unnest(variable_genes) |>
-      add_count(variable_genes) |>
-      filter(n>3) |>
-      pull(variable_genes) |>
-      unique()
+    VariableFeatures(.x) =   my_variable_genes
     .x
   } |>
 
   # UMAP
   RunPCA(dims = 1:30, assay=assay_of_choice) |>
   RunUMAP(dims = 1:30, spread = 0.5,min.dist  = 0.01, n.neighbors = 10L) |>
-  as_tibble()
+  as_tibble() |>
+
+  left_join(readRDS(input_metadata))
 
 # Plot
 plot_sample_color =

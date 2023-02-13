@@ -52,20 +52,23 @@ col <- rep('black',ncol(demultiplexed_empty))
 col[rownames(demultiplexed_empty) %in% mito_genes] <-'green'
 col[rownames(demultiplexed_empty) %in% ribo_genes] <-'red'
   
+
+sample_number = length(demultiplexed)
+
 ```
 
 
 Visualize barcode rank plots for each sample
 
-```{r, fig.height=10, fig.width=10,  warning=FALSE, message=FALSE, echo=FALSE}
+```{r, fig.height=ceiling(10/8*sample_number), fig.width=10,  warning=FALSE, message=FALSE, echo=FALSE}
 #Code used to calculate the ranking (which is already present in our seurat), can be find at https://github.com/Melbourne-COVID-Predict/PBMC/blob/main/analysis/pseudobulk/pseudobulk_analysis_1.Rmd
 
 #plot the graphs faceted:
-  empty_df%>%
+  empty_df %>%
   sample_frac(0.1) %>% #between 0-1, 1=all cells
   ggplot2::ggplot(aes(rank, total)) + 
   geom_point() + 
-  facet_wrap(~sample, nrow=4) + 
+  facet_wrap(~sample, ncol=8) + 
   geom_line(aes(rank, fitted), color="red") + 
   geom_hline(aes(yintercept = knee), color="dodgerblue") +
   geom_hline(aes(yintercept = inflection), color="forestgreen") +
