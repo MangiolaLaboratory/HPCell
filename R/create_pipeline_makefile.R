@@ -16,10 +16,11 @@ if(!modality %in% c("preprocessing", "slow_pipeline", "fast_pipeline", "complete
   stop("jascap says: modality (the first argument) should be one of the following: preprocessing, slow_pipeline, fast_pipeline, complete_pipeline")
 
 result_directory = args[[4]]
-input_directory = args[[5]]
-code_directory = args[[6]]
-metadata_path = args[[7]]
-reference_azimuth_path = args[[8]]
+reports_directory = args[[5]]
+input_directory = args[[6]]
+code_directory = args[[7]]
+metadata_path = args[[8]]
+reference_azimuth_path = args[[9]]
 
 # modality = "preprocessing"
 # tissue = "pbmc"
@@ -68,9 +69,6 @@ input_directory_demultiplexed = input_directory
 input_files_demultiplexed = dir(input_directory_demultiplexed, pattern = ".rds")
 input_path_demultiplexed = glue("{input_directory_demultiplexed}/{input_files_demultiplexed}")
 samples = input_files_demultiplexed |> str_remove(".rds")
-
-# Report directory
-reports_directory = glue("{result_directory}/preprocessing_results/reports")
 
 # >>> EMPTY droplets
 suffix = "__empty_droplet_identification"
@@ -291,7 +289,7 @@ commands =
   )
 
 
-if(modality %in% c("fast", "complete")){
+if(modality %in% c("slow_pipeline", "fast_pipeline", "complete_pipeline")){
 
 
 
