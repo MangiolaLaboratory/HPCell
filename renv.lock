@@ -234,6 +234,57 @@
       "Hash": "60aada7beac23aa3e9b219485d6b2da8",
       "Requirements": []
     },
+    "CellChat": {
+      "Package": "CellChat",
+      "Version": "1.6.1",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "CellChat",
+      "RemoteUsername": "sqjin",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "4bd842c7e04793fa25470838f9d35f764aca7483",
+      "Hash": "9a3894733576d712207aaa88168aa4a2",
+      "Requirements": [
+        "BiocGenerics",
+        "BiocNeighbors",
+        "ComplexHeatmap",
+        "FNN",
+        "Matrix",
+        "NMF",
+        "RColorBrewer",
+        "RSpectra",
+        "Rcpp",
+        "RcppEigen",
+        "Rtsne",
+        "circlize",
+        "colorspace",
+        "cowplot",
+        "dplyr",
+        "expm",
+        "forcats",
+        "future",
+        "future.apply",
+        "ggalluvial",
+        "ggnetwork",
+        "ggplot2",
+        "ggpubr",
+        "ggrepel",
+        "igraph",
+        "irlba",
+        "magrittr",
+        "patchwork",
+        "pbapply",
+        "plyr",
+        "reshape2",
+        "reticulate",
+        "scales",
+        "shape",
+        "sna",
+        "stringr",
+        "svglite"
+      ]
+    },
     "ComplexHeatmap": {
       "Package": "ComplexHeatmap",
       "Version": "2.14.0",
@@ -594,6 +645,30 @@
         "Matrix"
       ]
     },
+    "NMF": {
+      "Package": "NMF",
+      "Version": "0.25",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "cc72349b450fd887166554fae56360bb",
+      "Requirements": [
+        "Biobase",
+        "BiocManager",
+        "RColorBrewer",
+        "cluster",
+        "codetools",
+        "colorspace",
+        "digest",
+        "doParallel",
+        "foreach",
+        "ggplot2",
+        "gridBase",
+        "registry",
+        "reshape2",
+        "rngtools",
+        "stringr"
+      ]
+    },
     "PRROC": {
       "Package": "PRROC",
       "Version": "1.3.1",
@@ -700,6 +775,18 @@
         "memoise",
         "pkgconfig",
         "plogr"
+      ]
+    },
+    "RSpectra": {
+      "Package": "RSpectra",
+      "Version": "0.16-1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "6b5ab997fd5ff6d46a5f1d9f8b76961c",
+      "Requirements": [
+        "Matrix",
+        "Rcpp",
+        "RcppEigen"
       ]
     },
     "Rcpp": {
@@ -1437,6 +1524,16 @@
       "Hash": "5edbbabab6ce0bf7900a74fd4358628e",
       "Requirements": []
     },
+    "coda": {
+      "Package": "coda",
+      "Version": "0.19-4",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "24b6d006b8b2343876cf230687546932",
+      "Requirements": [
+        "lattice"
+      ]
+    },
     "codetools": {
       "Package": "codetools",
       "Version": "0.2-18",
@@ -1811,6 +1908,16 @@
       "Hash": "4b68aa51edd89a0e044a66e75ae3cc6c",
       "Requirements": []
     },
+    "expm": {
+      "Package": "expm",
+      "Version": "0.999-7",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "af0c5d9f9ece61d4723904c7b2b49b4d",
+      "Requirements": [
+        "Matrix"
+      ]
+    },
     "fansi": {
       "Package": "fansi",
       "Version": "1.0.4",
@@ -2008,6 +2115,21 @@
         "zip"
       ]
     },
+    "ggalluvial": {
+      "Package": "ggalluvial",
+      "Version": "0.12.4",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "970c533dd7f93d48a7f1deef6c59ba40",
+      "Requirements": [
+        "dplyr",
+        "ggplot2",
+        "lazyeval",
+        "rlang",
+        "tidyr",
+        "tidyselect"
+      ]
+    },
     "ggbeeswarm": {
       "Package": "ggbeeswarm",
       "Version": "0.7.1",
@@ -2019,6 +2141,20 @@
         "ggplot2",
         "lifecycle",
         "vipor"
+      ]
+    },
+    "ggnetwork": {
+      "Package": "ggnetwork",
+      "Version": "0.5.10",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "edd2f4b43589bf500a40ccc8b0b2b3b3",
+      "Requirements": [
+        "ggplot2",
+        "ggrepel",
+        "igraph",
+        "network",
+        "sna"
       ]
     },
     "ggplot2": {
@@ -2246,6 +2382,14 @@
         "caTools",
         "gtools"
       ]
+    },
+    "gridBase": {
+      "Package": "gridBase",
+      "Version": "0.4-7",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "c6b1256546a22b4b9f4fae3ba5117b97",
+      "Requirements": []
     },
     "gridExtra": {
       "Package": "gridExtra",
@@ -2775,6 +2919,18 @@
         "colorspace"
       ]
     },
+    "network": {
+      "Package": "network",
+      "Version": "1.18.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "ff269769a617e85fa28016a0240d6307",
+      "Requirements": [
+        "magrittr",
+        "statnet.common",
+        "tibble"
+      ]
+    },
     "nlme": {
       "Package": "nlme",
       "Version": "3.1-162",
@@ -3230,6 +3386,14 @@
         "tibble"
       ]
     },
+    "registry": {
+      "Package": "registry",
+      "Version": "0.5-1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "1c9935f4f14c6c096c9c9072ddee59f1",
+      "Requirements": []
+    },
     "rematch": {
       "Package": "rematch",
       "Version": "1.0.1",
@@ -3387,6 +3551,16 @@
         "tinytex",
         "xfun",
         "yaml"
+      ]
+    },
+    "rngtools": {
+      "Package": "rngtools",
+      "Version": "1.5.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "367a915f939520767660671efa0e32bd",
+      "Requirements": [
+        "digest"
       ]
     },
     "roxygen2": {
@@ -3857,6 +4031,17 @@
         "Rcpp"
       ]
     },
+    "sna": {
+      "Package": "sna",
+      "Version": "2.7-1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "eec6f4c1e012f5730d8000e6f0fbd669",
+      "Requirements": [
+        "network",
+        "statnet.common"
+      ]
+    },
     "snow": {
       "Package": "snow",
       "Version": "0.4-4",
@@ -3982,6 +4167,16 @@
       "Hash": "26e158d12052c279bdd4ba858b80fb1f",
       "Requirements": []
     },
+    "statnet.common": {
+      "Package": "statnet.common",
+      "Version": "4.8.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "6ba17cc9f5d1abe60467ac9d4be04d0f",
+      "Requirements": [
+        "coda"
+      ]
+    },
     "stringi": {
       "Package": "stringi",
       "Version": "1.7.12",
@@ -4014,6 +4209,17 @@
       "Hash": "db758f6f1e367f04222c745ca0260b8a",
       "Requirements": [
         "Matrix"
+      ]
+    },
+    "svglite": {
+      "Package": "svglite",
+      "Version": "2.1.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "29442899581643411facb66f4add846a",
+      "Requirements": [
+        "cpp11",
+        "systemfonts"
       ]
     },
     "sys": {
@@ -4181,13 +4387,15 @@
     },
     "tidybulk": {
       "Package": "tidybulk",
-      "Version": "1.10.0",
-      "Source": "Bioconductor",
-      "git_url": "https://git.bioconductor.org/packages/tidybulk",
-      "git_branch": "RELEASE_3_16",
-      "git_last_commit": "46da0af",
-      "git_last_commit_date": "2022-11-01",
-      "Hash": "6db898179d380426b934729595272ea7",
+      "Version": "1.11.2",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "tidybulk",
+      "RemoteUsername": "stemangiola",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "c503b41d4c82f269def05feb21a75d8a7986af8c",
+      "Hash": "0755a986e66940c506b3b03dbcdc46d3",
       "Requirements": [
         "GenomicRanges",
         "S4Vectors",
