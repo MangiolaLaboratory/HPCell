@@ -34,7 +34,7 @@ empty_droplet_identification_output = dir(params$file2, full.names = TRUE, patte
 empty_df <- 
   empty_droplet_identification_output |>
   enframe(value = "file") |> 
-  extract(file, "sample", "/([a-zA-Z0-9]+)__empty_droplet_identification_output.rds", remove = FALSE) |> 
+  extract(file, "sample", "/([a-zA-Z0-9_]+)__empty_droplet_identification_output.rds", remove = FALSE) |> 
   mutate(data = map(file, readRDS)) |> 
   unnest(data)
 
@@ -60,12 +60,12 @@ sample_number = length(demultiplexed)
 
 Visualize barcode rank plots for each sample
 
-```{r, fig.height=ceiling(10/8*sample_number), fig.width=10,  warning=FALSE, message=FALSE, echo=FALSE}
+```{r, fig.height=ceiling(1/8*sample_number), fig.width=10,  warning=FALSE, message=FALSE, echo=FALSE}
 #Code used to calculate the ranking (which is already present in our seurat), can be find at https://github.com/Melbourne-COVID-Predict/PBMC/blob/main/analysis/pseudobulk/pseudobulk_analysis_1.Rmd
 
 #plot the graphs faceted:
   empty_df %>%
-  sample_frac(0.1) %>% #between 0-1, 1=all cells
+  with_groups(sample, ~ .x |> sample_frac(0.1)) %>% #between 0-1, 1=all cells
   ggplot2::ggplot(aes(rank, total)) + 
   geom_point() + 
   facet_wrap(~sample, ncol=8) + 

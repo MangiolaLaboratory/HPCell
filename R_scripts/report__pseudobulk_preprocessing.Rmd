@@ -9,7 +9,6 @@ output: md_document
 
 ```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
 library(ggplot2)
-library(SeuratDisk)
 library(stringr)
 library(tidyverse)
 library(tidybulk)
@@ -105,8 +104,28 @@ my_pca |>
   eigencorplot(metavars = colnames(metadata))
 ```
 
-```{r}
+Site clustering
 
+```{r}
+data_for_pca |>
+tidybulk::reduce_dimensions(method="PCA") |>
+tidybulk::pivot_sample() |>
+ggplot(aes(PC1, PC2, color=site)) +
+geom_point() +
+stat_ellipse() +
+  theme_bw()
+```
+
+Batch clustering
+
+```{r}
+data_for_pca |>
+tidybulk::reduce_dimensions(method="PCA") |>
+tidybulk::pivot_sample() |>
+ggplot(aes(PC1, PC2, color=factor(batch))) +
+geom_point() +
+stat_ellipse() +
+  theme_bw()
 ```
 
 Here we see for the distribution of samples coloured by severity along the top principal components.
