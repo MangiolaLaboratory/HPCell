@@ -29,80 +29,8 @@ library(purrr)
 # Create dir
 output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
 
-# Load reference PBMC
-# reference_azimuth <- LoadH5Seurat("data//pbmc_multimodal.h5seurat")
-# reference_azimuth |> saveRDS("analysis/annotation_label_transfer/reference_azimuth.rds")
 
-reference_azimuth = readRDS(reference_azimuth_path)
 
-# Reading input
-input_file =
-
-  readRDS(input_path_demultiplexed) |>
-
-  # Filter empty
-  tidyseurat::left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
-  tidyseurat::filter(!empty_droplet) |>
-
-  # Normalise RNA - not informed by smartly selected variable genes
-  SCTransform(assay="RNA") |>
-
-  # Normalise antibodies
-  when(
-    "ADT" %in% names(.@assays) ~ NormalizeData(., normalization.method = 'CLR', margin = 2, assay="ADT") ,
-    ~ (.)
-  )
-
-if(ncol(input_file)>200){
-
-  # Define common anchors
-  anchors <- FindTransferAnchors(
-    reference = reference_azimuth,
-    query = input_file,
-    normalization.method = "SCT",
-    reference.reduction = "spca",
-    dims = 1:30
-  )
-
-  # Mapping
-  azimuth_annotation =
-    MapQuery(
-      anchorset = anchors,
-      query = input_file,
-      reference = reference_azimuth ,
-      refdata = list(
-        celltype.l1 = "celltype.l1",
-        celltype.l2 = "celltype.l2",
-        predicted_ADT = "ADT"
-      ),
-      reference.reduction = "spca",
-      reduction.model = "wnn.umap"
-    ) |>
-
-    # Just select essential information
-    as_tibble() |>
-    dplyr::select(.cell, predicted.celltype.l1, predicted.celltype.l2, contains("refUMAP"))
-
-} else {
-  azimuth_annotation =
-    input_file |>
-    as_tibble() |>
-    select(.cell) |>
-    mutate(predicted.celltype.l1 = "unknown_due_to_too_few_cells", predicted.celltype.l2 = "unknown_due_to_too_few_cells")
-}
-
-rm(input_file)
-gc()
-
-# SingleR
-input_file_sce =
-  readRDS(input_path_demultiplexed) |>
-
-  # Filter empty
-  left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
-  tidyseurat::filter(!empty_droplet) |>
-  as.SingleCellExperiment() |>
-    logNormCounts()
 
   # Blueprint
   blueprint <- BlueprintEncodeData()
@@ -163,3 +91,160 @@ input_file_sce =
 
    # Save
    saveRDS(output_path)
+
+
+
+
+
+
+
+
+
+
+  # SINGLER
+  blueprint <- BlueprintEncodeData()
+  MonacoImmuneData = MonacoImmuneData()
+
+  print("Start SingleR")
+
+
+  # SingleR
+  sce =
+    readRDS(input_path_demultiplexed) |>
+
+    # Filter empty
+    left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
+    tidyseurat::filter(!empty_droplet) |>
+    as.SingleCellExperiment() |>
+    logNormCounts()
+
+  if(ncol(sce)==1){
+    sce = cbind(sce, sce)
+    colnames(sce)[2]= "dummy___"
+  }
+
+  data_singler =
+        left_join(
+          sce |>
+            SingleR(
+              ref = blueprint,
+              assay.type.test= 1,
+              labels = blueprint$label.fine
+            )  |>
+            as_tibble(rownames=".cell") |>
+            nest(blueprint_scores = starts_with("score")) |>
+            select(-one_of("delta.next"),- pruned.labels) |>
+            rename( blueprint_singler = labels),
+
+          sce |>
+            SingleR(
+              ref = MonacoImmuneData,
+              assay.type.test= 1,
+              labels = MonacoImmuneData$label.fine
+            )  |>
+            as_tibble(rownames=".cell") |>
+
+            nest(monaco_scores = starts_with("score")) |>
+            select(-delta.next,- pruned.labels) |>
+            rename( monaco_singler = labels)
+        ) |>
+          filter(.cell!="dummy___")
+
+
+
+  # If not immune cells
+  if(nrow(data_singler) == 0){
+
+    sample_files |>
+      enframe(value = "file") |>
+      mutate(.sample = file |>  basename() |> tools::file_path_sans_ext()) |>
+      mutate(
+        saved = map(.sample, ~ 	tibble(.cell = character()) |> saveRDS(glue("{output_dir}/{.x}.rds")))
+      )
+
+  } else if(nrow(data_singler) <= 30){
+
+    # If too little immune cells
+
+
+    data_singler |>
+      mutate(.sample = input_file |>  basename() |> tools::file_path_sans_ext()) |>
+      nest(data = -c(.sample, file_id)) |>
+      mutate(
+        saved = map(.sample, ~ 	tibble(.cell = character()) |> saveRDS(glue("{output_dir}/{.x}.rds")))
+      )
+
+
+  } else{
+
+    print("Start Seurat")
+
+    # Load reference PBMC
+    # reference_azimuth <- LoadH5Seurat("data//pbmc_multimodal.h5seurat")
+    # reference_azimuth |> saveRDS("analysis/annotation_label_transfer/reference_azimuth.rds")
+
+    reference_azimuth = readRDS(reference_azimuth_path)
+
+    # Reading input
+    input_file =
+
+      readRDS(input_path_demultiplexed) |>
+
+      # Filter empty
+      tidyseurat::left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
+      tidyseurat::filter(!empty_droplet) |>
+
+      # Normalise RNA - not informed by smartly selected variable genes
+      SCTransform(assay="RNA") |>
+
+      # Normalise antibodies
+      when(
+        "ADT" %in% names(.@assays) ~ NormalizeData(., normalization.method = 'CLR', margin = 2, assay="ADT") ,
+        ~ (.)
+      )
+
+      # Define common anchors
+      anchors <- FindTransferAnchors(
+        reference = reference_azimuth,
+        query = input_file,
+        normalization.method = "SCT",
+        reference.reduction = "spca",
+        dims = 1:30
+      )
+
+      # Mapping
+
+
+      azimuth_annotation =
+        tryCatch(
+          expr = {
+            MapQuery(
+              anchorset = anchors,
+              query = input_file,
+              reference = reference_azimuth ,
+              refdata = list(
+                celltype.l1 = "celltype.l1",
+                celltype.l2 = "celltype.l2",
+                predicted_ADT = "ADT"
+              ),
+              reference.reduction = "spca",
+              reduction.model = "wnn.umap"
+            )
+          },
+          error = function(e){
+            print(e)
+            data_seurat
+          }
+        ) |>
+        as_tibble() |>
+        select(.cell, .sample, one_of("predicted.celltype.l1", "predicted.celltype.l2"), contains("refUMAP"))
+
+
+      azimuth_annotation |>
+
+        left_join(	data_singler	, by = join_by(.cell)	) |>
+
+        # Save
+        saveRDS(output_path)
+
+  }
