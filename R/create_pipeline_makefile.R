@@ -26,6 +26,7 @@ reference_azimuth_path = args[[9]]
 # tissue = "pbmc"
 # filtered = "filtered"
 # result_directory = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches"
+# reports_directory = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches/preprocessing_results/reports/"
 # input_directory = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches/input_files"
 # code_directory = "/home/users/allstaff/mangiola.s/PostDoc/jascap"
 # metadata_path = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches/metadata.rds"
@@ -53,13 +54,13 @@ R_code_directory = glue("{code_directory}/R")
 R_code_directory_reports =  glue("{code_directory}/R_scripts")
 # Check modality
 reference_label_fine = tissue |> when(
-  (.) == "pbmc" ~ "predicted.celltype.l2",
+  (.) == "pbmc" ~ "monaco_first.labels.fine",
   (.) =="solid" ~ "blueprint_first.labels.fine",
   (.) == "atypical" ~ "none"
 )
 
 reference_label_coarse = tissue |> when(
-  (.) == "pbmc" ~ "predicted.celltype.l1",
+  (.) == "pbmc" ~ "monaco_first.labels.coarse",
   (.) == "solid" ~ "blueprint_first.labels.coarse",
   (.) == "atypical" ~ "none"
 )
@@ -123,7 +124,7 @@ commands_variable_gene =
 
 commands =
   commands |> c(
-    glue("CATEGORY={suffix}\nMEMORY=100024\nCORES=11\nWALL_TIME=30000"),
+    glue("CATEGORY={suffix}\nMEMORY=20024\nCORES=11\nWALL_TIME=60000"),
     commands_variable_gene  |> pull(command) |> unlist(),
     glue("CATEGORY=_{suffix}_report\nMEMORY=30024\nCORES=2"),
     glue("{reports_directory}/report{suffix}.md:{commands_variable_gene |> pull(output_path_plot_umap) |> unique() |> str_c(collapse=' ')}\n{tab}module load pandoc; Rscript -e \"rmarkdown::render('{R_code_directory_reports}/report{suffix}.Rmd', output_dir = '{reports_directory}', params=list(reports_directory = '{reports_directory}', dir1 = '{output_directory_variable}'))\"")
@@ -145,7 +146,7 @@ output_paths_annotation_label_transfer =   glue("{output_directory_label_transfe
 commands =
   commands |>
   c(
-    glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=1\nWALL_TIME=10000"),
+    glue("CATEGORY={suffix}\nMEMORY=30024\nCORES=1\nWALL_TIME=10000"),
     glue("{output_paths_annotation_label_transfer}:{input_path_demultiplexed} {output_path_empty_droplets}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {reference_azimuth_path} {output_paths_annotation_label_transfer}")
     # output_path_non_batch_variation_removal %>%
     #   enframe(value = "input_path") %>%

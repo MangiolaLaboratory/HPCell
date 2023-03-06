@@ -26,105 +26,86 @@ library(celldex)
 library(scuttle)
 library(purrr)
 
+
+
+
 # Create dir
 output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
 
 
+# SingleR
+sce =
+  readRDS(input_path_demultiplexed) |>
 
+  # Filter empty
+  left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
+  tidyseurat::filter(!empty_droplet) |>
+  as.SingleCellExperiment() |>
+  logNormCounts()
 
-  # Blueprint
-  blueprint <- BlueprintEncodeData()
-  blueprint_annotation_fine =
-    input_file_sce |>
-   SingleR(ref = blueprint,
-           assay.type.test=1,
-           labels = blueprint$label.fine
-          ) |>
-    as_tibble(rownames = ".cell") |>
-    select(.cell, blueprint_first.labels.fine = labels)
+  # # Blueprint
+  # blueprint <- celldex::BlueprintEncodeData()
+  # blueprint_annotation_fine =
+  #   input_file_sce |>
+  #  SingleR(ref = blueprint,
+  #          assay.type.test=1,
+  #          labels = blueprint$label.fine
+  #         ) |>
+  #   as_tibble(rownames = ".cell") |>
+  #   select(.cell, blueprint_first.labels.fine = labels)
+  #
+  # blueprint_annotation_coarse =
+  #   input_file_sce |>
+  #   SingleR(ref = blueprint,
+  #           assay.type.test=1,
+  #           labels = blueprint$label.main
+  #   ) |>
+  #   as_tibble(rownames = ".cell") |>
+  #   select(.cell, blueprint_first.labels.coarse = labels)
+  #
+  # rm(blueprint)
+  # gc()
+  #
+  # # Monaco
+  # MonacoImmuneData = MonacoImmuneData()
+  # monaco_annotation_fine =
+  #   input_file_sce |>
+  #   SingleR(ref = MonacoImmuneData,
+  #           assay.type.test=1,
+  #           labels = MonacoImmuneData$label.fine
+  #         ) |>
+  #   as_tibble(rownames = ".cell") |>
+  #   select(.cell, monaco_first.labels.fine = labels)
+  #
+  # monaco_annotation_coarse =
+  #   input_file_sce |>
+  #   SingleR(ref = MonacoImmuneData,
+  #           assay.type.test=1,
+  #           labels = MonacoImmuneData$label.main
+  #   ) |>
+  #   as_tibble(rownames = ".cell") |>
+  #   select(.cell, monaco_first.labels.coarse = labels)
+  #
+  # rm(MonacoImmuneData)
+  # gc()
 
-  blueprint_annotation_coarse =
-    input_file_sce |>
-    SingleR(ref = blueprint,
-            assay.type.test=1,
-            labels = blueprint$label.main
-    ) |>
-    as_tibble(rownames = ".cell") |>
-    select(.cell, blueprint_first.labels.coarse = labels)
-
-  rm(blueprint)
-  gc()
-
-  # Monaco
-  MonacoImmuneData = MonacoImmuneData()
-  monaco_annotation_fine =
-    input_file_sce |>
-    SingleR(ref = MonacoImmuneData,
-            assay.type.test=1,
-            labels = MonacoImmuneData$label.fine
-          ) |>
-    as_tibble(rownames = ".cell") |>
-    select(.cell, monaco_first.labels.fine = labels)
-
-  monaco_annotation_coarse =
-    input_file_sce |>
-    SingleR(ref = MonacoImmuneData,
-            assay.type.test=1,
-            labels = MonacoImmuneData$label.main
-    ) |>
-    as_tibble(rownames = ".cell") |>
-    select(.cell, monaco_first.labels.coarse = labels)
-
-  rm(MonacoImmuneData)
-  gc()
-
-  # Clean
-  rm(input_file_sce)
-  gc()
-
-  # Join annotation
-  azimuth_annotation |>
-    left_join(blueprint_annotation_fine) |>
-    left_join(blueprint_annotation_coarse) |>
-    left_join(monaco_annotation_fine) |>
-    left_join(monaco_annotation_coarse) |>
-
-   # Save
-   saveRDS(output_path)
-
+  # # Clean
+  # rm(input_file_sce)
+  # gc()
 
 
 
-
-
-
-
-
-
-  # SINGLER
-  blueprint <- BlueprintEncodeData()
-  MonacoImmuneData = MonacoImmuneData()
-
-  print("Start SingleR")
-
-
-  # SingleR
-  sce =
-    readRDS(input_path_demultiplexed) |>
-
-    # Filter empty
-    left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
-    tidyseurat::filter(!empty_droplet) |>
-    as.SingleCellExperiment() |>
-    logNormCounts()
 
   if(ncol(sce)==1){
     sce = cbind(sce, sce)
     colnames(sce)[2]= "dummy___"
   }
 
+blueprint <- celldex::BlueprintEncodeData()
+
+
   data_singler =
-        left_join(
+
           sce |>
             SingleR(
               ref = blueprint,
@@ -132,10 +113,34 @@ output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
               labels = blueprint$label.fine
             )  |>
             as_tibble(rownames=".cell") |>
-            nest(blueprint_scores = starts_with("score")) |>
+            nest(blueprint_scores_fine = starts_with("score")) |>
             select(-one_of("delta.next"),- pruned.labels) |>
-            rename( blueprint_singler = labels),
+            dplyr::rename( blueprint_first.labels.fine = labels) |>
 
+    left_join(
+
+          sce |>
+            SingleR(
+              ref = blueprint,
+              assay.type.test= 1,
+              labels = blueprint$label.main
+            )  |>
+            as_tibble(rownames=".cell") |>
+            nest(blueprint_scores_coarse = starts_with("score")) |>
+            select(-one_of("delta.next"),- pruned.labels) |>
+            dplyr::rename( blueprint_first.labels.coarse = labels)
+          )
+
+  rm(blueprint)
+  gc()
+
+
+  MonacoImmuneData = MonacoImmuneData()
+
+  data_singler =
+    data_singler |>
+
+    left_join(
           sce |>
             SingleR(
               ref = MonacoImmuneData,
@@ -144,35 +149,47 @@ output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
             )  |>
             as_tibble(rownames=".cell") |>
 
-            nest(monaco_scores = starts_with("score")) |>
+            nest(monaco_scores_fine = starts_with("score")) |>
             select(-delta.next,- pruned.labels) |>
-            rename( monaco_singler = labels)
-        ) |>
+            dplyr::rename( monaco_first.labels.fine = labels)
+
+          ) |>
+
+    left_join(
+          sce |>
+            SingleR(
+              ref = MonacoImmuneData,
+              assay.type.test= 1,
+              labels = MonacoImmuneData$label.main
+            )  |>
+            as_tibble(rownames=".cell") |>
+
+            nest(monaco_scores_coarse = starts_with("score")) |>
+            select(-delta.next,- pruned.labels) |>
+            dplyr::rename( monaco_first.labels.coarse = labels)
+        )  |>
           filter(.cell!="dummy___")
 
+  rm(MonacoImmuneData)
+  gc()
 
+
+
+rm(sce)
+gc()
 
   # If not immune cells
   if(nrow(data_singler) == 0){
 
-    sample_files |>
-      enframe(value = "file") |>
-      mutate(.sample = file |>  basename() |> tools::file_path_sans_ext()) |>
-      mutate(
-        saved = map(.sample, ~ 	tibble(.cell = character()) |> saveRDS(glue("{output_dir}/{.x}.rds")))
-      )
+    tibble(.cell = character()) |>
+       saveRDS(output_path)
+
 
   } else if(nrow(data_singler) <= 30){
 
     # If too little immune cells
-
-
     data_singler |>
-      mutate(.sample = input_file |>  basename() |> tools::file_path_sans_ext()) |>
-      nest(data = -c(.sample, file_id)) |>
-      mutate(
-        saved = map(.sample, ~ 	tibble(.cell = character()) |> saveRDS(glue("{output_dir}/{.x}.rds")))
-      )
+      saveRDS(output_path)
 
 
   } else{
@@ -233,11 +250,11 @@ output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
           },
           error = function(e){
             print(e)
-            data_seurat
+            input_file |> tidyseurat::as_tibble() |> tidyseurat::select(.cell)
           }
         ) |>
         as_tibble() |>
-        select(.cell, .sample, one_of("predicted.celltype.l1", "predicted.celltype.l2"), contains("refUMAP"))
+        select(.cell, one_of("predicted.celltype.l1", "predicted.celltype.l2"), contains("refUMAP"))
 
 
       azimuth_annotation |>
