@@ -222,7 +222,7 @@ commands_variable_gene =
   mutate(output_file = glue("{output_directory}/{batch}{suffix}_output.rds") ) |>
 
   # create command
-  mutate(command =  glue("{output_file}:{input_files}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_files} {reference_label_coarse} {output_file}"))
+  mutate(command =  glue("{output_file}:{input_files}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {tissue} {input_files} {reference_label_coarse} {output_file}"))
 
 output_path_marged_variable_genes =   glue("{output_directory}/merged_{suffix}_output.rds")
 
@@ -233,8 +233,25 @@ commands =
     glue("{output_path_marged_variable_genes}:{paste(commands_variable_gene |> pull(output_file), collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}_merge.R {code_directory} {paste(commands_variable_gene |> pull(output_file), collapse=\" \")} {output_path_marged_variable_genes}")
   )
 
+# >>> CELL CYCLE
+suffix = "__cell_cycle_scoring"
+output_directory_cell_scoring = glue("{result_directory}/preprocessing_results/cell_cycle_scoring")
+output_cell_scoring =   glue("{output_directory_cell_scoring}/{samples}{suffix}_output.rds")
+
+# Create input
+commands =
+  commands |> c(
+    glue("CATEGORY={suffix}\nMEMORY=10024\nCORES=2\nWALL_TIME=30000"),
+    glue("{output_cell_scoring}:{input_path_demultiplexed} {output_path_empty_droplets} {output_cell_scoring}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_cell_scoring}"),
+
+    # Report
+    glue("CATEGORY=__cell_cycle_report\nMEMORY=30024\nCORES=2"),
+    glue("{reports_directory}/report__cell_cycle_scoring.md:{input_path_demultiplexed  |> str_c(collapse=' ')} {output_paths_annotation_label_transfer |> str_c(collapse=' ')} {output_cell_scoring |> str_c(collapse=' ') } {metadata_path} {output_path_marged_variable_genes}\n{tab}module load pandoc; Rscript -e \"rmarkdown::render('{R_code_directory_reports}/report__cell_cycle_scoring.Rmd', output_dir = '{reports_directory}', params=list(dir_root = '{result_directory}/preprocessing_results', dir_demultiplexed = '{input_directory_demultiplexed}', dir_labels='annotation_label_transfer', dir_cellcycle='cell_cycle_scoring', dir_empty='empty_droplet_identification', cell_type_column = '{reference_label_fine}', metadata_path='{metadata_path}', output_path_marged_variable_genes = '{output_path_marged_variable_genes}'))\"")
+
+  )
 
 
+reference_label_fine
 
 # >>> NORMALISATION
 suffix = "__non_batch_variation_removal"
@@ -257,7 +274,7 @@ output_path_preprocessing_results =   glue("{output_directory}/{samples}{suffix}
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=30024\nCORES=2\nWALL_TIME=30000"),
-    glue("{output_path_preprocessing_results}:{output_path_non_batch_variation_removal} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {output_path_non_batch_variation_removal} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification} {output_path_preprocessing_results}")
+    glue("{output_path_preprocessing_results}:{output_path_non_batch_variation_removal} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {tissue} {output_path_non_batch_variation_removal} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification} {output_path_preprocessing_results}")
 
   )
 
@@ -283,7 +300,7 @@ output_path_pseudobulk_preprocessing_sample =   glue("{output_directory}/pseudob
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=100024\nCORES=2\nWALL_TIME=30000"),
-    glue("{output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}:{paste(output_path_preprocessing_results, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {paste(output_path_preprocessing_results, collapse=\" \")} {output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}"),
+    glue("{output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}:{paste(output_path_preprocessing_results, collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {reference_label_fine} {paste(output_path_preprocessing_results, collapse=\" \")} {output_path_pseudobulk_preprocessing_sample_cell_type} {output_path_pseudobulk_preprocessing_sample}"),
     glue("CATEGORY=_{suffix}_report\nMEMORY=30024\nCORES=2"),
     glue("{reports_directory}/report{suffix}.md:{output_path_pseudobulk_preprocessing_sample}\n{tab}module load pandoc; Rscript -e \"rmarkdown::render('{R_code_directory_reports}/report{suffix}.Rmd', output_dir = '{reports_directory}', params=list(file1 = '{output_path_pseudobulk_preprocessing_sample}', metadata_path='{metadata_path}'))\"")
 
