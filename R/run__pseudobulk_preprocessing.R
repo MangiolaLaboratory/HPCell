@@ -2,7 +2,8 @@
 # Read arguments
 args = commandArgs(trailingOnly=TRUE)
 code_directory = args[[1]]
-input_path_preprocessing_output = args[2:(length(args)-2)]
+reference_label_fine = args[[2]]
+input_path_preprocessing_output = args[3:(length(args)-2)]
 output_path_sample_cell_type = args[[length(args)-1]]
 output_path_sample = args[[length(args)]]
 
@@ -37,7 +38,7 @@ pseudobulk =
   map(~ {
     library(rlang)
     readRDS(.x) |>
-      aggregate_cells(c(sample, predicted.celltype.l2), slot = "counts", assays=assays) |>
+      aggregate_cells(c(sample, !!as.symbol(reference_label_fine)), slot = "counts", assays=assays) |>
 
       # Reshape to make RNA and ADT both features
       pivot_longer(
@@ -55,7 +56,7 @@ pseudobulk =
 
       # Covert
       as_SummarizedExperiment(
-        .sample = c( sample,predicted.celltype.l2),
+        .sample = c( sample,!!as.symbol(reference_label_fine)),
         .transcript = .feature,
         .abundance = count
       )

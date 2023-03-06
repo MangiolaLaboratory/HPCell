@@ -55,7 +55,7 @@ mitochondrion =
   left_join(readRDS(input_path_annotation_label_transfer), by = ".cell") |>
 
   # Label cells
-  nest(data = -predicted.celltype.l2) |>
+  nest(data = -blueprint_first.labels.fine) |>
   mutate(data = map(
     data,
     ~ .x |>
@@ -80,7 +80,7 @@ ribosome =
   left_join(readRDS(input_path_annotation_label_transfer), by = ".cell") |>
 
   # Label cells
-  nest(data = -predicted.celltype.l2) |>
+  nest(data = -blueprint_first.labels.fine) |>
   mutate(data = map(
     data,
     ~ .x |>

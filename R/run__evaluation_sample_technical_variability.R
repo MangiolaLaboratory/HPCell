@@ -40,8 +40,8 @@ variable_genes_per_sample =
     seurat_obj_list, empty_droplets_obj_list,
     ~ {
       seu = readRDS(.x)
-      seu[["HTO"]] = NULL
-      seu[["ADT"]] = NULL
+      if("HTO" %in% names(seu@assays)) seu[["HTO"]] = NULL
+      if("ADT" %in% names(seu@assays)) seu[["ADT"]] = NULL
 
 
       # Filter
@@ -103,8 +103,8 @@ data_umap =
     seurat_obj_list, empty_droplets_obj_list,
     ~ {
       seu = readRDS(.x)
-      seu[["HTO"]] = NULL
-      seu[["ADT"]] = NULL
+      if("HTO" %in% names(seu@assays)) seu[["HTO"]] = NULL
+      if("ADT" %in% names(seu@assays)) seu[["ADT"]] = NULL
 
       # Filter
       seu =
