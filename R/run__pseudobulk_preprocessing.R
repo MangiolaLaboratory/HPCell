@@ -63,6 +63,8 @@ pseudobulk =
 
   })
 
+# pseudobulk |> saveRDS("/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/mangiola.s/PostDoc/PPCG_tumour_microenvironment/PPCG_deconvolution_signatures_single_cell/PPCG_deconvolution_signatures_single_cell_PROCESSED_v3/preprocessing_results/pseudobulk_preprocessing/temp_pseudobulk_preprocessing_sample_output.rds")
+
 # This should not be needed if I create count files weel form the beginning
 # Select only common column
 common_columns =
@@ -73,9 +75,38 @@ common_columns =
   .[.==max(.)] |>
   names()
 
+all_genes =
+  pseudobulk |>
+  map(~ .x |> rownames()) |>
+  unlist() |>
+  unique() |>
+  as.character()
+
 # Select and save
 pseudobulk |>
-  map(~ .x |> tidySummarizedExperiment::select(all_of(common_columns)))   %>%
+
+  # Add missing genes
+  map(~{
+
+    missing_genes = all_genes |> setdiff(rownames(.x))
+
+    missing_matrix = matrix(rep(0, length(missing_genes) * ncol(.x)), ncol = ncol(.x))
+
+    rownames(missing_matrix) = missing_genes
+    colnames(missing_matrix) = colnames(.x)
+
+    new_se = SummarizedExperiment(assay = list(count = missing_matrix))
+    colData(new_se) = colData(.x)
+    #rowData(new_se) =  DataFrame(symbol = missing_genes, row.names = missing_genes)
+    rowData(.x) = NULL
+    .x = .x |> rbind(new_se)
+
+    .x[all_genes,]
+
+  }) |>
+
+  map(~ .x |> tidySummarizedExperiment::select(any_of(common_columns)))   %>%
+
   do.call(cbind, .) |>
 
   # Save
@@ -125,7 +156,28 @@ common_columns =
 
 # Select and save
 pseudobulk |>
-  map(~ .x |> tidySummarizedExperiment::select(all_of(common_columns)))   %>%
+  # Add missing genes
+  map(~{
+
+    missing_genes = all_genes |> setdiff(rownames(.x))
+
+    missing_matrix = matrix(rep(0, length(missing_genes) * ncol(.x)), ncol = ncol(.x))
+
+    rownames(missing_matrix) = missing_genes
+    colnames(missing_matrix) = colnames(.x)
+
+    new_se = SummarizedExperiment(assay = list(count = missing_matrix))
+    colData(new_se) = colData(.x)
+    #rowData(new_se) =  DataFrame(symbol = missing_genes, row.names = missing_genes)
+    rowData(.x) = NULL
+    .x = .x |> rbind(new_se)
+
+    .x[all_genes,]
+
+  }) |>
+
+  map(~ .x |> tidySummarizedExperiment::select(any_of(common_columns)))   %>%
+
   do.call(cbind, .) |>
 
   # Save
