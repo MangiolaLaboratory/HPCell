@@ -36,20 +36,23 @@ counts =
   # left_join(readRDS(input_path_alive), by=".cell") |>
   # tidyseurat::filter(!high_mitochondrion | !high_RPS)
 
-  VariableFeatures(counts) = readRDS(input_path_marged_variable_genes)
+  variable_features = readRDS(input_path_marged_variable_genes)
+
+  # Set variable features
+  VariableFeatures(counts) = variable_features
 
   counts |>
 
-  # Normalise RNA
-  SCTransform(assay="RNA", return.only.var.genes=FALSE) |>
+    # Normalise RNA
+    SCTransform(assay="RNA", return.only.var.genes=FALSE, residual.features = variable_features) |>
 
-  # Normalise antibodies
-  when(
-    "ADT" %in% names(.@assays) ~ NormalizeData(., normalization.method = 'CLR', margin = 2, assay="ADT") ,
-    ~ (.)
-  ) |>
+    # Normalise antibodies
+    when(
+      "ADT" %in% names(.@assays) ~ NormalizeData(., normalization.method = 'CLR', margin = 2, assay="ADT") ,
+      ~ (.)
+    ) |>
 
-  # Save
-  saveRDS(output_path)
+    # Save
+    saveRDS(output_path)
 
 

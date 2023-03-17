@@ -20,6 +20,7 @@ library(tidyseurat)
 library(glue)
 library(purrr)
 library(magrittr)
+library(tibble)
 
 # Divide into 5 chunks
 input_paths_chunks = input_paths |> split( rep_len(1:5, length(input_paths)) |> sort())
@@ -84,13 +85,21 @@ counts =
   # Normalise before - https://satijalab.org/seurat/articles/pbmc3k_tutorial.html#normalizing-the-data-1
   NormalizeData(assay="RNA")
 
+all_features_df =
+  counts |>
+  Assays("RNA") |>
+  rownames() |>
+  enframe(value = "feature") |>
+  select(-name) |>
+  mutate(group= "all_features")
+
 variable_df =
   counts |>
   FindVariableFeatures(nfeatures = number_features_overall, assay="RNA") |>
   VariableFeatures(assay="RNA") |>
   as_tibble() |>
-  rename("variable_features" = "value") |>
-  mutate(group= "overall")
+  rename("feature" = "value") |>
+  mutate(group= "variable_overall")
 
 counts =
   counts |>
@@ -121,14 +130,14 @@ if(!counts |> filter(map_int(data, ncol) > 100) |> nrow() |> equals(0)){
       filter(map_int(data, ncol) > 100) |>
 
       # Get feature within each cluster/cell-type
-      mutate(variable_features = map(
+      mutate(feature = map(
         data,
         ~ .x |>
           FindVariableFeatures(nfeatures = number_features_per_cell_type, assay="RNA") |>
           VariableFeatures(assay="RNA")
       )) |>
       select(-data) |>
-      unnest(variable_features) |>
+      unnest(feature) |>
 
       # Rename group column with cluster
       when(
@@ -142,6 +151,7 @@ if(!counts |> filter(map_int(data, ncol) > 100) |> nrow() |> equals(0)){
 }
 
   variable_df %>%
+    bind_rows(all_features_df) |>
     saveRDS(output_path)
 
 
