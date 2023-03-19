@@ -50,7 +50,7 @@ library(tidyseurat)
 library(purrr)
 library(readr)
 
-R_code_directory = glue("{code_directory}/R")
+R_code_directory = glue("{code_directory}/R_scripts")
 R_code_directory_reports =  glue("{code_directory}/R_scripts")
 # Check modality
 reference_label_fine = tissue |> when(
