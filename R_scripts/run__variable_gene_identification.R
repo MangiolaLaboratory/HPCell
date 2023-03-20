@@ -77,9 +77,9 @@ all_features_df =
   select(-name) |>
   mutate(group= "all_features")
 
-
+# I BROKE cell_type_column_for_subsetting = "none"
 seurat_to_variable_features(
-    counts, "RNA", sample, cell_type_column_for_subsetting,
+    counts, "RNA", sample, !!as.symbol(cell_type_column_for_subsetting),
     features_number_independent_of_cell_groups = 300,
     features_number_per_cell_group = 300
 )|>

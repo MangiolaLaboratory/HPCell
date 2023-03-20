@@ -1,28 +1,23 @@
 # Input: seurat, output: nested tibble of variable features
-seurat_to_variable_features_by_cell_type = function(counts, assay, cell_group, features_number_per_cell_group = 300){
+#' @importFrom Seurat FindVariableFeatures
+#' @importFrom Seurat NormalizeData
+#' @importFrom Seurat ScaleData
+#' @importFrom Seurat RunPCA
+#' @importFrom Seurat FindNeighbors
+#' @importFrom Seurat FindClusters
+#' @importFrom Seurat VariableFeatures
+#' @importFrom glue glue
+seurat_to_variable_features_by_cell_type = function(counts, assay, cell_group = NULL, features_number_per_cell_group = 300){
 
-  # If cell_type_column_for_subsetting == null calculate clusters\
-  if(cell_group=="none"){
-
-    counts =
-      counts |>
-      FindVariableFeatures(nfeatures = number_features_overall, assay=assay)  |>
-      NormalizeData(assay=assay) |>
-      ScaleData(assay=assay) |>
-      RunPCA(assay=assay) |>
-      FindNeighbors(dims = 1:20) |>
-      FindClusters(resolution = 0.5)
-
-    cell_group = "seurat_clusters"
-  }
+  cell_group = enquo(cell_group)
 
   # Nest
   counts =
     counts |>
-    nest(., data = -!!as.symbol(cell_type_column_for_subsetting))
+    nest(data = -!!cell_group)
 
   # If I have enough information per cell type
-  if(counts |> filter(map_int(data, ncol) > 100) |> nrow() |> gt(0)){
+  if(counts |> filter(map_int(data, ncol) > 100) |> nrow() |> gt(1)){
 
     # Per cell type
     counts |>
@@ -40,17 +35,20 @@ seurat_to_variable_features_by_cell_type = function(counts, assay, cell_group, f
       select(-data) |>
       unnest(feature) |>
 
-      # Rename group column with cluster
-      when(
-        cell_group!="none" ~ rename(., group := !!as.symbol(cell_group) ),
-        ~ rename(., group := seurat_clusters )
-      )
+      # Rename
+      rename(group := !!cell_group)
 
   }
-  else tibble()
+  else {
 
+    warning(glue("jascap says: you have only one distinct `{quo_name(cell_group)}`, the per-cell-group variable gene detection will be skipped as it would olverlap with the global detection."))
+
+    tibble()
+  }
 }
 
+#' @importFrom Seurat FindVariableFeatures
+#' @importFrom Seurat VariableFeatures
 seurat_to_variable_features_overall = function(counts, assay, features_number = 300){
 
   counts |>
@@ -62,21 +60,34 @@ seurat_to_variable_features_overall = function(counts, assay, features_number = 
 
 }
 
+#' @importFrom rlang enquo
+#' @importFrom rlang is_symbolic
+#' @import tidyseurat
+#' @importFrom Seurat NormalizeData
+#'
+#' @export
+#'
+#'
+#'
 seurat_to_variable_features = function(
-    counts, assay, sample_, cell_group,
+    counts,
+    assay,
+    .sample,
+    cell_group = NULL,
     features_number_independent_of_cell_groups = 300,
     features_number_per_cell_group = 300
 ){
 
-  sample_ = enquo(sample_)
+  .sample = enquo(.sample)
+  cell_group = enquo(cell_group)
 
   # If more than one sample balance the size
-  if(counts |> distinct(!!sample_) |> nrow() |> gt(1))
+  if(counts |> distinct(!!.sample) |> nrow() |> gt(1))
     counts =
       counts |>
 
       # Sample up to a plateau to avoid extreme cell_type bias
-      nest(data = -!!sample_) %>%
+      nest(data = -!!.sample) %>%
       mutate(n = map_int(data, ~ ncol(.x))) %>%
       mutate(upper_quantile = quantile(n, 0.75) %>% as.integer()) %>%
       mutate(data = map2(
@@ -95,10 +106,25 @@ seurat_to_variable_features = function(
     features_number = features_number_independent_of_cell_groups
   )
 
+  # If cell_type_column_for_subsetting == null calculate clusters\
+  if(!is_symbolic(cell_group)){
+
+    counts =
+      counts |>
+      FindVariableFeatures(nfeatures = number_features_overall, assay=assay)  |>
+      NormalizeData(assay=assay) |>
+      ScaleData(assay=assay) |>
+      RunPCA(assay=assay) |>
+      FindNeighbors(dims = 1:20) |>
+      FindClusters(resolution = 0.5)
+
+    cell_group = as.symbol("seurat_clusters")
+  }
+
   variable_df_by_cell_type = seurat_to_variable_features_by_cell_type(
     counts,
     assay,
-    cell_type_column_for_subsetting,
+    cell_group = !!cell_group,
     features_number_per_cell_group = features_number_per_cell_group
   )
 
