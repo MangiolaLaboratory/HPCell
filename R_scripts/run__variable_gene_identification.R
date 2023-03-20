@@ -1,9 +1,6 @@
 
 set.seed(42)
 
-number_features_overall = 300
-number_features_per_cell_type = 300
-
 # Read arguments
 args = commandArgs(trailingOnly=TRUE)
 code_directory = args[[1]]
@@ -56,7 +53,7 @@ counts =
       # Filter Red blood cells and platelets using pbmc seurat for any tissue
       left_join(readRDS(..5), by = ".cell") |>
 
-      # If PBMC filter for ertthrocytes
+      # If PBMC filter for erythrocytes
       when(
         tissue |>
           tolower() |>
@@ -69,21 +66,8 @@ counts =
   )) |>
 
   pull(seurat) |>
-  reduce(merge) |>
+  reduce(merge)
 
-  # Sample up to a plateau to avoid extreme cell_type bias
-  nest(data = -sample) %>%
-  mutate(n = map_int(data, ~ ncol(.x))) %>%
-  mutate(upper_quantile = quantile(n, 0.75) %>% as.integer()) %>%
-  mutate(data = map2(
-    data, upper_quantile,
-    ~ sample_n(.x, min(ncol(.x), .y), replace = FALSE)
-  )) %>%
-  filter(n>1) %>%
-  unnest(data) |>
-
-  # Normalise before - https://satijalab.org/seurat/articles/pbmc3k_tutorial.html#normalizing-the-data-1
-  NormalizeData(assay="RNA")
 
 all_features_df =
   counts |>
@@ -93,64 +77,12 @@ all_features_df =
   select(-name) |>
   mutate(group= "all_features")
 
-variable_df =
-  counts |>
-  FindVariableFeatures(nfeatures = number_features_overall, assay="RNA") |>
-  VariableFeatures(assay="RNA") |>
-  as_tibble() |>
-  rename("feature" = "value") |>
-  mutate(group= "variable_overall")
 
-counts =
-  counts |>
-
-  # If cell_type_column_for_subsetting == null calculate clusters
-  when(
-    cell_type_column_for_subsetting=="none" ~
-      counts |>
-      FindVariableFeatures(nfeatures = number_features_overall, assay="RNA")  |>
-      NormalizeData(assay="RNA") |>
-      ScaleData(assay="RNA") |>
-      RunPCA(assay="RNA") |>
-      FindNeighbors(dims = 1:20) |>
-      FindClusters(resolution = 0.5) |>
-      nest(data = -seurat_clusters),
-
-    # If I have label
-    ~ nest(., data = -!!as.symbol(cell_type_column_for_subsetting))
-  )
-
-# If I have enough information per cell type
-if(!counts |> filter(map_int(data, ncol) > 100) |> nrow() |> equals(0)){
-  variable_df = variable_df |>  bind_rows(
-    # Per cell type
-    counts |>
-
-      # Filter more than 10 cells
-      filter(map_int(data, ncol) > 100) |>
-
-      # Get feature within each cluster/cell-type
-      mutate(feature = map(
-        data,
-        ~ .x |>
-          FindVariableFeatures(nfeatures = number_features_per_cell_type, assay="RNA") |>
-          VariableFeatures(assay="RNA")
-      )) |>
-      select(-data) |>
-      unnest(feature) |>
-
-      # Rename group column with cluster
-      when(
-        cell_type_column_for_subsetting!="none" ~ rename(., group := !!as.symbol(cell_type_column_for_subsetting) ),
-        ~ rename(., group := seurat_clusters )
-      )
-
-  )
-
-
-}
-
-  variable_df %>%
+seurat_to_variable_features(
+    counts, "RNA", sample, cell_type_column_for_subsetting,
+    features_number_independent_of_cell_groups = 300,
+    features_number_per_cell_group = 300
+)|>
     bind_rows(all_features_df) |>
     saveRDS(output_path)
 
