@@ -7,14 +7,14 @@
 #' @importFrom Seurat FindClusters
 #' @importFrom Seurat VariableFeatures
 #' @importFrom glue glue
-seurat_to_variable_features_by_cell_type = function(counts, assay, cell_group = NULL, features_number_per_cell_group = 300){
+seurat_to_variable_features_by_cell_type = function(counts, assay, .cell_group = NULL, features_number_per_cell_group = 300){
 
-  cell_group = enquo(cell_group)
+  .cell_group = enquo(.cell_group)
 
   # Nest
   counts =
     counts |>
-    nest(data = -!!cell_group)
+    nest(data = -!!.cell_group)
 
   # If I have enough information per cell type
   if(counts |> filter(map_int(data, ncol) > 100) |> nrow() |> gt(1)){
@@ -36,12 +36,12 @@ seurat_to_variable_features_by_cell_type = function(counts, assay, cell_group = 
       unnest(feature) |>
 
       # Rename
-      rename(group := !!cell_group)
+      rename(group := !!.cell_group)
 
   }
   else {
 
-    warning(glue("jascap says: you have only one distinct `{quo_name(cell_group)}`, the per-cell-group variable gene detection will be skipped as it would olverlap with the global detection."))
+    warning(glue("jascap says: you have only one distinct `{quo_name(.cell_group)}`, the per-cell-group variable gene detection will be skipped as it would olverlap with the global detection."))
 
     tibble()
   }
@@ -73,13 +73,13 @@ seurat_to_variable_features = function(
     counts,
     assay,
     .sample,
-    cell_group = NULL,
+    .cell_group = NULL,
     features_number_independent_of_cell_groups = 300,
     features_number_per_cell_group = 300
 ){
 
   .sample = enquo(.sample)
-  cell_group = enquo(cell_group)
+  .cell_group = enquo(.cell_group)
 
   # If more than one sample balance the size
   if(counts |> distinct(!!.sample) |> nrow() |> gt(1))
@@ -107,7 +107,7 @@ seurat_to_variable_features = function(
   )
 
   # If cell_type_column_for_subsetting == null calculate clusters\
-  if(!is_symbolic(cell_group)){
+  if(!is_symbolic(.cell_group)){
 
     counts =
       counts |>
@@ -118,13 +118,13 @@ seurat_to_variable_features = function(
       FindNeighbors(dims = 1:20) |>
       FindClusters(resolution = 0.5)
 
-    cell_group = as.symbol("seurat_clusters")
+    .cell_group = as.symbol("seurat_clusters")
   }
 
   variable_df_by_cell_type = seurat_to_variable_features_by_cell_type(
     counts,
     assay,
-    cell_group = !!cell_group,
+    .cell_group = !!.cell_group,
     features_number_per_cell_group = features_number_per_cell_group
   )
 
@@ -133,6 +133,57 @@ seurat_to_variable_features = function(
 
 }
 
+#' @export
+subset_top_rank_variable_genes_across_batches = function(
+    table_across_cell_groups,
+    table_within_cell_groups,
+    .cell_group,
+    .batch,
+    features_number_independent_of_cell_groups = 2000,
+    features_number_per_cell_group = 300
+  ){
+
+  .cell_group = enquo(.cell_group)
+  .batch = enquo(.batch)
+
+  batches_with_more_than_10_cell_types =
+    table_within_cell_groups |>
+    nest(data = -!!.batch) |>
+    filter(map_int(data, ~ .x |> distinct(!!.cell_group) |> nrow()) > 10) |>
+    unnest(data) |>
+    pull(!!.batch)
+
+  # Across cell types
+  variable_across_cell_types =
+    table_across_cell_groups |>
+
+  # Filter files that have more than 10 cell types
+  # because the genes will be overlapped with the cell type specific
+  filter(!!.batch %in% batches_with_more_than_10_cell_types)  |>
+
+  count(feature, !!.cell_group) |>
+  with_groups(!!.cell_group, ~ .x |> arrange(desc(n)) |> slice(1:features_number_independent_of_cell_groups))
+
+
+  # Within cell type
+  variable_within_cell_types =
+    table_within_cell_groups |>
+    count(feature, !!.cell_group) |>
+    with_groups(!!.cell_group, ~ .x |> arrange(desc(n)) |> slice(1:features_number_per_cell_group))
+
+  # Unique
+  bind_rows(
+
+    # Cell type specific
+    variable_within_cell_types,
+
+    # Overall
+    variable_across_cell_types
+
+  ) |>
+    pull(feature) |>
+    unique()
+}
 
 
 

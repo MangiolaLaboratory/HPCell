@@ -27,7 +27,6 @@ variable_features_df =
   mutate(data = map(file, readRDS)) |>
   unnest(data)
 
-
 gene_intersection =
   variable_features_df |>
   filter(group == "all_features") |>
@@ -47,34 +46,15 @@ variable_features_df =
   variable_features_df |>
   filter(feature %in% gene_intersection)
 
-variable_within_cell_types =
-  variable_features_df |>
-  filter(!group %in% c("variable_overall", "all_features")) |>
-  count(feature, group) |>
-  with_groups(group, ~ .x |> arrange(desc(n)) |> slice(1:300))
 
-variable_across_cell_types =
-  variable_features_df |>
-
-  # Filter files that have more than 10 cell types + variable_overall
-  nest(data = -file) |>
-  filter(map_int(data, ~ .x |> distinct(group) |> nrow()) > 11) |>
-  unnest(data) |>
-
-  filter(group == "variable_overall") |>
-  count(feature, group) |>
-  with_groups(group, ~ .x |> arrange(desc(n)) |> slice(1:2000))
-
-
-bind_rows(
-
-    # Cell type specific
-    variable_within_cell_types,
-
-    # Overall
-    variable_across_cell_types
-
-  ) |>
-  pull(feature) |>
-  unique() |>
+subset_top_rank_variable_genes_across_batches(
+   variable_features_df |> filter(group == "variable_overall"),
+   variable_features_df |> filter(!group %in% c("variable_overall", "all_features")),
+   group,
+   file,
+    features_number_independent_of_cell_groups = 2000,
+    features_number_per_cell_group = 300
+) |>
   saveRDS(output_path)
+
+
