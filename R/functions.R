@@ -14,16 +14,16 @@ seurat_to_variable_features_by_cell_type = function(counts, assay, .cell_group =
   # Nest
   counts =
     counts |>
-    nest(data = -!!.cell_group)
+    nest(data = -!!.cell_group) |>
+
+    # Filter more than 10 cells
+    filter(map_int(data, ncol) > 100)
 
   # If I have enough information per cell type
-  if(counts |> filter(map_int(data, ncol) > 100) |> nrow() |> gt(1)){
+  if(counts |> nrow() |> gt(1)){
 
     # Per cell type
     counts |>
-
-      # Filter more than 10 cells
-      filter(map_int(data, ncol) > 100) |>
 
       # Get feature within each cluster/cell-type
       mutate(feature = map(
