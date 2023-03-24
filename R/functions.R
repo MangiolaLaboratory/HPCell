@@ -186,32 +186,50 @@ subset_top_rank_variable_genes_across_batches = function(
 }
 
 
-#' @importFrom CellChat CellChatDB.human createCellChat subsetDB subsetData identifyOverExpressedGenes identifyOverExpressedInteractions projectData PPI.human filterCommunication aggregateNet
-ligand_receptor_count = function(counts, .cell_group){
+
+#' @importFrom CellChat createCellChat setIdent subsetDB subsetData identifyOverExpressedGenes identifyOverExpressedInteractions projectData filterCommunication aggregateNet
+#' @importFrom rlang quo_name enquo
+#' @importFrom tibble tibble
+#' @importFrom purrr map2 map map2_dbl
+#'
+#' @export
+seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_for_plotting = ""){
 
   .cell_group = enquo(.cell_group)
 
+  # If only one cell, return empty
+  if((counts |> distinct(!!.cell_group) |> nrow()) < 2) return(tibble)
 
   counts_cellchat =
     counts |>
-    createCellChat(group.by = quo_name(.cell_group)) |>
+
+    # Filter
+    filter(!is.na(!!.cell_group)) |>
+
+    # Filter cell types with > 10 cells
+    add_count(cell_type_harmonised, name = "n_cells") |>
+    filter(n_cells>=10) |>
+
+
+    # Convert from seurat MUST BE LOG-NORMALISED
+    createCellChat(group.by = quo_name(.cell_group), assay = assay) |>
     setIdent( ident.use = quo_name(.cell_group))
 
 
-  tibble(DB = c("Secreted Signaling", "ECM-Receptor" , "Cell-Cell Contact" )) |>
-    mutate(sample =  input_path_preprocessing |> basename() |> str_remove("__.+")) |>
+  communication_results =
+    tibble(DB = c("Secreted Signaling", "ECM-Receptor" , "Cell-Cell Contact" )) |>
     mutate(data = list(counts_cellchat)) |>
     mutate(data = map2(
       data, DB,
       ~ {
         print(.y)
-        .x@DB <- subsetDB(CellChatDB.human, search = .y)
+        .x@DB <- subsetDB(CellChat::CellChatDB.human, search = .y)
 
         x = .x |>
           subsetData() |>
           identifyOverExpressedGenes() |>
           identifyOverExpressedInteractions() |>
-          projectData(PPI.human)
+          projectData(CellChat::PPI.human)
 
         if(nrow(x@LR$LRsig)==0) return(NA)
 
@@ -222,7 +240,85 @@ ligand_receptor_count = function(counts, .cell_group){
           aggregateNet()
 
       }
+    )) |>
+
+    # Record sample
+    mutate(sample = sample_for_plotting) |>
+
+    # Add histogram
+    mutate(tot_interactions = map2_dbl(
+      data, DB,
+      ~  .x |> when(
+        !is.na(.) ~ sum(.x@net$count),
+        ~ 0
+      )
+    )) |>
+
+    # values_df_for_heatmap
+    # Scores for each cell types across all others. How communicative is each cell type
+    mutate(cell_vs_all_cells_per_pathway = map2(
+      data  , sample,
+      ~ when(
+        .x,
+        !is.na(.x) && length(.x@netP$pathways) > 0 ~
+          netAnalysis_computeCentrality(., slot.name = "netP") |>
+          cellchat_process_sample_signal(
+            pattern = "all", signaling = .x@netP$pathways,
+            title = .y, width = 5, height = 6, color.heatmap = "OrRd"
+          ),
+        ~ tibble(gene = character(), cell_type = character(), value = double())
+      )
     ))
+
+  genes = communication_results |> select(cell_vs_all_cells_per_pathway) |> unnest(cell_vs_all_cells_per_pathway) |> distinct(gene) |> pull(gene)
+
+  # Hugh resolution
+  communication_results |>
+    mutate(cell_vs_cell_per_pathway = map(
+      data,
+      ~ {
+        my_data = .x
+
+        # Return empty if no results
+        if(is.na(my_data)) return(tibble(gene = character(),  result = list()))
+
+        tibble(gene = genes) |>
+          mutate(result = map(gene, ~ {
+
+            unparsed_result = cellchat_matrix_for_circle(my_data,  layout = "circle", signaling = .x)
+
+            if(!is.null(unparsed_result))
+              unparsed_result |>
+              as_tibble(rownames = "cell_type_from") |>
+              pivot_longer(-cell_type_from, names_to = "cell_type_to", values_to = "score")
+
+            unparsed_result
+
+          }))
+      }
+    )) |>
+
+    mutate(cell_cell_weight = map(
+      data,
+      ~ {
+        my_data = .x
+
+        # Return empty if no results
+        if(is.na(my_data)) return(tibble(cell_from = character(), cell_to = character(),  weight = numeric()))
+
+        my_data@net$weight |>
+          as_tibble(rownames = "cell_from") |>
+          pivot_longer(-cell_from, names_to = "cell_to", values_to = "weight")
+
+
+      }
+    ))
+
+
+
+
+
+
 
 
 }
