@@ -18,6 +18,7 @@ library(glue)
 library(purrr)
 library(magrittr)
 library(tibble)
+library(jascap)
 
 # Divide into 5 chunks
 input_paths_chunks = input_paths |> split( rep_len(1:5, length(input_paths)) |> sort())
@@ -79,7 +80,10 @@ all_features_df =
 
 # I BROKE cell_type_column_for_subsetting = "none"
 seurat_to_variable_features(
-    counts, "RNA", sample, !!as.symbol(cell_type_column_for_subsetting),
+    counts,
+    "RNA",
+    sample,
+    sym(cell_type_column_for_subsetting),
     features_number_independent_of_cell_groups = 300,
     features_number_per_cell_group = 300
 )|>

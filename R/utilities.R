@@ -12,3 +12,6 @@ pow = function(a,b){	a^b }
 
 # Equals
 eq = function(a,b){	a==b }
+
+
+
