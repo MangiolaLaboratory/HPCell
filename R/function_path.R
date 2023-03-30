@@ -1,14 +1,17 @@
 library(glue)
+library(stringr)
 
 input_path_demultiplexed<-function(input_directory){
   input_directory_demultiplexed = input_directory
   input_files_demultiplexed = dir(input_directory_demultiplexed, pattern = ".rds")
   input_path_demultiplexed = glue("{input_directory_demultiplexed}/{input_files_demultiplexed}")
+  samples = input_files_demultiplexed |> str_remove(".rds")
+  return(list(input_path_demultiplexed,samples))
 }
 
 
 # Empty droplet
-output_emptyDroplet<-function(result_directory){
+output_emptyDroplet<-function(result_directory,samples,reports_directory){
   suffix = "__empty_droplet_identification"
   output_directory_empty_droplets = glue("{result_directory}/preprocessing_results/empty_droplet_identification")
   output_path_empty_droplets =   glue("{output_directory_empty_droplets}/{samples}{suffix}_output.rds")

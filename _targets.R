@@ -51,26 +51,31 @@ input_directory='/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/
 code_directory='/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/third_party_software/renv-optional'
 metadata_path='/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/metadata.rds'
 reference_azimuth_path='/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/reference_azimuth.rds'
+reports_directory='/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/result_directory/preprocessing_results/reports'
 filtered='filtered'
 
 
 # Replace the target list below with your own:
 list(
   tar_target(input_path,input_path_demultiplexed(input_directory)),
-  tar_target(output_emptyDroplet_result,output_emptyDroplet(result_directory)),
-  #tar_target(code_directory,'/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/third_party_software/target_pipeline/R',format='file'),
+  tar_target(input_demultiplexed, input_path[[1]]),
+  tar_target(samples,input_path[[2]]),
+  tar_target(output_emptyDroplet_result,output_emptyDroplet(result_directory,samples,reports_directory)),
+  # #tar_target(code_directory,'/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/third_party_software/target_pipeline/R',format='file'),
   tar_target(
-    emptyDroplet,
-    run_empty_droplet_identification(code_directory,input_path,filtered,output_emptyDroplet_result[1],output_emptyDroplet_result[2],output_emptyDroplet_result[3]),
+  emptyDroplet,
+  run_empty_droplet_identification(code_directory,input_demultiplexed,filtered,output_emptyDroplet_result[[1]],output_emptyDroplet_result[[2]],output_emptyDroplet_result[[3]]),
   #tar_target()
-    ),
+    )
   # tar_target(
   #   annotation_label,annotation_label_transfer(code_directory,input_path_demultiplexed,empty_droplets,reference_azimuth_path,output_paths_annotation_label_transfer)
   # )
     
   )
 
-
+# a<-input_path_demultiplexed(input_directory)
+# print(output_emptyDroplet(result_directory,a[[2]],reports_directory))
+#output_emptyDroplet(result_directory)
 
 # delete later
 #.  list(
