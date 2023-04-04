@@ -1,11 +1,26 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
 .Random.seed|object|886ccf9e288812a7|||||||||||||||
-code_directory|object|26741b56648efbcd|||||||||||||||
+annotation_label|stem||8a21f4424ebf5fe7|7d4dd45faeb44022|-2136186430||t19448.0467356062s||0|rds|local|vector|||0.272||error in evaluating the argument x in selecting a method for function logNormCounts object empty_droplets not found
+annotation_label_transfer|function|683d5786a1176766|||||||||||||||
+code_directory|object|d8c8a21810d0e9e1|||||||||||||||
 emptyDroplet|stem|774f3ea74395a9e7|a68fbc00b4777806|c6ebf8387ab10295|-485932630||t19439.4211500147s|eaf4be1ffe060f33|217|rds|local|vector|||2.711|Unable to map 236 of 25044 requested IDs.. 1m22mwhen was deprecated in purrr 1.0.0.36mℹ39m Please use if instead.. 1m22mUsing 32msize39m for a discrete variable is not advised.. 1m22mRemoved 61 rows containing missing values geom_line.|
 file|stem|a42b9cad79ee3a75|e262b1e147775074|ef46db3751d8e999|-1301001980|test_data/JD1800154SL.rds|t19436.4184929595s|044f244ff600cdfa|2927337|file|local|vector|||0.001||
 filtered|object|a0f04832460c33eb|||||||||||||||
-input_path|object|e6d1c972bbfdd078|||||||||||||||
+input_demultiplexed|stem|59d6d0e24e2e9b97|ec373339cdeb0351|373996a7a859b5d9|853368560||t19448.0421678325s|c3cbfe28e1565b13|202|rds|local|vector|||0||
+input_directory|object|bdd123a3eef7702b|||||||||||||||
+input_path|stem|c6e6e835d74cbc8b|9246d509bbbf4f17|510354eeedb9c659|1833873500||t19448.0421673232s|28f9d9a9ef15cef2|216|rds|local|vector|||0.338||
+input_path_demultiplexed|function|4759900bcfabc3b2|||||||||||||||
+master_directory|object|b40c31b3b7aa457c|||||||||||||||
+metadata_path|object|7bbc84e16436ce40|||||||||||||||
+output_annotation_label|stem|6dc100c3fd5c899b|6872270ec00a5f5b|5408ecf9ff9a00f9|1731139863||t19448.0467351564s|bed69d39d5d1de67|240|rds|local|vector|||0.002||
+output_annotation_label_transfer|function|0f0bb2a498e950b3|||||||||||||||
+output_emptyDroplet|function|e7d95d7ffc787774|||||||||||||||
+output_emptyDroplet_result|stem|88fb0e66c2d642de|164a9401af33a69b|b026eba87ef1e291|557300027||t19448.0467353994s|cb91aba74fec518e|303|rds|local|vector|||0.002||
 output_path_plot_pdf|object|c99f786e37b767bf|||||||||||||||
 output_path_plot_rds|object|07625e5e6e5b473f|||||||||||||||
 output_path_result|object|1bc51309b775b4c8|||||||||||||||
+reference_azimuth_path|object|a01e647b5c348755|||||||||||||||
+reports_directory|object|7bf862d6f9b3d828|||||||||||||||
+result_directory|object|298da289eea536a9|||||||||||||||
 run_empty_droplet_identification|function|0b63764beea0531b|||||||||||||||
+samples|stem|bd5f60227d4bcdb2|6fe3db864de23b5e|373996a7a859b5d9|777277976||t19448.042167682s|93a4d4dc4116d568|64|rds|local|vector|||0.001||

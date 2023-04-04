@@ -12,7 +12,8 @@ library(targets)
 # Set target options:
 tar_option_set(
   packages = c("tidyr", "dplyr", "ggplot2",'purrr','Seurat','tidyseurat','glue','scater',
-               'DropletUtils','EnsDb.Hsapiens.v86','here','stringr','readr','celldex'), # packages that your targets need to run
+               'DropletUtils','EnsDb.Hsapiens.v86','here','stringr','readr','celldex','SingleR',
+               'scDblFinder','tidySingleCellExperiment'), # packages that your targets need to run
   format = "rds" # default storage format
   # Set other options as needed.
 )
@@ -26,52 +27,88 @@ tar_option_set(
 
 # Run the R scripts in the R/ folder with your custom functions:
 tar_source('R/function__empty_droplet_identification.R')
+tar_source('R/function__annotation_label_transfer.R')
+tar_source('R/function__alive_identification.R')
+tar_source('R/function__doublet_identification.R')
 tar_source('R/function_path.R')
 # source("other_functions.R") # Source other scripts as needed. # nolint
 
 # # Read arguments
-# code_directory = '/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/third_party_software/target_pipeline/R'
-# input_directory='/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/input_directory'
-# input_path = '/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/input_directory/JD1800154SL.rds'  # change here to file
-# filtered = 'filtered'
-# output_path_result = '/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/result_directory/preprocessing_results/empty_droplet_identification/JD1800154SL__empty_droplet_identification_output.rds'
-# output_path_plot_pdf = '/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/result_directory/preprocessing_results/empty_droplet_identification/JD1800154SL__empty_droplet_identification_plot.pdf'
-# output_path_plot_rds = '/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/result_directory/preprocessing_results/empty_droplet_identification/JD1800154SL__empty_droplet_identification_plot.rds'
-# input_directory_demultiplexed = input_directory
-# input_files_demultiplexed = dir(input_directory_demultiplexed, pattern = ".rds")
-# input_path_demultiplexed = glue("{input_directory_demultiplexed}/{input_files_demultiplexed}")
-# suffix = "__annotation_label_transfer"
-# output_directory_label_transfer = glue("{result_directory}/preprocessing_results/annotation_label_transfer")
-# output_paths_annotation_label_transfer =   glue("{output_directory_label_transfer}/{samples}{suffix}_output.rds")
-# # Messy!!!!!!!! wrtie a script to change this situation!!!!!!!!
-
-master_directory='/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test'
+root_directory = "/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev"
+master_directory=glue("{root_directory}/xinpu_datascript/jascap_root_test")
 result_directory='/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/result_directory'
 input_directory='/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/third_party_software/target_pipeline/test_data'
 code_directory='/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/third_party_software/renv-optional'
 metadata_path='/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/metadata.rds'
 reference_azimuth_path='/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/reference_azimuth.rds'
 reports_directory='/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/result_directory/preprocessing_results/reports'
+modality='preprocessing'
+tissue='solid'
 filtered='filtered'
 
 
 # Replace the target list below with your own:
 list(
-  tar_target(input_path,input_path_demultiplexed(input_directory)),
+  tar_target(input_path, input_path_demultiplexed(input_directory)),
   tar_target(input_demultiplexed, input_path[[1]]),
-  tar_target(samples,input_path[[2]]),
-  tar_target(output_emptyDroplet_result,output_emptyDroplet(result_directory,samples,reports_directory)),
+  tar_target(samples, input_path[[2]]),
+  
+  # output paths
+  tar_target(
+    output_emptyDroplet_result,
+    output_emptyDroplet(result_directory, samples, reports_directory)
+  ),
+  tar_target(
+    output_annotation_label,
+    output_annotation_label_transfer(input_directory, samples)
+  ),
+  
+  # The pipeline
   # #tar_target(code_directory,'/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/third_party_software/target_pipeline/R',format='file'),
   tar_target(
-  emptyDroplet,
-  run_empty_droplet_identification(code_directory,input_demultiplexed,filtered,output_emptyDroplet_result[[1]],output_emptyDroplet_result[[2]],output_emptyDroplet_result[[3]]),
-  #tar_target()
+    emptyDroplet,
+    run_empty_droplet_identification(
+      code_directory,
+      input_demultiplexed,
+      filtered,
+      output_emptyDroplet_result[[1]],
+      output_emptyDroplet_result[[2]],
+      output_emptyDroplet_result[[3]]
+    ),
+  ),
+  tar_target(
+    annotation_label,
+    annotation_label_transfer(
+      code_directory,
+      input_demultiplexed,
+      empty_droplets,
+      reference_azimuth_path,
+      output_annotation_label
     )
-  # tar_target(
-  #   annotation_label,annotation_label_transfer(code_directory,input_path_demultiplexed,empty_droplets,reference_azimuth_path,output_paths_annotation_label_transfer)
-  # )
-    
+  ),
+  tar_target(
+    alive,
+    alive_identification(
+      code_directory,
+      input_demultiplexed,
+      emptyDroplet,
+      annotation_label,
+      output_alive_identification(result_directory, samples)
+    )
+  ),
+  tar_target(
+    doublet,
+    doublet_identification(
+      code_directory,
+      input_demultiplexed,
+      reference_label_fine(tissue),
+      emptyDroplet,
+      alive,
+      annotation_label,
+      output_doublet_identification(result_directory, samples)
+    )
   )
+)
 
 # a<-input_path_demultiplexed(input_directory)
 # print(output_emptyDroplet(result_directory,a[[2]],reports_directory))
