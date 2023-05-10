@@ -98,7 +98,7 @@ Execute pipeline using `makeflow`
 #
 # The pipeline has 4 modes (first argument of create_pipeline_makefile.R)
 # preprocessing, fast_pipeline, slow_pipeline, complete
-Rscript $code_directory/R/create_pipeline_makefile.R complete pbmc unfiltered $result_directory $reports_directory $input_directory $code_directory $metadata_path $reference_azimuth_path
+Rscript $code_directory/R_scripts/create_pipeline_makefile.R complete pbmc unfiltered $result_directory $reports_directory $input_directory $code_directory $metadata_path $reference_azimuth_path
 
 # Execute makeflow
 conda activate cctools-env
