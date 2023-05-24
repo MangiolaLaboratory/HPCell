@@ -11,8 +11,9 @@ args = commandArgs(trailingOnly = TRUE)
 code_directory = args[[1]]
 input_path_demultiplexed = args[[2]]
 input_path_empty_droplets = args[[3]]
-input_path_marged_variable_genes = args[[4]]
-output_path = args[[5]]
+input_path_alive = args[[4]]
+input_path_marged_variable_genes = args[[5]]
+output_path = args[[6]]
 
 renv::load(project = code_directory)
 
@@ -31,9 +32,13 @@ output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
 counts =
   readRDS(input_path_demultiplexed) |>
   left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
-  tidyseurat::filter(!empty_droplet)
+  tidyseurat::filter(!empty_droplet) |>
 
-  # left_join(readRDS(input_path_alive), by=".cell") |>
+  left_join(
+    readRDS(input_path_alive) |>
+      select(.cell, mito_RPS, subsets_Mito_percent),
+    by=".cell"
+  )
   # tidyseurat::filter(!high_mitochondrion | !high_RPS)
 
   variable_features = readRDS(input_path_marged_variable_genes)
@@ -44,13 +49,22 @@ counts =
   counts |>
 
     # Normalise RNA
-    SCTransform(assay="RNA", return.only.var.genes=FALSE, residual.features = variable_features) |>
+    SCTransform(
+      assay="RNA",
+      return.only.var.genes=FALSE,
+      residual.features = variable_features,
+      vars.to.regress = c("subsets_Mito_percent", "mito_RPS"),
+      vst.flavor = "v2"
+    ) |>
 
     # Normalise antibodies
     when(
       "ADT" %in% names(.@assays) ~ NormalizeData(., normalization.method = 'CLR', margin = 2, assay="ADT") ,
       ~ (.)
     ) |>
+
+    # Drop alive columns
+    select(-mito_RPS, -subsets_Mito_percent) |>
 
     # Save
     saveRDS(output_path)

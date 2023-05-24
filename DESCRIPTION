@@ -7,6 +7,27 @@ Maintainer: The package maintainer <yourself@somewhere.net>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
 License: What license is it under?
+Biarch: true
+Imports:
+  sctransform(>= 0.3.3),
+  glmGamPoi
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.2.3
+SystemRequirements: GNU make
+VignetteBuilder: 
+    knitr
+RdMacros:
+    lifecycle
+biocViews: 
+    ImmunoOncology, 
+    Normalization, 
+    Sequencing, 
+    RNASeq, 
+    Software, 
+    GeneExpression,
+    Transcriptomics, 
+    SingleCell, 
+    Clustering
+LazyDataCompression: xz
+Config/testthat/edition: 3
