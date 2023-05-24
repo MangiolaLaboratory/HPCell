@@ -64,6 +64,7 @@ seurat_to_variable_features_overall = function(counts, assay, features_number = 
 #' @importFrom rlang is_symbolic
 #' @import tidyseurat
 #' @importFrom Seurat NormalizeData
+#' @importFrom stringr str_subset
 #'
 #' @export
 #'
@@ -100,6 +101,10 @@ seurat_to_variable_features = function(
   # Normalise before - https://satijalab.org/seurat/articles/pbmc3k_tutorial.html#normalizing-the-data-1
   counts  = counts |> NormalizeData(assay=assay)
 
+  # Drop TCR, NT- and RPL, RPS
+  counts = counts[rownames(counts) |> str_subset("^MT-|^RPL|^RPS|TRAV|TRBV|TRDV|TRGV", negate = TRUE), ]
+
+  # Variable overall
   variable_df_overall = seurat_to_variable_features_overall(
     counts,
     assay,
@@ -252,6 +257,23 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
         !is.na(.) ~ sum(.x@net$count),
         ~ 0
       )
+    )) |>
+
+    # Add histogram
+    mutate(cell_cell_count = map2_dbl(
+      data, DB,
+      ~  {
+        my_data = .x
+
+        # Return empty if no results
+        if(is.na(my_data)) return(tibble(cell_from = character(), cell_to = character(),  weight = numeric()))
+
+        my_data@net$count |>
+          as_tibble(rownames = "cell_from") |>
+          pivot_longer(-cell_from, names_to = "cell_to", values_to = "count")
+
+
+      }
     )) |>
 
     # values_df_for_heatmap
