@@ -39,14 +39,6 @@ counts =
   CellCycleScoring(
     s.features = cc.genes$s.genes,
     g2m.features = cc.genes$g2m.genes,
-    set.ident = TRUE
-  ) |>
-
-
-  # Scoring
-  CellCycleScoring(
-    s.features = cc.genes$s.genes,
-    g2m.features = cc.genes$g2m.genes,
     set.ident = FALSE
   ) |>
 
