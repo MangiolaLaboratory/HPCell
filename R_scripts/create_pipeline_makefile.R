@@ -224,29 +224,29 @@ commands_variable_gene =
   # create command
   mutate(command =  glue("{output_file}:{input_files}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {tissue} {input_files} {reference_label_coarse} {output_file}"))
 
-output_path_marged_variable_genes =   glue("{output_directory}/merged_{suffix}_output.rds")
+output_path_merged_variable_genes =   glue("{output_directory}/merged_{suffix}_output.rds")
 
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=50024\nCORES=11\nWALL_TIME=30000"),
     commands_variable_gene  |> pull(command) |> unlist(),
-    glue("{output_path_marged_variable_genes}:{paste(commands_variable_gene |> pull(output_file), collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}_merge.R {code_directory} {paste(commands_variable_gene |> pull(output_file), collapse=\" \")} {output_path_marged_variable_genes}")
+    glue("{output_path_merged_variable_genes}:{paste(commands_variable_gene |> pull(output_file), collapse=\" \")}\n{tab}Rscript {R_code_directory}/run{suffix}_merge.R {code_directory} {paste(commands_variable_gene |> pull(output_file), collapse=\" \")} {output_path_merged_variable_genes}")
   )
 
 # >>> CELL CYCLE
 suffix = "__cell_cycle_scoring"
-output_directory_cell_scoring = glue("{result_directory}/preprocessing_results/cell_cycle_scoring")
-output_cell_scoring =   glue("{output_directory_cell_scoring}/{samples}{suffix}_output.rds")
+output_directory_cell_cycle_scoring = glue("{result_directory}/preprocessing_results/cell_cycle_scoring")
+output_cell_cycle_scoring =   glue("{output_directory_cell_cycle_scoring}/{samples}{suffix}_output.rds")
 
 # Create input
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=10024\nCORES=2\nWALL_TIME=30000"),
-    glue("{output_cell_scoring}:{input_path_demultiplexed} {output_path_empty_droplets} {output_cell_scoring}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_cell_scoring}"),
+    glue("{output_cell_cycle_scoring}:{input_path_demultiplexed} {output_path_empty_droplets} {output_cell_cycle_scoring}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_cell_cycle_scoring}"),
 
     # Report
     glue("CATEGORY=__cell_cycle_report\nMEMORY=30024\nCORES=2"),
-    glue("{reports_directory}/report__cell_cycle_scoring.md:{input_path_demultiplexed  |> str_c(collapse=' ')} {output_path_empty_droplets |> str_c(collapse=' ')} {output_paths_annotation_label_transfer |> str_c(collapse=' ')} {output_cell_scoring |> str_c(collapse=' ')} {metadata_path} {output_path_marged_variable_genes}\n{tab}module load pandoc; Rscript -e \"rmarkdown::render('{R_code_directory_reports}/report__cell_cycle_scoring.Rmd', output_dir = '{reports_directory}', params=list(dir_root = '{result_directory}/preprocessing_results', dir_demultiplexed = '{input_directory_demultiplexed}', dir_labels='annotation_label_transfer', dir_cellcycle='cell_cycle_scoring', dir_empty='empty_droplet_identification', cell_type_column = '{reference_label_fine}', metadata_path='{metadata_path}', output_path_marged_variable_genes = '{output_path_marged_variable_genes}'))\"")
+    glue("{reports_directory}/report__cell_cycle_scoring.md:{input_path_demultiplexed  |> str_c(collapse=' ')} {output_path_empty_droplets |> str_c(collapse=' ')} {output_paths_annotation_label_transfer |> str_c(collapse=' ')} {output_cell_cycle_scoring |> str_c(collapse=' ')} {metadata_path} {output_path_merged_variable_genes}\n{tab}module load pandoc; Rscript -e \"rmarkdown::render('{R_code_directory_reports}/report__cell_cycle_scoring.Rmd', output_dir = '{reports_directory}', params=list(dir_root = '{result_directory}/preprocessing_results', dir_demultiplexed = '{input_directory_demultiplexed}', dir_labels='annotation_label_transfer', dir_cellcycle='cell_cycle_scoring', dir_empty='empty_droplet_identification', cell_type_column = '{reference_label_fine}', metadata_path='{metadata_path}', output_path_merged_variable_genes = '{output_path_merged_variable_genes}'))\"")
 
   )
 
@@ -262,7 +262,7 @@ output_path_non_batch_variation_removal =   glue("{output_directory_non_batch_va
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=40024\nCORES=1\nWALL_TIME=30000"),
-    glue("{output_path_non_batch_variation_removal}:{input_path_demultiplexed} {output_path_empty_droplets} {output_path_marged_variable_genes}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_path_alive} {output_path_marged_variable_genes} {output_path_non_batch_variation_removal}")
+    glue("{output_path_non_batch_variation_removal}:{input_path_demultiplexed} {output_path_empty_droplets} {output_path_merged_variable_genes} {output_path_alive} {output_cell_cycle_scoring}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_path_alive} {output_cell_cycle_scoring} {output_path_merged_variable_genes} {output_path_non_batch_variation_removal}")
   )
 
 
@@ -286,7 +286,7 @@ commands =
 commands =
   commands |> c(
     glue("CATEGORY=__doublet_identification_report\nMEMORY=30024\nCORES=2"),
-    glue("{reports_directory}/report__doublet_identification.md:{output_path_non_batch_variation_removal  |> str_c(collapse=' ')} {output_paths_annotation_label_transfer |> str_c(collapse=' ')} {output_path_doublet_identification |> str_c(collapse=' ') } {metadata_path} {output_path_marged_variable_genes}\n{tab}module load pandoc; Rscript -e \"rmarkdown::render('{R_code_directory_reports}/report__doublet_identification.Rmd', output_dir = '{reports_directory}', params=list(dir1 = '{output_directory_non_batch_variation_removal}', dir2='{output_directory_label_transfer}', dir3='{output_directory_doublet}', metadata_path='{metadata_path}', output_path_marged_variable_genes = '{output_path_marged_variable_genes}'))\"")
+    glue("{reports_directory}/report__doublet_identification.md:{output_path_non_batch_variation_removal  |> str_c(collapse=' ')} {output_paths_annotation_label_transfer |> str_c(collapse=' ')} {output_path_doublet_identification |> str_c(collapse=' ') } {metadata_path} {output_path_merged_variable_genes}\n{tab}module load pandoc; Rscript -e \"rmarkdown::render('{R_code_directory_reports}/report__doublet_identification.Rmd', output_dir = '{reports_directory}', params=list(dir1 = '{output_directory_non_batch_variation_removal}', dir2='{output_directory_label_transfer}', dir3='{output_directory_doublet}', metadata_path='{metadata_path}', output_path_merged_variable_genes = '{output_path_merged_variable_genes}'))\"")
 
   )
 

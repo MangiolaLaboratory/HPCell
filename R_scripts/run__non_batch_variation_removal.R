@@ -12,8 +12,9 @@ code_directory = args[[1]]
 input_path_demultiplexed = args[[2]]
 input_path_empty_droplets = args[[3]]
 input_path_alive = args[[4]]
-input_path_marged_variable_genes = args[[5]]
-output_path = args[[6]]
+input_cell_cycle_scoring = args[[5]]
+input_path_marged_variable_genes = args[[6]]
+output_path = args[[7]]
 
 renv::load(project = code_directory)
 
@@ -36,9 +37,16 @@ counts =
 
   left_join(
     readRDS(input_path_alive) |>
-      select(.cell, mito_RPS, subsets_Mito_percent),
+      select(.cell, subsets_Ribo_percent, subsets_Mito_percent),
+    by=".cell"
+  ) |>
+
+  left_join(
+    readRDS(input_cell_cycle_scoring) |>
+      select(.cell, G2M.Score),
     by=".cell"
   )
+
   # tidyseurat::filter(!high_mitochondrion | !high_RPS)
 
   variable_features = readRDS(input_path_marged_variable_genes)
@@ -53,7 +61,7 @@ counts =
       assay="RNA",
       return.only.var.genes=FALSE,
       residual.features = variable_features,
-      vars.to.regress = c("subsets_Mito_percent", "mito_RPS"),
+      vars.to.regress = c("subsets_Mito_percent", "subsets_Ribo_percent", "G2M.Score"),
       vst.flavor = "v2"
     ) |>
 
@@ -64,7 +72,7 @@ counts =
     ) |>
 
     # Drop alive columns
-    select(-mito_RPS, -subsets_Mito_percent) |>
+    select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score) |>
 
     # Save
     saveRDS(output_path)

@@ -40,7 +40,7 @@ location <- mapIds(
   keytype="SYMBOL"
 )
 
-which_mito = rownames(input_file) |> str_which("^MT-")
+which_mito = rownames(input_file) |> str_which("^MT")
 
 mitochondrion =
   input_file |>
@@ -74,7 +74,7 @@ ribosome =
   tidyseurat::select(.cell) |>
 
   # Join mitochondrion statistics
-  mutate(mito_RPS = PercentageFeatureSet(input_file,  pattern = "^RPS|^RPL", assay = "RNA")[,1]  ) |>
+  mutate(subsets_Ribo_percent = PercentageFeatureSet(input_file,  pattern = "^RPS|^RPL", assay = "RNA")[,1]  ) |>
 
   # Join cell types
   left_join(readRDS(input_path_annotation_label_transfer), by = ".cell") |>
@@ -85,13 +85,13 @@ ribosome =
     data,
     ~ .x |>
       # Label cells
-      mutate(high_RPS = isOutlier(mito_RPS, type="higher")) |>
+      mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
 
       # For compatibility
-      mutate(high_RPS = as.logical(high_RPS)) |>
+      mutate(high_ribosome = as.logical(high_ribosome)) |>
 
       as_tibble() |>
-      dplyr::select(.cell, mito_RPS, high_RPS)
+      dplyr::select(.cell, subsets_Ribo_percent, high_ribosome)
   )) |>
   unnest(data)
 
@@ -101,13 +101,13 @@ ribosome =
 # Save
 mitochondrion |>
   left_join(ribosome, by=".cell") |>
-  mutate(alive = !high_mitochondrion & !high_RPS ) |>
+  mutate(alive = !high_mitochondrion & !high_ribosome ) |>
   saveRDS(output_path)
 
 # plot_QC =
 #   input_file |>
 #   left_join(annotation, by=".cell") |>
-#   pivot_longer(c(nFeature_RNA , nCount_RNA, subsets_Mito_percent, mito_RPS)) |>
+#   pivot_longer(c(nFeature_RNA , nCount_RNA, subsets_Mito_percent, mito_Ribo)) |>
 #   ggplot(aes(x=sample,y=value,
 #              color = high_mitochondrion,
 #              alpha=high_mitochondrion,

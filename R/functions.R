@@ -101,8 +101,8 @@ seurat_to_variable_features = function(
   # Normalise before - https://satijalab.org/seurat/articles/pbmc3k_tutorial.html#normalizing-the-data-1
   counts  = counts |> NormalizeData(assay=assay)
 
-  # Drop TCR, NT- and RPL, RPS
-  counts = counts[rownames(counts) |> str_subset("^MT-|^RPL|^RPS|TRAV|TRBV|TRDV|TRGV", negate = TRUE), ]
+  # Drop TCR, MT and RPL, RPS
+  counts = counts[rownames(counts) |> str_subset("^MT|^RPL|^RPS|TRAV|TRBV|TRDV|TRGV", negate = TRUE), ]
 
   # Variable overall
   variable_df_overall = seurat_to_variable_features_overall(
