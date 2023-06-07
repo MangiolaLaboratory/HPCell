@@ -47,7 +47,7 @@ counts =
     by=".cell"
   )
 
-  # tidyseurat::filter(!high_mitochondrion | !high_RPS)
+  # tidyseurat::filter(!high_mitochondrion | !high_ribosome)
 
   variable_features = readRDS(input_path_marged_variable_genes)
 
@@ -60,7 +60,7 @@ counts =
     SCTransform(
       assay="RNA",
       return.only.var.genes=FALSE,
-      residual.features = variable_features,
+      #residual.features = variable_features,
       vars.to.regress = c("subsets_Mito_percent", "subsets_Ribo_percent", "G2M.Score"),
       vst.flavor = "v2"
     ) |>

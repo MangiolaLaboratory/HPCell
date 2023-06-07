@@ -146,7 +146,7 @@ output_paths_annotation_label_transfer =   glue("{output_directory_label_transfe
 commands =
   commands |>
   c(
-    glue("CATEGORY={suffix}\nMEMORY=30024\nCORES=1\nWALL_TIME=10000"),
+    glue("CATEGORY={suffix}\nMEMORY=40024\nCORES=1\nWALL_TIME=10000"),
     glue("{output_paths_annotation_label_transfer}:{input_path_demultiplexed} {output_path_empty_droplets}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {reference_azimuth_path} {output_paths_annotation_label_transfer}")
     # output_path_non_batch_variation_removal %>%
     #   enframe(value = "input_path") %>%
@@ -242,7 +242,7 @@ output_cell_cycle_scoring =   glue("{output_directory_cell_cycle_scoring}/{sampl
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=10024\nCORES=2\nWALL_TIME=30000"),
-    glue("{output_cell_cycle_scoring}:{input_path_demultiplexed} {output_path_empty_droplets} {output_cell_cycle_scoring}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_cell_cycle_scoring}"),
+    glue("{output_cell_cycle_scoring}:{input_path_demultiplexed} {output_path_empty_droplets}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {output_path_empty_droplets} {output_cell_cycle_scoring}"),
 
     # Report
     glue("CATEGORY=__cell_cycle_report\nMEMORY=30024\nCORES=2"),
@@ -277,7 +277,7 @@ output_path_preprocessing_results =   glue("{output_directory}/{samples}{suffix}
 commands =
   commands |> c(
     glue("CATEGORY={suffix}\nMEMORY=30024\nCORES=2\nWALL_TIME=30000"),
-    glue("{output_path_preprocessing_results}:{output_path_non_batch_variation_removal} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {tissue} {output_path_non_batch_variation_removal} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification} {output_path_preprocessing_results}")
+    glue("{output_path_preprocessing_results}:{output_path_non_batch_variation_removal} {output_path_alive} {output_paths_annotation_label_transfer} {output_path_doublet_identification} {output_cell_cycle_scoring}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {tissue} {output_path_non_batch_variation_removal} {output_path_alive} {output_cell_cycle_scoring} {output_paths_annotation_label_transfer} {output_path_doublet_identification} {output_path_preprocessing_results}")
 
   )
 

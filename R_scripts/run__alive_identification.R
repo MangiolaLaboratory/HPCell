@@ -101,7 +101,7 @@ ribosome =
 # Save
 mitochondrion |>
   left_join(ribosome, by=".cell") |>
-  mutate(alive = !high_mitochondrion & !high_ribosome ) |>
+  mutate(alive = !high_mitochondrion) |> # & !high_ribosome ) |>
   saveRDS(output_path)
 
 # plot_QC =
