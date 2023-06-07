@@ -17,6 +17,7 @@ This might deviate based on what system you are, what GPU you have and what driv
 7. You are all set to start, for CellBender arguments and troubleshooting check https://cellbender.readthedocs.io/en/latest/help_and_reference/remove_background/index.html
 When starting CellBender, you activate your conda environment with conda activate CellBender. Then you run cellbender remove-background --input --output and other arguments
 If starting a slurm job, make sure to load anaconda and activate the environment for CellBender before starting. See the below example
+CellBender cannot use in parallel multiple CPUs and GPUs, supplying multiple cores and GPU for once job will not decrease computing time. Submit multiple jobs instead.
 '
 #!/bin/bash
 #SBATCH --job-name=cellbender 
@@ -29,12 +30,12 @@ If starting a slurm job, make sure to load anaconda and activate the environment
 #SBATCH -o slurm.%j.out
 #SBATCH -e slurm.%j.err
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=odainic.a@wehi.edu.au
+#SBATCH --mail-user=your.email@adress
 module load anaconda3/latest
-conda activate /home/users/allstaff/odainic.a/.conda/envs/CellBender
+conda activate /home/users/user/.conda/envs/CellBender
 cellbender remove-background \
-     --input /stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/mangiola.s/PostDoc/covid19pbmc/data/all_batches/raw_counts/C120_COVID_PBMC_batch3/extdata/CellRanger/C120_batch3_1/outs/multi/count/raw_feature_bc_matrix.h5 \
-                 --output /stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/odainic.a/CellBender/mytest/batch3_1_cellbender_out_test.h5 \
+     --input /cellranger_output_folder/outs/multi/count/raw_feature_bc_matrix.h5 \
+                 --output /your_folder_for_results/cellbender_out.h5 \
                  --cuda \
                  --expected-cells 26000 \
                  --total-droplets-included 40000 \
