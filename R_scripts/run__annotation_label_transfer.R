@@ -202,6 +202,7 @@ gc()
 
     reference_azimuth = readRDS(reference_azimuth_path)
 
+
     # Reading input
     input_file =
 
@@ -209,25 +210,59 @@ gc()
 
       # Filter empty
       tidyseurat::left_join(readRDS(input_path_empty_droplets), by = ".cell") |>
-      tidyseurat::filter(!empty_droplet) |>
+      tidyseurat::filter(!empty_droplet)
+
+
+    # Subset
+    RNA_assay = input_file[["RNA"]][rownames(input_file[["RNA"]]) %in% rownames(reference_azimuth[["SCT"]]),]
+    ADT_assay = input_file[["ADT"]][rownames(input_file[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
+    input_file <- CreateSeuratObject( counts = RNA_assay)
+    input_file[["ADT"]] = ADT_assay |> CreateAssayObject()
+
+    # Normalise RNA
+    input_file =
+      input_file |>
 
       # Normalise RNA - not informed by smartly selected variable genes
       SCTransform(assay="RNA") |>
+      ScaleData(assay = "SCT") |>
+      RunPCA(assay = "SCT")
 
-      # Normalise antibodies
-      when(
-        "ADT" %in% names(.@assays) ~ NormalizeData(., normalization.method = 'CLR', margin = 2, assay="ADT") ,
-        ~ (.)
-      )
 
-      # Define common anchors
-      anchors <- FindTransferAnchors(
-        reference = reference_azimuth,
-        query = input_file,
-        normalization.method = "SCT",
-        reference.reduction = "spca",
-        dims = 1:30
-      )
+
+    if("ADT" %in% names(.@assays) ){
+      VariableFeatures(input_file, assay="ADT") <- rownames(input_file[["ADT"]])
+      input_file =
+        input_file |>
+        NormalizeData(normalization.method = 'CLR', margin = 2, assay="ADT") |>
+        ScaleData(assay="ADT") |>
+        RunPCA(assay = "ADT", reduction.name = 'apca')
+    }
+
+
+    input_file =
+      input_file |>
+      FindMultiModalNeighbors(
+        reduction.list = list("pca", "apca"),
+      dims.list = list(1:30, 1:18),
+      modality.weight.name = "RNA.weight"
+    ) |>
+    RunUMAP(
+      nn.name = "weighted.nn",
+      reduction.name = "wnn.umap",
+      reduction.key = "wnnUMAP_"
+    )
+
+
+    # Define common anchors
+    anchors <- FindTransferAnchors(
+      reference = reference_azimuth,
+      query = input_file,
+      normalization.method = "SCT",
+      reference.reduction = "spca",
+      dims = 1:50
+    )
+
 
       # Mapping
 
@@ -245,7 +280,8 @@ gc()
                 predicted_ADT = "ADT"
               ),
               reference.reduction = "spca",
-              reduction.model = "wnn.umap"
+              reduction.model = "wnn.umap",
+              query.dims = 1:2
             )
           },
           error = function(e){

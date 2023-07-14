@@ -7,14 +7,14 @@ input_path_preprocessing_output = args[3:(length(args)-2)]
 output_path_sample_cell_type = args[[length(args)-1]]
 output_path_sample = args[[length(args)]]
 
-renv::load(project = code_directory)
+#renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)
 library(glue)
 library(tidyseurat)
 library(tidySingleCellExperiment)
-library(tidysc)
+library(tidySummarizedExperiment)
 library(tidybulk)
 library(rlang)
 library(stringr)
@@ -38,7 +38,8 @@ pseudobulk =
   map(~ {
     library(rlang)
     readRDS(.x) |>
-      aggregate_cells(c(sample, !!as.symbol(reference_label_fine)), slot = "counts", assays=assays) |>
+      tidyseurat::aggregate_cells(c(sample, !!as.symbol(reference_label_fine)), slot = "counts", assays=assays) |>
+      as_SummarizedExperiment(.sample, .feature, c(RNA, ADT)) |>
 
       # Reshape to make RNA and ADT both features
       pivot_longer(
@@ -50,7 +51,7 @@ pseudobulk =
 
       # Some manipulation to get unique feature because RNA and ADT
       # both can have sma name genes
-      rename(symbol = feature) |>
+      rename(symbol = .feature) |>
       mutate(data_source = str_remove(data_source, "abundance_")) |>
       unite( ".feature", c(symbol, data_source), remove = FALSE) |>
 
@@ -122,6 +123,7 @@ pseudobulk =
   map(~
                    readRDS(.x) |>
                    aggregate_cells(c(sample), slot = "counts", assays=assays) |>
+              as_SummarizedExperiment(.sample, .feature, c(RNA, ADT)) |>
 
             # Reshape to make RNA and ADT both features
             pivot_longer(
@@ -132,7 +134,7 @@ pseudobulk =
             filter(!count |> is.na()) |>
 
             # Some manipulation to get unique feature because RNa and ADT both can have sma name genes
-            rename(symbol = feature) |>
+            rename(symbol = .feature) |>
             mutate(data_source = str_remove(data_source, "abundance_")) |>
             unite( ".feature", c(symbol, data_source), remove = FALSE) |>
 

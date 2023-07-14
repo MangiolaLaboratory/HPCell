@@ -62,7 +62,9 @@ counts =
       return.only.var.genes=FALSE,
       #residual.features = variable_features,
       vars.to.regress = c("subsets_Mito_percent", "subsets_Ribo_percent", "G2M.Score"),
-      vst.flavor = "v2"
+      vst.flavor = "v2",
+
+      scale_factor=2186
     ) |>
 
     # Normalise antibodies
