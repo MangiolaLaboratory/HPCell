@@ -18,13 +18,6 @@ Enter in the jascap directory within R and activate renv, for reproducibility
 ```{r}
 module load R/4.2.1
 ```
-open R in the terminal:
-
-```{r}
-install.packages("renv")
- renv::activate()
- renv::restore()
-```
 
 Install makeflow
 
