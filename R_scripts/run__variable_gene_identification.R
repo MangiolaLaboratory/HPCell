@@ -9,7 +9,7 @@ input_paths = args[3:(length(args)-2)]
 cell_type_column_for_subsetting = args[[length(args)-1]]
 output_path = args[[length(args)]]
 
-renv::load(project = code_directory)
+# renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)
@@ -19,6 +19,7 @@ library(purrr)
 library(magrittr)
 library(tibble)
 library(jascap)
+library(stringr)
 
 # Divide into 5 chunks
 input_paths_chunks = input_paths |> split( rep_len(1:5, length(input_paths)) |> sort())

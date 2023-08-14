@@ -12,7 +12,7 @@ input_path_empty_droplets = args[[3]]
 input_path_annotation_label_transfer = args[[4]]
 output_path = args[[5]]
 
-renv::load(project = code_directory)
+# renv::load(project = code_directory)
 
 library(DropletUtils)
 library(EnsDb.Hsapiens.v86)

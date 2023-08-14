@@ -16,7 +16,7 @@ input_cell_cycle_scoring = args[[5]]
 input_path_marged_variable_genes = args[[6]]
 output_path = args[[7]]
 
-renv::load(project = code_directory)
+# renv::load(project = code_directory)
 
 library(DropletUtils)
 library(EnsDb.Hsapiens.v86)

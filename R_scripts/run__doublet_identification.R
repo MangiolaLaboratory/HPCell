@@ -9,7 +9,7 @@ input_path_alive = args[[5]]
 input_path_annotation_label_transfer = args[[6]]
 output_path = args[[7]]
 
-renv::load(project = code_directory)
+# renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)

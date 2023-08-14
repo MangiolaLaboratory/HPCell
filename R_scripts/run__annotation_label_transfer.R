@@ -15,7 +15,7 @@ input_path_empty_droplets = args[[3]]
 reference_azimuth_path = args[[4]]
 output_path = args[[5]]
 
-renv::load(project = code_directory)
+# renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)
@@ -25,7 +25,7 @@ library(SingleR)
 library(celldex)
 library(scuttle)
 library(purrr)
-
+library(tidySingleCellExperiment)
 
 
 
@@ -215,9 +215,10 @@ gc()
 
     # Subset
     RNA_assay = input_file[["RNA"]][rownames(input_file[["RNA"]]) %in% rownames(reference_azimuth[["SCT"]]),]
-    ADT_assay = input_file[["ADT"]][rownames(input_file[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
     input_file <- CreateSeuratObject( counts = RNA_assay)
-    input_file[["ADT"]] = ADT_assay |> CreateAssayObject()
+
+    if("ADT" %in% names(input_file@assays) ) ADT_assay = input_file[["ADT"]][rownames(input_file[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
+    if("ADT" %in% names(input_file@assays) ) input_file[["ADT"]] = ADT_assay |> CreateAssayObject()
 
     # Normalise RNA
     input_file =
@@ -230,7 +231,7 @@ gc()
 
 
 
-    if("ADT" %in% names(.@assays) ){
+    if("ADT" %in% names(input_file@assays) ){
       VariableFeatures(input_file, assay="ADT") <- rownames(input_file[["ADT"]])
       input_file =
         input_file |>
@@ -240,18 +241,19 @@ gc()
     }
 
 
-    input_file =
-      input_file |>
-      FindMultiModalNeighbors(
-        reduction.list = list("pca", "apca"),
-      dims.list = list(1:30, 1:18),
-      modality.weight.name = "RNA.weight"
-    ) |>
-    RunUMAP(
-      nn.name = "weighted.nn",
-      reduction.name = "wnn.umap",
-      reduction.key = "wnnUMAP_"
-    )
+    # input_file =
+    #   input_file |>
+    #   FindMultiModalNeighbors(
+    #     reduction.list = list("pca", "apca"),
+    #   dims.list = list(1:30, 1:18),
+    #   modality.weight.name = "RNA.weight"
+    # ) |>
+    # RunUMAP(
+    #   nn.name = "weighted.nn",
+    #   reduction.name = "wnn.umap",
+    #   reduction.key = "wnnUMAP_"
+    # )
+
 
 
     # Define common anchors
@@ -259,13 +261,12 @@ gc()
       reference = reference_azimuth,
       query = input_file,
       normalization.method = "SCT",
-      reference.reduction = "spca",
+      reference.reduction = "pca",
       dims = 1:50
     )
 
-
       # Mapping
-
+    # reference_azimuth = reference_azimuth |> RunUMAP(reduction = "pca", dims=1:50, return.model=TRUE)
 
       azimuth_annotation =
         tryCatch(
@@ -276,12 +277,11 @@ gc()
               reference = reference_azimuth ,
               refdata = list(
                 celltype.l1 = "celltype.l1",
-                celltype.l2 = "celltype.l2",
+                celltype.l2 = "celltype.l2" ,
                 predicted_ADT = "ADT"
               ),
               reference.reduction = "spca",
-              reduction.model = "wnn.umap",
-              query.dims = 1:2
+              reduction.model = "umap"
             )
           },
           error = function(e){
@@ -290,7 +290,7 @@ gc()
           }
         ) |>
         as_tibble() |>
-        select(.cell, one_of("predicted.celltype.l1", "predicted.celltype.l2"), contains("refUMAP"))
+        select(.cell, any_of(c("predicted.celltype.l1", "predicted.celltype.l2")), contains("refUMAP"))
 
 
       azimuth_annotation |>
