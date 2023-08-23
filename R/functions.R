@@ -344,3 +344,71 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 
 
 }
+
+
+map_add_dispersion_to_se = function(se_df){
+  
+  se_df |> 
+    mutate(se = map(
+      se,
+      ~ {
+        counts = .x |> assay("counts")
+        
+        .x |> 
+          left_join(
+            
+            # Dispersion data frame
+            estimateDisp(counts)$tagwise.dispersion |> 
+              setNames(rownames(counts)) |>
+              enframe(name = ".feature", value = "dispersion")
+          )
+      }
+    ))
+  
+}
+
+map_split_se_by_gene = function(se_df){
+  se_df |> 
+    mutate(se = map(
+      se,
+      ~ {
+        chunks =
+          tibble(.feature = rownames(.x)) |>
+          mutate(chunk___ = sample(1:10, n(), replace = TRUE))
+        
+        .x |> 
+          left_join(chunks) |>
+          nest(se_chunk = -chunk___)
+      }
+    )) |>
+    unnest(se) |> 
+    select(-chunk___) |>
+    mutate(se_md5 = map_chr(se_chunk, digest))
+}
+
+map_test_differential_abundance = function(
+    se, max_rows_for_matrix_multiplication = NULL, 
+    cores = 1
+){
+  
+  se |> mutate(se_chunk = map(
+    se_chunk,
+    ~ .x |>
+      
+      # Test
+      test_differential_abundance(
+        ~ dex + (1 | cell),
+        method = "glmmSeq_lme4",
+        cores = cores, 
+        max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,
+        .dispersion = dispersion
+      )
+    
+  ))
+  
+  
+  
+  
+  
+  
+}
