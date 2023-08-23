@@ -414,3 +414,15 @@ map_test_differential_abundance = function(
   
   
 }
+
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' 
+#' @export
+tar_script_append = function(code, script = targets::tar_config_get("script")){
+  substitute(code) |> 
+    deparse() |> 
+    head(-1) |>
+    tail(-1) |> 
+    write_lines(script, append = TRUE)
+}

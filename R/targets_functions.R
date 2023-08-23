@@ -9,7 +9,7 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
   
   data_df |> saveRDS("temp_data.rds")
   
-  
+
   # library(future)
   # library("future.batchtools")
   # 
@@ -46,7 +46,7 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
   
   # Header
   if(!append)
-  substitute({
+    tar_script_append({
     
     
     #-----------------------#
@@ -97,11 +97,10 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
         tar_target(file, "temp_data.rds", format = "file")
       )
     
-  }) |> deparse() |> head(-1) |> tail(-1) |>  write_lines(glue("{store}.R"))
+  }, glue("{store}.R"))
   
-  
-  
-  substitute({
+ 
+  tar_script_append({
     
     #-----------------------#
     # Pipeline
@@ -163,17 +162,17 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
     ))
 
     
-  }) |> deparse() |> head(-1) |> tail(-1) |>  write_lines(glue("{store}.R"), append = TRUE)
+  }, glue("{store}.R"))
   
   if(!append)
-  substitute({
+    tar_script_append({
     
     #-----------------------#
     # Pipeline
     #-----------------------#
     list_of_tar_de 
     
-  }) |> deparse() |> head(-1) |> tail(-1) |>  write_lines(glue("{store}.R"), append = TRUE)
+  }, glue("{store}.R"))
   
   if(!append)
   tar_make_future(
