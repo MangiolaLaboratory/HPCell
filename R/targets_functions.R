@@ -5,7 +5,7 @@
 #' 
 #' @export
 #' 
-hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir = ".")){
+hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir = "."), append = FALSE){
   
   data_df |> saveRDS("temp_data.rds")
   
@@ -43,6 +43,9 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
   #     )
   #   )
   
+  
+  # Header
+  if(!append)
   substitute({
     
     
@@ -88,15 +91,25 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
       #debug = "estimates_b84ea256", # Set the target you want to debug.
       #cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
     )
+
+    list_of_tar_de = 
+      list(
+        tar_target(file, "temp_data.rds", format = "file")
+      )
     
+  }) |> deparse() |> head(-1) |> tail(-1) |>  write_lines(glue("{store}.R"))
+  
+  
+  
+  substitute({
     
     #-----------------------#
     # Pipeline
     #-----------------------#
-    list(
+   list_of_tar_de = list_of_tar_de |> c(list(
       
       
-      tar_target(file, "temp_data.rds", format = "file"),
+      
       tarchetypes::tar_group_by(pseudobulk_df_tissue, readRDS(file), name),
       
       # Dispersion
@@ -147,12 +160,22 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
         #resources = big_slurm
       )
       
-    )
+    ))
+
     
+  }) |> deparse() |> head(-1) |> tail(-1) |>  write_lines(glue("{store}.R"), append = TRUE)
+  
+  if(!append)
+  substitute({
     
-  }) |> deparse() |> head(-1) |> tail(-1) |>  writeLines(glue("{store}.R"))
+    #-----------------------#
+    # Pipeline
+    #-----------------------#
+    list_of_tar_de 
+    
+  }) |> deparse() |> head(-1) |> tail(-1) |>  write_lines(glue("{store}.R"), append = TRUE)
   
-  
+  if(!append)
   tar_make_future(
     script = glue("{store}.R"),
     store = store, 
@@ -162,7 +185,11 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
     #garbage_collection = TRUE
   )
   
+  if(!append)
   file.remove("temp_data.rds")
   
+  if(!append)
   tar_read(estimates, store = store)
 }
+
+
