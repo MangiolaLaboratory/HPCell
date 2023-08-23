@@ -345,7 +345,7 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 
 }
 
-
+#' @export
 map_add_dispersion_to_se = function(se_df){
   
   se_df |> 
@@ -367,6 +367,7 @@ map_add_dispersion_to_se = function(se_df){
   
 }
 
+#' @export
 map_split_se_by_gene = function(se_df){
   se_df |> 
     mutate(se = map(
@@ -386,6 +387,7 @@ map_split_se_by_gene = function(se_df){
     mutate(se_md5 = map_chr(se_chunk, digest))
 }
 
+#' @export
 map_test_differential_abundance = function(
     se, max_rows_for_matrix_multiplication = NULL, 
     cores = 1

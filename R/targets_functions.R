@@ -2,6 +2,9 @@
 #' @importFrom targets tar_script
 #' @importFrom targets tar_option_set
 #' @import targets
+#' 
+#' @export
+#' 
 hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir = ".")){
   
   data_df |> saveRDS("temp_data.rds")
@@ -40,7 +43,7 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
   #     )
   #   )
   
-  tar_script({
+  substitute({
     
     
     #-----------------------#
@@ -48,7 +51,6 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
     #-----------------------#
     library(targets)
     library(tarchetypes)
-    library(jascap)
     
     #-----------------------#
     # Future SLURM
@@ -76,7 +78,7 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
       packages = c(
         "CuratedAtlasQueryR", "stringr", "tibble", "tidySingleCellExperiment", "dplyr", "Matrix",
         "Seurat", "tidyseurat", "glue", "qs",  "purrr", "tidybulk", "tidySummarizedExperiment", "edgeR",
-        "digest"
+        "digest", "jascap"
       ), 
       storage = "worker", 
       retrieval = "worker", 
@@ -148,7 +150,7 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
     )
     
     
-  }, ask = FALSE, script = glue("{store}.R"))
+  }) |> deparse() |> head(-1) |> tail(-1) |>  writeLines(glue("{store}.R"))
   
   
   tar_make_future(
