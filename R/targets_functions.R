@@ -123,7 +123,7 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
       # Split in gene chunks
       tar_target(
         pseudobulk_df_tissue_split_by_gene, 
-        pseudobulk_df_tissue_dispersion |> map_split_se_by_gene(), 
+        pseudobulk_df_tissue_dispersion |> map_split_se_by_gene_se(), 
         pattern = map(pseudobulk_df_tissue_dispersion)
         #, 
         #resources = small_slurm

@@ -368,14 +368,14 @@ map_add_dispersion_to_se = function(se_df){
 }
 
 #' @export
-map_split_se_by_gene = function(se_df){
+map_split_se_by_gene_se = function(se_df, num_chunks = 10){
   se_df |> 
     mutate(se = map(
       se,
       ~ {
         chunks =
           tibble(.feature = rownames(.x)) |>
-          mutate(chunk___ = sample(1:10, n(), replace = TRUE))
+          mutate(chunk___ = sample(seq_len(num_chunks), n(), replace = TRUE))
         
         .x |> 
           left_join(chunks) |>
@@ -385,6 +385,58 @@ map_split_se_by_gene = function(se_df){
     unnest(se) |> 
     select(-chunk___) |>
     mutate(se_md5 = map_chr(se_chunk, digest))
+}
+
+splitColData <- function(x, f) {
+  # This is by @jma1991 
+  # at https://github.com/drisso/SingleCellExperiment/issues/55
+  
+  i <- split(seq_along(f), f)
+  
+  v <- vector(mode = "list", length = length(i))
+  
+  names(v) <- names(i)
+  
+  for (n in names(i)) { v[[n]] <- x[, i[[n]]] }
+  
+  return(v)
+  
+}
+
+splitRowData <- function(x, f) {
+  
+  i <- split(seq_along(f), f)
+  
+  v <- vector(mode = "list", length = length(i))
+  
+  names(v) <- names(i)
+  
+  for (n in names(i)) { v[[n]] <- x[i[[n]], ] }
+  
+  return(v)
+  
+}
+
+#' @importFrom digest digest
+#' 
+#' @export
+#' 
+map_split_se_by_gene_sce = function(sce_df, how_many_chunks_base = 10, max_cells_before_split = 4763){
+  sce_df |> 
+    mutate(sce = map(
+      sce,
+      ~ {
+       
+        how_many_splits = ceiling(ncol(.x)/max_cells_before_split)*how_many_chunks_base
+        
+        grouping_factor = sample(seq_len(how_many_splits), size = nrow(.x), replace = TRUE) |> as.factor()
+        
+        .x |> splitRowData(f = grouping_factor)
+
+      }
+    )) |>
+    unnest(sce) |> 
+    mutate(sce_md5 = map_chr(sce, digest))
 }
 
 #' @export
