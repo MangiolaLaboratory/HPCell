@@ -2,8 +2,8 @@
 
 export(hpcell_test_differential_abundance)
 export(map_add_dispersion_to_se)
-export(map_split_se_by_gene_sce)
-export(map_split_se_by_gene_se)
+export(map_split_sce_by_gene)
+export(map_split_se_by_gene)
 export(map_test_differential_abundance)
 export(seurat_to_ligand_receptor_count)
 export(seurat_to_variable_features)
