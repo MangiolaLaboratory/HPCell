@@ -368,7 +368,7 @@ map_add_dispersion_to_se = function(se_df){
 }
 
 #' @export
-map_split_se_by_gene_se = function(se_df, num_chunks = 10){
+map_split_se_by_gene = function(se_df, num_chunks = 10){
   se_df |> 
     mutate(se = map(
       se,
@@ -421,7 +421,7 @@ splitRowData <- function(x, f) {
 #' 
 #' @export
 #' 
-map_split_se_by_gene_sce = function(sce_df, how_many_chunks_base = 10, max_cells_before_split = 4763){
+map_split_sce_by_gene = function(sce_df, how_many_chunks_base = 10, max_cells_before_split = 4763){
   sce_df |> 
     mutate(sce = map(
       sce,
