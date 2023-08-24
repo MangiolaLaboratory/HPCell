@@ -418,13 +418,17 @@ splitRowData <- function(x, f) {
 }
 
 #' @importFrom digest digest
+#' @importFrom rlang enquo
 #' 
 #' @export
 #' 
-map_split_sce_by_gene = function(sce_df, how_many_chunks_base = 10, max_cells_before_split = 4763){
+map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_cells_before_split = 4763){
+  
+  .col = enquo(.col)
+  
   sce_df |> 
-    mutate(sce = map(
-      sce,
+    mutate(!!.col := map(
+      !!.col,
       ~ {
        
         how_many_splits = ceiling(ncol(.x)/max_cells_before_split)*how_many_chunks_base
@@ -435,8 +439,8 @@ map_split_sce_by_gene = function(sce_df, how_many_chunks_base = 10, max_cells_be
 
       }
     )) |>
-    unnest(sce) |> 
-    mutate(sce_md5 = map_chr(sce, digest))
+    unnest(!!.col) |> 
+    mutate(sce_md5 = map_chr(!!.col, digest))
 }
 
 #' @export
