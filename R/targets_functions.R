@@ -5,9 +5,13 @@
 #' 
 #' @export
 #' 
-hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir = "."), append = FALSE){
+hpcell_map_test_differential_abundance = function(data_df, .data_column, store =  tempfile(tmpdir = "."), append = FALSE){
   
-  data_df |> saveRDS("temp_data.rds")
+  .data_column = enquo(.data_column)
+  
+  
+  
+  data_df |> rename(se = !!.data_column) |>  saveRDS("temp_data.rds")
   
 
   # library(future)
@@ -115,7 +119,8 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
       tar_target(
         pseudobulk_df_tissue_dispersion, 
         pseudobulk_df_tissue |> map_add_dispersion_to_se(), 
-        pattern = map(pseudobulk_df_tissue)
+        pattern = map(pseudobulk_df_tissue),
+        iteration = "group"
         #, 
         #resources = small_slurm
       ),
@@ -124,7 +129,8 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
       tar_target(
         pseudobulk_df_tissue_split_by_gene, 
         pseudobulk_df_tissue_dispersion |> map_split_se_by_gene(), 
-        pattern = map(pseudobulk_df_tissue_dispersion)
+        pattern = map(pseudobulk_df_tissue_dispersion),
+        iteration = "group"
         #, 
         #resources = small_slurm
       ),
@@ -140,7 +146,8 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
       tar_target(
         estimates_chunk, 
         pseudobulk_df_tissue_split_by_gene_grouped |> map_test_differential_abundance(max_rows_for_matrix_multiplication = 10000, cores = 18) , 
-        pattern = map(pseudobulk_df_tissue_split_by_gene_grouped)
+        pattern = map(pseudobulk_df_tissue_split_by_gene_grouped),
+        iteration = "group"
         #, 
         #resources = big_slurm
       ),
@@ -154,7 +161,8 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
       tar_target(
         estimates, 
         estimates_regrouped |> unnest_summarized_experiment(se_chunk) |> nest(se = -name) , 
-        pattern = map(estimates_regrouped)
+        pattern = map(estimates_regrouped),
+        iteration = "group"
         #, 
         #resources = big_slurm
       )
@@ -164,6 +172,7 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
     
   }, glue("{store}.R"))
   
+  # Return the whole pipeline
   if(!append)
     tar_script_append({
     
@@ -174,6 +183,7 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
     
   }, glue("{store}.R"))
   
+  # Execute pipeline
   if(!append)
   tar_make_future(
     script = glue("{store}.R"),
@@ -189,6 +199,19 @@ hpcell_test_differential_abundance = function(data_df, store =  tempfile(tmpdir 
   
   if(!append)
   tar_read(estimates, store = store)
+}
+
+#' 
+#' @export
+#' 
+hpcell_test_differential_abundance = function(.data, store =  tempfile(tmpdir = "."), append = FALSE){
+  
+  # Create input dataframe
+  tibble(name = "my_data", data = list(!!.data )) |> 
+    
+    # Call map function 
+    hpcell_map_test_differential_abundance(data, store = store, append = append)
+  
 }
 
 
