@@ -445,7 +445,7 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
 
 #' @export
 map_test_differential_abundance = function(
-    se, max_rows_for_matrix_multiplication = NULL, 
+    se, formula, max_rows_for_matrix_multiplication = NULL, 
     cores = 1
 ){
   
@@ -455,7 +455,7 @@ map_test_differential_abundance = function(
       
       # Test
       test_differential_abundance(
-        ~ dex + (1 | cell),
+        formula,
         method = "glmmSeq_lme4",
         cores = cores, 
         max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,

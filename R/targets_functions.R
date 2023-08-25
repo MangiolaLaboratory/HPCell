@@ -5,13 +5,16 @@
 #' 
 #' @export
 #' 
-hpcell_map_test_differential_abundance = function(data_df, .data_column, store =  tempfile(tmpdir = "."), append = FALSE){
+hpcell_map_test_differential_abundance = function(data_df, formula, .data_column, store =  tempfile(tmpdir = "."), append = FALSE){
   
   .data_column = enquo(.data_column)
   
-  
+  # Check that names are different
+  if(data_df |> count(name) |> pull(n) |> max() > 1)
+    stop("HPCell says: the column name must contain unique identifiers")
   
   data_df |> rename(se = !!.data_column) |>  saveRDS("temp_data.rds")
+  formula |>  saveRDS("temp_formula.rds")
   
 
   # library(future)
@@ -98,7 +101,8 @@ hpcell_map_test_differential_abundance = function(data_df, .data_column, store =
 
     list_of_tar_de = 
       list(
-        tar_target(file, "temp_data.rds", format = "file")
+        tar_target(file, "temp_data.rds", format = "file"),
+        tar_target(formula, readRDS("temp_formula.rds"))
       )
     
   }, glue("{store}.R"))
@@ -110,8 +114,6 @@ hpcell_map_test_differential_abundance = function(data_df, .data_column, store =
     # Pipeline
     #-----------------------#
    list_of_tar_de = list_of_tar_de |> c(list(
-      
-      
       
       tarchetypes::tar_group_by(pseudobulk_df_tissue, readRDS(file), name),
       
@@ -145,7 +147,7 @@ hpcell_map_test_differential_abundance = function(data_df, .data_column, store =
       # Analyse
       tar_target(
         estimates_chunk, 
-        pseudobulk_df_tissue_split_by_gene_grouped |> map_test_differential_abundance(max_rows_for_matrix_multiplication = 10000, cores = 18) , 
+        pseudobulk_df_tissue_split_by_gene_grouped |> map_test_differential_abundance(formula, max_rows_for_matrix_multiplication = 10000, cores = 18) , 
         pattern = map(pseudobulk_df_tissue_split_by_gene_grouped),
         iteration = "group"
         #, 
@@ -196,6 +198,7 @@ hpcell_map_test_differential_abundance = function(data_df, .data_column, store =
   
   if(!append)
   file.remove("temp_data.rds")
+  file.remove("temp_formula.rds")
   
   if(!append)
   tar_read(estimates, store = store)
@@ -204,13 +207,13 @@ hpcell_map_test_differential_abundance = function(data_df, .data_column, store =
 #' 
 #' @export
 #' 
-hpcell_test_differential_abundance = function(.data, store =  tempfile(tmpdir = "."), append = FALSE){
+hpcell_test_differential_abundance = function(.data, formula, store =  tempfile(tmpdir = "."), append = FALSE){
   
   # Create input dataframe
   tibble(name = "my_data", data = list(!!.data )) |> 
     
     # Call map function 
-    hpcell_map_test_differential_abundance(data, store = store, append = append)
+    hpcell_map_test_differential_abundance(formula, data, store = store, append = append)
   
 }
 
