@@ -382,7 +382,7 @@ map_split_se_by_gene = function(se_df, .col, num_chunks = 10){
 
         .x |>
           left_join(chunks) |>
-          nest(!!.col = -chunk___)
+          nest(!!.col := -chunk___)
       }
     )) |>
     unnest(!!.col) |>
