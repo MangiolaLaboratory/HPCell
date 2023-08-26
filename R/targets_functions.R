@@ -1,6 +1,10 @@
 
 #' @importFrom targets tar_script
 #' @importFrom targets tar_option_set
+#' @importFrom dplyr pull
+#' @importFrom dplyr count
+#' @importFrom dplyr rename
+#' 
 #' @import targets
 #' 
 #' @export
@@ -13,7 +17,7 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
   if(data_df |> count(name) |> pull(n) |> max() > 1)
     stop("HPCell says: the column name must contain unique identifiers")
   
-  data_df |> rename(se = !!.data_column) |>  saveRDS("temp_data.rds")
+  data_df |> rename(data = !!.data_column) |>  saveRDS("temp_data.rds")
   formula |>  saveRDS("temp_formula.rds")
   
 
@@ -120,7 +124,7 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
       # Dispersion
       tar_target(
         pseudobulk_df_tissue_dispersion, 
-        pseudobulk_df_tissue |> map_add_dispersion_to_se(), 
+        pseudobulk_df_tissue |> map_add_dispersion_to_se(data), 
         pattern = map(pseudobulk_df_tissue),
         iteration = "group"
         #, 
@@ -130,7 +134,7 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
       # Split in gene chunks
       tar_target(
         pseudobulk_df_tissue_split_by_gene, 
-        pseudobulk_df_tissue_dispersion |> map_split_se_by_gene(), 
+        pseudobulk_df_tissue_dispersion |> map_split_se_by_gene(data), 
         pattern = map(pseudobulk_df_tissue_dispersion),
         iteration = "group"
         #, 
@@ -147,7 +151,13 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
       # Analyse
       tar_target(
         estimates_chunk, 
-        pseudobulk_df_tissue_split_by_gene_grouped |> map_test_differential_abundance(formula, max_rows_for_matrix_multiplication = 10000, cores = 18) , 
+        pseudobulk_df_tissue_split_by_gene_grouped |>
+          map_test_differential_abundance(
+            data,
+            formula, 
+            max_rows_for_matrix_multiplication = 10000, 
+            cores = 18
+          ) , 
         pattern = map(pseudobulk_df_tissue_split_by_gene_grouped),
         iteration = "group"
         #, 
@@ -162,7 +172,7 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
       ),
       tar_target(
         estimates, 
-        estimates_regrouped |> unnest_summarized_experiment(se_chunk) |> nest(se = -name) , 
+        estimates_regrouped |> unnest_summarized_experiment(data) |> nest(se = -name) , 
         pattern = map(estimates_regrouped),
         iteration = "group"
         #, 
@@ -204,6 +214,7 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
   tar_read(estimates, store = store)
 }
 
+#' @importFrom tibble tibble
 #' 
 #' @export
 #' 

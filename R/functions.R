@@ -346,11 +346,13 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 }
 
 #' @export
-map_add_dispersion_to_se = function(se_df){
+map_add_dispersion_to_se = function(se_df, .col){
+  
+  .col = enquo(.col)
 
   se_df |>
-    mutate(se = map(
-      se,
+    mutate(!!.col := map(
+      !!.col,
       ~ {
         counts = .x |> assay("counts")
 
@@ -448,12 +450,14 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
 
 #' @export
 map_test_differential_abundance = function(
-    se, formula, max_rows_for_matrix_multiplication = NULL,
+    se, .col, formula, max_rows_for_matrix_multiplication = NULL,
     cores = 1
 ){
 
-  se |> mutate(se_chunk = map(
-    se_chunk,
+  .col = enquo(.col)
+  
+  se |> mutate(!!.col := map(
+    !!.col,
     ~ .x |>
 
       # Test
