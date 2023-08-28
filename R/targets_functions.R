@@ -90,8 +90,8 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
     #-----------------------#
     tar_option_set( 
       packages = c(
-        "CuratedAtlasQueryR", "stringr", "tibble", "tidySingleCellExperiment", "dplyr", "Matrix",
-        "Seurat", "tidyseurat", "glue", "qs",  "purrr", "tidybulk", "tidySummarizedExperiment", "edgeR",
+        "stringr", "tibble", "tidySingleCellExperiment", "dplyr", "Matrix",
+        "Seurat", "tidyseurat", "glue", "purrr", "tidybulk", "tidySummarizedExperiment", "edgeR",
         "digest", "jascap"
       ), 
       storage = "worker", 

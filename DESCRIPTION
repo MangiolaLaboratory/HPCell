@@ -10,6 +10,12 @@ License: What license is it under?
 Remotes: sqjin/CellChat
 Biarch: true
 Imports:
+  targets,
+  tarchetypes,
+  qs,
+  tidybulk,
+  tidySummarizedExperiment,
+  tidySingleCellExperiment,
   sctransform(>= 0.3.3),
   glmGamPoi,
   dplyr, 
