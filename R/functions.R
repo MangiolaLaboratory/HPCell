@@ -344,3 +344,148 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 
 
 }
+
+#' @export
+map_add_dispersion_to_se = function(se_df, .col){
+  
+  .col = enquo(.col)
+
+  se_df |>
+    mutate(!!.col := map(
+      !!.col,
+      ~ {
+        counts = .x |> assay("counts")
+
+        .x |>
+          left_join(
+
+            # Dispersion data frame
+            estimateDisp(counts)$tagwise.dispersion |>
+              setNames(rownames(counts)) |>
+              enframe(name = ".feature", value = "dispersion")
+          )
+      }
+    ))
+
+}
+
+#' @export
+map_split_se_by_gene = function(se_df, .col, num_chunks = 10){
+
+  .col = enquo(.col)
+
+  se_df |>
+    mutate(!!.col := map(
+      !!.col,
+      ~ {
+        chunks =
+          tibble(.feature = rownames(.x)) |>
+          mutate(chunk___ = sample(seq_len(num_chunks), n(), replace = TRUE))
+
+        .x |>
+          left_join(chunks) |>
+          nest(!!.col := -chunk___)
+      }
+    )) |>
+    unnest(!!.col) |>
+    select(-chunk___) |>
+    mutate(se_md5 = map_chr(!!.col, digest))
+}
+
+splitColData <- function(x, f) {
+  # This is by @jma1991
+  # at https://github.com/drisso/SingleCellExperiment/issues/55
+
+  i <- split(seq_along(f), f)
+
+  v <- vector(mode = "list", length = length(i))
+
+  names(v) <- names(i)
+
+  for (n in names(i)) { v[[n]] <- x[, i[[n]]] }
+
+  return(v)
+
+}
+
+splitRowData <- function(x, f) {
+
+  i <- split(seq_along(f), f)
+
+  v <- vector(mode = "list", length = length(i))
+
+  names(v) <- names(i)
+
+  for (n in names(i)) { v[[n]] <- x[i[[n]], ] }
+
+  return(v)
+
+}
+
+#' @importFrom digest digest
+#' @importFrom rlang enquo
+#'
+#' @export
+#'
+map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_cells_before_split = 4763){
+
+  .col = enquo(.col)
+
+  sce_df |>
+    mutate(!!.col := map(
+      !!.col,
+      ~ {
+
+        how_many_splits = ceiling(ncol(.x)/max_cells_before_split)*how_many_chunks_base
+
+        grouping_factor = sample(seq_len(how_many_splits), size = nrow(.x), replace = TRUE) |> as.factor()
+
+        .x |> splitRowData(f = grouping_factor)
+
+      }
+    )) |>
+    unnest(!!.col) |>
+    mutate(sce_md5 = map_chr(!!.col, digest))
+}
+
+#' @export
+map_test_differential_abundance = function(
+    se, .col, formula, max_rows_for_matrix_multiplication = NULL,
+    cores = 1
+){
+
+  .col = enquo(.col)
+  
+  se |> mutate(!!.col := map(
+    !!.col,
+    ~ .x |>
+
+      # Test
+      test_differential_abundance(
+        formula,
+        method = "glmmSeq_lme4",
+        cores = cores,
+        max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,
+        .dispersion = dispersion
+      )
+
+  ))
+
+
+
+
+
+
+}
+
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#'
+#' @export
+tar_script_append = function(code, script = targets::tar_config_get("script")){
+  substitute(code) |>
+    deparse() |>
+    head(-1) |>
+    tail(-1) |>
+    write_lines(script, append = TRUE)
+}
