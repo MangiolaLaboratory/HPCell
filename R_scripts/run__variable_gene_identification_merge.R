@@ -6,7 +6,7 @@ code_directory = args[[1]]
 input_paths = args[2:(length(args)-1)]
 output_path = args[[length(args)]]
 
-renv::load(project = code_directory)
+# renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)

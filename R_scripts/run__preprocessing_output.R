@@ -11,7 +11,7 @@ input_path_annotation_label_transfer = args[[6]]
 input_path_doublet_identification = args[[7]]
 output_path = args[[8]]
 
-renv::load(project = code_directory)
+# renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)
