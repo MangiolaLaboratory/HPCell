@@ -369,18 +369,28 @@ map_add_dispersion_to_se = function(se_df, .col){
 
 }
 
+#' @importFrom dplyr n
+#' @importFrom purrr map_chr
+#' @importFrom purrr map2
+#' @importFrom tidySummarizedExperiment left_join
+#' @importFrom tidySummarizedExperiment nest
+#' @importFrom tidySummarizedExperiment select
+#' @importFrom tidySummarizedExperiment mutate
+#' 
+#'
 #' @export
-map_split_se_by_gene = function(se_df, .col, num_chunks = 10){
+map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
 
   .col = enquo(.col)
-
+  .number_of_chunks = enquo(.number_of_chunks)
+  
   se_df |>
-    mutate(!!.col := map(
-      !!.col,
+    mutate(!!.col := map2(
+      !!.col, !!.number_of_chunks,
       ~ {
         chunks =
           tibble(.feature = rownames(.x)) |>
-          mutate(chunk___ = sample(seq_len(num_chunks), n(), replace = TRUE))
+          mutate(chunk___ = .y |> seq_len() |> sample() |> rep(ceiling(nrow(.x)/.y))|> head(nrow(.x)))   
 
         .x |>
           left_join(chunks) |>

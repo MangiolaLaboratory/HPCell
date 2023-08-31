@@ -15,7 +15,7 @@ hpcell_map_test_differential_abundance = function(
     formula, 
     .data_column, 
     store =  tempfile(tmpdir = "."), 
-    computing_resources = crew_controller_local(workers = 2) , 
+    computing_resources = crew_controller_local(workers = 1) , 
     append = FALSE
   ){
   
@@ -101,7 +101,7 @@ hpcell_map_test_differential_abundance = function(
       # Split in gene chunks
       tar_target(
         pseudobulk_df_tissue_split_by_gene, 
-        pseudobulk_df_tissue_dispersion |> map_split_se_by_gene(data), 
+        pseudobulk_df_tissue_dispersion |> map_split_se_by_gene(data, 10), 
         pattern = map(pseudobulk_df_tissue_dispersion),
         iteration = "group"
         # , 
