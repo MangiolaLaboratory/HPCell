@@ -4,12 +4,20 @@
 #' @importFrom dplyr pull
 #' @importFrom dplyr count
 #' @importFrom dplyr rename
+#' @importFrom crew crew_controller_local
 #' 
 #' @import targets
 #' 
 #' @export
 #' 
-hpcell_map_test_differential_abundance = function(data_df, formula, .data_column, store =  tempfile(tmpdir = "."), append = FALSE){
+hpcell_map_test_differential_abundance = function(
+    data_df,
+    formula, 
+    .data_column, 
+    store =  tempfile(tmpdir = "."), 
+    computing_resources = crew_controller_local(workers = 2) , 
+    append = FALSE
+  ){
   
   .data_column = enquo(.data_column)
   
@@ -19,41 +27,7 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
   
   data_df |> rename(data = !!.data_column) |>  saveRDS("temp_data.rds")
   formula |>  saveRDS("temp_formula.rds")
-  
-
-  # library(future)
-  # library("future.batchtools")
-  # 
-  # small_slurm = 
-  #   tar_resources(
-  #     future = tar_resources_future(
-  #       plan = tweak(
-  #         batchtools_slurm,
-  #         template = glue("/stornext/Bioinf/data/bioinf-data/Papenfuss_lab_projects/people/mangiola.s/third_party_sofware/slurm_batchtools.tmpl"),
-  #         resources = list(
-  #           ncpus = 2,
-  #           memory = 40000,
-  #           walltime = 172800
-  #         )
-  #       )
-  #     )
-  #   )
-  # 
-  # big_slurm = 
-  #   tar_resources(
-  #     future = tar_resources_future(
-  #       plan = tweak(
-  #         batchtools_slurm,
-  #         template = glue("/stornext/Bioinf/data/bioinf-data/Papenfuss_lab_projects/people/mangiola.s/third_party_sofware/slurm_batchtools.tmpl"),
-  #         resources = list(
-  #           ncpus = 19,
-  #           memory = 6000,
-  #           walltime = 172800
-  #         )
-  #       )
-  #     )
-  #   )
-  
+  computing_resources |> saveRDS("temp_computing_resources.rds")
   
   # Header
   if(!append)
@@ -70,20 +44,12 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
     # Future SLURM
     #-----------------------#
     
-    library(future)
-    library(future.callr)
-    plan(callr)
-    # library("future.batchtools")
-    # slurm <- 
-    # 	`batchtools_slurm` |>
-    # 	future::tweak( template = glue("/stornext/Bioinf/data/bioinf-data/Papenfuss_lab_projects/people/mangiola.s/third_party_sofware/slurm_batchtools.tmpl"),
-    # 								 resources=list(
-    # 								 	ncpus = 20,
-    # 								 	memory = 6000,
-    # 								 	walltime = 172800
-    # 								 )
-    # 	)
-    # plan(slurm)
+    library(crew)
+    library(crew.cluster)
+    # plan(callr)
+    
+    computing_resources = readRDS("temp_computing_resources.rds")
+      
     
     #-----------------------#
     # Packages
@@ -97,7 +63,8 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
       storage = "worker", 
       retrieval = "worker", 
       error = "continue", 		
-      format = "qs"
+      format = "qs",
+      controller = computing_resources
       #,
       #debug = "estimates_b84ea256", # Set the target you want to debug.
       #cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
@@ -127,8 +94,8 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
         pseudobulk_df_tissue |> map_add_dispersion_to_se(data), 
         pattern = map(pseudobulk_df_tissue),
         iteration = "group"
-        #, 
-        #resources = small_slurm
+        # , 
+        # resources = computing_resources
       ),
       
       # Split in gene chunks
@@ -137,8 +104,8 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
         pseudobulk_df_tissue_dispersion |> map_split_se_by_gene(data), 
         pattern = map(pseudobulk_df_tissue_dispersion),
         iteration = "group"
-        #, 
-        #resources = small_slurm
+        # , 
+        # resources = computing_resources
       ),
       
       # Parallelise rows
@@ -160,8 +127,8 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
           ) , 
         pattern = map(pseudobulk_df_tissue_split_by_gene_grouped),
         iteration = "group"
-        #, 
-        #resources = big_slurm
+        # , 
+        # resources = computing_resources
       ),
       
       # Regroup
@@ -175,8 +142,8 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
         estimates_regrouped |> unnest_summarized_experiment(data) |> nest(se = -name) , 
         pattern = map(estimates_regrouped),
         iteration = "group"
-        #, 
-        #resources = big_slurm
+        # , 
+        # resources = computing_resources
       )
       
     ))
@@ -209,6 +176,8 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
   if(!append)
   file.remove("temp_data.rds")
   file.remove("temp_formula.rds")
+  file.remove("temp_computing_resources.rds")
+  
   
   if(!append)
   tar_read(estimates, store = store)
@@ -218,13 +187,13 @@ hpcell_map_test_differential_abundance = function(data_df, formula, .data_column
 #' 
 #' @export
 #' 
-hpcell_test_differential_abundance = function(.data, formula, store =  tempfile(tmpdir = "."), append = FALSE){
+hpcell_test_differential_abundance = function(.data, formula, store =  tempfile(tmpdir = "."),  computing_resources = crew_controller_local(workers = 2) ,  append = FALSE){
   
   # Create input dataframe
   tibble(name = "my_data", data = list(!!.data )) |> 
     
     # Call map function 
-    hpcell_map_test_differential_abundance(formula, data, store = store, append = append)
+    hpcell_map_test_differential_abundance(formula, data, store = store, computing_resources = computing_resources, append = append)
   
 }
 

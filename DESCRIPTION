@@ -12,6 +12,8 @@ Biarch: true
 Imports:
   targets,
   tarchetypes,
+  crew,
+  crew.cluster,
   qs,
   tidybulk,
   tidySummarizedExperiment,
