@@ -347,7 +347,7 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 
 #' @export
 map_add_dispersion_to_se = function(se_df, .col){
-  
+
   .col = enquo(.col)
 
   se_df |>
@@ -376,21 +376,21 @@ map_add_dispersion_to_se = function(se_df, .col){
 #' @importFrom tidySummarizedExperiment nest
 #' @importFrom tidySummarizedExperiment select
 #' @importFrom tidySummarizedExperiment mutate
-#' 
+#'
 #'
 #' @export
 map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
 
   .col = enquo(.col)
   .number_of_chunks = enquo(.number_of_chunks)
-  
+
   se_df |>
     mutate(!!.col := map2(
       !!.col, !!.number_of_chunks,
       ~ {
         chunks =
           tibble(.feature = rownames(.x)) |>
-          mutate(chunk___ = .y |> seq_len() |> sample() |> rep(ceiling(nrow(.x)/.y))|> head(nrow(.x)))   
+          mutate(chunk___ = .y |> seq_len() |> sample() |> rep(ceiling(nrow(.x)/.y)) |> head(nrow(.x)))
 
         .x |>
           left_join(chunks) |>
@@ -465,7 +465,7 @@ map_test_differential_abundance = function(
 ){
 
   .col = enquo(.col)
-  
+
   se |> mutate(!!.col := map(
     !!.col,
     ~ .x |>
