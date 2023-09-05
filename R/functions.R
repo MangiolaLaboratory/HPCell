@@ -390,7 +390,7 @@ map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
       ~ {
         chunks =
           tibble(.feature = rownames(.x)) |>
-          mutate(chunk___ = .y |> seq_len() |> sample() |> rep(ceiling(nrow(.x)/.y)) |> head(nrow(.x)))
+          mutate(chunk___ = min(1, .y):.y |> sample() |> rep(ceiling(nrow(.x)/max(1, .y))) |> head(nrow(.x)))
 
         .x |>
           left_join(chunks) |>
