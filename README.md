@@ -48,8 +48,8 @@ Execute Targets workflow and load results
 store =  tempfile(tmpdir = "/stornext/General/scratch/GP_Transfer/si.j")
 
 #Execute pipeline
-
-preprocessed_seurat = run_targets_pipeline(input_data, store , input_reference)
+#Tissue modalities: pbmc, solid, atypical
+preprocessed_seurat = run_targets_pipeline(input_data,store ,input_reference, tissue)
 
 #Load results
 
