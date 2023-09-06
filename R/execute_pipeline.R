@@ -4,13 +4,12 @@
 #'
 #' @export
 #' 
-run_targets_pipeline <- function(input_data, store =  tempfile(tmpdir = "."), input_reference, tissue, reference_label){
+run_targets_pipeline <- function(input_data, store =  tempfile(tmpdir = "."), input_reference, tissue){
  
   # Save inputs for passing to targets pipeline 
   input_data |> saveRDS("input_file.rds")
   input_reference |> saveRDS("input_reference.rds")
-  tissue |> save(tissue, file = "tissue.RData")
-  reference_label |> save(reference_label, file = "reference_label.RData")
+  tissue |> saveRDS("tissue.rds")
   # Write pipeline to a file
   tar_script({
     library(targets)
@@ -61,7 +60,9 @@ run_targets_pipeline <- function(input_data, store =  tempfile(tmpdir = "."), in
       storage = "worker", 
       retrieval = "worker", 
       #error = "continue",         
-      format = "qs"
+      format = "qs", 
+      # debug = "reference_label_fine", # Set the target you want to debug.
+      # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
     )
     
     #-----------------------#
@@ -116,8 +117,7 @@ run_targets_pipeline <- function(input_data, store =  tempfile(tmpdir = "."), in
       tar_target(read_file, readRDS("input_file.rds")),
       tar_target(reference_file, "input_reference.rds", format = "rds"), 
       tar_target(read_reference_file, readRDS("input_reference.rds")), 
-      tar_target(tissue_load, load("tissue.RData")),
-      tar_target(reference_label_load, load("reference_label.RData")))
+      tar_target(tissue_file, readRDS("tissue.rds")))
     
     #-----------------------#
     # Pipeline
@@ -132,9 +132,9 @@ run_targets_pipeline <- function(input_data, store =  tempfile(tmpdir = "."), in
       #                        read_reference_file, 
       #                        deployment = "main"),
       tar_target(filtered, "filtered", deployment = "main"),
-      tar_target(tissue, tissue_load, deployment = "main"),
-      tar_target(reference_label, reference_label_load, deployment = "main"),
-      tar_target(reference_label_identification, reference_label_id(tissue, reference_label), deployment = "main"), 
+      tar_target(tissue, tissue_file, deployment = "main"),
+      tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
+      tar_target(reference_label_fine, reference_label_fine_id(tissue), deployment = "main"), 
       # Reading input files
       tar_target(input_read, readRDS(read_file),
                  pattern = map(read_file),
@@ -178,7 +178,7 @@ run_targets_pipeline <- function(input_data, store =  tempfile(tmpdir = "."), in
                                                                 empty_droplets_tbl,
                                                                 alive_identification_tbl,
                                                                 annotation_label_transfer_tbl,
-                                                                reference_label_identification),
+                                                                reference_label_fine),
                  pattern = map(input_read,
                                empty_droplets_tbl,
                                alive_identification_tbl,
@@ -211,7 +211,7 @@ run_targets_pipeline <- function(input_data, store =  tempfile(tmpdir = "."), in
                  iteration = "list", resources = small_slurm),
       
       # pseudobulk preprocessing
-      tar_target(pseudobulk_preprocessing_SE, pseudobulk_preprocessing(reference_label_identification,
+      tar_target(pseudobulk_preprocessing_SE, pseudobulk_preprocessing(reference_label_fine,
                                                                     preprocessing_output_S),
                  resources = small_slurm)
     ))
@@ -229,7 +229,8 @@ run_targets_pipeline <- function(input_data, store =  tempfile(tmpdir = "."), in
   # run_targets(input_files)
   tar_make(
     script = glue("{store}.R"),
-    store = store
+    store = store, 
+    # callr_function = NULL
   )
   # tar_make_future(
   #   script = glue("{store}.R"),

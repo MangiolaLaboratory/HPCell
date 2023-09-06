@@ -1,5 +1,6 @@
 # empty_droplet_id
 #' @export
+#' 
 empty_droplet_id <- function(input_file,
                              filtered){
   significance_threshold = 0.001
@@ -89,6 +90,7 @@ empty_droplet_id <- function(input_file,
 
 # annotation_label_transfer
 #' @export
+#' 
 annotation_label_transfer <- function(input_file,
                                       reference_azimuth,
                                       empty_droplets_tbl
@@ -309,6 +311,7 @@ annotation_label_transfer <- function(input_file,
 }
 #alive_identification 
 #' @export
+#' 
 alive_identification <- function(input_file,
                                  empty_droplets_tbl,
                                  ann_lbl_trs) {
@@ -395,6 +398,7 @@ alive_identification <- function(input_file,
 
 #Doublet identification
 #' @export
+#' 
 doublet_identification <- function(input_file, 
                                    empty_droplets_tbl, 
                                    alive_id, 
@@ -427,6 +431,7 @@ doublet_identification <- function(input_file,
 
 #Cell cylce scoring 
 #' @export
+#' 
 cell_cycle_scoring <- function(input_file, 
                                empty_droplets_tbl){
   
@@ -454,6 +459,7 @@ cell_cycle_scoring <- function(input_file,
 }
 #Non_batch_variation_removal
 #' @export
+#' 
 non_batch_variation_removal <- function(input_path_demultiplexed, 
                                         input_path_empty_droplets, 
                                         input_path_alive, 
@@ -508,6 +514,7 @@ non_batch_variation_removal <- function(input_path_demultiplexed,
 }
 # Preprocessing_output
 #' @export
+#' 
 preprocessing_output <- function(tissue, 
                                  input_path_non_batch_variation_removal, 
                                  input_path_alive, 
@@ -546,6 +553,7 @@ preprocessing_output <- function(tissue,
 
 # Pseudobulk_preprocessing
 #' @export
+#' 
 pseudobulk_preprocessing <- function(reference_label_fine, 
                                      input_path_preprocessing_output){
   assays = input_path_preprocessing_output[[1]]@assays |> names() |> intersect(c("RNA", "ADT"))
@@ -703,41 +711,27 @@ pseudobulk_preprocessing <- function(reference_label_fine,
     pseudobulk_by_sample_and_cell_type = output_path_sample_cell_type
   ))
 }
-# Reference_label 
+# Reference_label_fine
 #' @export
-reference_label <- function(tissue) {
-  if (tissue == "pbmc") {
-    reference_label_fine <- "monaco_first.labels.fine"
-    reference_label_coarse <- "monaco_first.labels.coarse"
-  } else if (tissue == "solid") {
-    reference_label_fine <- "blueprint_first.labels.fine"
-    reference_label_coarse <- "blueprint_first.labels.coarse"
-  } else if (tissue == "atypical") {
-    reference_label_fine <- "none"
-    reference_label_coarse <- "none"
-  }
-  else {
-    reference_label_fine <- "monaco_first.labels.fine"
-    reference_label_coarse <- "monaco_first.labels.coarse"
-  }
-  return(c(reference_label_fine, reference_label_coarse))
-  }
-
-reference_label <- function(tissue){
-  if (tissue == "pbmc"){
-    reference_label_fine <- "monaco_first.labels.fine"
-    reference_label_coarse <- "monaco_first.labels.coarse"}
-  else if (tissue == "solid"){
-    reference_label_fine = "blueprint_first.labels.fine"
-    reference_label_coarse = "blueprint_first.labels.coarse"}
-  else if (tissue == "atypical"){
-    reference_label_fine <- "none"
-    reference_label_coarse <- "none"}
-  else {
-    reference_label_fine <- "monaco_first.labels.fine"
-    reference_label_coarse <- "monaco_first.labels.coarse"
-  }
+#' 
+reference_label_fine_id <- function(tissue) {
+  return(
+    ifelse(tissue == "pbmc", "monaco_first.labels.fine",
+    ifelse(tissue == "solid", "blueprint_first.labels.fine",
+    ifelse(tissue == "atypical", "none",
+    ifelse(tissue == "none", "monaco_first.labels.fine", NA)))))
 }
+# Reference_label_coarse
+#' @export
+#' 
+reference_label_coarse_id <- function(tissue) {
+  return(
+    ifelse(tissue == "pbmc", "monaco_first.labels.coarse",
+    ifelse(tissue == "solid", "blueprint_first.labels.coarse",
+    ifelse(tissue == "atypical", "none",
+    ifelse(tissue == "none", "monaco_first.labels.coarse", NA)))))
+}
+
 
 # Input: seurat, output: nested tibble of variable features
 #' @importFrom Seurat FindVariableFeatures
@@ -1233,6 +1227,7 @@ map_test_differential_abundance = function(
 #' @importFrom targets tar_config_get
 #'
 #' @export
+#' 
 tar_script_append = function(code, script = targets::tar_config_get("script")){
   substitute(code) |>
     deparse() |>
