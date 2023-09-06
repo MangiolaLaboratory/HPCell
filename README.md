@@ -9,15 +9,7 @@ Clone the repository
 
 ```{bash}
 
-git clone git@github.com:susansjy22/jascap.git
-
-```
-
-Enter in the Jascap directory within R and activate renv for reproducibility
-
-```{bash}
-
-module load R/4.2.1
+git clone git@github.com:susansjy22/HPCell.git
 
 ```
 
@@ -25,7 +17,7 @@ Install Jascap package
 
 ```{bash}
 
-remote::install_github("git@github.com:susansjy22/jascap.git")
+remote::install_github("git@github.com:susansjy22/HPCell.git")
 
 ```
 
