@@ -13,14 +13,6 @@ git clone git@github.com:susansjy22/jascap.git
 
 ```
 
-Enter in the Jascap directory within R and activate renv for reproducibility
-
-```{bash}
-
-module load R/4.2.1
-
-```
-
 Install Jascap package 
 
 ```{bash}
