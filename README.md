@@ -9,7 +9,7 @@ Clone the repository
 
 ```{bash}
 
-git clone git@github.com:susansjy22/jascap.git
+git clone git@github.com:susansjy22/HPCell.git
 
 ```
 
@@ -17,7 +17,7 @@ Install Jascap package
 
 ```{bash}
 
-remote::install_github("git@github.com:susansjy22/jascap.git")
+remote::install_github("git@github.com:susansjy22/HPCell.git")
 
 ```
 
