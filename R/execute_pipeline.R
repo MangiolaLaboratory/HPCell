@@ -214,7 +214,7 @@ run_targets_pipeline <- function(input_data, store =  tempfile(tmpdir = "."), in
                  iteration = "list", resources = tar_resources(crew = tar_resources_crew("big_slurm"))),
       
       # Pre-processing output
-      tar_target(preprocessing_output_S, preprocessing_output("none",
+      tar_target(preprocessing_output_S, preprocessing_output(tissue,
                                                               non_batch_variation_removal_S,
                                                               alive_identification_tbl,
                                                               cell_cycle_score_tbl,
