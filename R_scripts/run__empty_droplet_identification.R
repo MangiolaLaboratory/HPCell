@@ -11,7 +11,7 @@ output_path_result = args[[4]]
 output_path_plot_pdf = args[[5]]
 output_path_plot_rds = args[[6]]
 
-renv::load(project = code_directory)
+# renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(purrr)

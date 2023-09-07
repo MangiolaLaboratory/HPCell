@@ -10,7 +10,7 @@ output_path_plot_credible_intervals = args[[length(args)-1]]
 output_path_plot_boxplot = args[[length(args)]]
 
 
-renv::load(project = code_directory)
+# renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(glue)

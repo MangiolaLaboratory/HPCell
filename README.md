@@ -2,6 +2,9 @@
 
 ## Analysis automated pipeline
 
+Flowchart
+https://app.mural.co/t/covid7029/m/covid7029/1656652076667/c47e104697d76b36b8dee3bd05d8de9d96d99efd?sender=udbe1ea99c9618abb07196978
+
 Clone the repository
 
 ```{bash}
@@ -14,13 +17,6 @@ Enter in the jascap directory within R and activate renv, for reproducibility
 
 ```{r}
 module load R/4.2.1
-```
-open R in the terminal:
-
-```{r}
-install.packages("renv")
- renv::activate()
- renv::restore()
 ```
 
 Install makeflow

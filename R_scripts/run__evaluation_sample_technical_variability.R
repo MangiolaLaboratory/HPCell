@@ -12,7 +12,7 @@ output_path_plot_umap = args[[length(args)]]
 input_demulatiplexed = input_files[1:(length(input_files)/2)]
 input_empty_droplets = input_files[((length(input_files)/2)+1):length(input_files)]
 
-renv::load(project = code_directory)
+# renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)

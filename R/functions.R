@@ -64,6 +64,7 @@ seurat_to_variable_features_overall = function(counts, assay, features_number = 
 #' @importFrom rlang is_symbolic
 #' @import tidyseurat
 #' @importFrom Seurat NormalizeData
+#' @importFrom stringr str_subset
 #'
 #' @export
 #'
@@ -100,6 +101,10 @@ seurat_to_variable_features = function(
   # Normalise before - https://satijalab.org/seurat/articles/pbmc3k_tutorial.html#normalizing-the-data-1
   counts  = counts |> NormalizeData(assay=assay)
 
+  # Drop TCR, MT and RPL, RPS
+  counts = counts[rownames(counts) |> str_subset("^MT|^RPL|^RPS|TRAV|TRBV|TRDV|TRGV", negate = TRUE), ]
+
+  # Variable overall
   variable_df_overall = seurat_to_variable_features_overall(
     counts,
     assay,
@@ -254,6 +259,23 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
       )
     )) |>
 
+    # Add histogram
+    mutate(cell_cell_count = map2_dbl(
+      data, DB,
+      ~  {
+        my_data = .x
+
+        # Return empty if no results
+        if(is.na(my_data)) return(tibble(cell_from = character(), cell_to = character(),  weight = numeric()))
+
+        my_data@net$count |>
+          as_tibble(rownames = "cell_from") |>
+          pivot_longer(-cell_from, names_to = "cell_to", values_to = "count")
+
+
+      }
+    )) |>
+
     # values_df_for_heatmap
     # Scores for each cell types across all others. How communicative is each cell type
     mutate(cell_vs_all_cells_per_pathway = map2(
@@ -321,4 +343,159 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 
 
 
+}
+
+#' @export
+map_add_dispersion_to_se = function(se_df, .col){
+
+  .col = enquo(.col)
+
+  se_df |>
+    mutate(!!.col := map(
+      !!.col,
+      ~ {
+        counts = .x |> assay("counts")
+
+        .x |>
+          left_join(
+
+            # Dispersion data frame
+            estimateDisp(counts)$tagwise.dispersion |>
+              setNames(rownames(counts)) |>
+              enframe(name = ".feature", value = "dispersion")
+          )
+      }
+    ))
+
+}
+
+#' @importFrom dplyr n
+#' @importFrom purrr map_chr
+#' @importFrom purrr map2
+#' @importFrom tidySummarizedExperiment left_join
+#' @importFrom tidySummarizedExperiment nest
+#' @importFrom tidySummarizedExperiment select
+#' @importFrom tidySummarizedExperiment mutate
+#'
+#'
+#' @export
+map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
+
+  .col = enquo(.col)
+  .number_of_chunks = enquo(.number_of_chunks)
+
+  se_df |>
+    mutate(!!.col := map2(
+      !!.col, !!.number_of_chunks,
+      ~ {
+        chunks =
+          tibble(.feature = rownames(.x)) |>
+          mutate(chunk___ = min(1, .y):.y |> sample() |> rep(ceiling(nrow(.x)/max(1, .y))) |> head(nrow(.x)))
+
+        .x |>
+          left_join(chunks) |>
+          nest(!!.col := -chunk___)
+      }
+    )) |>
+    unnest(!!.col) |>
+    select(-chunk___) |>
+    mutate(se_md5 = map_chr(!!.col, digest))
+}
+
+splitColData <- function(x, f) {
+  # This is by @jma1991
+  # at https://github.com/drisso/SingleCellExperiment/issues/55
+
+  i <- split(seq_along(f), f)
+
+  v <- vector(mode = "list", length = length(i))
+
+  names(v) <- names(i)
+
+  for (n in names(i)) { v[[n]] <- x[, i[[n]]] }
+
+  return(v)
+
+}
+
+splitRowData <- function(x, f) {
+
+  i <- split(seq_along(f), f)
+
+  v <- vector(mode = "list", length = length(i))
+
+  names(v) <- names(i)
+
+  for (n in names(i)) { v[[n]] <- x[i[[n]], ] }
+
+  return(v)
+
+}
+
+#' @importFrom digest digest
+#' @importFrom rlang enquo
+#'
+#' @export
+#'
+map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_cells_before_split = 4763){
+
+  .col = enquo(.col)
+
+  sce_df |>
+    mutate(!!.col := map(
+      !!.col,
+      ~ {
+
+        how_many_splits = ceiling(ncol(.x)/max_cells_before_split)*how_many_chunks_base
+
+        grouping_factor = sample(seq_len(how_many_splits), size = nrow(.x), replace = TRUE) |> as.factor()
+
+        .x |> splitRowData(f = grouping_factor)
+
+      }
+    )) |>
+    unnest(!!.col) |>
+    mutate(sce_md5 = map_chr(!!.col, digest))
+}
+
+#' @export
+map_test_differential_abundance = function(
+    se, .col, formula, max_rows_for_matrix_multiplication = NULL,
+    cores = 1
+){
+
+  .col = enquo(.col)
+
+  se |> mutate(!!.col := map(
+    !!.col,
+    ~ .x |>
+
+      # Test
+      test_differential_abundance(
+        formula,
+        method = "glmmSeq_lme4",
+        cores = cores,
+        max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,
+        .dispersion = dispersion
+      )
+
+  ))
+
+
+
+
+
+
+}
+
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#'
+#' @export
+tar_script_append = function(code, script = targets::tar_config_get("script")){
+  substitute(code) |>
+    deparse() |>
+    head(-1) |>
+    tail(-1) |>
+    write_lines(script, append = TRUE)
 }

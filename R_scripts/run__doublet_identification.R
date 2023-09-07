@@ -9,7 +9,7 @@ input_path_alive = args[[5]]
 input_path_annotation_label_transfer = args[[6]]
 output_path = args[[7]]
 
-renv::load(project = code_directory)
+# renv::load(project = code_directory)
 
 library(dplyr); library(tidyr); library(ggplot2)
 library(Seurat)
@@ -28,8 +28,8 @@ readRDS(input_path_demultiplexed) |>
   filter(!empty_droplet) |>
 
   # Filter dead
-  left_join(readRDS(input_path_alive) |> select(.cell, high_mitochondrion, high_RPS), by = ".cell") |>
-  filter(!high_mitochondrion & !high_RPS) |>
+  left_join(readRDS(input_path_alive) |> select(.cell, high_mitochondrion, high_ribosome), by = ".cell") |>
+  filter(!high_mitochondrion & !high_ribosome) |>
 
   # Annotate
   left_join(readRDS(input_path_annotation_label_transfer), by = ".cell") |>

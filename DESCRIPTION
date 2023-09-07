@@ -1,12 +1,72 @@
 Package: jascap
 Type: Package
-Title: What the Package Does (Title Case)
+Title: What the Package Does (Title Case
 Version: 0.1.0
 Author: Who wrote it
 Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
+Description: More about what it does (maybe more than one line
     Use four spaces when indenting paragraphs within the Description.
 License: What license is it under?
+Remotes: sqjin/CellChat
+Biarch: true
+Imports:
+  targets,
+  tarchetypes,
+  crew,
+  crew.cluster,
+  qs,
+  tidybulk,
+  tidySummarizedExperiment,
+  tidySingleCellExperiment,
+  sctransform(>= 0.3.3),
+  glmGamPoi,
+  dplyr, 
+  tidyr, 
+  ggplot2,
+  glue,
+  here,
+  stringr,
+  Seurat,
+  tidyseurat,
+  purrr,
+  readr,
+  patchwork,
+  tibble,
+  DropletUtils,
+  EnsDb.Hsapiens.v86,
+  scater,
+  SingleR,
+  celldex,
+  scuttle,
+  CellChat,
+  tidySingleCellExperiment,
+  tidyHeatmap,
+  cowplot,
+  gridGraphics,
+  sccomp,
+  scDblFinder,
+  ggupset,
+  magrittr,
+  rlang
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.2.3
+SystemRequirements: GNU make
+VignetteBuilder: 
+    knitr
+RdMacros:
+    lifecycle
+biocViews: 
+    ImmunoOncology, 
+    Normalization, 
+    Sequencing, 
+    RNASeq, 
+    Software, 
+    GeneExpression,
+    Transcriptomics, 
+    SingleCell, 
+    Clustering
+LazyDataCompression: xz
+Config/testthat/edition: 3
+Suggests: 
+    testthat (>= 3.0.0)
