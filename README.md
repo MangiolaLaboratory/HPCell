@@ -7,7 +7,7 @@ https://app.mural.co/t/covid7029/m/covid7029/1656652076667/c47e104697d76b36b8dee
 
 Clone the repository
 
-```{bash}
+```{r}
 
 git clone git@github.com:susansjy22/HPCell.git
 
@@ -15,7 +15,7 @@ git clone git@github.com:susansjy22/HPCell.git
 
 Install Jascap package 
 
-```{bash}
+```{r}
 
 remote::install_github("git@github.com:susansjy22/HPCell.git")
 
@@ -23,7 +23,7 @@ remote::install_github("git@github.com:susansjy22/HPCell.git")
 
 load jascap package 
 
-```{bash}
+```{r}
 
 library(jascap)
 
@@ -31,25 +31,34 @@ library(jascap)
 
 load input and reference data
 
-```{bash}
+```{r}
 
 # Load input data (can be a list of directories or single directory)
-input_data <- c("/home/users/allstaff/si.j/test_jascap/input/CB150T04X__batch14.rds","/home/users/allstaff/si.j/test_jascap/input/CB291T01X__batch8.rds")
+library(Seurat)
+library(scRNAseq)
+
+single_cell_data = ChenBrainData(ensembl=FALSE,location=FALSE)
+file_path = tempfile(tmpdir = "~/Documents") |> paste0(".rds")
+single_cell_data |> Seurat::as.Seurat(data = NULL) |> saveRDS(file_path)
 
 #Load reference data 
-input_reference <- "/home/users/allstaff/si.j/jascap/data/Data/jiayi_files/reference_azimuth.rds"
+library(Azimuth)
+library(SeuratData)
+InstallData("pbmcsca")
+input_reference_path = "reference_azimuth.rds"
+LoadData("pbmcsca") |> saveRDS(input_reference_path)
 
 ```
 
 Execute Targets workflow and load results
 
-```{bash}
+```{r}
 #Create store directory 
-store =  tempfile(tmpdir = "/stornext/General/scratch/GP_Transfer/si.j")
+store =  tempfile(tmpdir = "~/Documents")
 
 #Execute pipeline
 #Tissue modalities: pbmc, solid, atypical
-preprocessed_seurat = run_targets_pipeline(input_data,store ,input_reference, tissue)
+preprocessed_seurat = run_targets_pipeline(c(file_path,file_path), store ,input_reference_path, tissue = "pbmc")
 
 #Load results
 
