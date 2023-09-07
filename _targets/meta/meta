@@ -1,26 +1,70 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
 .Random.seed|object|886ccf9e288812a7|||||||||||||||
+alive_identification|function|28d1d1233f35e476|||||||||||||||
+alive_JD1800154SL|stem|4b9affa5de7e2597|00c1014d6c98c78c|d50ec8bd4e3b9aef|2088242302||t19561.5998105145s|55b9bd26e54ad190|246|rds|local|vector|||6.757|Unable to map 236 of 25044 requested IDs.|
+alive_PR5254_T|stem|adc8bbe8eb60734e|d1aec459bb90c060|bc911e8e8b28903d|1741283916||t19567.1243287749s|d3c04794784e4c77|239|rds|local|vector|||26.104|Unable to map 1345 of 21877 requested IDs.|
 annotation_label|stem||8a21f4424ebf5fe7|7d4dd45faeb44022|-2136186430||t19448.0467356062s||0|rds|local|vector|||0.272||error in evaluating the argument x in selecting a method for function logNormCounts object empty_droplets not found
-annotation_label_transfer|function|683d5786a1176766|||||||||||||||
+annotation_label_JD1800154SL|stem|35c8ce54600c8ece|56389d183c2a81bb|14c490a80e801ed6|-29989453||t19561.5995896598s|322d63e04337946b|247|rds|local|vector|||322.051|Keys should be one or more alphanumeric characters followed by an underscore, setting key from predictionscorecelltype.l1_ to predictionscorecelltypel1_. Feature names cannot have underscores _, replacing with dashes . Keys should be one or more alphanumeric characters followed by an underscore, setting key from predictionscorecelltype.l2_ to predictionscorecelltypel2_. Keys should be one or more alphanumeric characters followed by an underscore, setting key from predicted_ADT_ to predictedADT_|
+annotation_label_PR5254_T|stem|ae85951c8220686a|f68578197b94023c|d6ef2f6dd079ecd1|-407470891||t19561.5958614129s|5447202e06fd19c7|241|rds|local|vector|||339.639|1m22mwhen was deprecated in purrr 1.0.0.36mℹ39m Please use if instead.. 1m22minvoke is deprecated as of rlang 0.4.0.Please use exec or inject instead.90mThis warning is displayed once every 8 hours.39m. Keys should be one or more alphanumeric characters followed by an underscore, setting key from predictionscorecelltype.l1_ to predictionscorecelltypel1_. Feature names cannot have underscores _, replacing with dashes . Keys should be one or more alphanumeric characters followed by an underscore, setting key from predictionscorecelltype.l2_ to predictionscorecelltypel2_. Keys should be one or more alphanumeric characters followed by an underscore, setting key from predicted_ADT_ to predictedADT_. The default method for RunUMAP has changed from calling Python UMAP via reticulate to the Rnative UWOT using the cosine metricTo use Python UMAP via reticulate, set umap.method to umaplearn and metric to correlationThis message will be shown once per session|
+annotation_label_transfer|function|f6f838be3e0afa6c|||||||||||||||
 code_directory|object|d8c8a21810d0e9e1|||||||||||||||
+doublet_identification|function|5abbe4f490654a5c|||||||||||||||
+doublet_JD1800154SL|stem|3f23a1955f053092|a927121f9d0df225|027f44ec52e9d124|-2057150462||t19561.6151209756s|55b9bd26e54ad190|246|rds|local|vector|||17.606||
+doublet_PR5254_T|stem|9c3906aec7159ff8|d5d4a59dbc279b70|763afc21ce07dc86|-90077553||t19561.6149158962s|5447202e06fd19c7|241|rds|local|vector|||21.471|1m22mwhen was deprecated in purrr 1.0.0.36mℹ39m Please use if instead.|
 emptyDroplet|stem|774f3ea74395a9e7|a68fbc00b4777806|c6ebf8387ab10295|-485932630||t19439.4211500147s|eaf4be1ffe060f33|217|rds|local|vector|||2.711|Unable to map 236 of 25044 requested IDs.. 1m22mwhen was deprecated in purrr 1.0.0.36mℹ39m Please use if instead.. 1m22mUsing 32msize39m for a discrete variable is not advised.. 1m22mRemoved 61 rows containing missing values geom_line.|
+emptyDroplet_JD1800154SL|stem|0ae6a5ce890e8aa0|94ac4ef708c34365|d6d6be6e03b661e2|-1360478308||t19560.0414852833s|0e833cdd3158622c|249|rds|local|vector|||2.892|Unable to map 236 of 25044 requested IDs.. 1m22mwhen was deprecated in purrr 1.0.0.36mℹ39m Please use if instead.. 1m22mUsing 32msize39m for a discrete variable is not advised.. 1m22mRemoved 61 rows containing missing values geom_line.|
+emptyDroplet_PR5254_T|stem|6bf9f34907246f11|5dec1c75c3c43887|3e444f75ea0ec3f4|840791704||t19560.0636972533s|401cb8fa9737627f|244|rds|local|vector|||5.711|Unable to map 1345 of 21877 requested IDs.. 1m22mwhen was deprecated in purrr 1.0.0.36mℹ39m Please use if instead.. 1m22mUsing 32msize39m for a discrete variable is not advised.. 1m22mRemoved 55 rows containing missing values geom_line.|
 file|stem|a42b9cad79ee3a75|e262b1e147775074|ef46db3751d8e999|-1301001980|test_data/JD1800154SL.rds|t19436.4184929595s|044f244ff600cdfa|2927337|file|local|vector|||0.001||
 filtered|object|a0f04832460c33eb|||||||||||||||
 input_demultiplexed|stem|59d6d0e24e2e9b97|ec373339cdeb0351|373996a7a859b5d9|853368560||t19448.0421678325s|c3cbfe28e1565b13|202|rds|local|vector|||0||
+input_demultiplexed_JD1800154SL|stem|1fa7c348fd515dc4|b854939528ae5cdd|ef46db3751d8e999|1524172337||t19552.4560160515s|711075fab977c90c|168|rds|local|vector|||0||
+input_demultiplexed_PR5254_T|stem|6e4e05dc574e416a|91dd78974d74147b|ef46db3751d8e999|264230755||t19552.4560165839s|efeef529d0eef8e6|162|rds|local|vector|||0||
 input_directory|object|bdd123a3eef7702b|||||||||||||||
+input_files_variable_gene_identification|function|5a61ae4da1304a0b|||||||||||||||
+input_files_variable_gene_JD1800154SL|stem|4a3f66c2f51b4991|1cbeb8a74a685f1c|c0ca98028f4f951f|-2857056||t19606.5456244403s|c98679baf4c2e099|315|rds|local|vector|||0||
+input_files_variable_gene_PR5254_T|stem|50be6aa5db294ec7|40beabd3e7fe1442|64df8c62a9883ff5|949631968||t19606.5456259333s|0592d33550c0bb62|308|rds|local|vector|||0.005||
 input_path|stem|c6e6e835d74cbc8b|9246d509bbbf4f17|510354eeedb9c659|1833873500||t19448.0421673232s|28f9d9a9ef15cef2|216|rds|local|vector|||0.338||
 input_path_demultiplexed|function|4759900bcfabc3b2|||||||||||||||
 master_directory|object|b40c31b3b7aa457c|||||||||||||||
-metadata_path|object|7bbc84e16436ce40|||||||||||||||
+metadata_path|object|1f90c5a45dc03c34|||||||||||||||
+modality|object|697ed01c3bbb9ab6|||||||||||||||
+number_features_overall|object|8587ccc456de1c8b|||||||||||||||
+number_features_per_cell_type|object|8587ccc456de1c8b|||||||||||||||
+output_alive_identification|function|877637126d8c6356|||||||||||||||
+output_alive_identification_result_JD1800154SL|stem|4b9affa5de7e2597|a2379d05f4e69153|7fbb489818acd784|-1159294957||t19558.4075226311s|55b9bd26e54ad190|246|rds|local|vector|||0.005||
+output_alive_identification_result_PR5254_T|stem|adc8bbe8eb60734e|b265315e786d1733|9b80cb23d76c5172|693621673||t19558.4075219598s|d3c04794784e4c77|239|rds|local|vector|||0.002||
 output_annotation_label|stem|6dc100c3fd5c899b|6872270ec00a5f5b|5408ecf9ff9a00f9|1731139863||t19448.0467351564s|bed69d39d5d1de67|240|rds|local|vector|||0.002||
+output_annotation_label_JD1800154SL|stem|35c8ce54600c8ece|40537889ac711fb8|cb85035af7e202e6|1737304606||t19561.5919296375s|322d63e04337946b|247|rds|local|vector|||0.006||
+output_annotation_label_PR5254_T|stem|ae85951c8220686a|9b2a16bef33afdf7|b7b7a5a6157ad5eb|1390447923||t19561.591928943s|5447202e06fd19c7|241|rds|local|vector|||0.002||
 output_annotation_label_transfer|function|0f0bb2a498e950b3|||||||||||||||
+output_doublet_identification|function|600c2b82c781f621|||||||||||||||
+output_doublet_identification_JD1800154SL|stem||ef45085744ff960e|5b46035353a7c159|882679916||t19606.5141344256s||0|rds|local|vector|||0.004||could not find function output_doublet_identification_JD1800154SL
+output_doublet_identification_result_JD1800154SL|stem|7f8fc0fa776c639e|6ce5dd3cb2c2bcb4|c6032b762e655b73|454024068||t19606.5181955035s|90ab8049e3c26605|245|rds|local|vector|||0.001||
+output_doublet_identification_result_PR5254_T|stem|10b6f6d283ab0627|54073e2ccf5b6c08|1b19c49d0f559e42|-1576929962||t19606.5181963252s|bed69d39d5d1de67|240|rds|local|vector|||0.012||
 output_emptyDroplet|function|e7d95d7ffc787774|||||||||||||||
 output_emptyDroplet_result|stem|88fb0e66c2d642de|164a9401af33a69b|b026eba87ef1e291|557300027||t19448.0467353994s|cb91aba74fec518e|303|rds|local|vector|||0.002||
+output_emptyDroplet_result_JD1800154SL|stem|f70b5510b4906e67|1c76512f118d317c|6f596cf1d8dceda6|-1441138801||t19552.4560174288s|0e56fdca6a5a4864|301|rds|local|vector|||0.002||
+output_emptyDroplet_result_PR5254_T|stem|a9b0a0c723fbde26|548cb11347c385e6|3bffd46d9d0652e9|1026658831||t19552.4560182852s|973381529c66c0df|296|rds|local|vector|||0.015||
 output_path_plot_pdf|object|c99f786e37b767bf|||||||||||||||
 output_path_plot_rds|object|07625e5e6e5b473f|||||||||||||||
 output_path_result|object|1bc51309b775b4c8|||||||||||||||
+output_variable_gene_identification|function|a5b870c35a4f26ba|||||||||||||||
+output_variable_gene_result_JD1800154SL|stem|69028b6f991083dc|7ffb58dec3e1a206|9fbc601d0bc20da4|-746919748||t19596.4360236071s|0e833cdd3158622c|249|rds|local|vector|||0.007||
+output_variable_gene_result_PR5254_T|stem|bbbe784aefd13bf3|56524297b5db1492|11cb931d40b739b2|-915834685||t19596.4360226928s|401cb8fa9737627f|244|rds|local|vector|||0.039||
 reference_azimuth_path|object|a01e647b5c348755|||||||||||||||
+reference_label_coarse|function|7fe5c2482ef9082e|||||||||||||||
+reference_label_fine|function|e03e3194ab877fbd|||||||||||||||
 reports_directory|object|7bf862d6f9b3d828|||||||||||||||
 result_directory|object|298da289eea536a9|||||||||||||||
+root_directory|object|b18dded01e82c6b8|||||||||||||||
 run_empty_droplet_identification|function|0b63764beea0531b|||||||||||||||
+sample_name|function|81fd120badb3289b|||||||||||||||
 samples|stem|bd5f60227d4bcdb2|6fe3db864de23b5e|373996a7a859b5d9|777277976||t19448.042167682s|93a4d4dc4116d568|64|rds|local|vector|||0.001||
+samples_JD1800154SL|stem|709eda4a17e75127|63301e163733c287|3fc6f4ec8dc561c7|990108863||t19552.4560168154s|b2c2d69496a0fbf4|63|rds|local|vector|||0.002||
+samples_PR5254_T|stem|744203121da1483f|ec916af8d0b5cc6d|621ca18aeb8e4231|222844551||t19552.4560171973s|a44f74ecaf054496|60|rds|local|vector|||0.007||
+targets|object|6b53e13f2c1430a0|||||||||||||||
+tissue|object|3e5b7be0bb3a6e18|||||||||||||||
+values|object|1f4f9815e9b00e40|||||||||||||||
+variable_gene_identification|function|a44985681aa65e1d|||||||||||||||
+variable_gene_JD1800154SL|stem|e0d1f2ac79fc7e12|11e446d0e1ee09e6|8b23bc09556eaa05|1236893272||t19606.5467594317s|44e327d1ee1978d7|43|rds|local|vector|||9.429|1m22mThere was 1 warning in mutate.1m22m36mℹ39m In argument seurat  pmap....Caused by warning1m22m33m39m when was deprecated in purrr 1.0.0.36mℹ39m Please use if instead.. jascap says you have only one distinct symcell_type_column_for_subsetting, the percellgroup variable gene detection will be skipped as it would olverlap with the global detection.|
+variable_gene_PR5254_T|stem|e0d1f2ac79fc7e12|d015085796c7d917|39d933f50864fdb5|1069814686||t19606.5469527405s|44e327d1ee1978d7|43|rds|local|vector|||16.632|jascap says you have only one distinct symcell_type_column_for_subsetting, the percellgroup variable gene detection will be skipped as it would olverlap with the global detection.|

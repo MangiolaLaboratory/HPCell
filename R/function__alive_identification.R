@@ -4,15 +4,6 @@
 
 set.seed(42)
 
-# Read arguments
-# args = commandArgs(trailingOnly=TRUE)
-# code_directory = args[[1]]
-# input_path_demultiplexed = args[[2]]
-# input_path_empty_droplets = args[[3]]
-# input_path_annotation_label_transfer = args[[4]]
-# output_path = args[[5]]
-# 
-# renv::load(project = code_directory)
 
 library(DropletUtils)
 library(EnsDb.Hsapiens.v86)
@@ -97,14 +88,12 @@ alive_identification<-function(code_directory,input_path_demultiplexed,input_pat
     unnest(data)
   
   
-  
-  
   # Save
   mitochondrion |>
     left_join(ribosome, by=".cell") |>
     mutate(alive = !high_mitochondrion & !high_RPS ) |>
     saveRDS(output_path)
-  
+
   return(output_path)
 }
 

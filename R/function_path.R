@@ -19,12 +19,21 @@ reference_label_coarse<-function(tissue){
 }
 
 #input_path_demultiplexed
-input_path_demultiplexed<-function(input_directory){
+#return the input path
+input_path_demultiplexed<-function(input_directory){ #input directory is the data file directory
   input_directory_demultiplexed = input_directory
   input_files_demultiplexed = dir(input_directory_demultiplexed, pattern = ".rds")
   input_path_demultiplexed = glue("{input_directory_demultiplexed}/{input_files_demultiplexed}")
   samples = input_files_demultiplexed |> str_remove(".rds")
   return(list(input_path_demultiplexed,samples))
+}
+
+#input_path_demultiplexed
+#return the sample name from the demultiplexed file path
+sample_name<-function(input_path_demultiplexed){ # input_path_demultiplexed is the path of each rds file 
+  input_files_demultiplexed = str_extract(input_path_demultiplexed,'[^"/"]*\\.rds')
+  samples = input_files_demultiplexed |> str_remove(".rds")
+  return(samples)
 }
 
 
@@ -43,7 +52,7 @@ output_emptyDroplet<-function(result_directory,samples,reports_directory){
 output_annotation_label_transfer<-function(result_directory,samples){
   suffix = "__annotation_label_transfer"
   output_directory_label_transfer = glue("{result_directory}/preprocessing_results/annotation_label_transfer")
-  output_paths_annotation_label_transfer =   glue("{output_directory_label_transfer}/{samples}{suffix}_output.rds")
+  output_paths_annotation_label_transfer =glue("{output_directory_label_transfer}/{samples}{suffix}_output.rds")
 }
 
 # alive identification
@@ -57,6 +66,29 @@ output_alive_identification<-function(result_directory,samples){
 output_doublet_identification<-function(result_directory,samples){
   suffix = "__doublet_identification"
   output_directory_doublet = glue("{result_directory}/preprocessing_results/doublet_identification")
-  output_path_doublet_identification =   glue("{output_directory_doublet}/{samples}{suffix}_output.rds")
+  output_path_doublet_identification =  glue("{output_directory_doublet}/{samples}{suffix}_output.rds")
 }
+
+# variable gene identification
+input_files_variable_gene_identification<-function(input_path_demultiplexed,output_path_empty_droplets,
+                                                   output_path_alive, output_path_doublet_identification, 
+                                                   output_paths_annotation_label_transfer){
+  input_files=c(input_path_demultiplexed,output_path_empty_droplets,
+                      output_path_alive, output_path_doublet_identification, 
+                      output_paths_annotation_label_transfer)
+}
+
+output_variable_gene_identification<-function(result_directory,metadata_path,samples){
+  suffix = "__variable_gene_identification"
+  output_directory = glue("{result_directory}/preprocessing_results/variable_gene_identification")
+  #add batch later
+  metadata= readRDS(metadata_path)
+  batch=samples
+  output_file = glue("{output_directory}/{batch}{suffix}_output.rds")
+}
+
+
+
+
+
 

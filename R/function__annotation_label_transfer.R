@@ -28,7 +28,8 @@ library(purrr)
 
 
 
-annotation_label_transfer<-function(code_directory,input_path_demultiplexed,input_path_empty_droplets,reference_azimuth_path,output_path){
+annotation_label_transfer<-function(input_path_demultiplexed,input_path_empty_droplets,reference_azimuth_path,output_path){
+  #browser()
   # Create dir
   output_path |> dirname() |> dir.create( showWarnings = FALSE, recursive = TRUE)
   
@@ -266,3 +267,7 @@ annotation_label_transfer<-function(code_directory,input_path_demultiplexed,inpu
   }
   return(output_path)
 }
+
+
+
+

@@ -110,16 +110,3 @@ run_empty_droplet_identification<-function(code_directory,input_path,filtered,ou
 }
 
 
-# code_directory = '/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/third_party_software/target_pipeline/R'
-# input_path = '/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/input_directory/JD1800154SL.rds'  # change here to file
-# filtered = 'filtered'
-# output_path_result = '/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/result_directory/preprocessing_results/empty_droplet_identification/JD1800154SL__empty_droplet_identification_output.rds'
-# output_path_plot_pdf = '/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/result_directory/preprocessing_results/empty_droplet_identification/JD1800154SL__empty_droplet_identification_plot.pdf'
-# output_path_plot_rds = '/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/cellsig/dev/xinpu_datascript/jascap_root_test/result_directory/preprocessing_results/empty_droplet_identification/JD1800154SL__empty_droplet_identification_plot.rds'
-# 
-# 
-# 
-# run_empty_droplet_identification(code_directory,input_path,filtered,output_path_result,output_path_plot_pdf,output_path_plot_rds)
-# 
-# 
-
