@@ -32,6 +32,7 @@ tar_source('R/function__annotation_label_transfer.R')
 tar_source('R/function__alive_identification.R')
 tar_source('R/function__doublet_identification.R')
 tar_source('R/function__variable_gene_identification.R')
+tar_source('R/function__cell_cycle_scoring.R')
 tar_source('R/function_path.R')
 # source("other_functions.R") # Source other scripts as needed. # nolint
 
@@ -93,7 +94,14 @@ targets<-tar_map(
     input_files_variable_gene,
     input_files_variable_gene_identification(input_demultiplexed,output_emptyDroplet_result[[1]],output_alive_identification_result,output_doublet_identification_result,output_annotation_label)
   ),
-  
+  tar_target(
+    output_cell_cycle_scoring,
+    output_cell_cycle_scoring(result_directory, samples)
+  ),
+  tar_target(
+    output_non_batch_variation_removal,
+    output_non_batch_variation_removal(result_directory, samples)
+  ),
   # The pipeline
   # #tar_target(code_directory,'/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/xinpu/master_project/third_party_software/target_pipeline/R',format='file'),
   tar_target(
@@ -135,7 +143,7 @@ targets<-tar_map(
       annotation_label,
       output_doublet_identification(result_directory, samples)
     )),
-  tar_target(
+  tar_target(     # 回头需要用merge variable gene
     variable_gene,
     variable_gene_identification(
       code_directory,
@@ -143,6 +151,27 @@ targets<-tar_map(
       input_files_variable_gene,
       reference_label_coarse(tissue),
       output_variable_gene_result
+    )
+  ), 
+  tar_target(
+    cell_cycle,
+    cell_cycle_scoring(
+      code_directory,
+      input_demultiplexed,
+      emptyDroplet,
+      output_cell_cycle_scoring
+    )
+  ),
+  tar_target(
+    non_batch_variation_removal, #should use merge vaiable gene identification
+    non_batch_variation_removal(
+      code_directory,
+      input_demultiplexed,
+      emptyDroplet,
+      alive,
+      cell_cycle,
+      variable_gene,
+      output_non_batch_variation_removal
     )
   )
 )

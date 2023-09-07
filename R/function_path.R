@@ -88,7 +88,18 @@ output_variable_gene_identification<-function(result_directory,metadata_path,sam
 }
 
 
+#cell cycle scoring
+output_cell_cycle_scoring<-function(result_directory,samples){
+  suffix = "__cell_cycle_scoring"
+  output_directory_cell_cycle_scoring = glue("{result_directory}/preprocessing_results/cell_cycle_scoring")
+  output_cell_cycle_scoring =   glue("{output_directory_cell_cycle_scoring}/{samples}{suffix}_output.rds")
+}
 
-
+#normalisation, non batch variation removal
+output_non_batch_variation_removal<-function(result_directory,samples){
+  suffix = "__non_batch_variation_removal"
+  output_directory_non_batch_variation_removal = glue("{result_directory}/preprocessing_results/non_batch_variation_removal")
+  output_path_non_batch_variation_removal =   glue("{output_directory_non_batch_variation_removal}/{samples}{suffix}_output.rds")
+}
 
 
