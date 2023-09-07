@@ -20,7 +20,6 @@ my_packages <- c( "jascap",
                   "scDblFinder",
                   "ggupset",
                   "tidySummarizedExperiment",
-                  "tidyverse",
                   "broom",
                   "tarchetypes",
                   "SeuratObject",
@@ -33,10 +32,12 @@ my_packages <- c( "jascap",
                   "tidybulk")
 lapply(my_packages, require, character.only = TRUE)
 
+library(Seurat)
+data(pbmc_small)
+
 reference_label_fine <- "monaco_first.labels.fine"
 
-input_path_preprocessing_output <- list(readRDS("~/test_jascap/results/preprocessing_results/preprocessing_output/CB150T04X__batch14__preprocessing_output_output.rds"), 
-                                        readRDS("~/test_jascap/results/preprocessing_results/preprocessing_output/CB291T01X__batch8__preprocessing_output_output.rds"))
+input_path_preprocessing_output <- list(pbmc_small, pbmc_small)
 #
 # #Defining inputs
 input_file_B14<- readRDS('/home/users/allstaff/si.j/test_jascap/input/CB150T04X__batch14.rds')
