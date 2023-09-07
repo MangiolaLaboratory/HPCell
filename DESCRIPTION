@@ -14,6 +14,7 @@ Imports:
   tarchetypes,
   crew,
   crew.cluster,
+  CMake (>=3.25.1)
   qs,
   tidybulk,
   tidySummarizedExperiment,
