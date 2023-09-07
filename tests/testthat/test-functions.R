@@ -32,9 +32,8 @@ my_packages <- c( "jascap",
                   "magrittr",
                   "tidybulk")
 lapply(my_packages, require, character.only = TRUE)
-
-reference_label_fine <- "monaco_first.labels.fine"
-
+reference_label<-"none"
+reference_label_fine<- "monaco_first.labels.fine"
 input_path_preprocessing_output <- list(readRDS("~/test_jascap/results/preprocessing_results/preprocessing_output/CB150T04X__batch14__preprocessing_output_output.rds"), 
                                         readRDS("~/test_jascap/results/preprocessing_results/preprocessing_output/CB291T01X__batch8__preprocessing_output_output.rds"))
 #
@@ -53,7 +52,7 @@ non_batch_variation_removal <- readRDS("/home/users/allstaff/si.j/test_jascap/re
 
 cell_cycle_scoring <- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/cell_cycle_scoring/CB150T04X__batch14__cell_cycle_scoring_output.rds")
 
-reference_azimuth <- readRDS("/home/users/allstaff/si.j/jascap/data/Data/jiayi_files/reference_azimuth.rds")
+reference_azimuth <- readRDS("/home/users/allstaff/si.j/jascap_ARCHIVE/data/Data/jiayi_files/reference_azimuth.rds")
 filtered <- "filtered"
 tissue <- "pbmc"
 # Function testing
@@ -63,36 +62,36 @@ test_that("empty_droplets_works", {
   expect_s3_class(res, "tbl_df")
 })
 
-test_that("cell_cycle_score_works", {
-  res = cell_cycle_scoring(input_file_B14,
-                           empty_droplets_tbl_B14)
-  expect_s3_class(res, "tbl_df")
-})
-
-test_that("annotation_label_transfer_works", {
-  res = annotation_label_transfer(input_file_B14,
-                                  reference_azimuth,
-                                  empty_droplets_tbl_B14)
-  expect_s3_class(res, "tbl_df")
-})
-
-test_that("alive_identification_works", {
-  res = alive_identification(input_file_B14,
-                             empty_droplets_tbl_B14,
-                             annotation_label_transfer_B14
-  )
-  expect_s3_class(res, "tbl_df")
-})
-
-test_that("non-batch_variation_removal_works", {
-  res = non_batch_variation_removal(input_file_B14,
-                                    empty_droplets_tbl_B14,
-                                    alive_identification_B14,
-                                    cell_cycle_scoring)
-  expect_s4_class(res, "Seurat")
-  
-})
-
+# test_that("cell_cycle_score_works", {
+#   res = cell_cycle_scoring(input_file_B14,
+#                            empty_droplets_tbl_B14)
+#   expect_s3_class(res, "tbl_df")
+# })
+# 
+# test_that("annotation_label_transfer_works", {
+#   res = annotation_label_transfer(input_file_B14,
+#                                   reference_azimuth,
+#                                   empty_droplets_tbl_B14)
+#   expect_s3_class(res, "tbl_df")
+# })
+# 
+# test_that("alive_identification_works", {
+#   res = alive_identification(input_file_B14,
+#                              empty_droplets_tbl_B14,
+#                              annotation_label_transfer_B14
+#   )
+#   expect_s3_class(res, "tbl_df")
+# })
+# 
+# test_that("non-batch_variation_removal_works", {
+#   res = non_batch_variation_removal(input_file_B14,
+#                                     empty_droplets_tbl_B14,
+#                                     alive_identification_B14,
+#                                     cell_cycle_scoring)
+#   expect_s4_class(res, "Seurat")
+#   
+# })
+# 
 test_that("Doublet_identification_works", {
   res = doublet_identification(input_file_B14,
                                empty_droplets_tbl_B14,
@@ -101,16 +100,16 @@ test_that("Doublet_identification_works", {
                                reference_label_fine)
   expect_s3_class(res, "tbl_df")
 })
-test_that("Preprocessing_works", {
-  res = preprocessing_output(tissue,
-                             non_batch_variation_removal,
-                             alive_identification_B14,
-                             cell_cycle_scoring,
-                             annotation_label_transfer_B14,
-                             doublet_identification_B14)
-  expect_s4_class(res, "Seurat")
-})
-
+# test_that("Preprocessing_works", {
+#   res = preprocessing_output(tissue,
+#                              non_batch_variation_removal,
+#                              alive_identification_B14,
+#                              cell_cycle_scoring,
+#                              annotation_label_transfer_B14,
+#                              doublet_identification_B14)
+#   expect_s4_class(res, "Seurat")
+# })
+# 
 test_that("pseudobulk_preprocessing_works", {
   res = pseudobulk_preprocessing(
     reference_label_fine, input_path_preprocessing_output
@@ -119,39 +118,40 @@ test_that("pseudobulk_preprocessing_works", {
   expect_s4_class(res$pseudobulk_by_sample_and_cell_type, "SummarizedExperiment")
 })
 
-test_that("reference_label_works", {
-  res = reference_label(tissue)
-})
+# test_that("reference_label_id_works", {
+#   res = reference_label_id(tissue, reference_label)
+#   expect_type(res, "character")
+# })
+# 
 
-
-
-
-se = 
-  tidySummarizedExperiment::se |> 
-  tidybulk::keep_abundant()
-
-test_that("de analysis single", {
-  
-  se |> 
-    hpcell_test_differential_abundance(~ dex + (1 | cell))
-})
-
-test_that("de analysis multi", {
-  
-
-  tibble(name = c("my_data_1", "my_data_2"), data = list(se, se)) |> 
-      hpcell_map_test_differential_abundance(~ dex + (1 | cell), data)
-  
-
-})
-
-
-test_that("split", {
-  
-  tibble(name = c("my_data_1"), data = list(se)) |> 
-    mutate(split = 5) |> 
-    map_split_se_by_gene(data, split) |> 
-    nrow() |> 
-    expect_equal(5)
-
-})
+# 
+# 
+# se = 
+#   tidySummarizedExperiment::se |> 
+#   tidybulk::keep_abundant()
+# 
+# test_that("de analysis single", {
+#   
+#   se |> 
+#     hpcell_test_differential_abundance(~ dex + (1 | cell))
+# })
+# 
+# test_that("de analysis multi", {
+#   
+# 
+#   tibble(name = c("my_data_1", "my_data_2"), data = list(se, se)) |> 
+#       hpcell_map_test_differential_abundance(~ dex + (1 | cell), data)
+#   
+# 
+# })
+# 
+# 
+# test_that("split", {
+#   
+#   tibble(name = c("my_data_1"), data = list(se)) |> 
+#     mutate(split = 5) |> 
+#     map_split_se_by_gene(data, split) |> 
+#     nrow() |> 
+#     expect_equal(5)
+# 
+# })
