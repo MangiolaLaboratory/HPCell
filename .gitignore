@@ -7,3 +7,8 @@ jascap.Rproj
 ._.DS_Store
 file*
 HPCell.Rproj
+input_file.rds
+input_reference.rds
+reference_azimuth.rds
+temp_computing_resources.rds
+tissue.rds
