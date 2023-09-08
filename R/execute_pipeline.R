@@ -8,7 +8,8 @@ run_targets_pipeline <- function(
     store =  tempfile(tmpdir = "."), 
     input_reference,
     tissue,
-    computing_resources = crew_controller_local(workers = 1) 
+    computing_resources = crew_controller_local(workers = 1), 
+    debug_step = "NULL"
   ){
   # Save inputs for passing to targets pipeline 
   input_data |> saveRDS("input_file.rds")
@@ -70,7 +71,7 @@ run_targets_pipeline <- function(
       retrieval = "worker", 
       #error = "continue",         
       format = "qs", 
-      # debug = "reference_label_fine", # Set the target you want to debug.
+      debug = debug_step, # Set the target you want to debug.
       # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
       controller = computing_resources
     )
@@ -239,7 +240,7 @@ run_targets_pipeline <- function(
   tar_make(
     script = glue("{store}.R"),
     store = store, 
-    # callr_function = NULL
+    callr_function = NULL
   )
   # tar_make_future(
   #   script = glue("{store}.R"),
