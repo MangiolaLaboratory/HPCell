@@ -579,11 +579,8 @@ preprocessing_output <- function(tissue,
 #' @importFrom tidyseurat left_join filter
 #' @importFrom tidyseurat aggregate_cells
 #' @importFrom tidybulk as_SummarizedExperiment
-#' @importFrom tidySummarizedExperiment as_tibble select
+#' @importFrom tidySummarizedExperiment select
 #' @importFrom S4Vectors cbind
-#' @importFrom
-#' @importFrom
-#' @importFrom
 #' @export
 #' 
 pseudobulk_preprocessing <- function(reference_label_fine, 
@@ -597,7 +594,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
     map(~ {
       library(rlang)
       .x |>
-        aggregate_cells(c(sample, !!as.symbol(reference_label_fine)), slot = "data", assays= assays) |>
+        tidyseurat::aggregate_cells(c(sample, !!as.symbol(reference_label_fine)), slot = "data", assays= assays) |>
         tidybulk::as_SummarizedExperiment(.sample, .feature, c(RNA, ADT)) |>
         
         # Reshape to make RNA and ADT both features
@@ -629,7 +626,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
   # Select only common column
   common_columns =
     pseudobulk |>
-    map(~ .x |> as_tibble() |> colnames()) |>
+    map(~ .x |> tidySummarizedExperiment::as_tibble() |> colnames()) |>
     unlist() |>
     table() %>%
     .[.==max(.)] |>
@@ -665,9 +662,9 @@ pseudobulk_preprocessing <- function(reference_label_fine,
       
     }) |>
     
-    map(~ .x |> select(any_of(common_columns)))   %>%
+    map(~ .x |> tidySummarizedExperiment::select(any_of(common_columns)))   %>%
     
-    do.call(cbind, .)
+    do.call(S4Vectors::cbind, .)
   
   gc()
   
@@ -678,7 +675,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
     # Aggregate
     map(~
           .x |>
-          aggregate_cells(c(sample), slot = "counts", assays=assays) |>
+          tidyseurat::aggregate_cells(c(sample), slot = "counts", assays=assays) |>
           tidybulk::as_SummarizedExperiment(.sample, .feature, c(RNA, ADT)) |>
           
           # Reshape to make RNA and ADT both features
@@ -706,7 +703,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
   # Select only common column
   common_columns =
     pseudobulk |>
-    map(~ .x |> as_tibble() |> colnames()) |>
+    map(~ .x |> tidySummarizedExperiment::as_tibble() |> colnames()) |>
     unlist() |>
     table() %>%
     .[.==max(.)] |>
@@ -734,7 +731,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
       
     }) |>
     
-    map(~ .x |> select(any_of(common_columns)))   %>%
+    map(~ .x |> tidySummarizedExperiment::select(any_of(common_columns)))   %>%
     
     do.call(S4Vectors::cbind, .)
   
