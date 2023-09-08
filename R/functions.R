@@ -1,6 +1,14 @@
 # empty_droplet_id
+#' @importFrom AnnotationDb mapIds
+#' @importFrom stringr str_subset
+#' @importFrom dplyr left_join mutate
+#' @importFrom tibble rownames
+#' @importFrom tidyr replace_na
+#' @importFrom DropletUtils emptyDrops
+#' @importFrom S4Vectors metadata
+#' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importFrom tidyseurat select
 #' @export
-#' 
 empty_droplet_id <- function(input_file,
                              filtered){
   significance_threshold = 0.001
@@ -39,7 +47,7 @@ empty_droplet_id <- function(input_file,
       replace_na(list(empty_droplet = TRUE))
   }
   else {
-    barcode_table <- tidyseurat::select(., .cell) |>
+    barcode_table <- select(., .cell) |>
       as_tibble() |>
       mutate( empty_droplet = FALSE)
   } 
@@ -89,8 +97,16 @@ empty_droplet_id <- function(input_file,
 }
 
 # annotation_label_transfer
+#' @importFrom celldex BlueprintEncodeData
+#' @importFrom celldex MonacoImmuneData
+#' @importFrom SingleR SingleR
+#' @importFrom tidySummarizedExperiment as_tibble tibble nest
+#' @importFrom dplyr select rename
+#' @importFrom BiocGenerics ncol nrow
+#' @importFrom scuttle logNormCounts
+#' @importFrom tidyseurat left_join filter select as_tibble
+#' @importFrom CreateSeuratObject CreateAssayObject
 #' @export
-#' 
 annotation_label_transfer <- function(input_file,
                                       reference_azimuth,
                                       empty_droplets_tbl
@@ -102,12 +118,12 @@ annotation_label_transfer <- function(input_file,
     
     # Filter empty
     left_join(empty_droplets_tbl, by = ".cell") |>
-    tidyseurat::filter(!empty_droplet) |>
+    filter(!empty_droplet) |>
     as.SingleCellExperiment() |>
     logNormCounts()
   
   if(ncol(sce)==1){
-    sce = cbind(sce, sce)
+    sce = S4Vectors::cbind(sce, sce)
     colnames(sce)[2]= "dummy___"
   }
   blueprint <- celldex::BlueprintEncodeData()
@@ -122,8 +138,8 @@ annotation_label_transfer <- function(input_file,
     )  |>
     as_tibble(rownames=".cell") |>
     nest(blueprint_scores_fine = starts_with("score")) |>
-    dplyr::select(-one_of("delta.next"),- pruned.labels) |>
-    dplyr::rename(blueprint_first.labels.fine = labels) |>
+    select(-one_of("delta.next"),- pruned.labels) |>
+    rename(blueprint_first.labels.fine = labels) |>
     
     left_join(
       
@@ -135,15 +151,15 @@ annotation_label_transfer <- function(input_file,
         )  |>
         as_tibble(rownames=".cell") |>
         nest(blueprint_scores_coarse = starts_with("score")) |>
-        dplyr::select(-one_of("delta.next"),- pruned.labels) |>
-        dplyr::rename( blueprint_first.labels.coarse = labels)
+        select(-one_of("delta.next"),- pruned.labels) |>
+        rename( blueprint_first.labels.coarse = labels)
     )
   
   rm(blueprint)
   gc()
   
   
-  MonacoImmuneData = MonacoImmuneData()
+  MonacoImmuneData = celldex::MonacoImmuneData()
   
   data_singler =
     data_singler |>
@@ -158,8 +174,8 @@ annotation_label_transfer <- function(input_file,
         as_tibble(rownames=".cell") |>
         
         nest(monaco_scores_fine = starts_with("score")) |>
-        dplyr::select(-delta.next,- pruned.labels) |>
-        dplyr::rename( monaco_first.labels.fine = labels)
+        select(-delta.next,- pruned.labels) |>
+        rename( monaco_first.labels.fine = labels)
       
     ) |>
     
@@ -173,10 +189,10 @@ annotation_label_transfer <- function(input_file,
         as_tibble(rownames=".cell") |>
         
         nest(monaco_scores_coarse = starts_with("score")) |>
-        dplyr::select(-delta.next,- pruned.labels) |>
-        dplyr::rename( monaco_first.labels.coarse = labels)
+        select(-delta.next,- pruned.labels) |>
+        rename( monaco_first.labels.coarse = labels)
     )  |>
-    tidyseurat::filter(.cell!="dummy___")
+    filter(.cell!="dummy___")
   
   rm(MonacoImmuneData)
   gc()
@@ -218,8 +234,8 @@ annotation_label_transfer <- function(input_file,
       input_file |>
       
       # Filter empty
-      tidyseurat::left_join(empty_droplets_tbl, by = ".cell") |>
-      tidyseurat::filter(!empty_droplet)
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      filter(!empty_droplet)
     
     
     # Subset
@@ -296,11 +312,11 @@ annotation_label_transfer <- function(input_file,
         },
         error = function(e){
           print(e)
-          input_file |> tidyseurat::as_tibble() |> tidyseurat::select(.cell)
+          input_file |> as_tibble() |> select(.cell)
         }
       ) |>
       as_tibble() |>
-      dplyr::select(.cell, any_of(c("predicted.celltype.l1", "predicted.celltype.l2")), contains("refUMAP"))
+      select(.cell, any_of(c("predicted.celltype.l1", "predicted.celltype.l2")), contains("refUMAP"))
     
     # Save
     modified_data <- azimuth_annotation |>
@@ -310,6 +326,10 @@ annotation_label_transfer <- function(input_file,
   }
 }
 #alive_identification 
+#' @importFrom scuttle perCellQCMetrics
+#' @importFrom 
+#' @importFrom 
+#' @importFrom tidyseurat left_join filter
 #' @export
 #' 
 alive_identification <- function(input_file,
@@ -318,7 +338,7 @@ alive_identification <- function(input_file,
   input_file =
     input_file |>
     left_join(empty_droplets_tbl, by=".cell") |>
-    tidyseurat::filter(!empty_droplet)
+    filter(!empty_droplet)
   
   # Returns a named vector of IDs
   # Matches the gene id’s row by row and inserts NA when it can’t find gene names
@@ -337,9 +357,9 @@ alive_identification <- function(input_file,
     
     # Join mitochondrion statistics
     # Compute per-cell quality control metrics for a count matrix or a SingleCellExperiment
-    scuttle::perCellQCMetrics(subsets=list(Mito=which_mito)) |>
+    perCellQCMetrics(subsets=list(Mito=which_mito)) |>
     as_tibble(rownames = ".cell") |>
-    dplyr::select(-sum, -detected) |>
+    select(-sum, -detected) |>
     
     # Join cell types
     left_join(ann_lbl_trs, by = ".cell") |>
@@ -361,7 +381,7 @@ alive_identification <- function(input_file,
     
     input_file |>
     
-    tidyseurat::select(.cell) |>
+    select(.cell) |>
     
     # Join mitochondrion statistics
     
@@ -385,7 +405,7 @@ alive_identification <- function(input_file,
         mutate(high_ribosome = as.logical(high_ribosome)) |>
         
         as_tibble() |>
-        dplyr::select(.cell, subsets_Ribo_percent, high_ribosome)
+        select(.cell, subsets_Ribo_percent, high_ribosome)
     )) |>
     unnest(data)
   
@@ -397,6 +417,7 @@ alive_identification <- function(input_file,
 }
 
 #Doublet identification
+#' @importFrom tidyseurat left_join filter
 #' @export
 #' 
 doublet_identification <- function(input_file, 
@@ -430,6 +451,7 @@ doublet_identification <- function(input_file,
 }
 
 #Cell cylce scoring 
+#' @importFrom tidyseurat left_join filter
 #' @export
 #' 
 cell_cycle_scoring <- function(input_file, 
@@ -438,7 +460,7 @@ cell_cycle_scoring <- function(input_file,
   counts =
     input_file |>
     left_join(empty_droplets_tbl, by = ".cell") |>
-    tidyseurat::filter(!empty_droplet) |>
+    filter(!empty_droplet) |>
     
     # Normalise needed
     NormalizeData() |>
@@ -458,6 +480,7 @@ cell_cycle_scoring <- function(input_file,
   
 }
 #Non_batch_variation_removal
+#' @importFrom tidyseurat left_join filter
 #' @export
 #' 
 non_batch_variation_removal <- function(input_path_demultiplexed, 
@@ -468,7 +491,7 @@ non_batch_variation_removal <- function(input_path_demultiplexed,
   counts =
     input_path_demultiplexed |>
     left_join(input_path_empty_droplets, by = ".cell") |>
-    tidyseurat::filter(!empty_droplet) |>
+    filter(!empty_droplet) |>
     
     left_join(
       input_path_alive |>
@@ -513,6 +536,7 @@ non_batch_variation_removal <- function(input_path_demultiplexed,
   
 }
 # Preprocessing_output
+#' @importFrom tidyseurat left_join filter
 #' @export
 #' 
 preprocessing_output <- function(tissue, 
@@ -552,6 +576,14 @@ preprocessing_output <- function(tissue,
 
 
 # Pseudobulk_preprocessing
+#' @importFrom tidyseurat left_join filter
+#' @importFrom tidyseurat aggregate_cells
+#' @importFrom tidybulk as_SummarizedExperiment
+#' @importFrom tidySummarizedExperiment as_tibble select
+#' @importFrom S4Vectors cbind
+#' @importFrom
+#' @importFrom
+#' @importFrom
 #' @export
 #' 
 pseudobulk_preprocessing <- function(reference_label_fine, 
@@ -565,8 +597,8 @@ pseudobulk_preprocessing <- function(reference_label_fine,
     map(~ {
       library(rlang)
       .x |>
-        tidyseurat::aggregate_cells(c(sample, !!as.symbol(reference_label_fine)), slot = "data", assays= assays) |>
-        tidybulk::as_SummarizedExperiment(.sample, .feature, c(RNA, ADT)) |>
+        aggregate_cells(c(sample, !!as.symbol(reference_label_fine)), slot = "data", assays= assays) |>
+        as_SummarizedExperiment(.sample, .feature, c(RNA, ADT)) |>
         
         # Reshape to make RNA and ADT both features
         pivot_longer(
@@ -583,7 +615,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
         unite( ".feature", c(symbol, data_source), remove = FALSE) |>
         
         # Covert
-        tidybulk::as_SummarizedExperiment(
+        as_SummarizedExperiment(
           .sample = c( sample,!!as.symbol(reference_label_fine)),
           .transcript = .feature,
           .abundance = count
@@ -597,7 +629,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
   # Select only common column
   common_columns =
     pseudobulk |>
-    map(~ .x |> tidySummarizedExperiment::as_tibble() |> colnames()) |>
+    map(~ .x |> as_tibble() |> colnames()) |>
     unlist() |>
     table() %>%
     .[.==max(.)] |>
@@ -633,9 +665,9 @@ pseudobulk_preprocessing <- function(reference_label_fine,
       
     }) |>
     
-    map(~ .x |> tidySummarizedExperiment::select(any_of(common_columns)))   %>%
+    map(~ .x |> select(any_of(common_columns)))   %>%
     
-    do.call(S4Vectors::cbind, .)
+    do.call(cbind, .)
   
   gc()
   
@@ -646,8 +678,8 @@ pseudobulk_preprocessing <- function(reference_label_fine,
     # Aggregate
     map(~
           .x |>
-          tidyseurat::aggregate_cells(c(sample), slot = "counts", assays=assays) |>
-          tidybulk::as_SummarizedExperiment(.sample, .feature, c(RNA, ADT)) |>
+          aggregate_cells(c(sample), slot = "counts", assays=assays) |>
+          as_SummarizedExperiment(.sample, .feature, c(RNA, ADT)) |>
           
           # Reshape to make RNA and ADT both features
           pivot_longer(
@@ -663,7 +695,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
           unite( ".feature", c(symbol, data_source), remove = FALSE) |>
           
           # Covert
-          tidybulk::as_SummarizedExperiment(
+          as_SummarizedExperiment(
             .sample = c( sample),
             .transcript = .feature,
             .abundance = count
@@ -674,7 +706,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
   # Select only common column
   common_columns =
     pseudobulk |>
-    map(~ .x |> tidySummarizedExperiment::as_tibble() |> colnames()) |>
+    map(~ .x |> as_tibble() |> colnames()) |>
     unlist() |>
     table() %>%
     .[.==max(.)] |>
@@ -702,7 +734,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
       
     }) |>
     
-    map(~ .x |> tidySummarizedExperiment::select(any_of(common_columns)))   %>%
+    map(~ .x |> select(any_of(common_columns)))   %>%
     
     do.call(S4Vectors::cbind, .)
   

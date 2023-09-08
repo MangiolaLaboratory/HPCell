@@ -14,7 +14,6 @@ Imports:
   tarchetypes,
   crew,
   crew.cluster,
-  CMake (>=3.25.1)
   qs,
   tidybulk,
   tidySummarizedExperiment,
@@ -40,7 +39,6 @@ Imports:
   celldex,
   scuttle,
   CellChat,
-  tidySingleCellExperiment,
   tidyHeatmap,
   cowplot,
   gridGraphics,
@@ -48,7 +46,13 @@ Imports:
   scDblFinder,
   ggupset,
   magrittr,
-  rlang
+  rlang, 
+  S4Vectors, 
+  BiocGenerics, 
+  SeuratObject, 
+  AnnotationDbi, 
+  broom, 
+  SingleCellExperiment
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.2.3
