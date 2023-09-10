@@ -92,11 +92,25 @@ If an error occurs in one of the Target objects whilst executing the pipeline, y
 
 Step-by-step guide
 
-1. Set the debug_step argument to the name of the failed Targets object (e.g., "annotation_label_transfer_tbl")
+1. Set the debug_step argument to the name of the failed Targets object 
+   - Example: "annotation_label_transfer_tbl"
+
+```{r}
+
+run_targets_pipeline(
+    input_data, 
+    store =  tempfile(tmpdir = "."), 
+    input_reference,
+    tissue,
+    computing_resources = crew_controller_local(workers = 1), 
+    debug_step = "annotation_label_transfer_tbl"
+  )
+
+```
 
 2. Re-run the pipeline; Pipeline should halt execution at the specified target and enter into debug mode 
 
-3. Use the debugonce() command for function matching the Targets object 
+3. Use debugonce() command and specify the function matching the Targets object 
 
 ```{r}
 
