@@ -43,7 +43,7 @@ empty_droplet_id <- function(input_file,
     barcode_table <- input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>
-      mutate(empty_droplet = FDR >= significance_threshold) |>
+      mutate(empty_droplet = FDR <= significance_threshold) |>
       replace_na(list(empty_droplet = TRUE))
   }
   else {
