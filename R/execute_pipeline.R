@@ -9,14 +9,15 @@ run_targets_pipeline <- function(
     input_reference,
     tissue,
     computing_resources = crew_controller_local(workers = 1), 
-    debug_step = "NULL"
+    debug_step = "null",
+    filtered = "filtered"
   ){
   # Save inputs for passing to targets pipeline 
   input_data |> saveRDS("input_file.rds")
   input_reference |> saveRDS("input_reference.rds")
   tissue |> saveRDS("tissue.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
-  
+  filtered |> saveRDS("filtered.rds")
   # Write pipeline to a file
   tar_script({
     
@@ -128,7 +129,8 @@ run_targets_pipeline <- function(
       tar_target(read_file, readRDS("input_file.rds")),
       tar_target(reference_file, "input_reference.rds", format = "rds"), 
       tar_target(read_reference_file, readRDS("input_reference.rds")), 
-      tar_target(tissue_file, readRDS("tissue.rds")))
+      tar_target(tissue_file, readRDS("tissue.rds")), 
+      tar_target(filtered_file, readRDS("filtered.rds")))
     
     #-----------------------#
     # Pipeline
@@ -142,7 +144,7 @@ run_targets_pipeline <- function(
       # tarchetypes::tar_files(name= reference_track,
       #                        read_reference_file, 
       #                        deployment = "main"),
-      tar_target(filtered, "filtered", deployment = "main"),
+      tar_target(filtered, filtered_file, deployment = "main"),
       tar_target(tissue, tissue_file, deployment = "main"),
       tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
       tar_target(reference_label_fine, reference_label_fine_id(tissue), deployment = "main"), 
