@@ -1,4 +1,4 @@
-# PBMC
+# HPCell
 
 ## Analysis automated pipeline
 
@@ -7,102 +7,64 @@ https://app.mural.co/t/covid7029/m/covid7029/1656652076667/c47e104697d76b36b8dee
 
 Clone the repository
 
-```{bash}
+```{r}
 
-git clone git@github.com:Melbourne-COVID-Predict/jascap.git
+git clone git@github.com:susansjy22/HPCell.git
 
 ```
 
-Enter in the jascap directory within R and activate renv, for reproducibility
+Install Jascap package 
 
 ```{r}
-module load R/4.2.1
-```
 
-Install makeflow
-
-```{bash}
-# Load miniconda
-module load miniconda3
-
-# run this command once
-$ conda create -n cctools-env -y -c conda-forge --strict-channel-priority python ndcctools
-
-# run this command every time you want to use cctools
-$ conda activate cctools-env
+remote::install_github("git@github.com:susansjy22/HPCell.git")
 
 ```
 
-Create input and result directories 
+load jascap package 
 
-```{bash}
+```{r}
 
-# Define dataset directory, for example test_pipeline
-master_directory=test_jacap
-mkdir $master_directory
-result_directory=$master_directory/results
-reports_directory=$master_directory/results/reports
-mkdir $result_directory
-input_directory=$master_directory/input
-mkdir $input_directory
+library(jascap)
 
-# The R directory in the same location where you cloned jascap
-code_directory=~/PostDoc/jascap
-
-# This is the location of the metadata, which should match by `sample` with the column in the seurat objects. The metadata file needs to be in a different directory than the input file.
-metadata_path=~/PostDoc/covid19pbmc/data/3_prime_batch_1/metadata.rds
-
-# This is in a shared location 
-reference_azimuth_path=/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/reference_azimuth.rds
 ```
 
->*Note: If no `metadata.rds` is available: create a data frame with 2 columns (sample | batch) with the `samples` matching the `SAMPLE_NAME` in the input file, >as described below. Set `batch` as Sample_name.*
+load input and reference data
 
-| sample | batch |
-| :---: | :---: |
-| spleen | spleen|
-| liver | liver |
+```{r}
 
-Add input files in the input directory. 
+# Load input data (can be a list of directories or single directory)
+library(Seurat)
+library(scRNAseq)
 
-1) Each input file should be a seurat object
-2) Each input file should just include row counts in the `RNA` assay
-3) Each input file should include only one sample 
-4) Each input file should be named `SAMPLE_NAME`.rds
-5) All `SAMPLE_NAME` should be unique for each sample (if a sample has different time points the `SAMPLE_NAME` should be made unique, for example `SAMPLE_NAME_TIME_POINT`)
+single_cell_data = ChenBrainData(ensembl=FALSE,location=FALSE)
+file_path = tempfile(tmpdir = "~/Documents") |> paste0(".rds")
+single_cell_data |> Seurat::as.Seurat(data = NULL) |> saveRDS(file_path)
 
-You should copy those files in your input directory, for example 
+#Load reference data 
+library(Azimuth)
+library(SeuratData)
+InstallData("pbmcsca")
+input_reference_path = "reference_azimuth.rds"
+LoadData("pbmcsca") |> saveRDS(input_reference_path)
 
-```{bash}
-cp myfiles/* $input_directory
 ```
 
-Execute pipeline using `makeflow`
+Execute Targets workflow and load results
 
-*The available modalities are*
-- preprocessing (filtering and annotation without integration)
-- fast (preprocessing + differential transcription, tissue composition, and cell communication analyses)
-- complete (still not ready)
+```{r}
+#Create store directory 
+store =  tempfile(tmpdir = "~/Documents")
 
-*The available tissue annotation are*
-- pbmc (preprocessing based on Seurat Azimuth pbmc annotation)
-- solid (preprocessing based on SingleR blueprint annotation)
-- atypical (preprocessing based on unsupervised clustering)
+#Execute pipeline
+#Tissue modalities: pbmc, solid, atypical
+preprocessed_seurat = run_targets_pipeline(c(file_path,file_path), store ,input_reference_path, tissue = "pbmc")
 
-```{bash}
-# Create $input_directory/pipeline.makeflow
-#
-# The pipeline has 4 modes (first argument of create_pipeline_makefile.R)
-# preprocessing, fast_pipeline, slow_pipeline, complete
-Rscript $code_directory/R_scripts/create_pipeline_makefile.R complete pbmc unfiltered $result_directory $reports_directory $input_directory $code_directory $metadata_path $reference_azimuth_path
+#Load results
 
-# Execute makeflow
-conda activate cctools-env
-makeflow -J 200 -T slurm $result_directory/pipeline.makeflow 
+preprocessed_seurat
+
 ```
 
-Monitor progress
 
-```{bash}
-makeflow_monitor $result_directory/pipeline.makeflow.makeflowlog
-```
+
