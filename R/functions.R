@@ -392,14 +392,14 @@ map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
           tibble(.feature = rownames(.x)) |>
           mutate(chunk___ = min(1, .y):.y |> sample() |> rep(ceiling(nrow(.x)/max(1, .y))) |> head(nrow(.x)))
 
-        .x |>
-          left_join(chunks) |>
-          nest(!!.col := -chunk___)
+        # Join chunks
+        grouping_factor = chunks |> pull(chunk___) |> as.factor()
+
+         .x |> splitRowData(f = grouping_factor)
       }
     )) |>
     unnest(!!.col) |>
-    select(-chunk___) |>
-    mutate(se_md5 = map_chr(!!.col, digest))
+    mutate(se_md5 = ids::random_id(n()))
 }
 
 splitColData <- function(x, f) {
@@ -431,6 +431,19 @@ splitRowData <- function(x, f) {
   return(v)
 
 }
+
+# library(parallel)
+#
+# splitRowDataParallel <- function(x, f, numCores = detectCores() - 1) {
+#   i <- split(seq_along(f), f)
+#
+#   v <- mclapply(names(i), function(n) {
+#     x[i[[n]], ]
+#   }, mc.cores=numCores)
+#
+#   names(v) <- names(i)
+#   return(v)
+# }
 
 #' @importFrom digest digest
 #' @importFrom rlang enquo
