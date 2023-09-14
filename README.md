@@ -34,10 +34,28 @@ load input and reference data
 ```{bash}
 
 # Load input data (can be a list of directories or single directory)
-input_data <- c("/home/users/allstaff/si.j/test_jascap/input/CB150T04X__batch14.rds","/home/users/allstaff/si.j/test_jascap/input/CB291T01X__batch8.rds")
+
+library(Seurat)
+library(scRNAseq)
+
+single_cell_data = ChenBrainData(ensembl=FALSE,location=FALSE)
+
+file_path = tempfile(tmpdir = "~/HPCell") |> paste0(".rds")
+
+single_cell_data |> Seurat::as.Seurat(data = NULL) |> saveRDS(file_path)
+
 
 #Load reference data 
-input_reference <- "/home/users/allstaff/si.j/jascap/data/Data/jiayi_files/reference_azimuth.rds"
+
+library(Azimuth)
+
+library(SeuratData)
+
+InstallData("pbmcsca")
+
+input_reference_path = "reference_azimuth.rds"
+
+LoadData("pbmcsca") |> saveRDS(input_reference_path)
 
 ```
 
@@ -46,7 +64,7 @@ Execute Targets workflow and load results
 ```{bash}
 #Create store directory 
 store =  tempfile(tmpdir = "/stornext/General/scratch/GP_Transfer/si.j")
-
+store <- "~/stornext/General/scratch/GP_Transfer/si.j/test_single_cell_data"
 #Execute pipeline
 
 preprocessed_seurat = run_targets_pipeline(input_data, store , input_reference)

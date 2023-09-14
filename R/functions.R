@@ -15,7 +15,7 @@ empty_droplet_id <- function(input_file,
   ribosome_genes = rownames(input_file) |> str_subset("^RPS|^RPL")
   
   # Calculate bar-codes ranks
-  barcode_ranks = barcodeRanks(input_file)
+  barcode_ranks = barcodeRanks(input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
   
   # Set the minimum total RNA per cell for ambient RNA
   if(min(barcode_ranks$total) < 100) { lower = 100 } else {
@@ -31,7 +31,7 @@ empty_droplet_id <- function(input_file,
   # Remove genes from input
   if (
     # If filtered
-    filtered == "filtered") {
+    filtered == "TRUE") {
     barcode_table <- input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>
@@ -711,15 +711,15 @@ pseudobulk_preprocessing <- function(reference_label_fine,
     pseudobulk_by_sample_and_cell_type = output_path_sample_cell_type
   ))
 }
-# Reference_label_fine
+# # Reference_label_fine
 #' @export
 #' 
 reference_label_fine_id <- function(tissue) {
   return(
     ifelse(tissue == "pbmc", "monaco_first.labels.fine",
-           ifelse(tissue == "solid", "blueprint_first.labels.fine",
-                  ifelse(tissue == "atypical", "none",
-                         ifelse(tissue == "none", "monaco_first.labels.fine", NA)))))
+    ifelse(tissue == "solid", "blueprint_first.labels.fine",
+    ifelse(tissue == "atypical", "none",
+    ifelse(tissue == "none", "monaco_first.labels.fine", NA)))))
 }
 # Reference_label_coarse
 #' @export
@@ -727,9 +727,18 @@ reference_label_fine_id <- function(tissue) {
 reference_label_coarse_id <- function(tissue) {
   return(
     ifelse(tissue == "pbmc", "monaco_first.labels.coarse",
-           ifelse(tissue == "solid", "blueprint_first.labels.coarse",
-                  ifelse(tissue == "atypical", "none",
-                         ifelse(tissue == "none", "monaco_first.labels.coarse", NA)))))
+    ifelse(tissue == "solid", "blueprint_first.labels.coarse",
+    ifelse(tissue == "atypical", "none",
+    ifelse(tissue == "none", "monaco_first.labels.coarse", NA)))))
+}
+
+# Add_RNA_assay
+#' @export
+#'
+add_RNA_assay <- function(input_read, RNA_assay_name){
+  names(input_read@assays)<- names(Assays(input_read@assays)) |> sapply(function(x) if(x == RNA_assay_name) "RNA" else x)
+  DefaultAssay(object = input_read) <- "RNA"
+  input_read
 }
 
 
