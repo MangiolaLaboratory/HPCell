@@ -13,7 +13,7 @@ run_targets_pipeline <- function(
     filter_input = TRUE, 
     RNA_assay_name = "originalexp"
     
-  ){
+){
   # Save inputs for passing to targets pipeline 
   input_data |> saveRDS("input_file.rds")
   input_reference |> saveRDS("input_reference.rds")
@@ -193,10 +193,10 @@ run_targets_pipeline <- function(
       
       # Doublet identification
       tar_target(doublet_identification_tbl, doublet_identification(input_read_RNA_assay,
-                                                                empty_droplets_tbl,
-                                                                alive_identification_tbl,
-                                                                annotation_label_transfer_tbl,
-                                                                reference_label_fine),
+                                                                    empty_droplets_tbl,
+                                                                    alive_identification_tbl,
+                                                                    annotation_label_transfer_tbl,
+                                                                    reference_label_fine),
                  pattern = map(input_read_RNA_assay,
                                empty_droplets_tbl,
                                alive_identification_tbl,

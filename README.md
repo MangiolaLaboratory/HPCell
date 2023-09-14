@@ -44,8 +44,23 @@ single_cell_data = ChenBrainData(ensembl=FALSE,location=FALSE)
 
 file_path = tempfile(tmpdir = "~/HPCell") |> paste0(".rds")
 
-single_cell_data |> Seurat::as.Seurat(data = NULL) |> saveRDS(file_path)
+# Convert from SingleCellExperiment to Seurat class
+single_cell_data |> Seurat::as.Seurat(data = NULL, assay = NULL) |> saveRDS(file_path)
+input_data_seurat <- readRDS(file_path)
 
+# # Get current default assay
+# DefaultAssay(object = input_data_seurat)
+# 
+# # If not RNA 
+# original_assay<- DefaultAssay(object = input_data_seurat)
+# 
+# # Create RNA assay to demo switching default assays
+# new.assay <- input_data_seurat[[original_assay]]
+# Key(object = new.assay) <- "RNA_"
+# input_data_seurat[["RNA"]] <- new.assay
+# # switch default assay to RNA2
+# DefaultAssay(object = input_data_seurat) <- "RNA"
+# DefaultAssay(object = input_data_seurat)
 
 #Load reference data 
 
@@ -55,7 +70,7 @@ library(SeuratData)
 
 InstallData("pbmcsca")
 
-input_reference_path = "reference_azimuth.rds"
+input_reference_path = "~/HPCell/pbmcsca.rds"
 
 LoadData("pbmcsca") |> saveRDS(input_reference_path)
 
@@ -68,16 +83,23 @@ Execute Targets workflow and load results
 
 #Create store directory 
 
-store =  tempfile(tmpdir = "~/stornext/General/scratch/GP_Transfer/si.j/test_single_cell_data")
+store =  tempfile(tmpdir = "~/stornext/General/scratch/GP_Transfer/si.j/test_sc_postmod")
 
-store <- "~/stornext/General/scratch/GP_Transfer/si.j/test_single_cell_data"
+store <- "~/stornext/General/scratch/GP_Transfer/si.j/test_sc_postmod"
 
 
 #Execute pipeline
 
 #Tissue types: pbmc, solid, atypical
 
-preprocessed_seurat = run_targets_pipeline(input_data = "/home/users/allstaff/si.j/HPCell/file29c24715b278.rds", store ,input_reference_path, tissue = "pbmc")
+preprocessed_seurat = run_targets_pipeline(
+    input_data = file_path, 
+    store =  "~/stornext/General/scratch/GP_Transfer/si.j/test_single_cell_data", 
+    input_reference = input_reference_path,
+    tissue= "pbmc",
+    computing_resources = crew_controller_local(workers = 1), 
+    debug_step = "empty_droplets_tbl"
+  )
 
 
 #Load results
@@ -98,7 +120,7 @@ Step-by-step guide
 ```{r}
 
 run_targets_pipeline(
-    input_data, 
+    input_data = file_path, 
     store =  tempfile(tmpdir = "."), 
     input_reference,
     tissue,

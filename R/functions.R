@@ -10,7 +10,7 @@
 #' @importFrom tidyseurat select
 #' @export
 empty_droplet_id <- function(input_file,
-                             filtered){
+                             filter_input){
   significance_threshold = 0.001
   # Genes to exclude
   location <- mapIds(

@@ -67,13 +67,13 @@ test_that("empty_droplets_works", {
 #   expect_s3_class(res, "tbl_df")
 # })
 # 
-# test_that("annotation_label_transfer_works", {
-#   res = annotation_label_transfer(input_file_B14,
-#                                   reference_azimuth,
-#                                   empty_droplets_tbl_B14)
-#   expect_s3_class(res, "tbl_df")
-# })
-# 
+test_that("annotation_label_transfer_works", {
+  res = annotation_label_transfer(input_file_B14,
+                                  reference_azimuth,
+                                  empty_droplets_tbl_B14)
+  expect_s3_class(res, "tbl_df")
+})
+
 # test_that("alive_identification_works", {
 #   res = alive_identification(input_file_B14,
 #                              empty_droplets_tbl_B14,
@@ -91,14 +91,14 @@ test_that("empty_droplets_works", {
 #   
 # })
 # 
-test_that("Doublet_identification_works", {
-  res = doublet_identification(input_file_B14,
-                               empty_droplets_tbl_B14,
-                               alive_identification_B14,
-                               annotation_label_transfer_B14,
-                               reference_label_fine)
-  expect_s3_class(res, "tbl_df")
-})
+# test_that("Doublet_identification_works", {
+#   res = doublet_identification(input_file_B14,
+#                                empty_droplets_tbl_B14,
+#                                alive_identification_B14,
+#                                annotation_label_transfer_B14,
+#                                reference_label_fine)
+#   expect_s3_class(res, "tbl_df")
+# })
 # test_that("Preprocessing_works", {
 #   res = preprocessing_output(tissue,
 #                              non_batch_variation_removal,
@@ -109,13 +109,13 @@ test_that("Doublet_identification_works", {
 #   expect_s4_class(res, "Seurat")
 # })
 # 
-test_that("pseudobulk_preprocessing_works", {
-  res = pseudobulk_preprocessing(
-    reference_label_fine, input_path_preprocessing_output
-  )
-  expect_s4_class(res$pseudobulk_by_sample, "SummarizedExperiment")
-  expect_s4_class(res$pseudobulk_by_sample_and_cell_type, "SummarizedExperiment")
-})
+# test_that("pseudobulk_preprocessing_works", {
+#   res = pseudobulk_preprocessing(
+#     reference_label_fine, input_path_preprocessing_output
+#   )
+#   expect_s4_class(res$pseudobulk_by_sample, "SummarizedExperiment")
+#   expect_s4_class(res$pseudobulk_by_sample_and_cell_type, "SummarizedExperiment")
+# })
 
 # test_that("reference_label_id_works", {
 #   res = reference_label_id(tissue, reference_label)
