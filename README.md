@@ -71,8 +71,8 @@ library(SeuratData)
 InstallData("pbmcsca")
 
 input_reference_path = "~/HPCell/pbmcsca.rds"
-
-LoadData("pbmcsca") |> saveRDS(input_reference_path)
+pbmcsca.updated = UpdateSeuratObject(object = pbmcsca)
+pbmcsca.updated |> saveRDS(input_reference_path)
 
 ```
 
