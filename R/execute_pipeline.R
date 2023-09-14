@@ -9,8 +9,8 @@ run_targets_pipeline <- function(
     input_reference = input_reference_path,
     tissue,
     computing_resources = crew_controller_local(workers = 1), 
-    debug_step = "empty_droplets_tbl",
-    filter_input = TRUE, 
+    debug_step = "annotation_label_transfer_tbl",
+    filter_input = "TRUE", 
     RNA_assay_name = "originalexp"
     
 ){
