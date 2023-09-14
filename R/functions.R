@@ -22,6 +22,12 @@ empty_droplet_id <- function(input_file,
   mitochondrial_genes = which(location=="MT") |> names()
   ribosome_genes = rownames(input_file) |> str_subset("^RPS|^RPL")
   
+  # if ("originalexp" %in% names(input_file@assays)) {
+  #   barcode_ranks <- barcodeRanks(input_file@assays$originalexp@counts[!rownames(input_file@assays$originalexp@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
+  # } else if ("RNA" %in% names(input_file@assays)) {
+  #   barcode_ranks <- barcodeRanks(input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
+  # }
+  
   # Calculate bar-codes ranks
   barcode_ranks = barcodeRanks(input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
   
@@ -37,9 +43,14 @@ empty_droplet_id <- function(input_file,
   }
   
   # Remove genes from input
-  if (
-    # If filtered
-    filtered == "filtered") {
+  barcode_table <- if (
+    filter_input) {
+    # if ("originalexp" %in% names(input_file@assays)) {
+    #   filtered_counts <- input_file@assays$originalexp@counts[!rownames(input_file@assays$originalexp@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE]
+    # } else if ("RNA" %in% names(input_file@assays)) {
+    #   filtered_counts <- input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE]
+    # }
+    filtered_counts |>
     barcode_table <- input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>
@@ -759,6 +770,15 @@ reference_label_coarse_id <- function(tissue) {
     ifelse(tissue == "solid", "blueprint_first.labels.coarse",
     ifelse(tissue == "atypical", "none",
     ifelse(tissue == "none", "monaco_first.labels.coarse", NA)))))
+}
+
+# Add_RNA_assay
+#' @export
+#'
+add_RNA_assay <- function(input_read, RNA_assay_name){
+  names(input_read@assays)<- names(Assays(input_read@assays)) |> sapply(function(x) if(x == RNA_assay_name) "RNA" else x)
+  DefaultAssay(object = input_read) <- "RNA"
+  input_read
 }
 
 

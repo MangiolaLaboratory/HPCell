@@ -4,13 +4,15 @@
 #' @export
 #' 
 run_targets_pipeline <- function(
-    input_data, 
-    store =  tempfile(tmpdir = "."), 
-    input_reference,
+    input_data = file_path, 
+    store =  store, 
+    input_reference = input_reference_path,
     tissue,
     computing_resources = crew_controller_local(workers = 1), 
-    debug_step = "null",
-    filtered = "filtered"
+    debug_step = "empty_droplets_tbl",
+    filter_input = TRUE, 
+    RNA_assay_name = "originalexp"
+    
   ){
   # Save inputs for passing to targets pipeline 
   input_data |> saveRDS("input_file.rds")
@@ -152,58 +154,61 @@ run_targets_pipeline <- function(
       tar_target(input_read, readRDS(read_file),
                  pattern = map(read_file),
                  iteration = "list", deployment = "main"),
+      tar_target(input_read_RNA_assay, add_RNA_assay(input_read, RNA_assay_name), 
+                 pattern = map(input_read), 
+                 iteration = "list"),
       tar_target(reference_read, readRDS(read_reference_file),
                  deployment = "main"),
       
       # Identifying empty droplets
       tar_target(empty_droplets_tbl,
-                 empty_droplet_id(input_read, filtered),
-                 pattern = map(input_read),
+                 empty_droplet_id(input_read_RNA_assay, filtered),
+                 pattern = map(input_read_RNA_assay),
                  iteration = "list"),
       
       # Cell cycle scoring
-      tar_target(cell_cycle_score_tbl, cell_cycle_scoring(input_read,
+      tar_target(cell_cycle_score_tbl, cell_cycle_scoring(input_read_RNA_assay,
                                                           empty_droplets_tbl),
-                 pattern = map(input_read,
+                 pattern = map(input_read_RNA_assay,
                                empty_droplets_tbl),
                  iteration = "list"),
       
       # Annotation label transfer
       tar_target(annotation_label_transfer_tbl,
-                 annotation_label_transfer(input_read,
+                 annotation_label_transfer(input_read_RNA_assay,
                                            reference_read,
                                            empty_droplets_tbl),
-                 pattern = map(input_read,
+                 pattern = map(input_read_RNA_assay,
                                empty_droplets_tbl),
                  iteration = "list"),
       
       # Alive identification
-      tar_target(alive_identification_tbl, alive_identification(input_read,
+      tar_target(alive_identification_tbl, alive_identification(input_read_RNA_assay,
                                                                 empty_droplets_tbl,
                                                                 annotation_label_transfer_tbl),
-                 pattern = map(input_read,
+                 pattern = map(input_read_RNA_assay,
                                empty_droplets_tbl,
                                annotation_label_transfer_tbl),
                  iteration = "list"),
       
       # Doublet identification
-      tar_target(doublet_identification_tbl, doublet_identification(input_read,
+      tar_target(doublet_identification_tbl, doublet_identification(input_read_RNA_assay,
                                                                 empty_droplets_tbl,
                                                                 alive_identification_tbl,
                                                                 annotation_label_transfer_tbl,
                                                                 reference_label_fine),
-                 pattern = map(input_read,
+                 pattern = map(input_read_RNA_assay,
                                empty_droplets_tbl,
                                alive_identification_tbl,
                                annotation_label_transfer_tbl),
                  iteration = "list"),
       
       # Non-batch variation removal
-      tar_target(non_batch_variation_removal_S, non_batch_variation_removal(input_read,
+      tar_target(non_batch_variation_removal_S, non_batch_variation_removal(input_read_RNA_assay,
                                                                             empty_droplets_tbl,
                                                                             alive_identification_tbl,
                                                                             cell_cycle_score_tbl),
-                 pattern = map(input_read,
+                 pattern = map(input_read_RNA_assay,
                                empty_droplets_tbl,
                                alive_identification_tbl,
                                cell_cycle_score_tbl),
