@@ -37,42 +37,30 @@ load input and reference data
 
 # Load input data (can be a list of directories or single directory)
 
-library(Seurat)
-library(scRNAseq)
-
-single_cell_data = ChenBrainData(ensembl=FALSE,location=FALSE)
-
+# library(Seurat)
+# library(scRNAseq)
+# 
+# single_cell_data = ChenBrainData(ensembl=FALSE,location=FALSE)
+# 
 file_path = tempfile(tmpdir = "~/HPCell") |> paste0(".rds")
-
-# Convert from SingleCellExperiment to Seurat class
-single_cell_data |> Seurat::as.Seurat(data = NULL, assay = NULL) |> saveRDS(file_path)
-input_data_seurat <- readRDS(file_path)
-
-# # Get current default assay
-# DefaultAssay(object = input_data_seurat)
 # 
-# # If not RNA 
-# original_assay<- DefaultAssay(object = input_data_seurat)
-# 
-# # Create RNA assay to demo switching default assays
-# new.assay <- input_data_seurat[[original_assay]]
-# Key(object = new.assay) <- "RNA_"
-# input_data_seurat[["RNA"]] <- new.assay
-# # switch default assay to RNA2
-# DefaultAssay(object = input_data_seurat) <- "RNA"
-# DefaultAssay(object = input_data_seurat)
-
-#Load reference data 
-
-library(Azimuth)
+# single_cell_data |> Seurat::as.Seurat(data = NULL) |> saveRDS(file_path)
 
 library(SeuratData)
+InstallData("pbmc3k")
+#input_file<- LoadData("pbmc3k") 
 
-InstallData("pbmcsca")
+LoadData("pbmc3k")|> saveRDS(file_path)
 
-input_reference_path = "~/HPCell/pbmcsca.rds"
-pbmcsca.updated = UpdateSeuratObject(object = pbmcsca)
-pbmcsca.updated |> saveRDS(input_reference_path)
+###Load reference data 
+# library(Azimuth)
+# library(SeuratData)
+# InstallData("pbmcsca")
+# input_reference_path = "reference_azimuth.rds"
+# LoadData("pbmcsca") |> saveRDS(input_reference_path)
+
+input_reference_path
+reference_azimuth<- LoadH5Seurat("/home/users/allstaff/si.j/Data/pbmc_multimodal.h5seurat") |> saveRDS(input_reference_path)
 
 ```
 
@@ -83,11 +71,8 @@ Execute Targets workflow and load results
 
 #Create store directory 
 
-store =  tempfile(tmpdir = "~/stornext/General/scratch/GP_Transfer/si.j/test_sc_postmod")
-
-store <- "~/stornext/General/scratch/GP_Transfer/si.j/test_sc_postmod"
-
-
+# store =  tempfile(tmpdir = "/stornext/General/scratch/GP_Transfer/si.j")
+store <- "~/stornext/General/scratch/GP_Transfer/si.j/test_single_cell_data"
 #Execute pipeline
 
 #Tissue types: pbmc, solid, atypical

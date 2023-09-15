@@ -43,14 +43,9 @@ empty_droplet_id <- function(input_file,
   }
   
   # Remove genes from input
-  barcode_table <- if (
-    filter_input) {
-    # if ("originalexp" %in% names(input_file@assays)) {
-    #   filtered_counts <- input_file@assays$originalexp@counts[!rownames(input_file@assays$originalexp@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE]
-    # } else if ("RNA" %in% names(input_file@assays)) {
-    #   filtered_counts <- input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE]
-    # }
-    filtered_counts |>
+  if (
+    # If filtered
+    filtered == "TRUE") {
     barcode_table <- input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>
@@ -250,7 +245,8 @@ annotation_label_transfer <- function(input_file,
     
     
     # Subset
-    RNA_assay = input_file[["RNA"]][rownames(input_file[["RNA"]]) %in% rownames(reference_azimuth[["SCT"]]),]
+    #RNA_assay = input_file[["RNA"]][rownames(input_file[["RNA"]]) %in% rownames(reference_azimuth[["SCT"]]),]
+    RNA_assay <- input_file@assays$RNA[["counts"]][rownames(input_file@assays$RNA[["counts"]])%in% rownames(reference_azimuth[["SCT"]]),]
     #ADT_assay = input_file[["ADT"]][rownames(input_file[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
     input_file <- CreateSeuratObject( counts = RNA_assay)
     
@@ -751,7 +747,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
     pseudobulk_by_sample_and_cell_type = output_path_sample_cell_type
   ))
 }
-# Reference_label_fine
+# # Reference_label_fine
 #' @export
 #' 
 reference_label_fine_id <- function(tissue) {
