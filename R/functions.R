@@ -223,8 +223,9 @@ annotation_label_transfer <- function(input_file,
     
     
     # Subset
-    RNA_assay = input_file[["RNA"]][rownames(input_file[["RNA"]]) %in% rownames(reference_azimuth[["SCT"]]),]
-    ADT_assay = input_file[["ADT"]][rownames(input_file[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
+    #RNA_assay = input_file[["RNA"]][rownames(input_file[["RNA"]]) %in% rownames(reference_azimuth[["SCT"]]),]
+    RNA_assay <- input_file@assays$RNA[["counts"]][rownames(input_file@assays$RNA[["counts"]])%in% rownames(reference_azimuth[["SCT"]]),]
+    #ADT_assay = input_file[["ADT"]][rownames(input_file[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
     input_file <- CreateSeuratObject( counts = RNA_assay)
     
     if("ADT" %in% names(input_file@assays) ) {

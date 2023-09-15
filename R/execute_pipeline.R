@@ -11,7 +11,7 @@ run_targets_pipeline <- function(
     computing_resources = crew_controller_local(workers = 1), 
     debug_step = "NULL",
     filter_input = "TRUE", 
-    RNA_assay_name = "originalexp"
+    RNA_assay_name = "NULL"
     
 ){
   # Save inputs for passing to targets pipeline 
