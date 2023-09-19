@@ -1,0 +1,139 @@
+---
+title: "tidybulk - part of tidyTranscriptomics"
+output: github_document
+---
+
+<!-- badges: start -->
+[![Lifecycle:maturing](https://img.shields.io/badge/lifecycle-maturing-blue.svg)](https://www.tidyverse.org/lifecycle/#maturing) 
+<!-- badges: end -->
+
+
+
+# HPCell
+
+## Analysis automated pipeline
+
+Flowchart
+
+https://app.mural.co/t/covid7029/m/covid7029/1656652076667/c47e104697d76b36b8dee3bd05d8de9d96d99efd?sender=udbe1ea99c9618abb07196978
+
+Clone the repository
+
+```{bash}
+
+git clone git@github.com:susansjy22/HPCell.git
+
+```
+
+Install Jascap/HPCell package 
+
+```{r, eval=FALSE}
+
+remote::install_github("git@github.com:susansjy22/HPCell.git")
+
+```
+
+load jascap package 
+
+```{r}
+
+library(jascap)
+
+```
+
+load input and reference data
+
+
+```{r}
+
+# Load input data (can be a list of directories or single directory)
+
+library(Seurat)
+library(scRNAseq)
+file_path = tempfile(tmpdir = "~/HPCell") |> paste0(".rds")
+# file_path = "input_file.rds"
+single_cell_data = HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400]
+single_cell_data |> Seurat::as.Seurat(data = NULL) |> saveRDS(file_path)
+
+###Load reference data 
+# library(Azimuth)
+# library(SeuratData)
+# InstallData("pbmcsca")
+# LoadData("pbmcsca") |> saveRDS(input_reference_path)
+
+input_reference_path <- "reference_azimuth.rds"
+reference_url<- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
+download.file(reference_url, input_reference_path)
+LoadH5Seurat(input_reference_path) |> saveRDS(input_reference_path)
+# reference_azimuth<- LoadH5Seurat("/home/users/allstaff/si.j/Data/pbmc_multimodal.h5seurat") |> saveRDS(input_reference_path)
+# LoadH5Seurat(input_reference_path)
+# temp <- tempfile()
+# curl_download("https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat", temp)
+```
+
+Execute Targets workflow and load results
+
+
+```{r}
+
+#Tissue types: pbmc, solid, atypical
+store <- "~/HPCell/pipeline_store"
+# preprocessed_seurat = run_targets_pipeline(
+#     input_data = file_path, 
+#     store = store,
+#     input_reference = input_reference_path,
+#     tissue = "pbmc",
+#     computing_resources = crew_controller_local(workers = 1), 
+#     filtered = TRUE, 
+#     RNA_assay_name = "originalexp"
+# )
+preprocessed_seurat = run_targets_pipeline(
+    input_data = file_path, 
+    store = store,
+    input_reference = input_reference_path,
+    tissue = "pbmc",
+    computing_resources = crew_controller_local(workers = 1), 
+    filtered = TRUE, 
+    RNA_assay_name = "originalexp", 
+    debug_step = "pseudobulk_preprocessing_SE"
+)
+
+
+#Load results
+preprocessed_seurat
+
+```
+
+Debugging ~R/functions.R
+
+If an error occurs in one of the Target objects whilst executing the pipeline, you can debug by going inside the function to see where the error occurred
+
+Step-by-step guide
+
+1. Set the debug_step argument to the name of the failed Targets object 
+   - Example: "annotation_label_transfer_tbl"
+
+```{r}
+
+run_targets_pipeline(
+    input_data = file_path, 
+    store =  "/stornext/General/scratch/GP_Transfer/si.j/test_he5", 
+    input_reference = input_reference_path,
+    tissue = "pbmc",
+    computing_resources = crew_controller_local(workers = 1), 
+    filtered = "TRUE", 
+    RNA_assay_name = "originalexp", 
+    debug_step = "pseudobulk_preprocessing_SE"
+)
+
+```
+
+
+4. Locate the function and associated code within ~R/functions.R Rscript
+
+5. Debug as normal 
+
+!!!IMPORTANT!!! 
+   
+   Remember to replace the function arguments with arguments provided in ~R/execute_pipeline.R file
+

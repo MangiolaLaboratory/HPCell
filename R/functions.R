@@ -9,18 +9,18 @@
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' @importFrom tidyseurat select
 #' @export
-empty_droplet_id <- function(input_file,
-                             filter_input){
+empty_droplet_id <- function(input_read_RNA_assay,
+                             filtered){
   significance_threshold = 0.001
   # Genes to exclude
   location <- mapIds(
     EnsDb.Hsapiens.v86,
-    keys=rownames(input_file),
+    keys=rownames(input_read_RNA_assay),
     column="SEQNAME",
     keytype="SYMBOL"
   )
   mitochondrial_genes = which(location=="MT") |> names()
-  ribosome_genes = rownames(input_file) |> str_subset("^RPS|^RPL")
+  ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
   
   # if ("originalexp" %in% names(input_file@assays)) {
   #   barcode_ranks <- barcodeRanks(input_file@assays$originalexp@counts[!rownames(input_file@assays$originalexp@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
@@ -29,7 +29,7 @@ empty_droplet_id <- function(input_file,
   # }
   
   # Calculate bar-codes ranks
-  barcode_ranks = barcodeRanks(input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
+  barcode_ranks = barcodeRanks(input_read_RNA_assay@assays$RNA@counts[!rownames(input_read_RNA_assay@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
   
   # Set the minimum total RNA per cell for ambient RNA
   if(min(barcode_ranks$total) < 100) { lower = 100 } else {
@@ -46,7 +46,7 @@ empty_droplet_id <- function(input_file,
   if (
     # If filtered
     filtered == "TRUE") {
-    barcode_table <- input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
+    barcode_table <- input_read_RNA_assay@assays$RNA@counts[!rownames(input_read_RNA_assay@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>
       mutate(empty_droplet = FDR >= significance_threshold) |>
@@ -113,14 +113,14 @@ empty_droplet_id <- function(input_file,
 #' @importFrom tidyseurat left_join filter select as_tibble
 #' @importFrom CreateSeuratObject CreateAssayObject
 #' @export
-annotation_label_transfer <- function(input_file,
+annotation_label_transfer <- function(input_read_RNA_assay,
                                       reference_azimuth,
                                       empty_droplets_tbl
 ){
   
   # SingleR
   sce =
-    input_file |>
+    input_read_RNA_assay |>
     
     # Filter empty
     left_join(empty_droplets_tbl, by = ".cell") |>
@@ -178,10 +178,9 @@ annotation_label_transfer <- function(input_file,
           labels = MonacoImmuneData$label.fine
         )  |>
         as_tibble(rownames=".cell") |>
-        
         nest(monaco_scores_fine = starts_with("score")) |>
-        select(-delta.next,- pruned.labels) |>
-        rename( monaco_first.labels.fine = labels)
+        select(-delta.next,-pruned.labels) |>
+        rename(monaco_first.labels.fine = labels)
       
     ) |>
     
@@ -235,9 +234,9 @@ annotation_label_transfer <- function(input_file,
     
     
     # Reading input
-    input_file =
+    input_read_RNA_assay =
       
-      input_file |>
+      input_read_RNA_assay |>
       
       # Filter empty
       left_join(empty_droplets_tbl, by = ".cell") |>
@@ -245,31 +244,31 @@ annotation_label_transfer <- function(input_file,
     
     
     # Subset
-    #RNA_assay = input_file[["RNA"]][rownames(input_file[["RNA"]]) %in% rownames(reference_azimuth[["SCT"]]),]
-    RNA_assay <- input_file@assays$RNA[["counts"]][rownames(input_file@assays$RNA[["counts"]])%in% rownames(reference_azimuth[["SCT"]]),]
-    #ADT_assay = input_file[["ADT"]][rownames(input_file[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
-    input_file <- CreateSeuratObject( counts = RNA_assay)
+    RNA_assay = input_read_RNA_assay[["RNA"]][rownames(input_read_RNA_assay[["RNA"]]) %in% rownames(reference_azimuth[["SCT"]]),]
+    #RNA_assay <- input_read_RNA_assay@assays$RNA[["counts"]][rownames(input_read_RNA_assay@assays$RNA[["counts"]])%in% rownames(reference_azimuth[["SCT"]]),]
+    #ADT_assay = input_read_RNA_assay[["ADT"]][rownames(input_read_RNA_assay[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
+    input_read_RNA_assay <- CreateSeuratObject( counts = RNA_assay)
     
-    if("ADT" %in% names(input_file@assays) ) {
-      ADT_assay = input_file[["ADT"]][rownames(input_file[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
-      if("ADT" %in% names(input_file@assays) ) 
-        input_file[["ADT"]] = ADT_assay |> CreateAssayObject()
+    if("ADT" %in% names(input_read_RNA_assay@assays) ) {
+      ADT_assay = input_read_RNA_assay[["ADT"]][rownames(input_read_RNA_assay[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
+      if("ADT" %in% names(input_read_RNA_assay@assays) ) 
+        input_read_RNA_assay[["ADT"]] = ADT_assay |> CreateAssayObject()
     }
     
     
     # Normalise RNA
-    input_file =
-      input_file |>
+    input_read_RNA_assay =
+      input_read_RNA_assay |>
       
       # Normalise RNA - not informed by smartly selected variable genes
       SCTransform(assay="RNA") |>
       ScaleData(assay = "SCT") |>
       RunPCA(assay = "SCT")
     
-    if("ADT" %in% names(input_file@assays) ){
-      VariableFeatures(input_file, assay="ADT") <- rownames(input_file[["ADT"]])
-      input_file =
-        input_file |>
+    if("ADT" %in% names(input_read_RNA_assay@assays) ){
+      VariableFeatures(input_read_RNA_assay, assay="ADT") <- rownames(input_read_RNA_assay[["ADT"]])
+      input_read_RNA_assay =
+        input_read_RNA_assay |>
         NormalizeData(normalization.method = 'CLR', margin = 2, assay="ADT") |>
         ScaleData(assay="ADT") |>
         RunPCA(assay = "ADT", reduction.name = 'apca')
@@ -292,7 +291,7 @@ annotation_label_transfer <- function(input_file,
     # Define common anchors
     anchors <- FindTransferAnchors(
       reference = reference_azimuth,
-      query = input_file,
+      query = input_read_RNA_assay,
       normalization.method = "SCT",
       reference.reduction = "spca",
       dims = 1:50
@@ -305,7 +304,7 @@ annotation_label_transfer <- function(input_file,
         expr = {
           MapQuery(
             anchorset = anchors,
-            query = input_file,
+            query = input_read_RNA_assay,
             reference = reference_azimuth ,
             refdata = list(
               celltype.l1 = "celltype.l1",
@@ -319,7 +318,7 @@ annotation_label_transfer <- function(input_file,
         },
         error = function(e){
           print(e)
-          input_file |> as_tibble() |> select(.cell)
+          input_read_RNA_assay |> as_tibble() |> select(.cell)
         }
       ) |>
       as_tibble() |>
@@ -339,11 +338,11 @@ annotation_label_transfer <- function(input_file,
 #' @importFrom tidyseurat left_join filter
 #' @export
 #' 
-alive_identification <- function(input_file,
+alive_identification <- function(input_read_RNA_assay,
                                  empty_droplets_tbl,
                                  ann_lbl_trs) {
-  input_file =
-    input_file |>
+  input_read_RNA_assay =
+    input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by=".cell") |>
     filter(!empty_droplet)
   
@@ -351,15 +350,15 @@ alive_identification <- function(input_file,
   # Matches the gene id’s row by row and inserts NA when it can’t find gene names
   location <- mapIds(
     EnsDb.Hsapiens.v86,
-    keys=rownames(input_file),
+    keys=rownames(input_read_RNA_assay),
     column="SEQNAME",
     keytype="SYMBOL"
   )
   
-  which_mito = rownames(input_file) |> str_which("^MT")
+  which_mito = rownames(input_read_RNA_assay) |> str_which("^MT")
   
   mitochondrion =
-    input_file |>
+    input_read_RNA_assay |>
     GetAssayData( slot = "counts", assay="RNA") |>
     
     # Join mitochondrion statistics
@@ -386,14 +385,14 @@ alive_identification <- function(input_file,
   
   ribosome =
     
-    input_file |>
+    input_read_RNA_assay |>
     
     select(.cell) |>
     
     # Join mitochondrion statistics
     
     
-    mutate(subsets_Ribo_percent = PercentageFeatureSet(input_file,  pattern = "^RPS|^RPL", assay = "RNA")[,1]  ) |>
+    mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1]  ) |>
     
     # Join cell types
     left_join(ann_lbl_trs, by = ".cell") |>
@@ -427,13 +426,13 @@ alive_identification <- function(input_file,
 #' @importFrom tidyseurat left_join filter
 #' @export
 #' 
-doublet_identification <- function(input_file, 
+doublet_identification <- function(input_read_RNA_assay, 
                                    empty_droplets_tbl, 
                                    alive_id, 
                                    ann_lbl_trs, 
                                    reference_label){
   
-  input_file |>
+  input_read_RNA_assay |>
     
     # Filtering empty
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
@@ -461,13 +460,13 @@ doublet_identification <- function(input_file,
 #' @importFrom tidyseurat left_join filter
 #' @export
 #' 
-cell_cycle_scoring <- function(input_file, 
+cell_cycle_scoring <- function(input_read_RNA_assay, 
                                empty_droplets_tbl){
   
   counts =
-    input_file |>
+    input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by = ".cell") |>
-    filter(!empty_droplet) |>
+    tidyseurat::filter(!empty_droplet) |>
     
     # Normalise needed
     NormalizeData() |>
@@ -601,7 +600,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
     map(~ {
       library(rlang)
       .x |>
-        tidyseurat::aggregate_cells(c(sample, !!as.symbol(reference_label_fine)), slot = "data", assays= assays) |>
+        tidyseurat::aggregate_cells(c(.sample, !!as.symbol(reference_label_fine)), slot = "data", assays= assays) |>
         tidybulk::as_SummarizedExperiment(.sample, .feature, c(RNA, ADT)) |>
         
         # Reshape to make RNA and ADT both features
@@ -772,8 +771,12 @@ reference_label_coarse_id <- function(tissue) {
 #' @export
 #'
 add_RNA_assay <- function(input_read, RNA_assay_name){
-  names(input_read@assays)<- names(Assays(input_read@assays)) |> sapply(function(x) if(x == RNA_assay_name) "RNA" else x)
+  
+  input_read[["RNA"]] = input_read[[RNA_assay_name]]
   DefaultAssay(object = input_read) <- "RNA"
+  input_read[[RNA_assay_name]] = NULL
+  
+  # names(input_read@assays)<- names(input_read@assays) |> sapply(function(x) if(x == RNA_assay_name) "RNA" else x)
   input_read
 }
 

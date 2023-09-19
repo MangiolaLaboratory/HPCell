@@ -1,4 +1,20 @@
-# Loading packages
+library(Seurat)
+library(scRNAseq)
+file_path = "input_data.rds"
+single_cell_data = scRNAseq::HeOrganAtlasData(ensembl=FALSE,location=FALSE)[,1:100]
+single_cell_data |> Seurat::as.Seurat(data = NULL) |> saveRDS(file_path)
+###Load reference data 
+# library(Azimuth)
+# library(SeuratData)
+# InstallData("pbmcsca")
+# LoadData("pbmcsca") |> saveRDS(input_reference_path)
+
+#file("https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat")
+input_reference_path <- "reference_azimuth.rds"
+reference_azimuth<- LoadH5Seurat("/home/users/allstaff/si.j/Data/pbmc_multimodal.h5seurat") |> saveRDS(input_reference_path)
+
+
+# # Loading packages
 my_packages <- c( "jascap",
                   "glue",
                   "readr",
@@ -31,41 +47,61 @@ my_packages <- c( "jascap",
                   "magrittr",
                   "tidybulk")
 lapply(my_packages, require, character.only = TRUE)
-reference_label<-"none"
-reference_label_fine<- "monaco_first.labels.fine"
-input_path_preprocessing_output <- list(readRDS("~/test_jascap/results/preprocessing_results/preprocessing_output/CB150T04X__batch14__preprocessing_output_output.rds"), 
-                                        readRDS("~/test_jascap/results/preprocessing_results/preprocessing_output/CB291T01X__batch8__preprocessing_output_output.rds"))
-#
-# #Defining inputs
-input_file_B14<- readRDS('/home/users/allstaff/si.j/test_jascap/input/CB150T04X__batch14.rds')
+# reference_label<-"none"
+# reference_label_fine<- "monaco_first.labels.fine"
+# input_path_preprocessing_output <- list(readRDS("~/test_jascap/results/preprocessing_results/preprocessing_output/CB150T04X__batch14__preprocessing_output_output.rds"), 
+#                                         readRDS("~/test_jascap/results/preprocessing_results/preprocessing_output/CB291T01X__batch8__preprocessing_output_output.rds"))
+# #
+# # #Defining inputs
+# input_file_B14<- readRDS('/home/users/allstaff/si.j/test_jascap/input/CB150T04X__batch14.rds')
+# 
 
-empty_droplets_tbl_B14<- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/empty_droplet_identification/CB150T04X__batch14__empty_droplet_identification_output.rds")
-
-alive_identification_B14<- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/alive_identification/CB150T04X__batch14__alive_identification_output.rds")
-
-doublet_identification_B14<- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/doublet_identification/CB150T04X__batch14__doublet_identification_output.rds")
-
-annotation_label_transfer_B14<- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/annotation_label_transfer/CB150T04X__batch14__annotation_label_transfer_output.rds")
-
-non_batch_variation_removal <- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/non_batch_variation_removal/CB150T04X__batch14__non_batch_variation_removal_output.rds")
-
-cell_cycle_scoring <- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/cell_cycle_scoring/CB150T04X__batch14__cell_cycle_scoring_output.rds")
-
-reference_azimuth <- readRDS("/home/users/allstaff/si.j/jascap_ARCHIVE/data/Data/jiayi_files/reference_azimuth.rds")
-filtered <- "filtered"
+filtered <- "TRUE"
 tissue <- "pbmc"
+RNA_assay_name<- "originalexp"
+file_path<- "~/HPCell/file457369d369.rds"
+input_reference_path <- "reference_azimuth.rds"
 # Function testing
+# test_that("add_RNA_assay_works", {
+#   RNA_assay = add_RNA_assay(readRDS(file_path), RNA_assay_name)
+#   expect_s4_class(res, "Seurat")})
+input_read_RNA_assay = add_RNA_assay(readRDS(file_path), RNA_assay_name)
+empty_droplets_tbl = empty_droplet_id(input_read_RNA_assay, filtered)
+annotation_label_transfer_tbl = annotation_label_transfer(input_read_RNA_assay,
+                                                          readRDS(input_reference_path),
+                                                          empty_droplets_tbl)
+
 test_that("empty_droplets_works", {
-  res = empty_droplet_id(input_file_B14,
-                         filtered)
-  expect_s3_class(res, "tbl_df")
+
+  expect_s3_class(result_empty_droplet, "tbl_df")
 })
 
-# test_that("cell_cycle_score_works", {
-#   res = cell_cycle_scoring(input_file_B14,
-#                            empty_droplets_tbl_B14)
-#   expect_s3_class(res, "tbl_df")
-# })
+
+cell_cycle_scoring = cell_cycle_scoring(input_file_B14,
+                         empty_droplets_tbl_B14)
+
+test_that("cell_cycle_score_works", {
+  
+  expect_s3_class(cell_cycle_scoring, "tbl_df")
+})
+
+# 
+# alive_identification_B14<- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/alive_identification/CB150T04X__batch14__alive_identification_output.rds")
+# 
+# doublet_identification_B14<- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/doublet_identification/CB150T04X__batch14__doublet_identification_output.rds")
+# 
+# annotation_label_transfer_B14<- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/annotation_label_transfer/CB150T04X__batch14__annotation_label_transfer_output.rds")
+# 
+# non_batch_variation_removal <- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/non_batch_variation_removal/CB150T04X__batch14__non_batch_variation_removal_output.rds")
+# 
+# cell_cycle_scoring <- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/cell_cycle_scoring/CB150T04X__batch14__cell_cycle_scoring_output.rds")
+# 
+# reference_azimuth <- readRDS("/home/users/allstaff/si.j/jascap_ARCHIVE/data/Data/jiayi_files/reference_azimuth.rds")
+
+
+
+
+
 # 
 test_that("annotation_label_transfer_works", {
   res = annotation_label_transfer(input_file_B14,
