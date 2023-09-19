@@ -52,6 +52,7 @@ Imports:
   SeuratObject, 
   AnnotationDbi, 
   broom, 
+  SeuratDisk,
   SingleCellExperiment, 
 Encoding: UTF-8
 LazyData: true
