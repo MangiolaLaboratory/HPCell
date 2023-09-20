@@ -590,18 +590,21 @@ preprocessing_output <- function(tissue,
 #' @export
 #' 
 pseudobulk_preprocessing <- function(reference_label_fine, 
-                                     input_path_preprocessing_output){
+                                     input_path_preprocessing_output, sample_column){
   assays = input_path_preprocessing_output[[1]]@assays |> names() |> intersect(c("RNA", "ADT"))
+  
+  sample_column = enquo(sample_column)
   
   pseudobulk =
     input_path_preprocessing_output |>
     
     # Aggregate
-    map(~ {
+    map(~ { 
       library(rlang)
-      .x |>
-        tidyseurat::aggregate_cells(c(.sample, !!as.symbol(reference_label_fine)), slot = "data", assays= assays) |>
-        tidybulk::as_SummarizedExperiment(.sample, .feature, c(RNA, ADT)) |>
+      .x |> 
+        tidyseurat::aggregate_cells(c(!!sample_column, !!as.symbol(reference_label_fine)), slot = "data", assays=assays) |>
+        tidybulk::as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
+        #tidybulk::as_SummarizedExperiment(.sample, .feature, c(RNA)) |>
         
         # Reshape to make RNA and ADT both features
         pivot_longer(
@@ -619,7 +622,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
         
         # Covert
         tidybulk::as_SummarizedExperiment(
-          .sample = c( sample,!!as.symbol(reference_label_fine)),
+          .sample = c( !!sample_column,  !!as.symbol(reference_label_fine)),
           .transcript = .feature,
           .abundance = count
         )
@@ -681,9 +684,9 @@ pseudobulk_preprocessing <- function(reference_label_fine,
     # Aggregate
     map(~
           .x |>
-          tidyseurat::aggregate_cells(c(sample), slot = "counts", assays=assays) |>
-          tidybulk::as_SummarizedExperiment(.sample, .feature, c(RNA, ADT)) |>
-          
+          tidyseurat::aggregate_cells(c(!!sample_column), slot = "counts", assays=assays) |>
+          #tidybulk::as_SummarizedExperiment(!!sample_column, !!as.symbol(reference_label_fine), c(RNA, ADT)) |>
+          tidybulk::as_SummarizedExperiment(!!sample_column, .feature, any_of(c("RNA", "ADT"))) |>
           # Reshape to make RNA and ADT both features
           pivot_longer(
             cols = assays,
@@ -699,7 +702,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
           
           # Covert
           tidybulk::as_SummarizedExperiment(
-            .sample = c( sample),
+            .sample = c( !!sample_column),
             .transcript = .feature,
             .abundance = count
           )

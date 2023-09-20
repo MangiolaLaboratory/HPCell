@@ -77,6 +77,8 @@ store <- "~/stornext/General/scratch/GP_Transfer/si.j/test_single_cell_data"
 
 #Tissue types: pbmc, solid, atypical
 
+
+
 preprocessed_seurat = run_targets_pipeline(
     input_data = file_path, 
     store =  "~/stornext/General/scratch/GP_Transfer/si.j/test_single_cell_data", 
@@ -84,6 +86,7 @@ preprocessed_seurat = run_targets_pipeline(
     tissue= "pbmc",
     computing_resources = crew_controller_local(workers = 1), 
     debug_step = "empty_droplets_tbl"
+    sample_column = Tissue
   )
 
 

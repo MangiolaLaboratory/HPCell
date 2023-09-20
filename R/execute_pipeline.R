@@ -11,8 +11,12 @@ run_targets_pipeline <- function(
     computing_resources = crew_controller_local(workers = 1), 
     debug_step = NULL,
     filtered = TRUE, 
-    RNA_assay_name = NULL
+    RNA_assay_name = NULL, 
+    sample_column 
 ){
+  
+  sample_column = enquo(sample_column)
+  
   # Save inputs for passing to targets pipeline 
   # input_data |> CHANGE_ASSAY |> saveRDS("input_file.rds")
   input_data |> saveRDS("input_file.rds")
@@ -20,6 +24,7 @@ run_targets_pipeline <- function(
   tissue |> saveRDS("tissue.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
   filtered |> saveRDS("filtered.rds")
+  sample_column |> saveRDS("sample_column.rds")
   # Write pipeline to a file
   tar_script({
     
@@ -131,7 +136,8 @@ run_targets_pipeline <- function(
       tar_target(reference_file, "input_reference.rds", format = "rds"), 
       tar_target(read_reference_file, readRDS("input_reference.rds")), 
       tar_target(tissue_file, readRDS("tissue.rds")), 
-      tar_target(filtered_file, readRDS("filtered.rds")))
+      tar_target(filtered_file, readRDS("filtered.rds")), 
+      tar_target(sample_column_file, readRDS("sample_column.rds")))
     
     #-----------------------#
     # Pipeline
@@ -147,6 +153,7 @@ run_targets_pipeline <- function(
       #                        deployment = "main"),
       tar_target(filtered, filtered_file, deployment = "main"),
       tar_target(tissue, tissue_file, deployment = "main"),
+      tar_target(sample_column, sample_column_file, deployment = "main"),
       tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
       tar_target(reference_label_fine, reference_label_fine_id(tissue), deployment = "main"), 
       # Reading input files
@@ -229,7 +236,8 @@ run_targets_pipeline <- function(
       
       # pseudobulk preprocessing
       tar_target(pseudobulk_preprocessing_SE, pseudobulk_preprocessing(reference_label_fine,
-                                                                       preprocessing_output_S))
+                                                                       preprocessing_output_S, 
+                                                                       !!sample_column))
     ))
     
   }, script = glue("{store}.R"), ask = FALSE)
