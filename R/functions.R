@@ -45,7 +45,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
   # Remove genes from input
   if (
     # If filtered
-    filtered == "TRUE") {
+    filtered == TRUE) {
     barcode_table <- input_read_RNA_assay@assays$RNA@counts[!rownames(input_read_RNA_assay@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>

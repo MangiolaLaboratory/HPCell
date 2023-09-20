@@ -10,7 +10,7 @@ run_targets_pipeline <- function(
     tissue = "pbmc",
     computing_resources = crew_controller_local(workers = 1), 
     debug_step = NULL,
-    filtered = TRUE, 
+    filter_input = TRUE, 
     RNA_assay_name = NULL, 
     sample_column 
 ){
@@ -23,7 +23,7 @@ run_targets_pipeline <- function(
   input_reference |> saveRDS("input_reference.rds")
   tissue |> saveRDS("tissue.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
-  filtered |> saveRDS("filtered.rds")
+  filter_input |> saveRDS("filtered.rds")
   sample_column |> saveRDS("sample_column.rds")
   # Write pipeline to a file
   tar_script({
@@ -151,7 +151,7 @@ run_targets_pipeline <- function(
       # tarchetypes::tar_files(name= reference_track,
       #                        read_reference_file, 
       #                        deployment = "main"),
-      tar_target(filtered, filtered_file, deployment = "main"),
+      tar_target(filter_input, filtered_file, deployment = "main"),
       tar_target(tissue, tissue_file, deployment = "main"),
       tar_target(sample_column, sample_column_file, deployment = "main"),
       tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
@@ -168,7 +168,7 @@ run_targets_pipeline <- function(
       
       # Identifying empty droplets
       tar_target(empty_droplets_tbl,
-                 empty_droplet_id(input_read_RNA_assay, filtered),
+                 empty_droplet_id(input_read_RNA_assay, filter_input),
                  pattern = map(input_read_RNA_assay),
                  iteration = "list"),
       
