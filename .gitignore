@@ -12,3 +12,5 @@ input_reference.rds
 reference_azimuth.rds
 temp_computing_resources.rds
 tissue.rds
+README.md
+README.Rmd
