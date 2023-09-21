@@ -775,10 +775,11 @@ reference_label_coarse_id <- function(tissue) {
 #'
 add_RNA_assay <- function(input_read, RNA_assay_name){
   
+  if (RNA_assay_name != "RNA"){
   input_read[["RNA"]] = input_read[[RNA_assay_name]]
   DefaultAssay(object = input_read) <- "RNA"
   input_read[[RNA_assay_name]] = NULL
-  
+  }
   # names(input_read@assays)<- names(input_read@assays) |> sapply(function(x) if(x == RNA_assay_name) "RNA" else x)
   input_read
 }
@@ -1121,12 +1122,6 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
         
       }
     ))
-  
-  
-  
-  
-  
-  
   
   
 }
