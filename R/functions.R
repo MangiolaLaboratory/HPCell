@@ -542,7 +542,8 @@ non_batch_variation_removal <- function(input_path_demultiplexed,
   
 }
 # Preprocessing_output
-#' @importFrom tidyseurat left_join filter
+#' @importFrom tidyseurat left_join 
+#' @importFrom tidyseurat filter
 #' @export
 #' 
 preprocessing_output <- function(tissue, 
@@ -635,7 +636,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
   # Select only common column
   common_columns =
     pseudobulk |>
-    map(~ .x |> tidySummarizedExperiment::as_tibble() |> colnames()) |>
+    map(~ .x |> as_tibble() |> colnames()) |>
     unlist() |>
     table() %>%
     .[.==max(.)] |>
@@ -671,7 +672,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
       
     }) |>
     
-    map(~ .x |> tidySummarizedExperiment::select(any_of(common_columns)))   %>%
+    map(~ .x |> select(any_of(common_columns)))   %>%
     
     do.call(S4Vectors::cbind, .)
   
@@ -712,7 +713,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
   # Select only common column
   common_columns =
     pseudobulk |>
-    map(~ .x |> tidySummarizedExperiment::as_tibble() |> colnames()) |>
+    map(~ .x |> as_tibble() |> colnames()) |>
     unlist() |>
     table() %>%
     .[.==max(.)] |>
@@ -740,7 +741,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
       
     }) |>
     
-    map(~ .x |> tidySummarizedExperiment::select(any_of(common_columns)))   %>%
+    map(~ .x |> select(any_of(common_columns)))   %>%
     
     do.call(S4Vectors::cbind, .)
   
