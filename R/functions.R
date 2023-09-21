@@ -776,10 +776,12 @@ reference_label_coarse_id <- function(tissue) {
 #'
 add_RNA_assay <- function(input_read, RNA_assay_name){
   
-  input_read[["RNA"]] = input_read[[RNA_assay_name]]
-  DefaultAssay(object = input_read) <- "RNA"
-  input_read[[RNA_assay_name]] = NULL
-  
+  if(RNA_assay_name != "RNA"){
+    input_read[["RNA"]] = input_read[[RNA_assay_name]]
+    DefaultAssay(object = input_read) <- "RNA"
+    input_read[[RNA_assay_name]] = NULL
+  }
+    
   # names(input_read@assays)<- names(input_read@assays) |> sapply(function(x) if(x == RNA_assay_name) "RNA" else x)
   input_read
 }
