@@ -1,5 +1,5 @@
 ---
-title: "tidybulk - part of tidyTranscriptomics"
+title: "HPcell"
 output: github_document
 ---
 
