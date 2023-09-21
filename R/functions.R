@@ -542,7 +542,8 @@ non_batch_variation_removal <- function(input_path_demultiplexed,
   
 }
 # Preprocessing_output
-#' @importFrom tidyseurat left_join filter
+#' @importFrom tidyseurat left_join 
+#' @importFrom tidyseurat filter
 #' @export
 #' 
 preprocessing_output <- function(tissue, 
@@ -635,7 +636,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
   # Select only common column
   common_columns =
     pseudobulk |>
-    map(~ .x |> tidySummarizedExperiment::as_tibble() |> colnames()) |>
+    map(~ .x |> as_tibble() |> colnames()) |>
     unlist() |>
     table() %>%
     .[.==max(.)] |>
@@ -671,7 +672,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
       
     }) |>
     
-    map(~ .x |> tidySummarizedExperiment::select(any_of(common_columns)))   %>%
+    map(~ .x |> select(any_of(common_columns)))   %>%
     
     do.call(S4Vectors::cbind, .)
   
@@ -712,7 +713,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
   # Select only common column
   common_columns =
     pseudobulk |>
-    map(~ .x |> tidySummarizedExperiment::as_tibble() |> colnames()) |>
+    map(~ .x |> as_tibble() |> colnames()) |>
     unlist() |>
     table() %>%
     .[.==max(.)] |>
@@ -740,7 +741,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
       
     }) |>
     
-    map(~ .x |> tidySummarizedExperiment::select(any_of(common_columns)))   %>%
+    map(~ .x |> select(any_of(common_columns)))   %>%
     
     do.call(S4Vectors::cbind, .)
   
@@ -780,6 +781,7 @@ add_RNA_assay <- function(input_read, RNA_assay_name){
   DefaultAssay(object = input_read) <- "RNA"
   input_read[[RNA_assay_name]] = NULL
   }
+
   # names(input_read@assays)<- names(input_read@assays) |> sapply(function(x) if(x == RNA_assay_name) "RNA" else x)
   input_read
 }
@@ -1173,14 +1175,14 @@ map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
           tibble(.feature = rownames(.x)) |>
           mutate(chunk___ = min(1, .y):.y |> sample() |> rep(ceiling(nrow(.x)/max(1, .y))) |> head(nrow(.x)))
 
-        .x |>
-          left_join(chunks) |>
-          nest(!!.col := -chunk___)
+        # Join chunks
+        grouping_factor = chunks |> pull(chunk___) |> as.factor()
+
+         .x |> splitRowData(f = grouping_factor)
       }
     )) |>
     unnest(!!.col) |>
-    select(-chunk___) |>
-    mutate(se_md5 = map_chr(!!.col, digest))
+    mutate(se_md5 = ids::random_id(n()))
 }
 
 splitColData <- function(x, f) {
@@ -1212,6 +1214,19 @@ splitRowData <- function(x, f) {
   return(v)
   
 }
+
+# library(parallel)
+#
+# splitRowDataParallel <- function(x, f, numCores = detectCores() - 1) {
+#   i <- split(seq_along(f), f)
+#
+#   v <- mclapply(names(i), function(n) {
+#     x[i[[n]], ]
+#   }, mc.cores=numCores)
+#
+#   names(v) <- names(i)
+#   return(v)
+# }
 
 #' @importFrom digest digest
 #' @importFrom rlang enquo

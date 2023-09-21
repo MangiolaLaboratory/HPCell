@@ -77,7 +77,7 @@ preprocessed_seurat = run_targets_pipeline(
     input_reference = input_reference_path,
     tissue = tissue,
     computing_resources = crew_controller_local(workers = 1), 
-    filtered = TRUE, 
+    filter_input = TRUE, 
     RNA_assay_name 
 )
 
