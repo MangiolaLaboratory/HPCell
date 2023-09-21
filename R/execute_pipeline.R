@@ -11,8 +11,8 @@ run_targets_pipeline <- function(
     computing_resources = crew_controller_local(workers = 1), 
     debug_step = NULL,
     filter_input = TRUE, 
-    RNA_assay_name = NULL, 
-    sample_column 
+    RNA_assay_name = "RNA", 
+    sample_column = "sample"
 ){
   
   sample_column = enquo(sample_column)

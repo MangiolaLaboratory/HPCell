@@ -15,7 +15,7 @@ Flowchart
 
 https://app.mural.co/t/covid7029/m/covid7029/1656652076667/c47e104697d76b36b8dee3bd05d8de9d96d99efd?sender=udbe1ea99c9618abb07196978
 
-### Clone the repository
+Clone the repository
 
 ```{bash}
 
@@ -23,7 +23,7 @@ git clone git@github.com:susansjy22/HPCell.git
 
 ```
 
-### Install Jascap/HPCell package 
+Install Jascap/HPCell package 
 
 ```{r, eval=FALSE}
 
@@ -31,7 +31,7 @@ remote::install_github("git@github.com:susansjy22/HPCell.git")
 
 ```
 
-### load jascap package 
+load jascap package 
 
 ```{r}
 
@@ -39,7 +39,7 @@ library(jascap)
 
 ```
 
-### load input and reference data
+load input and reference data
 
 
 ```{r}
@@ -58,7 +58,7 @@ download.file(reference_url, input_reference_path)
 LoadH5Seurat(input_reference_path) |> saveRDS(input_reference_path)
 ```
 
-### Execute Targets workflow and load results
+Execute Targets workflow and load results
 
 ```{r}
 # Provide tissue types: pbmc, solid, atypical
