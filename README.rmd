@@ -41,17 +41,20 @@ library(jascap)
 
 load input and reference data
 
-
 ```{r}
 
 # Load input data (can be a list of directories or single directory)
 library(Seurat)
 library(scRNAseq)
+
 file_path = tempfile(tmpdir = "~/HPCell") |> paste0(".rds")
-single_cell_data = HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400]
+single_cell_data = HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] #Small sample to reduce run time 
 single_cell_data |> Seurat::as.Seurat(data = NULL) |> saveRDS(file_path)
 
-# Load reference data 
+###Load reference data 
+library(Azimuth)
+library(SeuratData)
+
 input_reference_path <- "reference_azimuth.rds"
 reference_url<- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
 download.file(reference_url, input_reference_path)
@@ -60,28 +63,25 @@ LoadH5Seurat(input_reference_path) |> saveRDS(input_reference_path)
 
 Execute Targets workflow and load results
 
+Tissue types: pbmc, solid, atypical
 ```{r}
-# Provide tissue types: pbmc, solid, atypical
-tissue <- "pbmc"
-
-# Create store directory 
-store <- "~/HPCell/pipeline_store"
-
-# Default assay name; to be changed to RNA assay
+# Define store directory
+store <- "path/to/store_HPcell_output"
+# Provide assay name (if not RNA)
 RNA_assay_name <- "originalexp"
 
-# Running the pipeline
 preprocessed_seurat = run_targets_pipeline(
     input_data = file_path, 
     store = store,
     input_reference = input_reference_path,
-    tissue = tissue,
+    tissue = "pbmc",
     computing_resources = crew_controller_local(workers = 1), 
     filter_input = TRUE, 
-    RNA_assay_name 
+    RNA_assay_name = RNA_assay_name, 
 )
 
-# Load results
+#Load results
 preprocessed_seurat
 
 ```
+
