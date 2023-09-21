@@ -13,4 +13,6 @@ reference_azimuth.rds
 temp_computing_resources.rds
 tissue.rds
 README.md
-README.Rmd
+README.rmd
+pipeline_store 
+pipeline_store.R

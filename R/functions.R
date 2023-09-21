@@ -10,7 +10,7 @@
 #' @importFrom tidyseurat select
 #' @export
 empty_droplet_id <- function(input_read_RNA_assay,
-                             filtered){
+                             filter_input){
   significance_threshold = 0.001
   # Genes to exclude
   location <- mapIds(
@@ -44,8 +44,8 @@ empty_droplet_id <- function(input_read_RNA_assay,
   
   # Remove genes from input
   if (
-    # If filtered
-    filtered == TRUE) {
+    # If filter_input
+    filter_input == "TRUE") {
     barcode_table <- input_read_RNA_assay@assays$RNA@counts[!rownames(input_read_RNA_assay@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>
@@ -776,12 +776,12 @@ reference_label_coarse_id <- function(tissue) {
 #'
 add_RNA_assay <- function(input_read, RNA_assay_name){
   
-  if(RNA_assay_name != "RNA"){
-    input_read[["RNA"]] = input_read[[RNA_assay_name]]
-    DefaultAssay(object = input_read) <- "RNA"
-    input_read[[RNA_assay_name]] = NULL
+  if (RNA_assay_name != "RNA"){
+  input_read[["RNA"]] = input_read[[RNA_assay_name]]
+  DefaultAssay(object = input_read) <- "RNA"
+  input_read[[RNA_assay_name]] = NULL
   }
-    
+
   # names(input_read@assays)<- names(input_read@assays) |> sapply(function(x) if(x == RNA_assay_name) "RNA" else x)
   input_read
 }
@@ -1126,12 +1126,6 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
     ))
   
   
-  
-  
-  
-  
-  
-  
 }
 
 #' @export
@@ -1282,10 +1276,6 @@ map_test_differential_abundance = function(
       )
     
   ))
-  
-  
-  
-  
   
   
 }
