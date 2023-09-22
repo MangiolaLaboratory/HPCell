@@ -18,7 +18,7 @@ Imports:
   tidybulk,
   tidySummarizedExperiment,
   tidySingleCellExperiment,
-  sctransform (>= 0.3.3),
+  sctransform(>= 0.3.3),
   glmGamPoi,
   dplyr, 
   tidyr, 
@@ -42,6 +42,7 @@ Imports:
   tidyHeatmap,
   cowplot,
   gridGraphics,
+  sccomp,
   scDblFinder,
   ggupset,
   magrittr,
@@ -52,7 +53,7 @@ Imports:
   AnnotationDbi, 
   broom, 
   SeuratDisk,
-  SingleCellExperiment
+  SingleCellExperiment, 
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.2.3
