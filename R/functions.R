@@ -1,14 +1,13 @@
 # empty_droplet_id
-#' @importFrom AnnotationDb mapIds
+#' @importFrom AnnotationDbi mapIds
 #' @importFrom stringr str_subset
 #' @importFrom dplyr left_join mutate
-#' @importFrom tibble rownames
 #' @importFrom tidyr replace_na
 #' @importFrom DropletUtils emptyDrops
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
-#' @importFrom tidyseurat select
-#' @export 
+#' @importFrom dplyr select
+#' @export
 empty_droplet_id <- function(input_read_RNA_assay,
                              filter_input){
   significance_threshold = 0.001
@@ -106,12 +105,12 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' @importFrom celldex BlueprintEncodeData
 #' @importFrom celldex MonacoImmuneData
 #' @importFrom SingleR SingleR
-#' @importFrom tidySummarizedExperiment as_tibble tibble nest
+#' @importFrom tibble as_tibble tibble
 #' @importFrom dplyr select rename
 #' @importFrom BiocGenerics ncol nrow
 #' @importFrom scuttle logNormCounts
-#' @importFrom tidyseurat left_join filter select as_tibble
-#' @importFrom CreateSeuratObject CreateAssayObject
+#' @importFrom dplyr left_join filter select
+#' @importFrom Seurat CreateSeuratObject CreateAssayObject
 #' @export
 annotation_label_transfer <- function(input_read_RNA_assay,
                                       reference_azimuth,
@@ -335,7 +334,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' @importFrom scuttle perCellQCMetrics
 #' @importFrom 
 #' @importFrom 
-#' @importFrom tidyseurat left_join filter
+#' @importFrom dplyr left_join filter
 #' @export
 #' 
 alive_identification <- function(input_read_RNA_assay,
@@ -423,7 +422,7 @@ alive_identification <- function(input_read_RNA_assay,
 }
 
 #Doublet identification
-#' @importFrom tidyseurat left_join filter
+#' @importFrom dplyr left_join filter
 #' @export
 #' 
 doublet_identification <- function(input_read_RNA_assay, 
@@ -457,7 +456,7 @@ doublet_identification <- function(input_read_RNA_assay,
 }
 
 #Cell cylce scoring 
-#' @importFrom tidyseurat left_join filter
+#' @importFrom dplyr left_join filter
 #' @export
 #' 
 cell_cycle_scoring <- function(input_read_RNA_assay, 
@@ -486,7 +485,7 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
   
 }
 #Non_batch_variation_removal
-#' @importFrom tidyseurat left_join filter
+#' @importFrom dplyr left_join filter
 #' @export
 #' 
 non_batch_variation_removal <- function(input_path_demultiplexed, 
@@ -542,8 +541,8 @@ non_batch_variation_removal <- function(input_path_demultiplexed,
   
 }
 # Preprocessing_output
-#' @importFrom tidyseurat left_join 
-#' @importFrom tidyseurat filter
+#' @importFrom dplyr left_join 
+#' @importFrom dplyr filter
 #' @export
 #' 
 preprocessing_output <- function(tissue, 
@@ -583,10 +582,10 @@ preprocessing_output <- function(tissue,
 
 
 # Pseudobulk_preprocessing
-#' @importFrom tidyseurat left_join filter
+#' @importFrom dplyr left_join filter
 #' @importFrom tidyseurat aggregate_cells
 #' @importFrom tidybulk as_SummarizedExperiment
-#' @importFrom tidySummarizedExperiment select
+#' @importFrom dplyr select
 #' @importFrom S4Vectors cbind
 #' @export
 #' 
@@ -1155,10 +1154,10 @@ map_add_dispersion_to_se = function(se_df, .col){
 #' @importFrom dplyr n
 #' @importFrom purrr map_chr
 #' @importFrom purrr map2
-#' @importFrom tidySummarizedExperiment left_join
-#' @importFrom tidySummarizedExperiment nest
-#' @importFrom tidySummarizedExperiment select
-#' @importFrom tidySummarizedExperiment mutate
+#' @importFrom dplyr left_join
+#' @importFrom tidyr nest
+#' @importFrom dplyr select
+#' @importFrom dplyr mutate
 #'
 #'
 #' @export
