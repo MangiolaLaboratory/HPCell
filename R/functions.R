@@ -8,7 +8,7 @@
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' @importFrom tidyseurat select
-#' @export empty_droplet_id
+#' @export 
 empty_droplet_id <- function(input_read_RNA_assay,
                              filter_input){
   significance_threshold = 0.001
