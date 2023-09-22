@@ -8,7 +8,7 @@
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' @importFrom tidyseurat select
-#' @export
+#' @export empty_droplet_id
 empty_droplet_id <- function(input_read_RNA_assay,
                              filter_input){
   significance_threshold = 0.001
@@ -1291,4 +1291,15 @@ tar_script_append = function(code, script = targets::tar_config_get("script")){
     head(-1) |>
     tail(-1) |>
     write_lines(script, append = TRUE)
+}
+
+#' @param a 
+#'
+#' @param b 
+#'
+#' @export 
+#' 
+addition = function(a, b){
+  c<-a+b
+c
 }
