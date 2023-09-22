@@ -465,7 +465,7 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
   counts =
     input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by = ".cell") |>
-    tidyseurat::filter(!empty_droplet) |>
+    filter(!empty_droplet) |>
     
     # Normalise needed
     NormalizeData() |>
@@ -510,7 +510,7 @@ non_batch_variation_removal <- function(input_path_demultiplexed,
       by=".cell"
     )
   
-  # tidyseurat::filter(!high_mitochondrion | !high_ribosome)
+  # filter(!high_mitochondrion | !high_ribosome)
   
   # variable_features = readRDS(input_path_merged_variable_genes)
   # 

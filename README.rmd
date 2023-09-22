@@ -17,7 +17,7 @@ https://app.mural.co/t/covid7029/m/covid7029/1656652076667/c47e104697d76b36b8dee
 
 Clone the repository
 
-```{bash}
+```
 
 git clone git@github.com:susansjy22/HPCell.git
 
@@ -47,17 +47,17 @@ load input and reference data
 library(Seurat)
 library(scRNAseq)
 
-file_path = tempfile(tmpdir = "~/HPCell") |> paste0(".rds")
+file_path = tempfile() |> paste0(".rds")
 single_cell_data = HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] #Small sample to reduce run time 
 single_cell_data |> Seurat::as.Seurat(data = NULL) |> saveRDS(file_path)
 
 ###Load reference data 
 library(Azimuth)
 library(SeuratData)
-
+library(SeuratDisk)
 input_reference_path <- "reference_azimuth.rds"
 reference_url<- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
-download.file(reference_url, input_reference_path)
+download.file(reference_url, input_reference_path, cacheOK = F)
 LoadH5Seurat(input_reference_path) |> saveRDS(input_reference_path)
 ```
 
@@ -66,7 +66,8 @@ Execute Targets workflow and load results
 Tissue types: pbmc, solid, atypical
 ```{r}
 # Define store directory
-store <- "path/to/store_HPcell_output"
+store <- "store_HPcell_output"
+
 # Provide assay name (if not RNA)
 RNA_assay_name <- "originalexp"
 
@@ -75,7 +76,6 @@ preprocessed_seurat = run_targets_pipeline(
     store = store,
     input_reference = input_reference_path,
     tissue = "pbmc",
-    computing_resources = crew_controller_local(workers = 1), 
     filter_input = TRUE, 
     RNA_assay_name = RNA_assay_name, 
 )
