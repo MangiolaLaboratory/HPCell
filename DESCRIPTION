@@ -51,9 +51,9 @@ Imports:
   BiocGenerics, 
   SeuratObject, 
   AnnotationDbi, 
-  broom, 
+  broom,
   SeuratDisk,
-  SingleCellExperiment, 
+  SingleCellExperiment
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.2.3
