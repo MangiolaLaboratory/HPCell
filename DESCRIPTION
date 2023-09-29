@@ -18,7 +18,7 @@ Imports:
   tidybulk,
   tidySummarizedExperiment,
   tidySingleCellExperiment,
-  sctransform (>= 0.3.3),
+  sctransform(>= 0.3.3),
   glmGamPoi,
   dplyr, 
   tidyr, 
@@ -42,6 +42,7 @@ Imports:
   tidyHeatmap,
   cowplot,
   gridGraphics,
+  sccomp,
   scDblFinder,
   ggupset,
   magrittr,
@@ -50,7 +51,7 @@ Imports:
   BiocGenerics, 
   SeuratObject, 
   AnnotationDbi, 
-  broom, 
+  broom,
   SeuratDisk,
   SingleCellExperiment
 Encoding: UTF-8

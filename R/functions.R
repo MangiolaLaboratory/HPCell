@@ -1291,3 +1291,14 @@ tar_script_append = function(code, script = targets::tar_config_get("script")){
     tail(-1) |>
     write_lines(script, append = TRUE)
 }
+
+#' @param a 
+#'
+#' @param b 
+#'
+#' @export 
+#' 
+addition = function(a, b){
+  c<-a+b
+c
+}
