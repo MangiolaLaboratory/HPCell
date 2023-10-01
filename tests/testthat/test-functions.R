@@ -35,21 +35,25 @@
 
 ### Load input data 
 file_path = "input_data.rds"
-single_cell_data = scRNAseq::HeOrganAtlasData(ensembl=FALSE,location=FALSE)[,1:100]
-single_cell_data |> Seurat::as.Seurat(data = NULL) |> saveRDS(file_path)
-
+if(!file.exists(file_path)) 
+{
+  single_cell_data = scRNAseq::HeOrganAtlasData(ensembl=FALSE,location=FALSE)[,1:100]
+  single_cell_data |> Seurat::as.Seurat(data = NULL) |> saveRDS(file_path)
+}
 ###Load reference data 
 input_reference_path <- "reference_azimuth.rds"
-reference_url<- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
-download.file(reference_url, input_reference_path)
-LoadH5Seurat(input_reference_path) |> saveRDS(input_reference_path)
+if(!file.exists(input_reference_path)) 
+  {
+  reference_url<- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
+  download.file(reference_url, input_reference_path, cacheOK = TRUE)
+  LoadH5Seurat(input_reference_path) |> saveRDS(input_reference_path)
+}
 
 ## Define arguments 
 filtered <- "TRUE"
 tissue <- "pbmc"
 RNA_assay_name<- "originalexp"
 input_file<- readRDS(file_path)
-input_reference_path <- "reference_azimuth.rds"
 reference_azimuth = readRDS(input_reference_path)
 
 # Function testing
