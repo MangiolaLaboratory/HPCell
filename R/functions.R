@@ -116,7 +116,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
                                       reference_azimuth,
                                       empty_droplets_tbl
 ){
-  
+  if (class(reference_azimuth) == "Seurat") {
   # SingleR
   sce =
     input_read_RNA_assay |>
@@ -254,7 +254,6 @@ annotation_label_transfer <- function(input_read_RNA_assay,
         input_read_RNA_assay[["ADT"]] = ADT_assay |> CreateAssayObject()
     }
     
-    
     # Normalise RNA
     input_read_RNA_assay =
       input_read_RNA_assay |>
@@ -329,6 +328,8 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     modified_data
   }
+  }
+  else input_read_RNA_assay
 }
 #alive_identification 
 #' @importFrom scuttle perCellQCMetrics
@@ -594,7 +595,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
   assays = input_path_preprocessing_output[[1]]@assays |> names() |> intersect(c("RNA", "ADT"))
   
   sample_column = enquo(sample_column)
-  
+  #sample_symbol <- rlang::sym(rlang::quo_get_expr(sample_column))
   pseudobulk =
     input_path_preprocessing_output |>
     
