@@ -133,8 +133,8 @@ run_targets_pipeline <- function(
     target_list = list(
       tar_target(file, "input_file.rds", format = "rds"), 
       tar_target(read_file, readRDS("input_file.rds")),
-      tar_target(reference_file, "input_reference.rds", format = "rds"), 
-      tar_target(read_reference_file, readRDS("input_reference.rds")), 
+      #tar_target(reference_file, "input_reference.rds", format = "rds"), 
+      tar_target(reference_file, readRDS("input_reference.rds")), 
       tar_target(tissue_file, readRDS("tissue.rds")), 
       tar_target(filtered_file, readRDS("filtered.rds")), 
       tar_target(sample_column_file, readRDS("sample_column.rds")))
@@ -163,8 +163,7 @@ run_targets_pipeline <- function(
       tar_target(input_read_RNA_assay, add_RNA_assay(input_read, RNA_assay_name), 
                  pattern = map(input_read), 
                  iteration = "list"),
-      tar_target(reference_read, readRDS(read_reference_file),
-                 deployment = "main"),
+      tar_target(reference_read, reference_file, deployment = "main"),
       
       # Identifying empty droplets
       tar_target(empty_droplets_tbl,
@@ -237,8 +236,8 @@ run_targets_pipeline <- function(
       # pseudobulk preprocessing
       tar_target(pseudobulk_preprocessing_SE, pseudobulk_preprocessing(reference_label_fine,
                                                                        preprocessing_output_S, 
-                                                                       !!sample_column))
-    ))
+                                                                       !!sample_column)
+    )))
     
   }, script = glue("{store}.R"), ask = FALSE)
   
