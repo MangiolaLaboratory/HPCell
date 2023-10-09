@@ -116,7 +116,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
                                       reference_azimuth,
                                       empty_droplets_tbl
 ){
-  
+  if ( inherits(reference_azimuth, "Seurat") ) {
   # SingleR
   sce =
     input_read_RNA_assay |>
@@ -254,7 +254,6 @@ annotation_label_transfer <- function(input_read_RNA_assay,
         input_read_RNA_assay[["ADT"]] = ADT_assay |> CreateAssayObject()
     }
     
-    
     # Normalise RNA
     input_read_RNA_assay =
       input_read_RNA_assay |>
@@ -329,6 +328,8 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     modified_data
   }
+  }
+  else {return(NULL)}
 }
 #alive_identification 
 #' @importFrom scuttle perCellQCMetrics
@@ -356,69 +357,112 @@ alive_identification <- function(input_read_RNA_assay,
   
   which_mito = rownames(input_read_RNA_assay) |> str_which("^MT")
   
-  mitochondrion =
-    input_read_RNA_assay |>
-    GetAssayData( slot = "counts", assay="RNA") |>
-    
-    # Join mitochondrion statistics
-    # Compute per-cell quality control metrics for a count matrix or a SingleCellExperiment
-    perCellQCMetrics(subsets=list(Mito=which_mito)) |>
-    as_tibble(rownames = ".cell") |>
-    select(-sum, -detected) |>
-    
-    # Join cell types
-    left_join(ann_lbl_trs, by = ".cell") |>
-    
-    # Label cells
-    nest(data = -blueprint_first.labels.fine) |>
-    mutate(data = map(
-      data,
-      ~ .x |>
-        mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher")) |>
-        
-        # For compatibility
-        mutate(high_mitochondrion = as.logical(high_mitochondrion))
-    )) |>
-    unnest(data)
+  # mitochondrion =
+  #   input_read_RNA_assay |>
+  #   GetAssayData( slot = "counts", assay="RNA") |>
+  # 
+  #   # Join mitochondrion statistics
+  #   # Compute per-cell quality control metrics for a count matrix or a SingleCellExperiment
+  #   perCellQCMetrics(subsets=list(Mito=which_mito)) |>
+  #   as_tibble(rownames = ".cell") |>
+  #   select(-sum, -detected) |>
+  # 
+  #   # Join cell types if ann_lbl_trs provided
+  #   {\(x)
+  #     if (inherits(ann_lbl_trs, "tbl_df")) {
+  #       left_join(x, ann_lbl_trs, by = ".cell") |>
+  # 
+  #       # Label cells
+  #       nest(data = -blueprint_first.labels.fine) |>
+  #         mutate(data = map(
+  #           data,
+  #           ~ .x |>
+  #             mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher")) |>
+  # 
+  #             # For compatibility
+  #             mutate(high_mitochondrion = as.logical(high_mitochondrion))
+  #         )) |>
+  #         unnest(data)
+  #     } else {
+  #       x
+  #     }
+  #   }()
   
+  #Extract counts for RNA assay
+  rna_counts <- GetAssayData(input_read_RNA_assay, slot = "counts", assay="RNA")
+
+  # Compute per-cell QC metrics
+  qc_metrics <- perCellQCMetrics(rna_counts, subsets=list(Mito=which_mito)) %>%
+    as_tibble(rownames = ".cell") %>%
+    select(-sum, -detected)
+
+  # Add cell type labels and determine high mitochondrion content, if ann_lbl_trs is provided
+  if (inherits(ann_lbl_trs, "tbl_df")) {
+    mitochondrion <- qc_metrics %>%
+      left_join(ann_lbl_trs, by = ".cell") %>%
+      nest(data = -blueprint_first.labels.fine) %>%
+      mutate(data = map(data, ~ .x %>%
+                          mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
+                                 high_mitochondrion = as.logical(high_mitochondrion)))) %>%
+      unnest(cols = data)
+  } else {
+    # Determing high mitochondrion content 
+    mitochondrion <- qc_metrics %>%
+      nest(data = everything()) %>%
+      mutate(data = map(data, ~ .x %>%
+                          mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
+                                 high_mitochondrion = as.logical(high_mitochondrion)))) %>%
+      unnest(cols = data)
+  }
   
-  ribosome =
-    
-    input_read_RNA_assay |>
-    
-    select(.cell) |>
-    
-    # Join mitochondrion statistics
-    
-    
-    mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1]  ) |>
-    
-    # Join cell types
-    left_join(ann_lbl_trs, by = ".cell") |>
-    
-    # Label cells
-    nest(data = -blueprint_first.labels.fine) |>
-    mutate(data = map(
-      data,
-      ~ .x |>
-        # Label cells
-        
-        
-        mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
-        
-        # For compatibility
-        mutate(high_ribosome = as.logical(high_ribosome)) |>
-        
-        as_tibble() |>
-        select(.cell, subsets_Ribo_percent, high_ribosome)
-    )) |>
-    unnest(data)
-  
+
+  if (inherits(ann_lbl_trs, "tbl_df")) {
+
+    ribosome =
+      input_read_RNA_assay |>
+      select(.cell) |>
+      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1]) |>
+      left_join(ann_lbl_trs, by = ".cell") |>
+      nest(data = -blueprint_first.labels.fine) |>
+      mutate(data = map(
+        data,
+        ~ .x |>
+          mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
+          mutate(high_ribosome = as.logical(high_ribosome)) |>
+          as_tibble() |>
+          select(.cell, subsets_Ribo_percent, high_ribosome)
+      )) |>
+      unnest(data)
+
+  } else {
+
+    # ribosome =
+    #   input_read_RNA_assay |>
+    #   select(.cell) |>
+    #   mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1])
+    ribosome =
+      input_read_RNA_assay |>
+      select(.cell) |>
+      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1]) |>
+      nest(data = everything()) |>
+      mutate(data = map(
+        data,
+        ~ .x |>
+          mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
+          mutate(high_ribosome = as.logical(high_ribosome)) |>
+          as_tibble() |>
+          select(.cell, subsets_Ribo_percent, high_ribosome)
+      )) |>
+      unnest(data)
+  }
+  #ribosome_meta <- as.data.frame(ribosome@meta.data)
+
   modified_data <- mitochondrion |>
     left_join(ribosome, by=".cell") |>
     mutate(alive = !high_mitochondrion) # & !high_ribosome ) |>
   
   modified_data
+  
 }
 
 #Doublet identification
@@ -430,8 +474,7 @@ doublet_identification <- function(input_read_RNA_assay,
                                    alive_id, 
                                    ann_lbl_trs, 
                                    reference_label){
-  
-  input_read_RNA_assay |>
+    filter_input <- input_read_RNA_assay |>
     
     # Filtering empty
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
@@ -439,20 +482,22 @@ doublet_identification <- function(input_read_RNA_assay,
     
     # Filter dead
     left_join(alive_id |> select(.cell, high_mitochondrion, high_ribosome), by = ".cell") |>
-    filter(!high_mitochondrion & !high_ribosome) |>
-    
+    filter(!high_mitochondrion & !high_ribosome) 
+
     # Annotate
-    left_join(ann_lbl_trs, by = ".cell") |>
-    
+    if (inherits(ann_lbl_trs, "tbl_df"))
+        {filter_input<- filter_input |> 
+            left_join(ann_lbl_trs, by = ".cell")} 
+  
     # Convert
+    filter_input |>
     as.SingleCellExperiment() |>
-    
-    # Double identification. If no label provided calculate clusters
-    scDblFinder(clusters = ifelse(reference_label=="none", TRUE, reference_label)) |>
-    
+    #scDblFinder(clusters = ifelse(reference_label=="none", TRUE, reference_label)) |>
+    scDblFinder(clusters = NULL) |>
     # Parse
     as_tibble() |>
     select(.cell, contains("scDblFinder")) 
+    
 }
 
 #Cell cylce scoring 
@@ -492,7 +537,6 @@ non_batch_variation_removal <- function(input_path_demultiplexed,
                                         input_path_empty_droplets, 
                                         input_path_alive, 
                                         input_cell_cycle_scoring){
-  
   counts =
     input_path_demultiplexed |>
     left_join(input_path_empty_droplets, by = ".cell") |>
@@ -568,14 +612,16 @@ preprocessing_output <- function(tissue,
     
     # Filter doublets
     left_join(input_path_doublet_identification |> select(.cell, scDblFinder.class), by = ".cell") |>
-    filter(scDblFinder.class=="singlet") |>
+    filter(scDblFinder.class=="singlet") 
+    
+    if (inherits(input_path_annotation_label_transfer, "tbl_df")){
+      processed_data <- processed_data |>
+      left_join(input_path_annotation_label_transfer, by = ".cell")}
     
     # Filter Red blood cells and platelets
-    left_join(input_path_annotation_label_transfer, by = ".cell") 
-  
-  if (tolower(tissue) == "pbmc") {
+    if (tolower(tissue) == "pbmc" & inherits(input_path_annotation_label_transfer, "tbl_df")) {
     filtered_data <- filter(processed_data, !predicted.celltype.l2 %in% c("Eryth", "Platelet"))
-  } else {
+    } else {
     filtered_data <- processed_data
   }
 }
@@ -590,11 +636,12 @@ preprocessing_output <- function(tissue,
 #' @export
 #' 
 pseudobulk_preprocessing <- function(reference_label_fine, 
-                                     input_path_preprocessing_output, sample_column){
+                                     input_path_preprocessing_output, sample_column, ann_lbl_trs){
+  if (reference_label_fine %in% colnames(input_path_preprocessing_output[[1]]@meta.data)) {
   assays = input_path_preprocessing_output[[1]]@assays |> names() |> intersect(c("RNA", "ADT"))
   
   sample_column = enquo(sample_column)
-  
+  #sample_symbol <- rlang::sym(rlang::quo_get_expr(sample_column))
   pseudobulk =
     input_path_preprocessing_output |>
     
@@ -747,7 +794,8 @@ pseudobulk_preprocessing <- function(reference_label_fine,
   return(list(
     pseudobulk_by_sample = output_path_sample,
     pseudobulk_by_sample_and_cell_type = output_path_sample_cell_type
-  ))
+  ))}
+  else {return(NULL)}
 }
 # # Reference_label_fine
 #' @export
