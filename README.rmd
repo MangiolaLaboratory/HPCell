@@ -51,11 +51,11 @@ file_path = tempfile(tmpdir = "~/HPCell") |> paste0(".rds")
 single_cell_data = HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400]
 single_cell_data |> Seurat::as.Seurat(data = NULL) |> saveRDS(file_path)
 
-# Load reference data 
-input_reference_path <- "reference_azimuth.rds"
-reference_url<- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
-download.file(reference_url, input_reference_path)
-LoadH5Seurat("pbmc_multimodal.h5seurat") |> saveRDS(input_reference_path)
+# # Load reference data 
+# input_reference_path <- "reference_azimuth.rds"
+# reference_url<- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
+# download.file(reference_url, input_reference_path)
+# LoadH5Seurat("pbmc_multimodal.h5seurat") |> saveRDS(input_reference_path)
 ```
 
 Execute Targets workflow and load results
@@ -74,7 +74,6 @@ RNA_assay_name <- "originalexp"
 preprocessed_seurat = run_targets_pipeline(
     input_data = file_path, 
     store = store,
-    input_reference = input_reference_path,
     tissue = tissue,
     computing_resources = crew_controller_local(workers = 1), 
     filter_input = TRUE, 
