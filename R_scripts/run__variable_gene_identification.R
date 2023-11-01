@@ -18,7 +18,7 @@ library(glue)
 library(purrr)
 library(magrittr)
 library(tibble)
-library(jascap)
+library(HPCell)
 library(stringr)
 
 # Divide into 5 chunks
