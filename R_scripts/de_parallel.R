@@ -17,3 +17,11 @@ my_store = tempfile(tmpdir = ".")
 
 my_data_df |> 
   hpcell_test_differential_abundance(store = my_store)
+
+
+se =
+  tidySummarizedExperiment::se |>
+  tidybulk::keep_abundant()
+  
+  se |>
+    hpcell_test_differential_abundance(~ dex + (1 | cell))

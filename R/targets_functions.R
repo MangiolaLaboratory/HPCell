@@ -16,6 +16,7 @@ hpcell_map_test_differential_abundance = function(
     .data_column, 
     store =  tempfile(tmpdir = "."), 
     computing_resources = crew_controller_local(workers = 1) , 
+    debug_job_id = NULL,
     append = FALSE
   ){
   
@@ -28,6 +29,7 @@ hpcell_map_test_differential_abundance = function(
   data_df |> rename(data = !!.data_column) |>  saveRDS("temp_data.rds")
   formula |>  saveRDS("temp_formula.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
+  debug_job_id |> saveRDS("temp_debug_job_id.rds")
   
   # Header
   if(!append)
@@ -49,7 +51,7 @@ hpcell_map_test_differential_abundance = function(
     # plan(callr)
     
     computing_resources = readRDS("temp_computing_resources.rds")
-      
+    debug_job_id = readRDS("temp_debug_job_id.rds")
     
     #-----------------------#
     # Packages
@@ -62,11 +64,10 @@ hpcell_map_test_differential_abundance = function(
       ), 
       storage = "worker", 
       retrieval = "worker", 
-      error = "continue", 		
+      # error = "continue", 		
       format = "qs",
-      controller = computing_resources
-      #,
-      #debug = "estimates_b84ea256", # Set the target you want to debug.
+      controller = computing_resources,
+      debug = debug_job_id # Set the target you want to debug.
       #cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
     )
 
@@ -163,15 +164,20 @@ hpcell_map_test_differential_abundance = function(
   }, glue("{store}.R"))
   
   # Execute pipeline
-  if(!append)
-  tar_make_future(
-    script = glue("{store}.R"),
-    store = store, 
-    workers = 10
-    #, 
-    #workers = 200, 
-    #garbage_collection = TRUE
-  )
+  if(!append){
+    
+     if(is.null(debug_job_id)) callr_function = callr::r
+     else callr_function = NULL
+    
+    tar_make(
+      script = glue("{store}.R"),
+      store = store, 
+      callr_function = callr_function
+      #, 
+      #workers = 200, 
+      #garbage_collection = TRUE
+    )
+  }
   
   if(!append)
   file.remove("temp_data.rds")
@@ -187,13 +193,13 @@ hpcell_map_test_differential_abundance = function(
 #' 
 #' @export
 #' 
-hpcell_test_differential_abundance = function(.data, formula, store =  tempfile(tmpdir = "."),  computing_resources = crew_controller_local(workers = 2) ,  append = FALSE){
+hpcell_test_differential_abundance = function(.data, formula, store =  tempfile(tmpdir = "."),  computing_resources = crew_controller_local(workers = 2) , debug_job_id = NULL, append = FALSE){
   
   # Create input dataframe
   tibble(name = "my_data", data = list(!!.data )) |> 
     
     # Call map function 
-    hpcell_map_test_differential_abundance(formula, data, store = store, computing_resources = computing_resources, append = append)
+    hpcell_map_test_differential_abundance(formula, data, store = store, computing_resources = computing_resources, debug_job_id = debug_job_id, append = append)
   
 }
 
