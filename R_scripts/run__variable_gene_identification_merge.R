@@ -14,7 +14,7 @@ library(tidyseurat)
 library(glue)
 library(purrr)
 library(tibble)
-library(jascap)
+library(HPCell)
 
 # Create dir
 output_path |> dirname() |> dir.create( showWarnings = FALSE)

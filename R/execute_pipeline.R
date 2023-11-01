@@ -39,7 +39,7 @@ run_targets_pipeline <- function(
     #-----------------------#
     tar_option_set(
       packages = c(
-        "jascap",
+        "HPCell",
         "readr",
         "dplyr",
         "tidyr",
