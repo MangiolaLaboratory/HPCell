@@ -13,7 +13,7 @@ tissue = args[[2]]
 filtered = args[[3]]
 
 if(!modality %in% c("preprocessing", "slow_pipeline", "fast_pipeline", "complete_pipeline"))
-  stop("jascap says: modality (the first argument) should be one of the following: preprocessing, slow_pipeline, fast_pipeline, complete_pipeline")
+  stop("HPCell says: modality (the first argument) should be one of the following: preprocessing, slow_pipeline, fast_pipeline, complete_pipeline")
 
 result_directory = args[[4]]
 reports_directory = args[[5]]
@@ -28,7 +28,7 @@ reference_azimuth_path = args[[9]]
 # result_directory = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches"
 # reports_directory = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches/preprocessing_results/reports/"
 # input_directory = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches/input_files"
-# code_directory = "/home/users/allstaff/mangiola.s/PostDoc/jascap"
+# code_directory = "/home/users/allstaff/mangiola.s/PostDoc/HPCell"
 # metadata_path = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches/metadata.rds"
 # reference_azimuth_path = "/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/reference_azimuth.rds"
 

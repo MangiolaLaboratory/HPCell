@@ -1,6 +1,6 @@
 # https://satijalab.org/seurat/articles/multimodal_reference_mapping.html
 
-# Rscript /home/users/allstaff/mangiola.s/PostDoc/jascap/R/run__annotation_label_transfer.R
+# Rscript /home/users/allstaff/mangiola.s/PostDoc/HPCell/R/run__annotation_label_transfer.R
 # input_path_demultiplexed = "data/3_prime_batch_1/input_files/0483-002_NA.rds"
 # input_path_empty_droplets = "data/3_prime_batch_1/preprocessing_results/empty_droplet_identification/0483-002_NA__empty_droplet_identification_output.rds"
 # reference_azimuth_path = "/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/reference_azimuth.rds"

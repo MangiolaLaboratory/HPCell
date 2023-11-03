@@ -60,7 +60,7 @@ hpcell_map_test_differential_abundance = function(
       packages = c(
         "stringr", "tibble", "tidySingleCellExperiment", "dplyr", "Matrix",
         "Seurat", "tidyseurat", "glue", "purrr", "tidybulk", "tidySummarizedExperiment", "edgeR",
-        "digest", "jascap"
+        "digest", "HPCell"
       ), 
       storage = "worker", 
       retrieval = "worker", 

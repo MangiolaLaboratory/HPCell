@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 # library(testthat)
-# library(jascap)
+# library(HPCell)
 # 
-# test_check("jascap")
+# test_check("HPCell")
