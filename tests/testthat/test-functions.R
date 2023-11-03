@@ -1,5 +1,5 @@
 ## Load packages
-# my_packages <- c( "jascap",
+# my_packages <- c( "HPCell",
 #                   "glue",
 #                   "readr",
 #                   "dplyr",
@@ -164,16 +164,16 @@ test_that("Preprocessing_works", {
 
 
 
-# alive_identification_B14<- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/alive_identification/CB150T04X__batch14__alive_identification_output.rds")
+# alive_identification_B14<- readRDS("/home/users/allstaff/si.j/test_HPCell/results/preprocessing_results/alive_identification/CB150T04X__batch14__alive_identification_output.rds")
 # 
-# doublet_identification_B14<- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/doublet_identification/CB150T04X__batch14__doublet_identification_output.rds")
+# doublet_identification_B14<- readRDS("/home/users/allstaff/si.j/test_HPCell/results/preprocessing_results/doublet_identification/CB150T04X__batch14__doublet_identification_output.rds")
 # 
-# annotation_label_transfer_B14<- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/annotation_label_transfer/CB150T04X__batch14__annotation_label_transfer_output.rds")
+# annotation_label_transfer_B14<- readRDS("/home/users/allstaff/si.j/test_HPCell/results/preprocessing_results/annotation_label_transfer/CB150T04X__batch14__annotation_label_transfer_output.rds")
 # 
-# non_batch_variation_removal <- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/non_batch_variation_removal/CB150T04X__batch14__non_batch_variation_removal_output.rds")
+# non_batch_variation_removal <- readRDS("/home/users/allstaff/si.j/test_HPCell/results/preprocessing_results/non_batch_variation_removal/CB150T04X__batch14__non_batch_variation_removal_output.rds")
 # 
-# cell_cycle_scoring <- readRDS("/home/users/allstaff/si.j/test_jascap/results/preprocessing_results/cell_cycle_scoring/CB150T04X__batch14__cell_cycle_scoring_output.rds")
+# cell_cycle_scoring <- readRDS("/home/users/allstaff/si.j/test_HPCell/results/preprocessing_results/cell_cycle_scoring/CB150T04X__batch14__cell_cycle_scoring_output.rds")
 # 
-# reference_azimuth <- readRDS("/home/users/allstaff/si.j/jascap_ARCHIVE/data/Data/jiayi_files/reference_azimuth.rds")
+# reference_azimuth <- readRDS("/home/users/allstaff/si.j/HPCell_ARCHIVE/data/Data/jiayi_files/reference_azimuth.rds")
 
 
