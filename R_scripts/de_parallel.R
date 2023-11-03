@@ -24,4 +24,14 @@ se =
   tidybulk::keep_abundant()
   
   se |>
-    hpcell_test_differential_abundance(~ dex + (1 | cell))
+    hpcell_test_differential_abundance(
+      ~ dex + (1 | cell), 
+      computing_resources = crew.cluster::crew_controller_slurm(
+        name = "slurm",
+        slurm_memory_gigabytes_per_cpu = 5,
+        slurm_cpus_per_task = 2,
+        workers = 200,
+        verbose = T
+      )
+      )
+  
