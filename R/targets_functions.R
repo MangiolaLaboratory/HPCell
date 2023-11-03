@@ -16,6 +16,7 @@ hpcell_map_test_differential_abundance = function(
     .data_column, 
     store =  tempfile(tmpdir = "."), 
     computing_resources = crew_controller_local(workers = 1) , 
+    cpus_per_task = 1,
     debug_job_id = NULL,
     append = FALSE
   ){
@@ -30,6 +31,7 @@ hpcell_map_test_differential_abundance = function(
   formula |>  saveRDS("temp_formula.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
   debug_job_id |> saveRDS("temp_debug_job_id.rds")
+  cpus_per_task |> saveRDS("temp_cpus_per_task.rds")
   
   # Header
   if(!append)
@@ -89,6 +91,10 @@ hpcell_map_test_differential_abundance = function(
       
       tarchetypes::tar_group_by(pseudobulk_df_tissue, readRDS(file), name),
       
+      # cpi per task
+      tar_target(cpus_per_task, readRDS("temp_cpus_per_task.rds")),
+      tar_target(computing_resources, readRDS("temp_computing_resources.rds")),
+
       # Dispersion
       tar_target(
         pseudobulk_df_tissue_dispersion, 
@@ -102,7 +108,7 @@ hpcell_map_test_differential_abundance = function(
       # Split in gene chunks
       tar_target(
         pseudobulk_df_tissue_split_by_gene, 
-        pseudobulk_df_tissue_dispersion |> map_split_se_by_gene(data, 10), 
+        pseudobulk_df_tissue_dispersion |> map_split_se_by_gene(data, computing_resources$client$workers), 
         pattern = map(pseudobulk_df_tissue_dispersion),
         iteration = "group"
         # , 
@@ -124,7 +130,11 @@ hpcell_map_test_differential_abundance = function(
             data,
             formula, 
             max_rows_for_matrix_multiplication = 10000, 
-            cores = 18
+            cores = cpus_per_task, 
+            
+            # this is needed, because if I use targets, it will call callR 
+            # and the four King will be unsafe and he could crash
+            avoid_forking = TRUE
           ) , 
         pattern = map(pseudobulk_df_tissue_split_by_gene_grouped),
         iteration = "group"
@@ -193,13 +203,13 @@ hpcell_map_test_differential_abundance = function(
 #' 
 #' @export
 #' 
-hpcell_test_differential_abundance = function(.data, formula, store =  tempfile(tmpdir = "."),  computing_resources = crew_controller_local(workers = 2) , debug_job_id = NULL, append = FALSE){
+hpcell_test_differential_abundance = function(.data, formula, store =  tempfile(tmpdir = "."),  computing_resources = crew_controller_local(workers = 1) ,     cpus_per_task = 1, debug_job_id = NULL, append = FALSE){
   
   # Create input dataframe
   tibble(name = "my_data", data = list(!!.data )) |> 
     
     # Call map function 
-    hpcell_map_test_differential_abundance(formula, data, store = store, computing_resources = computing_resources, debug_job_id = debug_job_id, append = append)
+    hpcell_map_test_differential_abundance(formula, data, store = store, computing_resources = computing_resources,     cpus_per_task = cpus_per_task, debug_job_id = debug_job_id, append = append)
   
 }
 

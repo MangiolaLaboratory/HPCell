@@ -2,7 +2,7 @@ library(tidyverse)
 library(jascap)
 library(targets)
 library(glue)
-
+library(tictoc)
 
 # Get input
 
@@ -23,5 +23,8 @@ se =
   tidySummarizedExperiment::se |>
   tidybulk::keep_abundant()
   
-  se |>
-    hpcell_test_differential_abundance(~ dex + (1 | cell))
+tic()
+se |>
+  hpcell_test_differential_abundance(~ dex + (1 | cell), computing_resources = crew_controller_local(workers = 10))
+toc()
+

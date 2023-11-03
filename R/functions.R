@@ -1303,12 +1303,14 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
 
 #' @export
 map_test_differential_abundance = function(
-    se, .col, formula, max_rows_for_matrix_multiplication = NULL,
-    cores = 1
+    se, .col, 
+    formula, max_rows_for_matrix_multiplication = NULL,
+    cores = 1,
+    ...
 ){
   
   .col = enquo(.col)
-  
+   
   se |> mutate(!!.col := map(
     !!.col,
     ~ .x |>
@@ -1319,8 +1321,10 @@ map_test_differential_abundance = function(
         method = "glmmSeq_lme4",
         cores = cores,
         max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,
-        .dispersion = dispersion
-      )
+        .dispersion = dispersion,
+        ...
+      ),
+    ...
     
   ))
   
