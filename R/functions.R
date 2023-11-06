@@ -333,8 +333,6 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 }
 #alive_identification 
 #' @importFrom scuttle perCellQCMetrics
-#' @importFrom 
-#' @importFrom 
 #' @importFrom dplyr left_join filter
 #' @export
 #' 
@@ -877,7 +875,7 @@ seurat_to_variable_features_by_cell_type = function(counts, assay, .cell_group =
   }
   else {
     
-    warning(glue("jascap says: you have only one distinct `{quo_name(.cell_group)}`, the per-cell-group variable gene detection will be skipped as it would olverlap with the global detection."))
+    warning(glue("HPCell says: you have only one distinct `{quo_name(.cell_group)}`, the per-cell-group variable gene detection will be skipped as it would olverlap with the global detection."))
     
     tibble()
   }
