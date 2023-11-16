@@ -46,9 +46,10 @@ load input and reference data
 # Load input data (can be a list of directories or single directory)
 library(Seurat)
 library(scRNAseq)
-file_path = tempfile(tmpdir = "~/Desktop/Ondemand_Hpcell/HPCell") |> paste0(".rds")
-single_cell_data = HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400]
-single_cell_data |> Seurat::as.Seurat(data = NULL) |> saveRDS(file_path)
+file_path = tempfile() |> paste0(".rds")
+HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
+  as.Seurat(data = NULL) |> 
+  saveRDS(file_path)
 ```
 
 Execute Targets workflow and load results
@@ -59,7 +60,6 @@ Execute Targets workflow and load results
 preprocessed_seurat = run_targets_pipeline(
     input_data = file_path, 
     store = "~/HPCell/pipeline_store",
-    input_reference = input_reference_path,
     tissue = "pbmc",
     computing_resources = crew_controller_local(workers = 1), 
     filter_input = TRUE, 
