@@ -4,6 +4,7 @@
 #' @importFrom dplyr left_join mutate
 #' @importFrom tidyr replace_na
 #' @importFrom DropletUtils emptyDrops
+#' @importFrom DropletUtils barcodeRanks
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' @importFrom dplyr select
@@ -116,7 +117,6 @@ annotation_label_transfer <- function(input_read_RNA_assay,
                                       reference_azimuth,
                                       empty_droplets_tbl
 ){
-  if ( inherits(reference_azimuth, "Seurat") ) {
   # SingleR
   sce =
     input_read_RNA_assay |>
@@ -133,7 +133,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   }
   blueprint <- celldex::BlueprintEncodeData()
   
-  data_singler =
+  data_annotated =
     
     sce |>
     SingleR(
@@ -166,8 +166,8 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   
   MonacoImmuneData = celldex::MonacoImmuneData()
   
-  data_singler =
-    data_singler |>
+  data_annotated =
+    data_annotated |>
     
     left_join(
       sce |>
@@ -207,21 +207,22 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   gc()
   
   # If not immune cells
-  if(nrow(data_singler) == 0){
+  if(nrow(data_annotated) == 0){
     
     tibble(.cell = character()) 
     #saveRDS(output_path)
     # output_path
     
-    
-  } else if(nrow(data_singler) <= 30){
+  } 
+  
+  if(nrow(data_annotated) <= 30 | is.null(reference_azimuth)){
     
     # If too little immune cells
-    data_singler 
+    return(data_annotated)
     #saveRDS(output_path)
     #output_path
     
-  } else{
+  } else if (!is.null(reference_azimuth)) {
     
     print("Start Seurat")
     
@@ -323,13 +324,11 @@ annotation_label_transfer <- function(input_read_RNA_assay,
       select(.cell, any_of(c("predicted.celltype.l1", "predicted.celltype.l2")), contains("refUMAP"))
     
     # Save
-    modified_data <- azimuth_annotation |>
-      left_join(	data_singler	, by = join_by(.cell)	) 
+    modified_data <- data_annotated  |>
+      left_join(azimuth_annotation, by = join_by(.cell)	) 
     
-    modified_data
+    return(modified_data)
   }
-  }
-  else {return(NULL)}
 }
 #alive_identification 
 #' @importFrom scuttle perCellQCMetrics
@@ -388,12 +387,12 @@ alive_identification <- function(input_read_RNA_assay,
   
   #Extract counts for RNA assay
   rna_counts <- GetAssayData(input_read_RNA_assay, slot = "counts", assay="RNA")
-
+  
   # Compute per-cell QC metrics
   qc_metrics <- perCellQCMetrics(rna_counts, subsets=list(Mito=which_mito)) %>%
     as_tibble(rownames = ".cell") %>%
     select(-sum, -detected)
-
+  
   # Add cell type labels and determine high mitochondrion content, if ann_lbl_trs is provided
   if (inherits(ann_lbl_trs, "tbl_df")) {
     mitochondrion <- qc_metrics %>%
@@ -413,9 +412,9 @@ alive_identification <- function(input_read_RNA_assay,
       unnest(cols = data)
   }
   
-
+  
   if (inherits(ann_lbl_trs, "tbl_df")) {
-
+    
     ribosome =
       input_read_RNA_assay |>
       select(.cell) |>
@@ -431,9 +430,9 @@ alive_identification <- function(input_read_RNA_assay,
           select(.cell, subsets_Ribo_percent, high_ribosome)
       )) |>
       unnest(data)
-
+    
   } else {
-
+    
     # ribosome =
     #   input_read_RNA_assay |>
     #   select(.cell) |>
@@ -454,7 +453,7 @@ alive_identification <- function(input_read_RNA_assay,
       unnest(data)
   }
   #ribosome_meta <- as.data.frame(ribosome@meta.data)
-
+  
   modified_data <- mitochondrion |>
     left_join(ribosome, by=".cell") |>
     mutate(alive = !high_mitochondrion) # & !high_ribosome ) |>
@@ -462,6 +461,7 @@ alive_identification <- function(input_read_RNA_assay,
   modified_data
   
 }
+
 
 #Doublet identification
 #' @importFrom dplyr left_join filter
@@ -472,7 +472,7 @@ doublet_identification <- function(input_read_RNA_assay,
                                    alive_id, 
                                    ann_lbl_trs, 
                                    reference_label){
-    filter_input <- input_read_RNA_assay |>
+  filter_input <- input_read_RNA_assay |>
     
     # Filtering empty
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
@@ -481,14 +481,14 @@ doublet_identification <- function(input_read_RNA_assay,
     # Filter dead
     left_join(alive_id |> select(.cell, high_mitochondrion, high_ribosome), by = ".cell") |>
     filter(!high_mitochondrion & !high_ribosome) 
-
-    # Annotate
-    if (inherits(ann_lbl_trs, "tbl_df"))
-        {filter_input<- filter_input |> 
-            left_join(ann_lbl_trs, by = ".cell")} 
   
-    # Convert
-    filter_input |>
+  # Annotate
+  if (inherits(ann_lbl_trs, "tbl_df"))
+  {filter_input<- filter_input |> 
+    left_join(ann_lbl_trs, by = ".cell")} 
+  
+  # Convert
+  filter_input |>
     as.SingleCellExperiment() |>
     #scDblFinder(clusters = ifelse(reference_label=="none", TRUE, reference_label)) |>
     scDblFinder(clusters = NULL) |>
@@ -533,21 +533,21 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
 #' 
 non_batch_variation_removal <- function(input_path_demultiplexed, 
                                         input_path_empty_droplets, 
-                                        input_path_alive, 
-                                        input_cell_cycle_scoring){
+                                        alive_identification_tbl, 
+                                        cell_cycle_score_tbl){
   counts =
     input_path_demultiplexed |>
     left_join(input_path_empty_droplets, by = ".cell") |>
     filter(!empty_droplet) |>
     
     left_join(
-      input_path_alive |>
+      alive_identification_tbl |>
         select(.cell, subsets_Ribo_percent, subsets_Mito_percent),
       by=".cell"
     ) |>
     
     left_join(
-      input_cell_cycle_scoring |>
+      cell_cycle_score_tbl |>
         select(.cell, G2M.Score),
       by=".cell"
     )
@@ -588,15 +588,15 @@ non_batch_variation_removal <- function(input_path_demultiplexed,
 #' @export
 #' 
 preprocessing_output <- function(tissue, 
-                                 input_path_non_batch_variation_removal, 
-                                 input_path_alive, 
-                                 input_cell_cycle_scoring, 
-                                 input_path_annotation_label_transfer, 
-                                 input_path_doublet_identification){
-  processed_data <- input_path_non_batch_variation_removal |>
+                                 non_batch_variation_removal_S, 
+                                 alive_identification_tbl, 
+                                 cell_cycle_score_tbl, 
+                                 annotation_label_transfer_tbl, 
+                                 doublet_identification_tbl){
+  processed_data <- non_batch_variation_removal_S |>
     # Filter dead cells
     left_join(
-      input_path_alive |>
+      alive_identification_tbl |>
         select(.cell, alive, subsets_Mito_percent, subsets_Ribo_percent, high_mitochondrion, high_ribosome),
       by = ".cell"
     ) |>
@@ -604,25 +604,26 @@ preprocessing_output <- function(tissue,
     
     # Add cell cycle
     left_join(
-      input_cell_cycle_scoring,
+      cell_cycle_score_tbl,
       by=".cell"
     ) |>
     
     # Filter doublets
-    left_join(input_path_doublet_identification |> select(.cell, scDblFinder.class), by = ".cell") |>
+    left_join(doublet_identification_tbl |> select(.cell, scDblFinder.class), by = ".cell") |>
     filter(scDblFinder.class=="singlet") 
     
-    if (inherits(input_path_annotation_label_transfer, "tbl_df")){
+    if (inherits(annotation_label_transfer_tbl, "tbl_df")){
       processed_data <- processed_data |>
-      left_join(input_path_annotation_label_transfer, by = ".cell")}
+      left_join(annotation_label_transfer_tbl, by = ".cell")
+      }
     
     # Filter Red blood cells and platelets
-    if (tolower(tissue) == "pbmc" & inherits(input_path_annotation_label_transfer, "tbl_df")) {
+  if (tolower(tissue) == "pbmc" & "predicted.celltype.l2" %in% c(rownames(annotation_label_transfer_tbl), colnames(annotation_label_transfer_tbl))) {
     filtered_data <- filter(processed_data, !predicted.celltype.l2 %in% c("Eryth", "Platelet"))
-    } else {
+  } else {
     filtered_data <- processed_data
   }
-}
+  }
 
 
 # Pseudobulk_preprocessing
@@ -634,14 +635,16 @@ preprocessing_output <- function(tissue,
 #' @export
 #' 
 pseudobulk_preprocessing <- function(reference_label_fine, 
-                                     input_path_preprocessing_output, sample_column, ann_lbl_trs){
-  if (reference_label_fine %in% colnames(input_path_preprocessing_output[[1]]@meta.data)) {
-  assays = input_path_preprocessing_output[[1]]@assays |> names() |> intersect(c("RNA", "ADT"))
+                                     preprocessing_output_S, 
+                                     sample_column, 
+                                     ann_lbl_trs){
+  if (reference_label_fine %in% colnames(preprocessing_output_S[[1]]@meta.data)) {
+  assays = preprocessing_output_S[[1]]@assays |> names() |> intersect(c("RNA", "ADT"))
   
   sample_column = enquo(sample_column)
   #sample_symbol <- rlang::sym(rlang::quo_get_expr(sample_column))
   pseudobulk =
-    input_path_preprocessing_output |>
+    preprocessing_output_S |>
     
     # Aggregate
     map(~ { 
@@ -724,7 +727,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
   
   # ONLY SAMPLE
   pseudobulk =
-    input_path_preprocessing_output |>
+    preprocessing_output_S |>
     
     # Aggregate
     map(~
