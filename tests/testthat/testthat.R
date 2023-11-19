@@ -52,18 +52,12 @@ test_that("reference_label_fine works", {
 })
 
 test_that("empty_droplets_works", {
-  # Expect empty_droplets_tbl to be a tibble
   expect_s3_class(empty_droplets_tbl, "tbl_df")
-  
-  # Expect the number of rows in empty_droplets_tbl to be less than the number of columns in input_read_RNA_assay
   expect_true(nrow(empty_droplets_tbl) < nrow(input_read_RNA_assay))
 })
 
 test_that("cell_cycle_score_works", {
-  # Expect cell_cycle_score_tbl to be a tibble
   expect_s3_class(cell_cycle_score_tbl, "tbl_df")
-  
-  # Expect certain column names to be present in cell_cycle_score_tbl
   expected_colnames <- c("S.Score", "G2M.Score", "Phase")
   expect_true(all(expected_colnames %in% colnames(cell_cycle_score_tbl)))
 })
@@ -74,16 +68,12 @@ test_that("annotation_label_transfer_works", {
     # Expect the output to be a tibble
     expect_equal(ncol(annotation_label_transfer_tbl), 10)
   } else {
-    # Expect the tibble to have exactly 3 columns
     expect_equal(ncol(annotation_label_transfer_tbl), 9)
   }
 })
 
 test_that("alive_identification_works", {
-  # Expect alive_identification_tbl to be a tibble
   expect_s3_class(alive_identification_tbl, "tbl_df")
-  
-  # Expect certain column names to be present in alive_identification_tbl
   expected_colnames <- c("subsets_Mito_sum", "subsets_Mito_detected", "subsets_Mito_percent")
   expect_true(all(expected_colnames %in% colnames(alive_identification_tbl)))
 })
