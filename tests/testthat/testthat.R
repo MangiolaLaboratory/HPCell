@@ -52,32 +52,62 @@ test_that("reference_label_fine works", {
 })
 
 test_that("empty_droplets_works", {
+  # Expect empty_droplets_tbl to be a tibble
   expect_s3_class(empty_droplets_tbl, "tbl_df")
+  
+  # Expect the number of rows in empty_droplets_tbl to be less than the number of columns in input_read_RNA_assay
+  expect_true(nrow(empty_droplets_tbl) < nrow(input_read_RNA_assay))
 })
 
 test_that("cell_cycle_score_works", {
+  # Expect cell_cycle_score_tbl to be a tibble
   expect_s3_class(cell_cycle_score_tbl, "tbl_df")
+  
+  # Expect certain column names to be present in cell_cycle_score_tbl
+  expected_colnames <- c("S.Score", "G2M.Score", "Phase")
+  expect_true(all(expected_colnames %in% colnames(cell_cycle_score_tbl)))
 })
 
 test_that("annotation_label_transfer_works", {
   
-  # If seurat is provided
-  expect_s3_class(annotation_label_transfer_tbl, "tbl_df")
-  # If seurat is not
-  expect_s3_class(annotation_label_transfer_tbl, "tbl_df")
+  if (!is.null(reference_azimuth)) {
+    # Expect the output to be a tibble
+    expect_equal(ncol(annotation_label_transfer_tbl), 10)
+  } else {
+    # Expect the tibble to have exactly 3 columns
+    expect_equal(ncol(annotation_label_transfer_tbl), 9)
+  }
 })
 
 test_that("alive_identification_works", {
+  # Expect alive_identification_tbl to be a tibble
   expect_s3_class(alive_identification_tbl, "tbl_df")
+  
+  # Expect certain column names to be present in alive_identification_tbl
+  expected_colnames <- c("subsets_Mito_sum", "subsets_Mito_detected", "subsets_Mito_percent")
+  expect_true(all(expected_colnames %in% colnames(alive_identification_tbl)))
 })
 
-test_that("non-batch_variation_removal_works", {
-  expect_s4_class(non_batch_variation_removal_S, "Seurat")
+test_that("non_batch_variation_removal_S_dimensions", {
+  num_features_input = nrow(input_read_RNA_assay@assays$RNA@counts)
+  num_cells_input = ncol(input_read_RNA_assay@assays$RNA@counts)
+
+  num_features_non_batch = nrow(non_batch_variation_removal_S@assays$SCT@counts)
+  num_cells_non_batch = ncol(non_batch_variation_removal_S@assays$SCT@counts)
+  # Expect less features 
+  expect_true(num_features_non_batch < num_features_input)
+  # Expect less cells 
+  expect_true(num_cells_non_batch < num_cells_input)
 })
 
 test_that("Doublet_identification_works", {
+  # Expect a tibble
   expect_s3_class(doublet_identification_tbl, "tbl_df")
+  
+  expected_colnames <- c("scDblFinder.class", "scDblFinder.score", "scDblFinder.weighted", "scDblFinder.cxds_score")
+  expect_true(all(expected_colnames %in% colnames(doublet_identification_tbl)))
 })
+
 
 test_that("Preprocessing_works", {
   expect_s4_class(preprocessing_output_S, "Seurat")
