@@ -4,10 +4,10 @@
 #' @export
 #' 
 run_targets_pipeline <- function(
-    input_data = file_path, 
-    store =  store, 
-    input_reference = input_reference_path,
-    tissue = "pbmc",
+    input_data, 
+    store =  "./", 
+    input_reference = NULL,
+    tissue,
     computing_resources = crew_controller_local(workers = 1), 
     debug_step = NULL,
     filter_input = TRUE, 
@@ -237,6 +237,7 @@ run_targets_pipeline <- function(
       tar_target(pseudobulk_preprocessing_SE, pseudobulk_preprocessing(reference_label_fine,
                                                                        preprocessing_output_S, 
                                                                        !!sample_column)
+                 
     )))
     
   }, script = glue("{store}.R"), ask = FALSE)

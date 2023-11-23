@@ -15,19 +15,12 @@ Flowchart
 
 https://app.mural.co/t/covid7029/m/covid7029/1656652076667/c47e104697d76b36b8dee3bd05d8de9d96d99efd?sender=udbe1ea99c9618abb07196978
 
-Clone the repository
-
-```{bash}
-
-git clone git@github.com:susansjy22/HPCell.git
-
-```
 
 Install Jascap/HPCell package 
 
 ```{r, eval=FALSE}
 
-remote::install_github("git@github.com:susansjy22/HPCell.git")
+remote::install_github("stemangiola/HPCell")
 
 ```
 
@@ -35,21 +28,20 @@ load jascap package
 
 ```{r}
 
-library(jascap)
+library(HPCell)
 
 ```
 
 load input and reference data
 
-
 ```{r}
 # Load input data (can be a list of directories or single directory)
 library(Seurat)
 library(scRNAseq)
-file_path = tempfile() |> paste0(".rds")
+input_data_path =  tempfile(tmpdir = "~/Documents/test_pipeline") |> paste0(".rds")
 HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
   as.Seurat(data = NULL) |> 
-  saveRDS(file_path)
+  saveRDS(input_data_path) 
 ```
 
 Execute Targets workflow and load results
@@ -58,15 +50,22 @@ Execute Targets workflow and load results
 
 # Running the pipeline
 preprocessed_seurat = run_targets_pipeline(
-    input_data = file_path, 
-    store = "~/HPCell/pipeline_store",
+    input_data = input_data_path, 
     tissue = "pbmc",
-    computing_resources = crew_controller_local(workers = 1), 
     filter_input = TRUE, 
     RNA_assay_name = "originalexp"
-)
+) 
 
 # Load results
 preprocessed_seurat
 
 ```
+Include reference dataset for azimuth annotation
+
+```{r, eval=FALSE}
+# Load reference data 
+input_reference_path <- "reference_azimuth.rds"
+reference_url<- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
+download.file(reference_url, input_reference_path)
+LoadH5Seurat(input_reference_path) |> saveRDS(input_reference_path)
+
