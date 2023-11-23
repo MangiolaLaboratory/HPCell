@@ -61,7 +61,8 @@ preprocessed_seurat
 
 ```
 Include reference dataset for azimuth annotation
-```{r}
+
+```{r, eval=FALSE}
 # Load reference data 
 input_reference_path <- "reference_azimuth.rds"
 reference_url<- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
