@@ -8,37 +8,51 @@ RNA_assay_name<- "originalexp"
 input_data_path<- "~/Documents/test_pipeline/file7de01ac8a860.rds"
 input_file<- readRDS(input_data_path)
 reference_azimuth = NULL
+sample_column<- "Tissue"
 ## Defining functions 
 input_read_RNA_assay = add_RNA_assay(input_file, RNA_assay_name)
 reference_label_fine = reference_label_fine_id(tissue)
 empty_droplets_tbl = empty_droplet_id(input_read_RNA_assay, filtered)
+
+# Define output from annotation_label_transfer 
 annotation_label_transfer_tbl = annotation_label_transfer(input_read_RNA_assay,
                                                           reference_azimuth,
                                                           empty_droplets_tbl)
+
+# Define output from alive_identification
 alive_identification_tbl = alive_identification(input_read_RNA_assay,
                                                 empty_droplets_tbl,
                                                 annotation_label_transfer_tbl)
+
+# Define output from doublet_identification
 doublet_identification_tbl = doublet_identification(input_read_RNA_assay,
                                                     empty_droplets_tbl,
                                                     alive_identification_tbl,
                                                     annotation_label_transfer_tbl,
                                                     reference_label_fine)
-cell_cycle_score_tbl = cell_cycle_scoring(input_read_RNA_assay,
-                                          empty_droplets_tbl)
+
+# Define output from cell_cycle_scoring
+cell_cycle_score_tbl = cell_cycle_scoring(input_read_RNA_assay, empty_droplets_tbl)
+
+# Define output from non_batch_variation_removal
 non_batch_variation_removal_S = non_batch_variation_removal(input_read_RNA_assay,
                                                             empty_droplets_tbl,
                                                             alive_identification_tbl,
                                                             cell_cycle_score_tbl)
+# Define output from preprocessing_output
 preprocessing_output_S = preprocessing_output(tissue,
                                               non_batch_variation_removal_S,
                                               alive_identification_tbl,
                                               cell_cycle_score_tbl,
                                               annotation_label_transfer_tbl,
                                               doublet_identification_tbl)
-pseudobulk_preprocessing_SE = pseudobulk_preprocessing(reference_label_fine,
-                                                       preprocessing_output_S, 
-                                                       !!sample_column)
 
+# Define output from pseudobulk_preprocessing
+pseudobulk_preprocessing_SE = pseudobulk_preprocessing(reference_label_fine, 
+                                                       list(preprocessing_output_S), 
+                                                       sample_column)
+
+# Testing function outputs are as expected 
 test_that("input_read_RNA_assay_works", {
   expect_s4_class(input_read_RNA_assay, "Seurat")
 })
@@ -101,6 +115,11 @@ test_that("Doublet_identification_works", {
 
 test_that("Preprocessing_works", {
   expect_s4_class(preprocessing_output_S, "Seurat")
+})
+
+test_that("pseudobulk_preprocessing handles input lists", {
+  expect_s4_class(pseudobulk_preprocessing_SE[[1]], "SummarizedExperiment") 
+  expect_s4_class(pseudobulk_preprocessing_SE[[2]], "SummarizedExperiment")                
 })
 
 
