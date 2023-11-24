@@ -125,7 +125,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' @importFrom Seurat CreateSeuratObject CreateAssayObject as.SingleCellExperiment
 #' @export
 annotation_label_transfer <- function(input_read_RNA_assay,
-                                      reference_azimuth,
+                                      reference_azimuth = NULL,
                                       empty_droplets_tbl
 ){
   # SingleR
