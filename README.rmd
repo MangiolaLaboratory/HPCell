@@ -27,18 +27,16 @@ remote::install_github("stemangiola/HPCell")
 load jascap package 
 
 ```{r}
-
 library(HPCell)
-
 ```
 
 load input and reference data
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 # Load input data (can be a list of directories or single directory)
 library(Seurat)
 library(scRNAseq)
-input_data_path =  tempfile(tmpdir = "~/Documents/test_pipeline") |> paste0(".rds")
+input_data_path =  tempfile(tmpdir = ".") |> paste0(".rds")
 HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
   as.Seurat(data = NULL) |> 
   saveRDS(input_data_path) 
@@ -60,6 +58,7 @@ preprocessed_seurat = run_targets_pipeline(
 preprocessed_seurat
 
 ```
+
 Include reference dataset for azimuth annotation
 
 ```{r, eval=FALSE}
