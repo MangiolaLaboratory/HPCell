@@ -1,11 +1,15 @@
 library(testthat)
 library(HPCell)
-
+library(Seurat)
+library(scRNAseq)
 ## Define arguments 
 filtered <- "TRUE"
 tissue <- "pbmc"
 RNA_assay_name<- "originalexp"
-input_data_path<- "~/Documents/test_pipeline/file7de01ac8a860.rds"
+input_data_path =  tempfile(tmpdir = "~") |> paste0(".rds")
+HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
+  as.Seurat(data = NULL) |> 
+  saveRDS(input_data_path) 
 input_file<- readRDS(input_data_path)
 reference_azimuth = NULL
 sample_column<- "Tissue"
