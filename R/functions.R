@@ -703,6 +703,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
         library(rlang)
         .x |> 
           tidyseurat::aggregate_cells(c(!!as.symbol(sample_column), !!as.symbol(reference_label_fine)), slot = "data", assays=assays) |>
+          #tidyseurat::aggregate_cells(c(!!sample_column, !!as.symbol(reference_label_fine)), slot = "data", assays=assays) |>
           tidybulk::as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
           #tidybulk::as_SummarizedExperiment(.sample, .feature, c(RNA)) |>
           
@@ -723,6 +724,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
           # Covert
           tidybulk::as_SummarizedExperiment(
             .sample = c( !!as.symbol(sample_column), !!as.symbol(reference_label_fine)),
+            #.sample = c( !!sample_column, !!as.symbol(reference_label_fine)),
             .transcript = .feature,
             .abundance = count
           )
@@ -785,8 +787,10 @@ pseudobulk_preprocessing <- function(reference_label_fine,
       map(~
             .x |>
             tidyseurat::aggregate_cells(c(!!as.symbol(sample_column)), slot = "counts", assays=assays) |>
+            #tidyseurat::aggregate_cells(c(!!sample_column), slot = "counts", assays=assays) |>
             #tidybulk::as_SummarizedExperiment(!!sample_column, !!as.symbol(reference_label_fine), c(RNA, ADT)) |>
             tidybulk::as_SummarizedExperiment(!!as.symbol(sample_column), .feature, any_of(c("RNA", "ADT"))) |>
+            #tidybulk::as_SummarizedExperiment(!!sample_column, .feature, any_of(c("RNA", "ADT"))) |>
             # Reshape to make RNA and ADT both features
             pivot_longer(
               cols = assays,
@@ -803,6 +807,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
             # Covert
             tidybulk::as_SummarizedExperiment(
               .sample = c( !!as.symbol(sample_column)),
+              #.sample = c(!!sample_column),
               .transcript = .feature,
               .abundance = count
             )
