@@ -6,15 +6,15 @@ library(scRNAseq)
 filtered <- "TRUE"
 tissue <- "pbmc"
 RNA_assay_name<- "originalexp"
-input_data_path =  tempfile(tmpdir = "~") |> paste0(".rds")
-HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
+
+input_seurat = 
+  HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
   as.Seurat(data = NULL) |> 
   saveRDS(input_data_path) 
-input_file<- readRDS(input_data_path)
-reference_azimuth = NULL
+
 sample_column<- "Tissue"
 ## Defining functions 
-input_read_RNA_assay = add_RNA_assay(input_file, RNA_assay_name)
+input_read_RNA_assay = add_RNA_assay(input_seurat, RNA_assay_name)
 reference_label_fine = reference_label_fine_id(tissue)
 empty_droplets_tbl = empty_droplet_id(input_read_RNA_assay, filtered)
 
