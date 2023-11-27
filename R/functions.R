@@ -115,6 +115,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' using Azimuth when a reference is provided. 
 #' 
 #' @importFrom celldex BlueprintEncodeData
+#' @importFrom scuttle logNormCounts
 #' @importFrom celldex MonacoImmuneData
 #' @importFrom SingleR SingleR
 #' @importFrom tibble as_tibble tibble

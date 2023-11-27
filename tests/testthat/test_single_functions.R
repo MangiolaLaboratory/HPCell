@@ -9,8 +9,7 @@ RNA_assay_name<- "originalexp"
 
 input_seurat = 
   HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
-  as.Seurat(data = NULL) |> 
-  saveRDS(input_data_path) 
+  as.Seurat(data = NULL) 
 
 sample_column<- "Tissue"
 ## Defining functions 
@@ -20,7 +19,7 @@ empty_droplets_tbl = empty_droplet_id(input_read_RNA_assay, filtered)
 
 # Define output from annotation_label_transfer 
 annotation_label_transfer_tbl = annotation_label_transfer(input_read_RNA_assay,
-                                                          reference_azimuth,
+                                                          reference_azimuth = NULL,
                                                           empty_droplets_tbl)
 
 # Define output from alive_identification
