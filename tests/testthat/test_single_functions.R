@@ -6,7 +6,7 @@ library(scRNAseq)
 filtered <- "TRUE"
 tissue <- "pbmc"
 RNA_assay_name<- "originalexp"
-reference_azimuth<- NULL
+# reference_azimuth<- NULL
 
 input_seurat = 
   HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
@@ -81,12 +81,12 @@ test_that("cell_cycle_score_works", {
 
 test_that("annotation_label_transfer_works", {
   
-  if (!is.null(reference_azimuth)) {
-    # Expect the output to be a tibble
-    expect_equal(ncol(annotation_label_transfer_tbl), 10)
-  } else {
+  # if (!is.null(reference_azimuth)) {
+  #   # Expect the output to be a tibble
+  #   expect_equal(ncol(annotation_label_transfer_tbl), 10)
+  # } else {
     expect_equal(ncol(annotation_label_transfer_tbl), 9)
-  }
+  # }
 })
 
 test_that("alive_identification_works", {
