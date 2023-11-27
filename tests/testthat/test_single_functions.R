@@ -6,6 +6,7 @@ library(scRNAseq)
 filtered <- "TRUE"
 tissue <- "pbmc"
 RNA_assay_name<- "originalexp"
+reference_azimuth<- NULL
 
 input_seurat = 
   HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
