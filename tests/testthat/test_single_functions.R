@@ -20,7 +20,6 @@ empty_droplets_tbl = empty_droplet_id(input_read_RNA_assay, filtered)
 
 # Define output from annotation_label_transfer 
 annotation_label_transfer_tbl = annotation_label_transfer(input_read_RNA_assay,
-                                                          reference_azimuth = NULL,
                                                           empty_droplets_tbl)
 
 # Define output from alive_identification
