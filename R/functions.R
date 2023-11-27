@@ -115,6 +115,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' using Azimuth when a reference is provided. 
 #' 
 #' @importFrom celldex BlueprintEncodeData
+#' @importFrom scuttle logNormCounts
 #' @importFrom celldex MonacoImmuneData
 #' @importFrom SingleR SingleR
 #' @importFrom tibble as_tibble tibble
@@ -125,8 +126,8 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' @importFrom Seurat CreateSeuratObject CreateAssayObject as.SingleCellExperiment
 #' @export
 annotation_label_transfer <- function(input_read_RNA_assay,
-                                      reference_azimuth = NULL,
-                                      empty_droplets_tbl
+                                      empty_droplets_tbl, 
+                                      reference_azimuth = NULL
 ){
   # SingleR
   sce =
