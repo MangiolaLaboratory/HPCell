@@ -27,6 +27,7 @@ alive_identification_tbl = alive_identification(input_read_RNA_assay,
                                                 empty_droplets_tbl,
                                                 annotation_label_transfer_tbl)
 
+
 # Define output from doublet_identification
 doublet_identification_tbl = doublet_identification(input_read_RNA_assay,
                                                     empty_droplets_tbl,

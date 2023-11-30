@@ -348,11 +348,14 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' percentages
 #' 
 #' @importFrom scuttle perCellQCMetrics
-#' @importFrom dplyr left_join filter mutate
+#' @importFrom AnnotationDbi mapIds 
+#' @importFrom dplyr left_join filter mutate select
 #' @importFrom tidyr unnest
 #' @importFrom stringr str_which
 #' @importFrom Seurat GetAssayData PercentageFeatureSet
 #' @importFrom scater isOutlier
+#' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importFrom purrr map
 #' @export
 #' 
 alive_identification <- function(input_read_RNA_assay,
@@ -406,12 +409,12 @@ alive_identification <- function(input_read_RNA_assay,
   #   }()
   
   #Extract counts for RNA assay
-  rna_counts <- GetAssayData(input_read_RNA_assay, slot = "counts", assay="RNA")
+  rna_counts <- GetAssayData(input_read_RNA_assay, layer = "counts", assay="RNA")
   
   # Compute per-cell QC metrics
   qc_metrics <- perCellQCMetrics(rna_counts, subsets=list(Mito=which_mito)) %>%
     as_tibble(rownames = ".cell") %>%
-    select(-sum, -detected)
+    dplyr::select(-sum, -detected)
   
   # Add cell type labels and determine high mitochondrion content, if annotation_label_transfer_tbl is provided
   if (inherits(annotation_label_transfer_tbl, "tbl_df")) {
@@ -438,7 +441,8 @@ alive_identification <- function(input_read_RNA_assay,
     ribosome =
       input_read_RNA_assay |>
       select(.cell) |>
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1]) |>
+      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1]) |>
+      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")) |>
       left_join(annotation_label_transfer_tbl, by = ".cell") |>
       nest(data = -blueprint_first.labels.fine) |>
       mutate(data = map(
@@ -459,8 +463,9 @@ alive_identification <- function(input_read_RNA_assay,
     #   mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1])
     ribosome =
       input_read_RNA_assay |>
-      select(.cell) |>
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1]) |>
+      dplyr::select(.cell) |>
+      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1]) |>
+      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA"))|>
       nest(data = everything()) |>
       mutate(data = map(
         data,
@@ -468,7 +473,7 @@ alive_identification <- function(input_read_RNA_assay,
           mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
           mutate(high_ribosome = as.logical(high_ribosome)) |>
           as_tibble() |>
-          select(.cell, subsets_Ribo_percent, high_ribosome)
+          dplyr::select(.cell, subsets_Ribo_percent, high_ribosome)
       )) |>
       unnest(data)
   }
@@ -676,11 +681,11 @@ preprocessing_output <- function(tissue,
 #' 
 #' This function input a list of Seurat objects and outputs a unique Summa...
 #' 
-#' @import tidySingleCellExperiment
+#' @import tidySingleCellExperiment 
 #' @import tidySummarizedExperiment
 #' @importFrom dplyr left_join filter mutate rename select
 #' @importFrom stringr str_remove
-#' @importFrom tidyr unite 
+#' @importFrom tidyr unite pivot_longer
 #' @importFrom tidyseurat aggregate_cells
 #' @importFrom tidybulk as_SummarizedExperiment
 #' @importFrom S4Vectors cbind
@@ -708,12 +713,12 @@ pseudobulk_preprocessing <- function(reference_label_fine,
           #tidybulk::as_SummarizedExperiment(.sample, .feature, c(RNA)) |>
           
           # Reshape to make RNA and ADT both features
-          pivot_longer(
+          tidyr::pivot_longer(
             cols = assays,
             names_to = "data_source",
             values_to = "count"
           ) |>
-          filter(!count |> is.na()) |>
+          dplyr::filter(!count |> is.na()) |>
           
           # Some manipulation to get unique feature because RNA and ADT
           # both can have sma name genes
@@ -772,7 +777,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
         
       }) |>
       
-      map(~ .x |> select(any_of(common_columns)))   %>%
+      map(~ .x |> dplyr::select(any_of(common_columns)))   %>%
       
       do.call(S4Vectors::cbind, .)
     
@@ -789,12 +794,12 @@ pseudobulk_preprocessing <- function(reference_label_fine,
             #tidybulk::as_SummarizedExperiment(!!sample_column, !!as.symbol(reference_label_fine), c(RNA, ADT)) |>
             tidybulk::as_SummarizedExperiment(!!as.symbol(sample_column), .feature, any_of(c("RNA", "ADT"))) |>
             # Reshape to make RNA and ADT both features
-            pivot_longer(
+            tidyr::pivot_longer(
               cols = assays,
               names_to = "data_source",
               values_to = "count"
             ) |>
-            filter(!count |> is.na()) |>
+            dplyr::filter(!count |> is.na()) |>
             
             # Some manipulation to get unique feature because RNa and ADT both can have sma name genes
             rename(symbol = .feature) |>
@@ -841,7 +846,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
         
       }) |>
       
-      map(~ .x |> select(any_of(common_columns)))   %>%
+      map(~ .x |> dplyr::select(any_of(common_columns)))   %>%
       
       do.call(S4Vectors::cbind, .)
     
