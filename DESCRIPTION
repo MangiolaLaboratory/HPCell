@@ -20,7 +20,7 @@ Imports:
   tidySingleCellExperiment,
   sctransform (>= 0.3.3),
   Seurat (>= 5.0.0),
-  Matrix (>= 1.6-3),
+  Matrix (>= 1.6),
   irlba (>= 2.3.5.1),
   glmGamPoi,
   dplyr, 

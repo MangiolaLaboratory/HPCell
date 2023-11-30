@@ -642,7 +642,8 @@ preprocessing_output <- function(tissue,
 #' @importFrom dplyr rename
 #' @importFrom dplyr select
 #' @importFrom stringr str_remove
-#' @importFrom tidyr unite, pivot_longer
+#' @importFrom tidyr unite
+#' @importFrom tidyr pivot_longer
 #' @importFrom tidyseurat aggregate_cells
 #' @importFrom tidybulk as_SummarizedExperiment
 #' @importFrom S4Vectors cbind
