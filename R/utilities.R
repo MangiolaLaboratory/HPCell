@@ -484,7 +484,7 @@ map_add_dispersion_to_se = function(se_df, .col){
 #'
 #' @importFrom dplyr n
 #' @importFrom dplyr mutate
-#' @importFrom dplyr unnest
+#' @importFrom tidyr unnest
 #' @importFrom dplyr select
 #' @importFrom purrr map2
 #' @importFrom tidyr nest
