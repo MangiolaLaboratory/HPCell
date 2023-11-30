@@ -2,10 +2,18 @@
 % Please edit documentation in R/functions.R
 \name{add_RNA_assay}
 \alias{add_RNA_assay}
-\title{Add_RNA_assay}
+\title{Change Default Assay to RNA}
 \usage{
 add_RNA_assay(input_read, RNA_assay_name)
 }
+\arguments{
+\item{input_read}{Seurat object.}
+
+\item{RNA_assay_name}{Name of the RNA assay to set as default.}
+}
+\value{
+Modified Seurat object with the default assay set to RNA.
+}
 \description{
-Change default assat to RNA
+`add_RNA_assay` changes the default assay in a Seurat object to RNA.
 }

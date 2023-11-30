@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{doublet_identification}
 \alias{doublet_identification}
-\title{Doublet identification}
+\title{Doublet Identification}
 \usage{
 doublet_identification(
   input_read_RNA_assay,
@@ -12,8 +12,21 @@ doublet_identification(
   reference_label_fine
 )
 }
+\arguments{
+\item{input_read_RNA_assay}{SingleCellExperiment object containing RNA assay data.}
+
+\item{empty_droplets_tbl}{A tibble identifying empty droplets.}
+
+\item{alive_identification_tbl}{A tibble identifying alive cells.}
+
+\item{annotation_label_transfer_tbl}{A tibble with annotation label transfer data.}
+
+\item{reference_label_fine}{Optional reference label for fine-tuning.}
+}
+\value{
+A tibble containing cells with their scDblFinder scores.
+}
 \description{
-applies the scDblFinder algorithm to the filtered dataset. It supports integrating with 
-SingleR annotations if provided. Outputs a tibble containing cells with their associated 
-scDblFinder scores, indicating the likelihood of being a doublet.
+`doublet_identification` applies the scDblFinder algorithm to the filtered dataset. It supports integrating with
+SingleR annotations if provided and outputs a tibble containing cells with their associated scDblFinder scores.
 }

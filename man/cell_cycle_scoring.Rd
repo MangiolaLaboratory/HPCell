@@ -2,12 +2,20 @@
 % Please edit documentation in R/functions.R
 \name{cell_cycle_scoring}
 \alias{cell_cycle_scoring}
-\title{Cell cycle scoring}
+\title{Cell Cycle Scoring}
 \usage{
 cell_cycle_scoring(input_read_RNA_assay, empty_droplets_tbl)
 }
+\arguments{
+\item{input_read_RNA_assay}{SingleCellExperiment object containing RNA assay data.}
+
+\item{empty_droplets_tbl}{A tibble identifying empty droplets.}
+}
+\value{
+A tibble with cell identifiers and their cell cycle phase classifications.
+}
 \description{
 Applies cell cycle scoring based on the expression of G2/M and S phase markers. 
-Returns a tibble containing cell identifiers with their predicted classification into 
-cell cycle phase: G2M, S, or G1 phase.
+Returns a tibble containing cell identifiers with their predicted classification 
+into cell cycle phases: G2M, S, or G1 phase.
 }

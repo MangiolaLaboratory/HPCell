@@ -2,10 +2,16 @@
 % Please edit documentation in R/functions.R
 \name{reference_label_coarse_id}
 \alias{reference_label_coarse_id}
-\title{Reference_label_coarse}
+\title{Reference Label Coarse Identification}
 \usage{
 reference_label_coarse_id(tissue)
 }
+\arguments{
+\item{tissue}{Type of tissue.}
+}
+\value{
+Appropriate reference label for coarse categorization.
+}
 \description{
-Add reference label depending on the provided tissue type of the input data
+Adds a reference label depending on the provided tissue type of the input data.
 }

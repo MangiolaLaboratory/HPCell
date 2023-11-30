@@ -2,10 +2,16 @@
 % Please edit documentation in R/functions.R
 \name{reference_label_fine_id}
 \alias{reference_label_fine_id}
-\title{Reference_label_fine}
+\title{Reference Label Fine Identification}
 \usage{
 reference_label_fine_id(tissue)
 }
+\arguments{
+\item{tissue}{Type of tissue.}
+}
+\value{
+Appropriate reference label for fine categorization.
+}
 \description{
-Add reference label depending on the provided tissue type of the input data
+Adds a reference label depending on the provided tissue type of the input data.
 }

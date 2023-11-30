@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{non_batch_variation_removal}
 \alias{non_batch_variation_removal}
-\title{Non_batch_variation_removal}
+\title{Non-Batch Variation Removal}
 \usage{
 non_batch_variation_removal(
   input_path_demultiplexed,
@@ -11,7 +11,19 @@ non_batch_variation_removal(
   cell_cycle_score_tbl
 )
 }
+\arguments{
+\item{input_path_demultiplexed}{Path to demultiplexed data.}
+
+\item{input_path_empty_droplets}{Path to empty droplets data.}
+
+\item{alive_identification_tbl}{A tibble from alive cell identification.}
+
+\item{cell_cycle_score_tbl}{A tibble from cell cycle scoring.}
+}
+\value{
+Normalized and adjusted data.
+}
 \description{
-Regress out variations due to mitochondrial content, ribosomal content, and 
-cell cycle effects
+Regresses out variations due to mitochondrial content, ribosomal content, and 
+cell cycle effects.
 }

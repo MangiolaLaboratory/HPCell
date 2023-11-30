@@ -2,13 +2,21 @@
 % Please edit documentation in R/functions.R
 \name{empty_droplet_id}
 \alias{empty_droplet_id}
-\title{empty_droplet_id}
+\title{Identify Empty Droplets in Single-Cell RNA-seq Data}
 \usage{
 empty_droplet_id(input_read_RNA_assay, filter_input)
 }
+\arguments{
+\item{input_read_RNA_assay}{SingleCellExperiment object containing RNA assay data.}
+
+\item{filter_input}{Logical value indicating whether to filter the input data.}
+}
+\value{
+A tibble with columns: logprob, FDR, empty_droplet (classification of droplets).
+}
 \description{
-empty_droplet_id uses the DropletUtils package to apply a significance threshold to differentiate between empty and 
-non-empty droplets. The function excludes mitochondrial and ribosomal genes,calculates barcode ranks and optionally
-filters the input data based on these criteria. The outputs a tibble with logprob, FDR and classification whether the
-cells are empty droplets
+`empty_droplet_id` distinguishes between empty and non-empty droplets using the DropletUtils package.
+It excludes mitochondrial and ribosomal genes, calculates barcode ranks, and optionally filters input data
+based on these criteria. The function returns a tibble containing log probabilities, FDR, and a classification
+indicating whether cells are empty droplets.
 }
