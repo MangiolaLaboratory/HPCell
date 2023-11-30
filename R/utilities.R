@@ -35,6 +35,7 @@ eq = function(a,b){	a==b }
 #' @importFrom DropletUtils barcodeRanks
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @noRd
 empty_droplet_id <- function(input_read_RNA_assay,
                              filter_input){
   significance_threshold = 0.001
@@ -137,7 +138,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' @param tissue Type of tissue.
 #'
 #' @return Appropriate reference label for fine categorization.
-
+#' @noRd
 reference_label_fine_id <- function(tissue) {
   return(
     ifelse(tissue == "pbmc", "monaco_first.labels.fine",
@@ -155,7 +156,7 @@ reference_label_fine_id <- function(tissue) {
 #' @param tissue Type of tissue.
 #'
 #' @return Appropriate reference label for coarse categorization.
-
+#' @noRd
 reference_label_coarse_id <- function(tissue) {
   return(
     ifelse(tissue == "pbmc", "monaco_first.labels.coarse",
@@ -175,7 +176,7 @@ reference_label_coarse_id <- function(tissue) {
 #' @return Modified Seurat object with the default assay set to RNA.
 #'
 #' @importFrom Seurat DefaultAssay
-
+#' @noRd
 add_RNA_assay <- function(input_read, RNA_assay_name){
   
   if (RNA_assay_name != "RNA"){
@@ -210,7 +211,7 @@ add_RNA_assay <- function(input_read, RNA_assay_name){
 #' @importFrom Seurat VariableFeatures
 #' @importFrom dplyr mutate
 #' @importFrom glue glue
-
+#' @noRd
 seurat_to_variable_features_by_cell_type = function(counts, assay, .cell_group = NULL, features_number_per_cell_group = 300){
   
   .cell_group = enquo(.cell_group)
@@ -265,6 +266,7 @@ seurat_to_variable_features_by_cell_type = function(counts, assay, .cell_group =
 #'
 #' @importFrom Seurat FindVariableFeatures
 #' @importFrom Seurat VariableFeatures
+#' @noRd
 seurat_to_variable_features_overall = function(counts, assay, features_number = 300){
   
   counts |>
@@ -295,6 +297,7 @@ seurat_to_variable_features_overall = function(counts, assay, features_number = 
 #' @import tidyseurat
 #' @importFrom Seurat NormalizeData
 #' @importFrom stringr str_subset
+#' @noRd
 seurat_to_variable_features = function(
     counts,
     assay,
@@ -380,6 +383,7 @@ seurat_to_variable_features = function(
 #' @importFrom dplyr count
 #' @importFrom dplyr with_groups
 #' @importFrom dplyr pull
+#' @noRd
 subset_top_rank_variable_genes_across_batches = function(
     table_across_cell_groups,
     table_within_cell_groups,
@@ -443,7 +447,7 @@ subset_top_rank_variable_genes_across_batches = function(
 #' @return Modified data frame with added dispersion data.
 #'
 #' @importFrom rlang enquo
-
+#' @noRd
 map_add_dispersion_to_se = function(se_df, .col){
   
   .col = enquo(.col)
@@ -485,7 +489,7 @@ map_add_dispersion_to_se = function(se_df, .col){
 #' @importFrom purrr map2
 #' @importFrom tidyr nest
 #' @importFrom rlang enquo
-
+#' @noRd
 map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
   
   .col = enquo(.col)
@@ -542,8 +546,7 @@ splitRowData <- function(x, f) {
 #' @importFrom digest digest
 #' @importFrom rlang enquo
 #'
-
-#'
+#' @noRd
 map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_cells_before_split = 4763){
   
   .col = enquo(.col)
@@ -576,7 +579,7 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
 #'
 #' @importFrom readr write_lines
 #' @importFrom targets tar_config_get
-
+#' @noRd
 tar_script_append = function(code, script = targets::tar_config_get("script")){
   substitute(code) |>
     deparse() |>
@@ -594,7 +597,7 @@ tar_script_append = function(code, script = targets::tar_config_get("script")){
 #' @param b Second number.
 #'
 #' @return Sum of a and b.
-
+#' @noRd
 addition = function(a, b){
   c<-a+b
   c
