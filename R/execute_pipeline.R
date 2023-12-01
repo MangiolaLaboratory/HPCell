@@ -236,12 +236,11 @@ run_targets_pipeline <- function(
       # pseudobulk preprocessing
       tar_target(pseudobulk_preprocessing_SE, pseudobulk_preprocessing(reference_label_fine,
                                                                        preprocessing_output_S, 
-                                                                       !!sample_column)), 
-      tar_render(empty_droplet_report, "~/Documents/HPCell/inst/rmd/template.Rmd", params = list(input_read_RNA_assay, empty_droplets_tbl))
+                                                                       !!sample_column))
       ))
-    
+
   }, script = glue("{store}.R"), ask = FALSE)
-  
+
   #Running targets 
   # input_files<- c("CB150T04X__batch14.rds","CB291T01X__batch8.rds")
   # run_targets <- function(input_files){
