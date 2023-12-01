@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{annotation_label_transfer}
 \alias{annotation_label_transfer}
-\title{annotation_label_transfer}
+\title{Cell Type Annotation Transfer}
 \usage{
 annotation_label_transfer(
   input_read_RNA_assay,
@@ -10,8 +10,18 @@ annotation_label_transfer(
   reference_azimuth = NULL
 )
 }
+\arguments{
+\item{input_read_RNA_assay}{SingleCellExperiment object containing RNA assay data.}
+
+\item{empty_droplets_tbl}{A tibble identifying empty droplets.}
+
+\item{reference_azimuth}{Optional reference data for Azimuth.}
+}
+\value{
+A tibble with cell type annotation data.
+}
 \description{
-annotation_label_transfer employs SingleR for cell-type identification using
-reference datasets (Blueprint and Monaco Immune data). It also performs cell type labelling 
-using Azimuth when a reference is provided.
+\code{annotation_label_transfer} utilizes SingleR for cell-type identification using reference datasets
+(Blueprint and Monaco Immune data). It can also perform cell type labeling using Azimuth when a reference
+is provided.
 }

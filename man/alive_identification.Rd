@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{alive_identification}
 \alias{alive_identification}
-\title{alive_identification}
+\title{Alive Cell Identification}
 \usage{
 alive_identification(
   input_read_RNA_assay,
@@ -10,7 +10,16 @@ alive_identification(
   annotation_label_transfer_tbl
 )
 }
+\arguments{
+\item{input_read_RNA_assay}{SingleCellExperiment object containing RNA assay data.}
+
+\item{empty_droplets_tbl}{A tibble identifying empty droplets.}
+
+\item{annotation_label_transfer_tbl}{A tibble with annotation label transfer data.}
+}
+\value{
+A tibble identifying alive cells.
+}
 \description{
-Filters out dead cells by analyzing mitochondrial and ribosomal gene expression 
-percentages
+\code{alive_identification} filters out dead cells by analyzing mitochondrial and ribosomal gene expression percentages.
 }

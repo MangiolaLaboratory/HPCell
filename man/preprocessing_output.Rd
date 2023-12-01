@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{preprocessing_output}
 \alias{preprocessing_output}
-\title{Preprocessing_output}
+\title{Preprocessing Output}
 \usage{
 preprocessing_output(
   tissue,
@@ -13,8 +13,24 @@ preprocessing_output(
   doublet_identification_tbl
 )
 }
+\arguments{
+\item{tissue}{Type of tissue.}
+
+\item{non_batch_variation_removal_S}{Result from non-batch variation removal.}
+
+\item{alive_identification_tbl}{A tibble from alive cell identification.}
+
+\item{cell_cycle_score_tbl}{A tibble from cell cycle scoring.}
+
+\item{annotation_label_transfer_tbl}{A tibble from annotation label transfer.}
+
+\item{doublet_identification_tbl}{A tibble from doublet identification.}
+}
+\value{
+Processed and filtered dataset.
+}
 \description{
-Incorporates outputs from doublets and dead cell filtering, cell cycle scoring, 
-and optionally includes annotation label transfer information. Generate a 
+Incorporates outputs from doublets and dead cell filtering, cell cycle scoring,
+and optionally includes annotation label transfer information to generate a
 processed dataset ready for downstream analysis.
 }

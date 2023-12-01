@@ -1,12 +1,16 @@
 Package: HPCell
-Type: Package
-Title: What the Package Does (Title Case
+Title: Massively-parallel R native pipeline for single-cell analysis
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Authors@R: c(person("Stefano", "Mangiola", email = "mangiolastefano@gmail.com",
+                  role = c("aut", "cre")),
+                  person("Jiayi", "Si", email = "si.j@wehi.edu.au",
+                  role = c("aut"))
+                  )
+Description: Massively-parallel R native pipeline for single-cell analysis.
+License: GPL-3 
+Roxygen: list(markdown = TRUE)
+Depends: 
+    R (>= 4.2.0)
 Remotes: sqjin/CellChat
 Biarch: true
 Imports:
@@ -18,7 +22,10 @@ Imports:
   tidybulk,
   tidySummarizedExperiment,
   tidySingleCellExperiment,
-  sctransform(>= 0.3.3),
+  sctransform (>= 0.3.3),
+  Seurat (>= 5.0.0),
+  Matrix (>= 1.6),
+  irlba (>= 2.3.5.1),
   glmGamPoi,
   dplyr, 
   tidyr, 
@@ -26,7 +33,6 @@ Imports:
   glue,
   here,
   stringr,
-  Seurat (>= 5.0.0),
   tidyseurat,
   purrr,
   readr,
@@ -40,7 +46,6 @@ Imports:
   scuttle,
   CellChat,
   tidyHeatmap,
-  cowplot,
   gridGraphics,
   sccomp,
   scDblFinder,
@@ -49,13 +54,13 @@ Imports:
   rlang, 
   S4Vectors, 
   BiocGenerics, 
-  SeuratObject, 
   AnnotationDbi, 
   broom,
   SeuratDisk,
-  SingleCellExperiment, 
-  digest, 
-  lifecycle
+  lifecycle,
+  SingleCellExperiment,
+  knitr,
+  digest
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.2.3

@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{pseudobulk_preprocessing}
 \alias{pseudobulk_preprocessing}
-\title{Pseudobulk_preprocessing}
+\title{Pseudobulk Preprocessing}
 \usage{
 pseudobulk_preprocessing(
   reference_label_fine,
@@ -10,13 +10,18 @@ pseudobulk_preprocessing(
   sample_column
 )
 }
-\description{
-Pseudobulk_preprocessing aggregates cells based on sample and cell type annotations, 
-creating pseudobulk samples for each combination. It handles RNA and ADT assays, 
-and ensures that missing genes are accounted for and aligns data across multiple samples. 
-Returns a list containing pseudobulk data aggregated by sample and by both 
-sample and cell type if the reference label for cell type is present.
+\arguments{
+\item{reference_label_fine}{Reference label for fine categorization.}
+
+\item{preprocessing_output_S}{Processed dataset from preprocessing.}
+
+\item{sample_column}{Column name indicating sample identifiers.}
 }
-\details{
-This function input a list of Seurat objects and outputs a unique Summa...
+\value{
+List containing pseudobulk data aggregated by sample and by both sample and cell type.
+}
+\description{
+Aggregates cells based on sample and cell type annotations, creating pseudobulk samples
+for each combination. Handles RNA and ADT assays, ensuring that missing genes are accounted
+for and aligns data across multiple samples.
 }

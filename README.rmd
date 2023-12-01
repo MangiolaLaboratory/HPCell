@@ -26,7 +26,7 @@ remote::install_github("stemangiola/HPCell")
 
 load jascap package
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(HPCell)
 ```
 
@@ -52,7 +52,8 @@ preprocessed_seurat = run_targets_pipeline(
     tissue = "pbmc",
     filter_input = TRUE,
     RNA_assay_name = "originalexp",
-    sample_column = "Tissue"
+    sample_column = "Tissue", 
+    debug_step = "annotation_label_transfer_tbl"
 )
 
 # Load results
