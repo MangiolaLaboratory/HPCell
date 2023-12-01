@@ -6,8 +6,8 @@
 \usage{
 annotation_label_transfer(
   input_read_RNA_assay,
-  reference_azimuth = NULL,
-  empty_droplets_tbl
+  empty_droplets_tbl,
+  reference_azimuth = NULL
 )
 }
 \description{

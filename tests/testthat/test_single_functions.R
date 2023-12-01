@@ -9,7 +9,7 @@ RNA_assay_name<- "originalexp"
 # reference_azimuth<- NULL
 
 input_seurat = 
-  HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |>
+  HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
   as.Seurat(data = NULL) 
 
 sample_column<- "Tissue"
@@ -26,6 +26,7 @@ annotation_label_transfer_tbl = annotation_label_transfer(input_read_RNA_assay,
 alive_identification_tbl = alive_identification(input_read_RNA_assay,
                                                 empty_droplets_tbl,
                                                 annotation_label_transfer_tbl)
+
 
 # Define output from doublet_identification
 doublet_identification_tbl = doublet_identification(input_read_RNA_assay,
@@ -124,5 +125,12 @@ test_that("pseudobulk_preprocessing handles input lists", {
   expect_s4_class(pseudobulk_preprocessing_SE[[1]], "SummarizedExperiment") 
   expect_s4_class(pseudobulk_preprocessing_SE[[2]], "SummarizedExperiment")                
 })
+
+# Test empty droplets
+rmarkdown::render(
+  input = paste0(system.file(package = "HPCell"), "/rmd/template_targets.Rmd"),
+  output_file = "~/Documents/HPCell/template.html",
+  params = list(x1 = list(input_read_RNA_assay), x2 = list(empty_droplets_tbl))
+)
 
 

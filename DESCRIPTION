@@ -53,15 +53,15 @@ Imports:
   AnnotationDbi, 
   broom,
   SeuratDisk,
-  SingleCellExperiment
+  SingleCellExperiment, 
+  digest, 
+  lifecycle
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.2.3
 SystemRequirements: GNU make
 VignetteBuilder: 
     knitr
-RdMacros:
-    lifecycle
 biocViews: 
     ImmunoOncology, 
     Normalization, 
@@ -75,4 +75,6 @@ biocViews:
 LazyDataCompression: xz
 Config/testthat/edition: 3
 Suggests: 
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0), 
+    knitr, 
+    scRNAseq
