@@ -1,4 +1,20 @@
 
+#' Main Function for HPCell Map Test Differential Abundance
+#'
+#' @description
+#' This function prepares and runs a differential abundance test pipeline using the 'targets' package. It sets up necessary files, appends scripts, and executes the pipeline.
+#'
+#' @param data_df Data frame to be processed.
+#' @param formula Formula for the differential abundance test.
+#' @param .data_column Column in the data frame containing the data.
+#' @param store File path for temporary storage.
+#' @param computing_resources Computing resources configuration.
+#' @param cpus_per_task Number of CPUs allocated per task.
+#' @param debug_job_id Optional job ID for debugging.
+#' @param append Flag to append to existing script.
+#'
+#' @return A `targets` pipeline output, typically a nested tibble with differential abundance estimates.
+#'
 #' @importFrom targets tar_script
 #' @importFrom targets tar_option_set
 #' @importFrom dplyr pull
@@ -6,11 +22,9 @@
 #' @importFrom dplyr rename
 #' @importFrom crew crew_controller_local
 #' @importFrom magrittr extract2
-#' 
 #' @import targets
 #' 
 #' @export
-#' 
 hpcell_map_test_differential_abundance = function(
     data_df,
     formula, 
@@ -19,6 +33,7 @@ hpcell_map_test_differential_abundance = function(
     .abundance = NULL,
     store =  tempfile(tmpdir = "."), 
     computing_resources = crew_controller_local(workers = 1) , 
+    cpus_per_task = 1,
     debug_job_id = NULL,
     append = FALSE
   ){
@@ -35,7 +50,13 @@ hpcell_map_test_differential_abundance = function(
   formula |>  saveRDS("temp_formula.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
   debug_job_id |> saveRDS("temp_debug_job_id.rds")
-  data_df |> pull(data) |> extract2(1) |> select(!!.abundance) |> colnames() |> saveRDS("temp_abundance_column_name.rds")
+  data_df |> 
+    pull(data) |> 
+    extract2(1) |> 
+    select(!!.abundance) |> 
+    colnames() |> 
+    saveRDS("temp_abundance_column_name.rds")
+
   
   # Header
   if(!append)
@@ -105,8 +126,9 @@ hpcell_map_test_differential_abundance = function(
         pseudobulk_df_tissue_split_by_gene, 
         pseudobulk_df_tissue_dispersion |> map_split_se_by_gene(
           data, 
-          computing_resources$client$workers |> max(ceiling(nrow(data)/100))
+          computing_resources$client$workers
         ), 
+
         pattern = map(pseudobulk_df_tissue_dispersion),
         iteration = "group"
         # , 
@@ -194,15 +216,29 @@ hpcell_map_test_differential_abundance = function(
   tar_read(estimates, store = store)
 }
 
+#' Wrapper Function for HPCell Test Differential Abundance
+#'
+#' @description
+#' A wrapper function that formats data into a tibble and calls `hpcell_map_test_differential_abundance` for differential abundance testing.
+#'
+#' @param .data Data frame or similar object for analysis.
+#' @param formula Formula for the differential abundance test.
+#' @param store File path for temporary storage.
+#' @param computing_resources Computing resources configuration.
+#' @param cpus_per_task Number of CPUs allocated per task.
+#' @param debug_job_id Optional job ID for debugging.
+#' @param append Flag to append to existing script.
+#'
+#' @return A `targets` pipeline output, typically a nested tibble with differential abundance estimates.
+#'
 #' @importFrom tibble tibble
-#' 
 #' @export
 #' 
 hpcell_test_differential_abundance = function(
     .data, 
     formula,
     store =  tempfile(tmpdir = "."),  
-    computing_resources = crew_controller_local(workers = 2) , 
+    computing_resources = crew_controller_local(workers = 1) , 
     debug_job_id = NULL, 
     append = FALSE
   ){
@@ -221,6 +257,7 @@ hpcell_test_differential_abundance = function(
       debug_job_id = debug_job_id, 
       append = append
     )
+
   
 }
 
