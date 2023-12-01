@@ -1173,16 +1173,26 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
   
 }
 
+#' @importFrom magrittr extract2
+#' 
+#' 
 #' @export
-map_add_dispersion_to_se = function(se_df, .col){
+map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
   
   .col = enquo(.col)
   
+  if(abundance |> length() > 1) stop("HPCell says: for now only one feature abundance measure can be selected")
+  
   se_df |>
-    mutate(!!.col := map(
-      !!.col,
+      mutate(assay_name = abundance) |> 
+    mutate(!!.col := map2(
+      !!.col, assay_name,
       ~ {
-        counts = .x |> assay("counts")
+        
+        # If not defined take the first assay
+        if(is.null(.y) || .y == "NULL") .y = .x |> assays() |> extract2(1)
+        
+        counts = .x |> assay(.y)
         
         .x |>
           left_join(
@@ -1301,7 +1311,7 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
 
 #' @export
 map_test_differential_abundance = function(
-    se, .col, formula, max_rows_for_matrix_multiplication = NULL,
+    se, .col, formula, .abundance = NULL, max_rows_for_matrix_multiplication = NULL,
     cores = 1
 ){
   
@@ -1313,7 +1323,8 @@ map_test_differential_abundance = function(
       
       # Test
       test_differential_abundance(
-        formula,
+        !!formula, 
+        .abundance = !!as.symbol(.abundance),
         method = "glmmSeq_lme4",
         cores = cores,
         max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,
