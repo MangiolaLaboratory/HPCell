@@ -26,21 +26,6 @@ load jascap package
 library(HPCell)
 ```
 
-    ## Warning: replacing previous import 'tidySingleCellExperiment::tidy' by
-    ## 'tidySummarizedExperiment::tidy' when loading 'HPCell'
-
-    ## Warning: replacing previous import 'tidySingleCellExperiment::plot_ly' by
-    ## 'tidySummarizedExperiment::plot_ly' when loading 'HPCell'
-
-    ## Warning: replacing previous import 'tidySummarizedExperiment::tidy' by
-    ## 'tidyseurat::tidy' when loading 'HPCell'
-
-    ## Warning: replacing previous import 'tidySummarizedExperiment::plot_ly' by
-    ## 'tidyseurat::plot_ly' when loading 'HPCell'
-
-    ## Warning: replacing previous import 'tidySingleCellExperiment::join_transcripts'
-    ## by 'tidyseurat::join_transcripts' when loading 'HPCell'
-
 load input and reference data
 
 ``` r
@@ -72,116 +57,40 @@ preprocessed_seurat = run_targets_pipeline(
     ## like this one are important, but if you must suppress them, you can do so with
     ## Sys.setenv(TAR_WARN = "false").
 
-    ## ▶ start target reference_file
+    ## ✔ skip target reference_file
 
-    ## ● built target reference_file [0.497 seconds]
+    ## ✔ skip target tissue_file
+    ## ✔ skip target sample_column_file
+    ## ✔ skip target sample_column
+    ## ✔ skip target tissue
+    ## ✔ skip target reference_label_fine
+    ## ✔ skip target read_file
+    ## ✔ skip branch input_read_46201ef3
+    ## ✔ skip pattern input_read
+    ## ✔ skip branch input_read_RNA_assay_363b64d4
+    ## ✔ skip pattern input_read_RNA_assay
+    ## ✔ skip target file
+    ## ✔ skip target reference_read
+    ## ✔ skip target reference_label_coarse
+    ## ✔ skip target filtered_file
+    ## ✔ skip target filter_input
+    ## ✔ skip branch empty_droplets_tbl_58837869
+    ## ✔ skip pattern empty_droplets_tbl
+    ## ✔ skip branch annotation_label_transfer_tbl_f47e871e
+    ## ✔ skip pattern annotation_label_transfer_tbl
+    ## ✔ skip branch alive_identification_tbl_31879d89
+    ## ✔ skip pattern alive_identification_tbl
+    ## ✔ skip branch doublet_identification_tbl_4885fe19
+    ## ✔ skip pattern doublet_identification_tbl
+    ## ✔ skip branch cell_cycle_score_tbl_f47e871e
+    ## ✔ skip pattern cell_cycle_score_tbl
+    ## ✔ skip branch non_batch_variation_removal_S_6c860224
+    ## ✔ skip pattern non_batch_variation_removal_S
+    ## ✔ skip branch preprocessing_output_S_2745fad8
+    ## ✔ skip pattern preprocessing_output_S
+    ## ✔ skip target pseudobulk_preprocessing_SE
 
-    ## ▶ start target reference_read
-
-    ## ● built target reference_read [0 seconds]
-
-    ## ▶ start target tissue_file
-
-    ## ● built target tissue_file [0.001 seconds]
-
-    ## ▶ start target tissue
-
-    ## ● built target tissue [0.001 seconds]
-
-    ## ▶ start target reference_label_fine
-
-    ## ● built target reference_label_fine [0.001 seconds]
-
-    ## ▶ start target reference_label_coarse
-
-    ## ● built target reference_label_coarse [0.001 seconds]
-
-    ## ▶ start target sample_column_file
-
-    ## ● built target sample_column_file [0.001 seconds]
-
-    ## ▶ start target sample_column
-
-    ## ● built target sample_column [0.001 seconds]
-
-    ## ▶ start target filtered_file
-
-    ## ● built target filtered_file [0.001 seconds]
-
-    ## ▶ start target filter_input
-
-    ## ● built target filter_input [0.001 seconds]
-
-    ## ▶ start target file
-
-    ## ● built target file [0.001 seconds]
-
-    ## ▶ start target read_file
-
-    ## ● built target read_file [0.001 seconds]
-
-    ## ▶ start branch input_read_afac7453
-
-    ## ● built branch input_read_afac7453 [0.046 seconds]
-
-    ## ● built pattern input_read
-
-    ## ▶ start branch input_read_RNA_assay_639a47c9
-
-    ## ● built branch input_read_RNA_assay_639a47c9 [0.123 seconds]
-
-    ## ● built pattern input_read_RNA_assay
-
-    ## ▶ start branch empty_droplets_tbl_17fcd675
-
-    ## ● built branch empty_droplets_tbl_17fcd675 [16.483 seconds]
-
-    ## ● built pattern empty_droplets_tbl
-
-    ## ▶ start branch cell_cycle_score_tbl_87491175
-
-    ## ● built branch cell_cycle_score_tbl_87491175 [0.256 seconds]
-
-    ## ● built pattern cell_cycle_score_tbl
-
-    ## ▶ start branch annotation_label_transfer_tbl_87491175
-
-    ## ● built branch annotation_label_transfer_tbl_87491175 [23.661 seconds]
-
-    ## ● built pattern annotation_label_transfer_tbl
-
-    ## ▶ start branch alive_identification_tbl_9ec1e7c5
-
-    ## ● built branch alive_identification_tbl_9ec1e7c5 [1.604 seconds]
-
-    ## ● built pattern alive_identification_tbl
-
-    ## ▶ start branch non_batch_variation_removal_S_532e226b
-
-    ## ● built branch non_batch_variation_removal_S_532e226b [8.257 seconds]
-
-    ## ● built pattern non_batch_variation_removal_S
-
-    ## ▶ start branch doublet_identification_tbl_0883335c
-
-    ## ● built branch doublet_identification_tbl_0883335c [5.521 seconds]
-
-    ## ● built pattern doublet_identification_tbl
-
-    ## ▶ start branch preprocessing_output_S_42aad64a
-
-    ## ● built branch preprocessing_output_S_42aad64a [0.258 seconds]
-
-    ## ● built pattern preprocessing_output_S
-
-    ## ▶ start target pseudobulk_preprocessing_SE
-
-    ## ● built target pseudobulk_preprocessing_SE [4.882 seconds]
-
-    ## ▶ end pipeline [1.81 minutes]
-
-    ## Warning: 4 targets produced warnings. Run targets::tar_meta(fields = warnings,
-    ## complete_only = TRUE) for the messages.
+    ## ✔ skip pipeline [0.113 seconds]
 
     ## HPCell says: you can read your output executing tar_read(preprocessing_output_S, store = "./")
 
@@ -190,9 +99,9 @@ preprocessed_seurat = run_targets_pipeline(
 preprocessed_seurat
 ```
 
-    ## $preprocessing_output_S_42aad64a
-    ## # A Seurat-tibble abstraction: 295 × 46
-    ## # [90mFeatures=9557 | Cells=295 | Active assay=SCT | Assays=RNA, SCT[0m
+    ## $preprocessing_output_S_2745fad8
+    ## # A Seurat-tibble abstraction: 284 × 46
+    ## # [90mFeatures=9552 | Cells=284 | Active assay=SCT | Assays=RNA, SCT[0m
     ##    .cell    orig.ident nCount_originalexp nFeature_originalexp Tissue nCount_RNA
     ##    <chr>    <fct>                   <dbl>                <int> <chr>       <dbl>
     ##  1 Bladder… Bladder                  1133                  592 Bladd…       1133
@@ -205,7 +114,7 @@ preprocessed_seurat
     ##  8 Bladder… Bladder                  1847                  932 Bladd…       1847
     ##  9 Bladder… Bladder                  2546                 1104 Bladd…       2546
     ## 10 Bladder… Bladder                   969                  574 Bladd…        969
-    ## # ℹ 285 more rows
+    ## # ℹ 274 more rows
     ## # ℹ 40 more variables: nFeature_RNA <int>, percent.mito <dbl>,
     ## #   RNA_snn_res.orig <int>, seurat_clusters <int>,
     ## #   Cell_type_in_each_tissue <chr>, Cell_type_in_merged_data <chr>,
