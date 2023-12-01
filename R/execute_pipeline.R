@@ -236,9 +236,10 @@ run_targets_pipeline <- function(
       # pseudobulk preprocessing
       tar_target(pseudobulk_preprocessing_SE, pseudobulk_preprocessing(reference_label_fine,
                                                                        preprocessing_output_S, 
-                                                                       !!sample_column)
+                                                                       !!sample_column))
+      # tar_render(empty_droplet_report, "~/Documents/HPCell/inst/rmd/template.Rmd", params = list(input_read_RNA_assay, empty_droplets_tbl))
                  
-    )))
+    ))
     
   }, script = glue("{store}.R"), ask = FALSE)
   
