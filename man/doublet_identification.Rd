@@ -27,6 +27,6 @@ doublet_identification(
 A tibble containing cells with their scDblFinder scores.
 }
 \description{
-`doublet_identification` applies the scDblFinder algorithm to the filtered dataset. It supports integrating with
+\code{doublet_identification} applies the scDblFinder algorithm to the filtered dataset. It supports integrating with
 SingleR annotations if provided and outputs a tibble containing cells with their associated scDblFinder scores.
 }

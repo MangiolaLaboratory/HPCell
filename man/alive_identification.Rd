@@ -21,5 +21,5 @@ alive_identification(
 A tibble identifying alive cells.
 }
 \description{
-`alive_identification` filters out dead cells by analyzing mitochondrial and ribosomal gene expression percentages.
+\code{alive_identification} filters out dead cells by analyzing mitochondrial and ribosomal gene expression percentages.
 }

@@ -15,7 +15,7 @@ cell_cycle_scoring(input_read_RNA_assay, empty_droplets_tbl)
 A tibble with cell identifiers and their cell cycle phase classifications.
 }
 \description{
-Applies cell cycle scoring based on the expression of G2/M and S phase markers. 
-Returns a tibble containing cell identifiers with their predicted classification 
+Applies cell cycle scoring based on the expression of G2/M and S phase markers.
+Returns a tibble containing cell identifiers with their predicted classification
 into cell cycle phases: G2M, S, or G1 phase.
 }

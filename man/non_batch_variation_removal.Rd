@@ -24,6 +24,6 @@ non_batch_variation_removal(
 Normalized and adjusted data.
 }
 \description{
-Regresses out variations due to mitochondrial content, ribosomal content, and 
+Regresses out variations due to mitochondrial content, ribosomal content, and
 cell cycle effects.
 }

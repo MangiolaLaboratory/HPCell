@@ -30,7 +30,7 @@ preprocessing_output(
 Processed and filtered dataset.
 }
 \description{
-Incorporates outputs from doublets and dead cell filtering, cell cycle scoring, 
-and optionally includes annotation label transfer information to generate a 
+Incorporates outputs from doublets and dead cell filtering, cell cycle scoring,
+and optionally includes annotation label transfer information to generate a
 processed dataset ready for downstream analysis.
 }
