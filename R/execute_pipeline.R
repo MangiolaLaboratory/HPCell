@@ -181,8 +181,8 @@ run_targets_pipeline <- function(
       # Annotation label transfer
       tar_target(annotation_label_transfer_tbl,
                  annotation_label_transfer(input_read_RNA_assay,
-                                           reference_read,
-                                           empty_droplets_tbl),
+                                           empty_droplets_tbl,
+                                           reference_read),
                  pattern = map(input_read_RNA_assay,
                                empty_droplets_tbl),
                  iteration = "list"),

@@ -1,28 +1,32 @@
 library(testthat)
 library(HPCell)
-
+library(Seurat)
+library(scRNAseq)
 ## Define arguments 
 filtered <- "TRUE"
 tissue <- "pbmc"
 RNA_assay_name<- "originalexp"
-input_data_path<- "~/Documents/test_pipeline/file7de01ac8a860.rds"
-input_file<- readRDS(input_data_path)
-reference_azimuth = NULL
+# reference_azimuth<- NULL
+
+input_seurat = 
+  HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
+  as.Seurat(data = NULL) 
+
 sample_column<- "Tissue"
 ## Defining functions 
-input_read_RNA_assay = add_RNA_assay(input_file, RNA_assay_name)
+input_read_RNA_assay = add_RNA_assay(input_seurat, RNA_assay_name)
 reference_label_fine = reference_label_fine_id(tissue)
 empty_droplets_tbl = empty_droplet_id(input_read_RNA_assay, filtered)
 
 # Define output from annotation_label_transfer 
 annotation_label_transfer_tbl = annotation_label_transfer(input_read_RNA_assay,
-                                                          reference_azimuth,
                                                           empty_droplets_tbl)
 
 # Define output from alive_identification
 alive_identification_tbl = alive_identification(input_read_RNA_assay,
                                                 empty_droplets_tbl,
                                                 annotation_label_transfer_tbl)
+
 
 # Define output from doublet_identification
 doublet_identification_tbl = doublet_identification(input_read_RNA_assay,
@@ -78,12 +82,12 @@ test_that("cell_cycle_score_works", {
 
 test_that("annotation_label_transfer_works", {
   
-  if (!is.null(reference_azimuth)) {
-    # Expect the output to be a tibble
-    expect_equal(ncol(annotation_label_transfer_tbl), 10)
-  } else {
+  # if (!is.null(reference_azimuth)) {
+  #   # Expect the output to be a tibble
+  #   expect_equal(ncol(annotation_label_transfer_tbl), 10)
+  # } else {
     expect_equal(ncol(annotation_label_transfer_tbl), 9)
-  }
+  # }
 })
 
 test_that("alive_identification_works", {

@@ -25,30 +25,11 @@ load jascap package
 ``` r
 library(HPCell)
 ```
-
-    ## The legacy packages maptools, rgdal, and rgeos, underpinning the sp package,
-    ## which was just loaded, will retire in October 2023.
-    ## Please refer to R-spatial evolution reports for details, especially
-    ## https://r-spatial.org/r/2023/05/15/evolution4.html.
-    ## It may be desirable to make the sf package available;
-    ## package maintainers should consider adding sf to Suggests:.
-    ## The sp package is now running under evolution status 2
-    ##      (status 2 uses the sf package in place of rgdal)
-
-    ## Warning: replacing previous import 'tidySingleCellExperiment::plot_ly' by
-    ## 'tidySummarizedExperiment::plot_ly' when loading 'HPCell'
-
     ## Warning: replacing previous import 'tidySingleCellExperiment::tidy' by
     ## 'tidySummarizedExperiment::tidy' when loading 'HPCell'
 
-    ## Warning: replacing previous import 'tidySingleCellExperiment::bind_cols' by
-    ## 'tidySummarizedExperiment::bind_cols' when loading 'HPCell'
-
-    ## Warning: replacing previous import 'tidySingleCellExperiment::bind_rows' by
-    ## 'tidySummarizedExperiment::bind_rows' when loading 'HPCell'
-
-    ## Warning: replacing previous import 'tidySingleCellExperiment::count' by
-    ## 'tidySummarizedExperiment::count' when loading 'HPCell'
+    ## Warning: replacing previous import 'tidySingleCellExperiment::plot_ly' by
+    ## 'tidySummarizedExperiment::plot_ly' when loading 'HPCell'
 
     ## Warning: replacing previous import 'tidySummarizedExperiment::tidy' by
     ## 'tidyseurat::tidy' when loading 'HPCell'
@@ -56,20 +37,15 @@ library(HPCell)
     ## Warning: replacing previous import 'tidySummarizedExperiment::plot_ly' by
     ## 'tidyseurat::plot_ly' when loading 'HPCell'
 
-    ## Warning: replacing previous import 'tidySingleCellExperiment::aggregate_cells'
-    ## by 'tidyseurat::aggregate_cells' when loading 'HPCell'
-
     ## Warning: replacing previous import 'tidySingleCellExperiment::join_transcripts'
     ## by 'tidyseurat::join_transcripts' when loading 'HPCell'
-
-    ## Warning: replacing previous import 'tidySummarizedExperiment::count' by
-    ## 'dplyr::count' when loading 'HPCell'
 
 load input and reference data
 
 ``` r
 # Load input data (can be a list of directories or single directory)
 library(Seurat)
+<<<<<<< HEAD
 ```
 
     ## Attaching SeuratObject
@@ -285,17 +261,31 @@ HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |>
 
     ## loading from cache
 
+library(scRNAseq)
+input_data_path =  tempfile(tmpdir = ".") |> paste0(".rds")
+HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |>
+  as.Seurat(data = NULL) |>
+  saveRDS(input_data_path)
+```
 Execute Targets workflow and load results
 
 ``` r
 # Running the pipeline
 preprocessed_seurat = run_targets_pipeline(
+<<<<<<< HEAD
     input_data = input_data_path, 
     tissue = "pbmc",
     filter_input = TRUE, 
     RNA_assay_name = "originalexp", 
     sample_column = "Tissue"
 ) 
+    input_data = input_data_path,
+    tissue = "pbmc",
+    filter_input = TRUE,
+    RNA_assay_name = "originalexp",
+    sample_column = "Tissue", 
+    debug_step = "annotation_label_transfer_tbl"
+)
 ```
 
     ## Warning: Targets and globals must have unique names. Ignoring global objects
@@ -305,109 +295,89 @@ preprocessed_seurat = run_targets_pipeline(
 
     ## ▶ start target reference_file
 
-    ## ● built target reference_file [0.388 seconds]
-
-    ## ▶ start target reference_read
-
-    ## ● built target reference_read [0.001 seconds]
-
-    ## ▶ start target tissue_file
-
-    ## ● built target tissue_file [0.002 seconds]
-
-    ## ▶ start target tissue
-
-    ## ● built target tissue [0 seconds]
-
-    ## ▶ start target reference_label_fine
-
-    ## ● built target reference_label_fine [0.002 seconds]
-
-    ## ▶ start target reference_label_coarse
-
-    ## ● built target reference_label_coarse [0 seconds]
-
-    ## ▶ start target file
-
-    ## ● built target file [0 seconds]
-
-    ## ▶ start target filtered_file
-    ## ● built target filtered_file [0.001 seconds]
-
-    ## ▶ start target filter_input
-
-    ## ● built target filter_input [0.001 seconds]
-
-    ## ▶ start target read_file
-
-    ## ● built target read_file [0.001 seconds]
-
-    ## ▶ start branch input_read_e96ad026
-
-    ## ● built branch input_read_e96ad026 [0.036 seconds]
-
-    ## ● built pattern input_read
-
-    ## ▶ start branch input_read_RNA_assay_762bd7f9
-
-    ## ● built branch input_read_RNA_assay_762bd7f9 [0.031 seconds]
-
-    ## ● built pattern input_read_RNA_assay
-
-    ## ▶ start branch empty_droplets_tbl_585f9024
-    ## ● built branch empty_droplets_tbl_585f9024 [8.776 seconds]
-
-    ## ● built pattern empty_droplets_tbl
-
-    ## ▶ start branch cell_cycle_score_tbl_7c4e4d58
-
-    ## ● built branch cell_cycle_score_tbl_7c4e4d58 [0.219 seconds]
-
-    ## ● built pattern cell_cycle_score_tbl
-
     ## ▶ start target sample_column_file
 
     ## ● built target sample_column_file [0.001 seconds]
 
     ## ▶ start target sample_column
 
-    ## ● built target sample_column [0 seconds]
+    ## ● built target sample_column [0.001 seconds]
 
-    ## ▶ start branch annotation_label_transfer_tbl_7c4e4d58
+    ## ▶ start target filtered_file
 
-    ## ● built branch annotation_label_transfer_tbl_7c4e4d58 [20.34 seconds]
+    ## ● built target filtered_file [0.001 seconds]
+
+    ## ▶ start target filter_input
+
+    ## ● built target filter_input [0.001 seconds]
+
+    ## ▶ start target file
+
+    ## ● built target file [0.001 seconds]
+
+    ## ▶ start target read_file
+
+    ## ● built target read_file [0.001 seconds]
+
+    ## ▶ start branch input_read_afac7453
+
+    ## ● built branch input_read_afac7453 [0.046 seconds]
+
+    ## ● built pattern input_read
+
+    ## ▶ start branch input_read_RNA_assay_639a47c9
+
+    ## ● built branch input_read_RNA_assay_639a47c9 [0.123 seconds]
+
+    ## ● built pattern input_read_RNA_assay
+
+    ## ▶ start branch empty_droplets_tbl_17fcd675
+
+    ## ● built branch empty_droplets_tbl_17fcd675 [16.483 seconds]
+
+    ## ● built pattern empty_droplets_tbl
+
+    ## ▶ start branch cell_cycle_score_tbl_87491175
+
+    ## ● built branch cell_cycle_score_tbl_87491175 [0.256 seconds]
+
+    ## ● built pattern cell_cycle_score_tbl
+
+    ## ▶ start branch annotation_label_transfer_tbl_87491175
+
+    ## ● built branch annotation_label_transfer_tbl_87491175 [23.661 seconds]
 
     ## ● built pattern annotation_label_transfer_tbl
 
-    ## ▶ start branch alive_identification_tbl_18b1c13d
+    ## ▶ start branch alive_identification_tbl_9ec1e7c5
 
-    ## ● built branch alive_identification_tbl_18b1c13d [1.52 seconds]
+    ## ● built branch alive_identification_tbl_9ec1e7c5 [1.604 seconds]
 
     ## ● built pattern alive_identification_tbl
 
-    ## ▶ start branch non_batch_variation_removal_S_2a24bd5d
+    ## ▶ start branch non_batch_variation_removal_S_532e226b
 
-    ## ● built branch non_batch_variation_removal_S_2a24bd5d [5.653 seconds]
+    ## ● built branch non_batch_variation_removal_S_532e226b [8.257 seconds]
 
     ## ● built pattern non_batch_variation_removal_S
 
-    ## ▶ start branch doublet_identification_tbl_2c729ad2
+    ## ▶ start branch doublet_identification_tbl_0883335c
 
-    ## ● built branch doublet_identification_tbl_2c729ad2 [11.837 seconds]
+    ## ● built branch doublet_identification_tbl_0883335c [5.521 seconds]
 
     ## ● built pattern doublet_identification_tbl
 
-    ## ▶ start branch preprocessing_output_S_4fd096e6
+    ## ▶ start branch preprocessing_output_S_42aad64a
 
-    ## ● built branch preprocessing_output_S_4fd096e6 [0.279 seconds]
+    ## ● built branch preprocessing_output_S_42aad64a [0.258 seconds]
 
     ## ● built pattern preprocessing_output_S
 
     ## ▶ start target pseudobulk_preprocessing_SE
 
-    ## ● built target pseudobulk_preprocessing_SE [5.426 seconds]
+    ## ● built target pseudobulk_preprocessing_SE [4.882 seconds]
 
-    ## ▶ end pipeline [1.366 minutes]
+    ## ▶ end pipeline [1.81 minutes]
 
     ## Warning: 4 targets produced warnings. Run targets::tar_meta(fields = warnings,
     ## complete_only = TRUE) for the messages.
@@ -418,10 +388,9 @@ preprocessed_seurat = run_targets_pipeline(
 # Load results
 preprocessed_seurat
 ```
-
-    ## $preprocessing_output_S_4fd096e6
-    ## # A Seurat-tibble abstraction: 284 × 44
-    ## # [90mFeatures=9552 | Cells=284 | Active assay=SCT | Assays=RNA, SCT[0m
+    ## $preprocessing_output_S_42aad64a
+    ## # A Seurat-tibble abstraction: 295 × 46
+    ## # [90mFeatures=9557 | Cells=295 | Active assay=SCT | Assays=RNA, SCT[0m
     ##    .cell    orig.ident nCount_originalexp nFeature_originalexp Tissue nCount_RNA
     ##    <chr>    <fct>                   <dbl>                <int> <chr>       <dbl>
     ##  1 Bladder… Bladder                  1133                  592 Bladd…       1133
@@ -434,8 +403,8 @@ preprocessed_seurat
     ##  8 Bladder… Bladder                  1847                  932 Bladd…       1847
     ##  9 Bladder… Bladder                  2546                 1104 Bladd…       2546
     ## 10 Bladder… Bladder                   969                  574 Bladd…        969
-    ## # ℹ 274 more rows
-    ## # ℹ 38 more variables: nFeature_RNA <int>, percent.mito <dbl>,
+    ## # ℹ 285 more rows
+    ## # ℹ 40 more variables: nFeature_RNA <int>, percent.mito <dbl>,
     ## #   RNA_snn_res.orig <int>, seurat_clusters <int>,
     ## #   Cell_type_in_each_tissue <chr>, Cell_type_in_merged_data <chr>,
     ## #   reclustered.broad <chr>, reclustered.fine <chr>, Total <int>,
@@ -445,7 +414,7 @@ preprocessed_seurat
 Include reference dataset for azimuth annotation
 
 ``` r
-# Load reference data 
+# Load reference data
 input_reference_path <- "reference_azimuth.rds"
 reference_url<- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
 download.file(reference_url, input_reference_path)
