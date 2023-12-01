@@ -1,13 +1,11 @@
 ---
-title: "tidybulk - part of tidyTranscriptomics"
+title: "HPCell"
 output: github_document
 ---
 
 <!-- badges: start -->
 [![Lifecycle:maturing](https://img.shields.io/badge/lifecycle-maturing-blue.svg)](https://www.tidyverse.org/lifecycle/#maturing)
 <!-- badges: end -->
-
-# HPCell
 
 ## Analysis automated pipeline
 
@@ -45,7 +43,6 @@ HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |>
 Execute Targets workflow and load results
 
 ```{r}
-
 # Running the pipeline
 preprocessed_seurat = run_targets_pipeline(
     input_data = input_data_path,
