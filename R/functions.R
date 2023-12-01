@@ -124,6 +124,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' @importFrom scuttle logNormCounts
 #' @importFrom dplyr left_join filter select
 #' @importFrom Seurat CreateSeuratObject CreateAssayObject as.SingleCellExperiment
+#' @importFrom tidySingleCellExperiment nest
 #' @export
 annotation_label_transfer <- function(input_read_RNA_assay,
                                       empty_droplets_tbl, 
@@ -137,7 +138,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     left_join(empty_droplets_tbl, by = ".cell") |>
     filter(!empty_droplet) |>
     as.SingleCellExperiment() |>
-    logNormCounts()
+    logNormCounts() 
   
   if(ncol(sce)==1){
     sce = S4Vectors::cbind(sce, sce)
@@ -347,12 +348,13 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' Filters out dead cells by analyzing mitochondrial and ribosomal gene expression 
 #' percentages
 #' 
-#' @importFrom scuttle perCellQCMetrics
+#' @importFrom scuttle perCellQCMetrics logNormCounts
 #' @importFrom dplyr left_join filter mutate
 #' @importFrom tidyr unnest
 #' @importFrom stringr str_which
-#' @importFrom Seurat GetAssayData PercentageFeatureSet
+#' @importFrom Seurat GetAssayData PercentageFeatureSet as.SingleCellExperiment
 #' @importFrom scater isOutlier
+#' @importFrom AnnotationDbi mapIds
 #' @export
 #' 
 alive_identification <- function(input_read_RNA_assay,
@@ -360,7 +362,7 @@ alive_identification <- function(input_read_RNA_assay,
                                  annotation_label_transfer_tbl) {
   input_read_RNA_assay =
     input_read_RNA_assay |>
-    left_join(empty_droplets_tbl, by=".cell") |>
+    tidySummarizedExperiment::left_join(empty_droplets_tbl, by=".cell") |>
     filter(!empty_droplet)
   
   # Returns a named vector of IDs
@@ -438,7 +440,10 @@ alive_identification <- function(input_read_RNA_assay,
     ribosome =
       input_read_RNA_assay |>
       select(.cell) |>
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1]) |>
+      
+      # I NEED UNIQUE BECAUSE SEURAT HAS POSSIBLY A BUG
+      # Output duplicate
+      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA") |> unique()) |>
       left_join(annotation_label_transfer_tbl, by = ".cell") |>
       nest(data = -blueprint_first.labels.fine) |>
       mutate(data = map(
@@ -499,7 +504,7 @@ doublet_identification <- function(input_read_RNA_assay,
                                    annotation_label_transfer_tbl, 
                                    reference_label_fine){
   filter_input <- input_read_RNA_assay |>
-    
+    as.SingleCellExperiment() |>
     # Filtering empty
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
     filter(!empty_droplet) |>
@@ -510,8 +515,8 @@ doublet_identification <- function(input_read_RNA_assay,
   
   # Annotate
   filter_input <- filter_input |> 
+    #as.SingleCellExperiment() |>
     left_join(annotation_label_transfer_tbl, by = ".cell")|>
-    as.SingleCellExperiment() |>
     #scDblFinder(clusters = ifelse(reference_label_fine=="none", TRUE, reference_label_fine)) |>
     scDblFinder(clusters = NULL) 
   

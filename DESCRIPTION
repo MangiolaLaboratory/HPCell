@@ -26,7 +26,7 @@ Imports:
   glue,
   here,
   stringr,
-  Seurat,
+  Seurat (>= 5.0.0),
   tidyseurat,
   purrr,
   readr,
