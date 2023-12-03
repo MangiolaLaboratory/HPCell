@@ -39,8 +39,9 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     # Filter empty
     left_join(empty_droplets_tbl, by = ".cell") |>
     filter(!empty_droplet) |>
-    as.SingleCellExperiment() |>
-    logNormCounts() 
+    as.SingleCellExperiment() |>    # Add class to the tbl
+    add_class("sccomp_tbl") |> 
+    logNormCounts()
   
   if(ncol(sce)==1){
     sce = S4Vectors::cbind(sce, sce)
@@ -988,6 +989,41 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 }
 
 
+#' @importFrom magrittr extract2
+#' 
+#' 
+#' @export
+map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
+  
+  .col = enquo(.col)
+  
+  if(abundance |> length() > 1) stop("HPCell says: for now only one feature abundance measure can be selected")
+  
+  se_df |>
+      mutate(assay_name = abundance) |> 
+    mutate(!!.col := map2(
+      !!.col, assay_name,
+      ~ {
+        
+        # If not defined take the first assay
+        if(is.null(.y) || .y == "NULL") .y = .x |> assays() |> extract2(1)
+        
+        counts = .x |> assay(.y)
+        
+        .x |>
+          left_join(
+            
+            # Dispersion data frame
+            estimateDisp(counts)$tagwise.dispersion |>
+              setNames(rownames(counts)) |>
+              enframe(name = ".feature", value = "dispersion")
+          )
+      }
+    ))
+  
+}
+
+
 #' Test Differential Abundance in SummarizedExperiment Object
 #'
 #' @description
@@ -1005,10 +1041,10 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 #' @importFrom rlang enquo
 #' @export
 map_test_differential_abundance = function(
-    se, .col, 
-    formula, max_rows_for_matrix_multiplication = NULL,
-    cores = 1,
-    ...
+
+    se, .col, formula, .abundance = NULL, max_rows_for_matrix_multiplication = NULL,
+    cores = 1, ...
+
 ){
   
   .col = enquo(.col)
@@ -1019,7 +1055,8 @@ map_test_differential_abundance = function(
       
       # Test
       test_differential_abundance(
-        formula,
+        !!formula, 
+        .abundance = !!as.symbol(.abundance),
         method = "glmmSeq_lme4",
         cores = cores,
         max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,
