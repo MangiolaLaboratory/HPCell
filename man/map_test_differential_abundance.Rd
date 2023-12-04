@@ -8,6 +8,7 @@ map_test_differential_abundance(
   se,
   .col,
   formula,
+  .abundance = NULL,
   max_rows_for_matrix_multiplication = NULL,
   cores = 1,
   ...

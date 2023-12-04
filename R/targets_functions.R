@@ -23,6 +23,7 @@
 #' @importFrom crew crew_controller_local
 #' @importFrom magrittr extract2
 #' @import targets
+#' @importFrom rlang quo_is_symbolic
 #' 
 #' @export
 hpcell_map_test_differential_abundance = function(
@@ -42,6 +43,15 @@ hpcell_map_test_differential_abundance = function(
   .group_name_columns = enquo(.group_name_columns)
   .abundance = enquo(.abundance)
   
+  if(quo_is_symbolic(.abundance)) .abundance = quo_names(.abundance)
+  else .abundance =  
+    data_df |> 
+    pull(data) |> 
+    extract2(1) |> 
+    assays() |> 
+    names() |> 
+    extract2(1)
+  
   # Check that names are different
   if(data_df |> count(!!.group_name_columns) |> pull(n) |> max() > 1)
     stop("HPCell says: the column name must contain unique identifiers")
@@ -50,12 +60,10 @@ hpcell_map_test_differential_abundance = function(
   formula |>  saveRDS("temp_formula.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
   debug_job_id |> saveRDS("temp_debug_job_id.rds")
-  data_df |> 
-    pull(data) |> 
-    extract2(1) |> 
-    select(!!.abundance) |> 
-    colnames() |> 
-    saveRDS("temp_abundance_column_name.rds")
+  .abundance |> saveRDS("temp_abundance_column_name.rds")
+  
+
+
 
   
   # Header
