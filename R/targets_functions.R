@@ -28,7 +28,7 @@
 #' @export
 hpcell_map_test_differential_abundance = function(
     data_df,
-    formula, 
+    .formula_column, 
     .data_column, 
     .group_name_columns,
     .abundance = NULL,
@@ -42,6 +42,7 @@ hpcell_map_test_differential_abundance = function(
   .data_column = enquo(.data_column)
   .group_name_columns = enquo(.group_name_columns)
   .abundance = enquo(.abundance)
+  .formula_column = enquo(.formula_column)
   
   if(quo_is_symbolic(.abundance)) .abundance = quo_names(.abundance)
   else .abundance =  
@@ -56,16 +57,17 @@ hpcell_map_test_differential_abundance = function(
   if(data_df |> count(!!.group_name_columns) |> pull(n) |> max() > 1)
     stop("HPCell says: the column name must contain unique identifiers")
   
-  data_df |> rename(data = !!.data_column, name = !!.group_name_columns) |>  saveRDS("temp_data.rds")
-  formula |>  saveRDS("temp_formula.rds")
+  data_df |> rename(
+    data = !!.data_column, 
+    name = !!.group_name_columns,
+    formula = !!.formula_column
+  ) |>  
+    saveRDS("temp_data.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
   debug_job_id |> saveRDS("temp_debug_job_id.rds")
   .abundance |> saveRDS("temp_abundance_column_name.rds")
   
 
-
-
-  
   # Header
   if(!append)
     tar_script_append({
@@ -101,7 +103,7 @@ hpcell_map_test_differential_abundance = function(
     list_of_tar_de = 
       list(
         tar_target(file, "temp_data.rds", format = "file"),
-        tar_target(formula, readRDS("temp_formula.rds")),
+        #tar_target(formula, readRDS("temp_formula.rds")),
         tar_target(abundance, readRDS("temp_abundance_column_name.rds"))
       )
     
@@ -156,7 +158,7 @@ hpcell_map_test_differential_abundance = function(
         pseudobulk_df_tissue_split_by_gene_grouped |>
           map_test_differential_abundance(
             data,
-            formula, 
+            .formula = formula, 
             .abundance = abundance,
             max_rows_for_matrix_multiplication = 10000, 
             cores = 1
@@ -171,13 +173,15 @@ hpcell_map_test_differential_abundance = function(
       tarchetypes::tar_group_by(
         estimates_regrouped, 
         estimates_chunk, 
-        name
+        name, 
+        deployment = "main"
       ),
       tar_target(
         estimates, 
         estimates_regrouped |> unnest_summarized_experiment(data) |> nest(se = -name) , 
         pattern = map(estimates_regrouped),
-        iteration = "group"
+        iteration = "group", 
+        deployment = "main"
         # , 
         # resources = computing_resources
       )
@@ -214,12 +218,12 @@ hpcell_map_test_differential_abundance = function(
     )
   }
   
-  if(!append)
-  file.remove("temp_data.rds")
-  file.remove("temp_formula.rds")
-  file.remove("temp_computing_resources.rds")
-  
-  
+  if(!append){
+    file.remove("temp_data.rds")
+    # file.remove("temp_formula.rds")
+    file.remove("temp_computing_resources.rds")
+  }
+
   if(!append)
   tar_read(estimates, store = store)
 }
@@ -252,11 +256,15 @@ hpcell_test_differential_abundance = function(
   ){
   
   # Create input dataframe
-  tibble(name = "my_data", data = list(!!.data )) |> 
+  tibble(
+    name = "my_data", 
+    data = list(!!.data ),
+    formula = formula
+  ) |> 
     
     # Call map function 
     hpcell_map_test_differential_abundance(
-      formula,
+      .formula_column = formula,
       data,    
       .group_name_columns = name,
       .abundance = NULL, 

@@ -213,125 +213,129 @@ nest_detect_complete_confounder = function(.data, .col1, .col2){
 }
 
 
-se_big = 
-  readRDS("R_scripts/pseudobulk_big.rds") |> 
-  nest(data = -cell_type_harmonised) |> 
-  mutate(data = map(data, ~ .x |> tidybulk::as_SummarizedExperiment(.sample, .feature, RNA))) |> 
-  mutate(data = map(
-    data,
-    ~ {
-      
-      if(ncol(.x) == 0) return(.x)
-     
-      # Filter
-      se = 
-        .x |> 
-        
-        # Eliminate complete confounders
-        samples_NOT_complete_confounders_for_sex_assay() |>
-        samples_NOT_complete_confounders_for_sex_disease()
-      
-      rm(.x)
-      gc()
-      
-      # Filter disease
-      se =
-        se |>
-        filter(disease %in% (
-          se |>
-            distinct(disease, ethnicity_simplified) |>
-            count(disease) |>
-            filter(n>1) |>
-            pull(disease)
-        ))
-      
-      # Return prematurely
-      if(ncol(se) == 0) return(se)
-      if(se |> distinct(sex, ethnicity_simplified) |> count(sex) |> pull(n) |> max() == 1) return(se)
-      
-      # Vell types with enough samples
-      tissues_to_keep =
-        se |>
-        distinct(sample_, tissue_harmonised) |>
-        count(  tissue_harmonised) |>
-        filter(n > 3) |>
-        pull(tissue_harmonised)
-      
-      se =
-        se |>
-        
-        # Scale contninuous variables
-        mutate(age_days = scale(age_days) |> as.numeric()) |>
-        
-        # Filter cell types to keep
-        filter(tissue_harmonised %in% tissues_to_keep) |>
-        
-        # otherwise I get error for some reason
-        mutate(across(any_of(c("sex", "ethnicity_simplified", "assay_simplified", "file_id", "tissue_harmonised")), as.character)) |>
-        mutate(ethnicity_simplified = ethnicity_simplified |> str_replace("European", "aaa_European")) 
-      
-      # Drop random effect grouping with no enough data
-      combinations_to_keep = 
-        se |>
-        distinct(sex, ethnicity_simplified, tissue_harmonised) |>
-        add_count(tissue_harmonised) |>
-        filter(n>1)
-      
-        se |>
-        right_join(combinations_to_keep)
-      
-    }, 
-    .progress = TRUE
-  )) |> 
-  filter(map_int(data, ncol) > 0) |> 
-  mutate(formula = map(
-    data,
-    ~ {
-      
-      se = .x
-      # Build the formula
-      factors = 
-        c("age_days", "sex", "ethnicity_simplified", "assay_simplified", ".aggregated_cells", "disease") |>
-        enframe(value = "factor") |>
-        mutate(n = map_int(
-          factor, ~ se |> select(.x) |> distinct() |> nrow()
-        )) |>
-        filter(n>1) |>
-        pull(factor) |>
-        str_c(collapse = " + ")
-      
-      random_effects =
-        c("age_days", "sex", "ethnicity_simplified") |>
-        enframe(value = "factor") |>
-        mutate(n = map_int(
-          factor, ~ se |> select(all_of(.x)) |> distinct() |> nrow()
-        ))   |>
-        filter(n>1) |>
-        pull(factor) |>
-        str_c(collapse = " + ")
-      
-      # The default
-      my_formula = glue("~ {factors}")
-      
-      if( 
-        se |> distinct(tissue_harmonised) |> nrow() > 1 &
-        length(random_effects) > 0
-      ) 
-        my_formula = glue("{my_formula} + (1 + {random_effects} | tissue_harmonised)")
-      
-      if( 	se |> distinct(file_id) |> nrow() > 1	)
-        my_formula = glue("{my_formula} + (1 | file_id)")
-      
-      # Add the interaction
-      if(se |> 
-         nest_detect_complete_confounder(age_days, sex) |> 
-         filter(n1 + n2 <= 2) |> 
-         nrow() == 0
-      ) my_formula = my_formula |> str_replace_all("age_days \\+ sex", "age_days * sex")
-      
-      as.formula(my_formula)
-    }
-  ))
+# se_big = 
+#   readRDS("R_scripts/pseudobulk_big.rds") |> 
+#   nest(data = -cell_type_harmonised) |> 
+#   mutate(data = map(data, ~ .x |> tidybulk::as_SummarizedExperiment(.sample, .feature, RNA))) |> 
+#   mutate(data = map(
+#     data,
+#     ~ {
+#       
+#       if(ncol(.x) == 0) return(.x)
+#      
+#       # Filter
+#       se = 
+#         .x |> 
+#         
+#         # Eliminate complete confounders
+#         samples_NOT_complete_confounders_for_sex_assay() |>
+#         samples_NOT_complete_confounders_for_sex_disease()
+#       
+#       rm(.x)
+#       gc()
+#       
+#       # Filter disease
+#       se =
+#         se |>
+#         filter(disease %in% (
+#           se |>
+#             distinct(disease, ethnicity_simplified) |>
+#             count(disease) |>
+#             filter(n>1) |>
+#             pull(disease)
+#         ))
+#       
+#       # Return prematurely
+#       if(ncol(se) == 0) return(se)
+#       if(se |> distinct(sex, ethnicity_simplified) |> count(sex) |> pull(n) |> max() == 1) return(se)
+#       
+#       # Vell types with enough samples
+#       tissues_to_keep =
+#         se |>
+#         distinct(sample_, tissue_harmonised) |>
+#         count(  tissue_harmonised) |>
+#         filter(n > 3) |>
+#         pull(tissue_harmonised)
+#       
+#       se =
+#         se |>
+#         
+#         # Scale contninuous variables
+#         mutate(age_days = scale(age_days) |> as.numeric()) |>
+#         
+#         # Filter cell types to keep
+#         filter(tissue_harmonised %in% tissues_to_keep) |>
+#         
+#         # otherwise I get error for some reason
+#         mutate(across(any_of(c("sex", "ethnicity_simplified", "assay_simplified", "file_id", "tissue_harmonised")), as.character)) |>
+#         mutate(ethnicity_simplified = ethnicity_simplified |> str_replace("European", "aaa_European")) 
+#       
+#       # Drop random effect grouping with no enough data
+#       combinations_to_keep = 
+#         se |>
+#         distinct(sex, ethnicity_simplified, tissue_harmonised) |>
+#         add_count(tissue_harmonised) |>
+#         filter(n>1)
+#       
+#         se |>
+#         right_join(combinations_to_keep)
+#       
+#     }, 
+#     .progress = TRUE
+#   )) |> 
+#   filter(map_int(data, ncol) > 0) |> 
+#   mutate(formula = map(
+#     data,
+#     ~ {
+#       
+#       se = .x
+#       # Build the formula
+#       factors = 
+#         c("age_days", "sex", "ethnicity_simplified", "assay_simplified", ".aggregated_cells", "disease") |>
+#         enframe(value = "factor") |>
+#         mutate(n = map_int(
+#           factor, ~ se |> select(.x) |> distinct() |> nrow()
+#         )) |>
+#         filter(n>1) |>
+#         pull(factor) |>
+#         str_c(collapse = " + ")
+#       
+#       random_effects =
+#         c("age_days", "sex", "ethnicity_simplified") |>
+#         enframe(value = "factor") |>
+#         mutate(n = map_int(
+#           factor, ~ se |> select(all_of(.x)) |> distinct() |> nrow()
+#         ))   |>
+#         filter(n>1) |>
+#         pull(factor) |>
+#         str_c(collapse = " + ")
+#       
+#       # The default
+#       my_formula = glue("~ {factors}")
+#       
+#       if( 
+#         se |> distinct(tissue_harmonised) |> nrow() > 1 &
+#         length(random_effects) > 0
+#       ) 
+#         my_formula = glue("{my_formula} + (1 + {random_effects} | tissue_harmonised)")
+#       
+#       if( 	se |> distinct(file_id) |> nrow() > 1	)
+#         my_formula = glue("{my_formula} + (1 | file_id)")
+#       
+#       # Add the interaction
+#       if(se |> 
+#          nest_detect_complete_confounder(age_days, sex) |> 
+#          filter(n1 + n2 <= 2) |> 
+#          nrow() == 0
+#       ) my_formula = my_formula |> str_replace_all("age_days \\+ sex", "age_days * sex")
+#       
+#       as.formula(my_formula)
+#     }
+#   ))
+# 
+# se_big |> saveRDS("R_scripts/se_big.rds")
+
+se_big = readRDS("R_scripts/se_big.rds")
 
 se_big |> 
   pull(data) %>%
@@ -345,7 +349,7 @@ se_big |>
 se_big |>
   slice(1) |> 
   hpcell_map_test_differential_abundance(
-    ~ age_days * sex + ethnicity_simplified + assay_simplified + .aggregated_cells + (1 | file_id) ,
+    .formula_column = formula ,
     data,
     cell_type_harmonised,
     computing_resources = crew.cluster::crew_controller_slurm(
@@ -354,7 +358,7 @@ se_big |>
       slurm_cpus_per_task = 2,
       workers = 200,
       verbose = T
-    )
+    ), debug_job_id = "estimates"
   )
 
 

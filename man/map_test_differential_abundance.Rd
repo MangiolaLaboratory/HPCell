@@ -7,7 +7,7 @@
 map_test_differential_abundance(
   se,
   .col,
-  formula,
+  .formula,
   .abundance = NULL,
   max_rows_for_matrix_multiplication = NULL,
   cores = 1,
@@ -19,13 +19,13 @@ map_test_differential_abundance(
 
 \item{.col}{Column in the data frame containing the SummarizedExperiment objects.}
 
-\item{formula}{Formula for the differential abundance test.}
-
 \item{max_rows_for_matrix_multiplication}{Maximum number of rows for matrix multiplication.}
 
 \item{cores}{Number of cores to use for computation.}
 
 \item{...}{Additional parameters.}
+
+\item{formula}{Formula for the differential abundance test.}
 }
 \value{
 Data frame with test results.

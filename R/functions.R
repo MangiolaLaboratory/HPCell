@@ -1072,20 +1072,21 @@ map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
 #' @export
 map_test_differential_abundance = function(
     
-  se, .col, formula, .abundance = NULL, max_rows_for_matrix_multiplication = NULL,
+  se, .col, .formula, .abundance = NULL, max_rows_for_matrix_multiplication = NULL,
   cores = 1, ...
   
 ){
   
   .col = enquo(.col)
+  .formula = enquo(.formula)
   
-  se |> mutate(!!.col := map(
-    !!.col,
+  se |> mutate(!!.col := map2(
+    !!.col, !!.formula,
     ~ .x |>
       
       # Test
       test_differential_abundance(
-        !!formula, 
+        .y, 
         .abundance = !!as.symbol(.abundance),
         method = "glmmSeq_lme4",
         cores = cores,

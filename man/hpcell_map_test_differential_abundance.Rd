@@ -6,7 +6,7 @@
 \usage{
 hpcell_map_test_differential_abundance(
   data_df,
-  formula,
+  .formula_column,
   .data_column,
   .group_name_columns,
   .abundance = NULL,
@@ -20,8 +20,6 @@ hpcell_map_test_differential_abundance(
 \arguments{
 \item{data_df}{Data frame to be processed.}
 
-\item{formula}{Formula for the differential abundance test.}
-
 \item{.data_column}{Column in the data frame containing the data.}
 
 \item{store}{File path for temporary storage.}
@@ -33,6 +31,8 @@ hpcell_map_test_differential_abundance(
 \item{debug_job_id}{Optional job ID for debugging.}
 
 \item{append}{Flag to append to existing script.}
+
+\item{formula}{Formula for the differential abundance test.}
 }
 \value{
 A \code{targets} pipeline output, typically a nested tibble with differential abundance estimates.
