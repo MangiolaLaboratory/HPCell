@@ -49,8 +49,7 @@ preprocessed_seurat = run_targets_pipeline(
     input_data = input_data_path,
     tissue = "pbmc",
     filter_empty_droplets = TRUE,
-    sample_column = "Tissue", 
-    debug_step = "annotation_label_transfer_tbl"
+    sample_column = "Tissue"
 )
 
 # Load results

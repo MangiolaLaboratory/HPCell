@@ -362,13 +362,20 @@ slurm = crew.cluster::crew_controller_slurm(
 
 
 microbenchmark(
-    x = 
     se_big |>
-    mutate(data = map2_test_differential_abundance_hpc(
+    mutate(data = map2(
       data,
       formula ,
-      computing_resources = slurm
+      ~ tidybulk::test_differential_abundance(
+        .x, .y, method = "glmmSeq_lme4", cores = 1
+      )
     )), 
+    se_big |>
+      mutate(data = map2_test_differential_abundance_hpc(
+        data,
+        formula ,
+        computing_resources = slurm
+      )),
   times = 1
 )
 

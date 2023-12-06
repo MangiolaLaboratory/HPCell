@@ -132,9 +132,9 @@ map2_test_differential_abundance_hpc = function(
       # Split in gene chunks
       tar_target(
         pseudobulk_df_tissue_split_by_gene, 
-        pseudobulk_df_tissue_dispersion |> map_split_se_by_gene(
+        pseudobulk_df_tissue_dispersion |> map_split_se_by_number_of_genes(
           data, 
-          number_of_workers # / number_of_datasets
+          chunk_size = 100 # / number_of_datasets
         ), 
 
         pattern = map(pseudobulk_df_tissue_dispersion),

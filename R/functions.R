@@ -369,7 +369,7 @@ alive_identification <- function(input_read_RNA_assay,
       #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
       
       # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay) |> unique()) |>
+      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)) |>
       left_join(annotation_label_transfer_tbl, by = ".cell") |>
       nest(data = -blueprint_first.labels.fine) |>
       mutate(data = map(
