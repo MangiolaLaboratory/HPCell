@@ -65,8 +65,6 @@ variable_genes = readRDS(params$output_path_marged_variable_genes)
 
 
 
-
-
 merged_combined_annotation_doublets = 
   tibble(
     files = files,

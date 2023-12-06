@@ -1,5 +1,3 @@
-
-
 #' Cell Type Annotation Transfer
 #'
 #' @description
@@ -38,7 +36,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     # Filter empty
     left_join(empty_droplets_tbl, by = ".cell") |>
-    filter(!empty_droplet) |>
+    dplyr::filter(!empty_droplet) |>
     as.SingleCellExperiment() |>
     logNormCounts()
   
@@ -420,6 +418,7 @@ alive_identification <- function(input_read_RNA_assay,
 #'
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
+#' @importFrom Matrix Matrix 
 #' @import scDblFinder
 #' @export
 doublet_identification <- function(input_read_RNA_assay, 

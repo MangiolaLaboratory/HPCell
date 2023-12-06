@@ -42,7 +42,6 @@ empty_df <-
 
 #define mito and ribo genes and add the plot:
 demultiplexed_empty = demultiplexed[1] |> readRDS()
-
 mito_genes <- grep("^MT-", rownames(demultiplexed_empty[["RNA"]]), value=T)
 ribo_genes <-grep("^RP(S|L)", rownames(demultiplexed_empty[["RNA"]]), value=T)
 
@@ -148,7 +147,6 @@ if(empty_df |> filter(empty_droplet) |> nrow() != 0)
 ```
 
 (mitochondria genes in green, ribosomal genes in red)
-
 
 
 Histogram of p-values: (only if empty droplets have been identified)

@@ -6,10 +6,10 @@ library(scRNAseq)
 filtered <- "TRUE"
 tissue <- "pbmc"
 RNA_assay_name<- "originalexp"
-# reference_azimuth<- NULL
+#reference_azimuth<- NULL
 
 input_seurat = 
-  HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
+  HeOrganAtlasData(ensembl=FALSE,location=FALSE)|> 
   as.Seurat(data = NULL) 
 
 sample_column<- "Tissue"
@@ -20,7 +20,8 @@ empty_droplets_tbl = empty_droplet_id(input_read_RNA_assay, filtered)
 
 # Define output from annotation_label_transfer 
 annotation_label_transfer_tbl = annotation_label_transfer(input_read_RNA_assay,
-                                                          empty_droplets_tbl)
+                                                          empty_droplets_tbl, 
+                                                          reference_azimuth = NULL)
 
 # Define output from alive_identification
 alive_identification_tbl = alive_identification(input_read_RNA_assay,

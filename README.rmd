@@ -22,7 +22,7 @@ remote::install_github("stemangiola/HPCell")
 
 ```
 
-load jascap package
+load HPCell package
 
 ```{r}
 library(HPCell)
@@ -35,7 +35,7 @@ load input and reference data
 library(Seurat)
 library(scRNAseq)
 input_data_path =  tempfile(tmpdir = ".") |> paste0(".rds")
-HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |>
+HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
   as.Seurat(data = NULL) |>
   saveRDS(input_data_path)
 ```
