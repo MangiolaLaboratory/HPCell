@@ -177,60 +177,58 @@ run_targets_pipeline <- function(
       tar_target(input_read, readRDS(read_file),
                  pattern = map(read_file),
                  iteration = "list", deployment = "main"),
-      tar_target(input_read_RNA_assay, add_RNA_assay(input_read, RNA_assay_name), 
-                 pattern = map(input_read), 
-                 iteration = "list"),
+
       tar_target(reference_read, reference_file, deployment = "main"),
       
       # Identifying empty droplets
       tar_target(empty_droplets_tbl,
-                 empty_droplet_id(input_read_RNA_assay, filter_empty_droplets),
-                 pattern = map(input_read_RNA_assay),
+                 empty_droplet_id(input_read, filter_empty_droplets),
+                 pattern = map(input_read),
                  iteration = "list"),
       
       # Cell cycle scoring
-      tar_target(cell_cycle_score_tbl, cell_cycle_scoring(input_read_RNA_assay,
+      tar_target(cell_cycle_score_tbl, cell_cycle_scoring(input_read,
                                                           empty_droplets_tbl),
-                 pattern = map(input_read_RNA_assay,
+                 pattern = map(input_read,
                                empty_droplets_tbl),
                  iteration = "list"),
       
       # Annotation label transfer
       tar_target(annotation_label_transfer_tbl,
-                 annotation_label_transfer(input_read_RNA_assay,
+                 annotation_label_transfer(input_read,
                                            empty_droplets_tbl,
                                            reference_read),
-                 pattern = map(input_read_RNA_assay,
+                 pattern = map(input_read,
                                empty_droplets_tbl),
                  iteration = "list"),
       
       # Alive identification
-      tar_target(alive_identification_tbl, alive_identification(input_read_RNA_assay,
+      tar_target(alive_identification_tbl, alive_identification(input_read,
                                                                 empty_droplets_tbl,
                                                                 annotation_label_transfer_tbl),
-                 pattern = map(input_read_RNA_assay,
+                 pattern = map(input_read,
                                empty_droplets_tbl,
                                annotation_label_transfer_tbl),
                  iteration = "list"),
       
       # Doublet identification
-      tar_target(doublet_identification_tbl, doublet_identification(input_read_RNA_assay,
+      tar_target(doublet_identification_tbl, doublet_identification(input_read,
                                                                     empty_droplets_tbl,
                                                                     alive_identification_tbl,
                                                                     annotation_label_transfer_tbl,
                                                                     reference_label_fine),
-                 pattern = map(input_read_RNA_assay,
+                 pattern = map(input_read,
                                empty_droplets_tbl,
                                alive_identification_tbl,
                                annotation_label_transfer_tbl),
                  iteration = "list"),
       
       # Non-batch variation removal
-      tar_target(non_batch_variation_removal_S, non_batch_variation_removal(input_read_RNA_assay,
+      tar_target(non_batch_variation_removal_S, non_batch_variation_removal(input_read,
                                                                             empty_droplets_tbl,
                                                                             alive_identification_tbl,
                                                                             cell_cycle_score_tbl),
-                 pattern = map(input_read_RNA_assay,
+                 pattern = map(input_read,
                                empty_droplets_tbl,
                                alive_identification_tbl,
                                cell_cycle_score_tbl),
