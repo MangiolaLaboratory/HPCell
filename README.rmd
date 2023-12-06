@@ -50,7 +50,7 @@ Execute Targets workflow and load results
 preprocessed_seurat = run_targets_pipeline(
     input_data = input_data_path,
     tissue = "pbmc",
-    filter_input = TRUE,
+    filter_empty_droplets = TRUE,
     RNA_assay_name = "originalexp",
     sample_column = "Tissue", 
     debug_step = "annotation_label_transfer_tbl"

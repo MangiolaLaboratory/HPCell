@@ -10,7 +10,7 @@
 #' @param tissue Tissue type for the analysis.
 #' @param computing_resources Configuration for computing resources.
 #' @param debug_step Optional step for debugging.
-#' @param filter_input Flag to indicate if input filtering is needed.
+#' @param filter_empty_droplets Flag to indicate if input filtering is needed.
 #' @param RNA_assay_name Name of the RNA assay.
 #' @param sample_column Column name for sample identification.
 #'
@@ -27,7 +27,7 @@ run_targets_pipeline <- function(
     tissue,
     computing_resources = crew_controller_local(workers = 1), 
     debug_step = NULL,
-    filter_input = TRUE, 
+    filter_empty_droplets = TRUE, 
     RNA_assay_name = "RNA", 
     sample_column = "sample"
 ){
@@ -40,7 +40,7 @@ run_targets_pipeline <- function(
   input_reference |> saveRDS("input_reference.rds")
   tissue |> saveRDS("tissue.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
-  filter_input |> saveRDS("filtered.rds")
+  filter_empty_droplets |> saveRDS("filter_empty_droplets.rds")
   sample_column |> saveRDS("sample_column.rds")
   # Write pipeline to a file
   tar_script({
@@ -153,7 +153,7 @@ run_targets_pipeline <- function(
       #tar_target(reference_file, "input_reference.rds", format = "rds"), 
       tar_target(reference_file, readRDS("input_reference.rds")), 
       tar_target(tissue_file, readRDS("tissue.rds")), 
-      tar_target(filtered_file, readRDS("filtered.rds")), 
+      tar_target(filtered_file, readRDS("filter_empty_droplets.rds")), 
       tar_target(sample_column_file, readRDS("sample_column.rds")))
     
     #-----------------------#
@@ -168,7 +168,7 @@ run_targets_pipeline <- function(
       # tarchetypes::tar_files(name= reference_track,
       #                        read_reference_file, 
       #                        deployment = "main"),
-      tar_target(filter_input, filtered_file, deployment = "main"),
+      tar_target(filter_empty_droplets, filtered_file, deployment = "main"),
       tar_target(tissue, tissue_file, deployment = "main"),
       tar_target(sample_column, sample_column_file, deployment = "main"),
       tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
@@ -184,7 +184,7 @@ run_targets_pipeline <- function(
       
       # Identifying empty droplets
       tar_target(empty_droplets_tbl,
-                 empty_droplet_id(input_read_RNA_assay, filter_input),
+                 empty_droplet_id(input_read_RNA_assay, filter_empty_droplets),
                  pattern = map(input_read_RNA_assay),
                  iteration = "list"),
       

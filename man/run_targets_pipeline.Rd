@@ -11,7 +11,7 @@ run_targets_pipeline(
   tissue,
   computing_resources = crew_controller_local(workers = 1),
   debug_step = NULL,
-  filter_input = TRUE,
+  filter_empty_droplets = TRUE,
   RNA_assay_name = "RNA",
   sample_column = "sample"
 )
@@ -29,7 +29,7 @@ run_targets_pipeline(
 
 \item{debug_step}{Optional step for debugging.}
 
-\item{filter_input}{Flag to indicate if input filtering is needed.}
+\item{filter_empty_droplets}{Flag to indicate if input filtering is needed.}
 
 \item{RNA_assay_name}{Name of the RNA assay.}
 

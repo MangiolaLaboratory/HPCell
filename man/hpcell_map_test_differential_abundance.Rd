@@ -8,6 +8,8 @@ hpcell_map_test_differential_abundance(
   data_df,
   formula,
   .data_column,
+  .group_name_columns,
+  .abundance = NULL,
   store = tempfile(tmpdir = "."),
   computing_resources = crew_controller_local(workers = 1),
   cpus_per_task = 1,

@@ -428,7 +428,7 @@ doublet_identification <- function(input_read_RNA_assay,
                                    alive_identification_tbl, 
                                    annotation_label_transfer_tbl, 
                                    reference_label_fine){
-  filter_input <- input_read_RNA_assay |>
+  filter_empty_droplets <- input_read_RNA_assay |>
     
     # Filtering empty
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
@@ -439,13 +439,13 @@ doublet_identification <- function(input_read_RNA_assay,
     filter(!high_mitochondrion & !high_ribosome) 
   
   # Annotate
-  filter_input <- filter_input |> 
+  filter_empty_droplets <- filter_empty_droplets |> 
     left_join(annotation_label_transfer_tbl, by = ".cell")|>
     as.SingleCellExperiment() |>
     #scDblFinder(clusters = ifelse(reference_label_fine=="none", TRUE, reference_label_fine)) |>
     scDblFinder(clusters = NULL) 
   
-  as_tibble(colData(filter_input), rownames = ".cell")|> select(.cell, contains("scDblFinder")) 
+  as_tibble(colData(filter_empty_droplets), rownames = ".cell")|> select(.cell, contains("scDblFinder")) 
   
 }
 
