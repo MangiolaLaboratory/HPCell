@@ -39,7 +39,8 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     # Filter empty
     left_join(empty_droplets_tbl, by = ".cell") |>
     filter(!empty_droplet) |>
-    as.SingleCellExperiment() |>
+    as.SingleCellExperiment() |>    # Add class to the tbl
+    add_class("sccomp_tbl") |> 
     logNormCounts()
   
   if(ncol(sce)==1){
@@ -606,19 +607,19 @@ preprocessing_output <- function(tissue,
     # Filter doublets
     left_join(doublet_identification_tbl |> select(.cell, scDblFinder.class), by = ".cell") |>
     filter(scDblFinder.class=="singlet") 
-    
-    if (inherits(annotation_label_transfer_tbl, "tbl_df")){
-      processed_data <- processed_data |>
+  
+  if (inherits(annotation_label_transfer_tbl, "tbl_df")){
+    processed_data <- processed_data |>
       left_join(annotation_label_transfer_tbl, by = ".cell")
-      }
-    
-    # Filter Red blood cells and platelets
+  }
+  
+  # Filter Red blood cells and platelets
   if (tolower(tissue) == "pbmc" & "predicted.celltype.l2" %in% c(rownames(annotation_label_transfer_tbl), colnames(annotation_label_transfer_tbl))) {
     filtered_data <- filter(processed_data, !predicted.celltype.l2 %in% c("Eryth", "Platelet"))
   } else {
     filtered_data <- processed_data
   }
-  }
+}
 
 
 #' Pseudobulk Preprocessing
@@ -989,6 +990,70 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 }
 
 
+#' Add Dispersion Estimates to SingleCellExperiment Object
+#'
+#' @description
+#' `map_add_dispersion_to_se` function adds dispersion estimates to each feature (gene) in a 
+#' SingleCellExperiment object. Dispersion estimates are added based on the abundance measure specified.
+#'
+#' @param se_df A data frame or list containing SingleCellExperiment objects.
+#' @param .col A symbol indicating the column in `se_df` that contains SingleCellExperiment objects.
+#' @param abundance (Optional) A character vector specifying the name of the assay to be used 
+#'                  for dispersion estimation. If NULL or not provided, the first assay is used.
+#'
+#' @return The input data frame or list (`se_df`) with the specified `.col` modified to include 
+#'         dispersion estimates in each SingleCellExperiment object.
+#'
+#' @details
+#' The function iterates over each SingleCellExperiment object in the specified column of the input data frame 
+#' or list. It calculates dispersion estimates for the features (genes) based on the specified abundance assay.
+#' The results are joined back to each SingleCellExperiment object. If no abundance assay is specified, 
+#' the function defaults to the first assay in each SingleCellExperiment object.
+#'
+#' @examples
+#' # Assuming `se_list` is a list of SingleCellExperiment objects
+#' result <- map_add_dispersion_to_se(se_list, .col = se_objects, abundance = "counts")
+#'
+#' @importFrom magrittr extract2
+#' @importFrom edgeR estimateDisp
+#' @importFrom dplyr mutate
+#' @importFrom dplyr left_join
+#' @importFrom tibble enframe
+#' @importFrom purrr map2
+#' @export
+map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
+  
+  .col = enquo(.col)
+  
+  if(abundance |> length() > 1) stop("HPCell says: for now only one feature abundance measure can be selected")
+  
+  se_df |>
+    
+    # This is adding a new column 
+    mutate(assay_name = abundance) |> 
+    mutate(!!.col := map2(
+      !!.col, assay_name,
+      ~ {
+        
+        # If not defined take the first assay
+        if(is.null(.y) || .y == "NULL") .y = .x |> assays() |> extract2(1)
+        
+        counts = .x |> assay(.y)
+        
+        .x |>
+          left_join(
+            
+            # Dispersion data frame
+            estimateDisp(counts)$tagwise.dispersion |>
+              setNames(rownames(counts)) |>
+              enframe(name = ".feature", value = "dispersion")
+          )
+      }
+    ))
+  
+}
+
+
 #' Test Differential Abundance in SummarizedExperiment Object
 #'
 #' @description
@@ -1006,21 +1071,22 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 #' @importFrom rlang enquo
 #' @export
 map_test_differential_abundance = function(
-    se, .col, 
-    formula, max_rows_for_matrix_multiplication = NULL,
-    cores = 1,
-    ...
+    
+  se, .col, formula, .abundance = NULL, max_rows_for_matrix_multiplication = NULL,
+  cores = 1, ...
+  
 ){
   
   .col = enquo(.col)
-   
+  
   se |> mutate(!!.col := map(
     !!.col,
     ~ .x |>
       
       # Test
       test_differential_abundance(
-        formula,
+        !!formula, 
+        .abundance = !!as.symbol(.abundance),
         method = "glmmSeq_lme4",
         cores = cores,
         max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,
@@ -1033,4 +1099,73 @@ map_test_differential_abundance = function(
   
   
 }
+
+
+#' Split SummarizedExperiment Object by Gene
+#'
+#' @description
+#' Splits each SummarizedExperiment object in a data frame into chunks by gene.
+#'
+#' @param se_df Data frame containing SummarizedExperiment objects.
+#' @param .col Column in the data frame containing the SummarizedExperiment objects.
+#' @param .number_of_chunks Number of chunks to split into.
+#'
+#' @return Data frame with SummarizedExperiment objects split into chunks.
+#'
+#' @importFrom dplyr n
+#' @importFrom dplyr mutate
+#' @importFrom tidyr unnest
+#' @importFrom dplyr select
+#' @importFrom purrr map2
+#' @importFrom tidyr nest
+#' @importFrom rlang enquo
+#' @export
+map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
+  
+  .col = enquo(.col)
+  .number_of_chunks = enquo(.number_of_chunks)
+  
+  se_df |>
+    mutate(!!.col := map2(
+      !!.col, !!.number_of_chunks,
+      ~ {
+        chunks =
+          tibble(.feature = rownames(.x)) |>
+          mutate(chunk___ = min(1, .y):.y |> sample() |> rep(ceiling(nrow(.x)/max(1, .y))) |> head(nrow(.x)))
+        
+        # Join chunks
+        grouping_factor = chunks |> pull(chunk___) |> as.factor()
+        
+        .x |> splitRowData(f = grouping_factor)
+      }
+    )) |>
+    unnest(!!.col) |>
+    mutate(se_md5 = ids::random_id(n()))
+}
+
+#' @importFrom digest digest
+#' @importFrom rlang enquo
+#'
+#' @export
+map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_cells_before_split = 4763){
+  
+  .col = enquo(.col)
+  
+  sce_df |>
+    mutate(!!.col := map(
+      !!.col,
+      ~ {
+        
+        how_many_splits = ceiling(ncol(.x)/max_cells_before_split)*how_many_chunks_base
+        
+        grouping_factor = sample(seq_len(how_many_splits), size = nrow(.x), replace = TRUE) |> as.factor()
+        
+        .x |> splitRowData(f = grouping_factor)
+        
+      }
+    )) |>
+    unnest(!!.col) |>
+    mutate(sce_md5 = map_chr(!!.col, digest))
+}
+
 

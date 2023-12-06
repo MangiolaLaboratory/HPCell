@@ -436,82 +436,6 @@ subset_top_rank_variable_genes_across_batches = function(
 }
 
 
-#' Add Dispersion to SummarizedExperiment Object
-#'
-#' @description
-#' Maps and adds dispersion data to each element in a list of SummarizedExperiment objects.
-#'
-#' @param se_df Data frame containing SummarizedExperiment objects.
-#' @param .col Column in the data frame containing the SummarizedExperiment objects.
-#'
-#' @return Modified data frame with added dispersion data.
-#'
-#' @importFrom rlang enquo
-#' @noRd
-map_add_dispersion_to_se = function(se_df, .col){
-  
-  .col = enquo(.col)
-  
-  se_df |>
-    mutate(!!.col := map(
-      !!.col,
-      ~ {
-        counts = .x |> assay("counts")
-        
-        .x |>
-          left_join(
-            
-            # Dispersion data frame
-            estimateDisp(counts)$tagwise.dispersion |>
-              setNames(rownames(counts)) |>
-              enframe(name = ".feature", value = "dispersion")
-          )
-      }
-    ))
-  
-}
-
-#' Split SummarizedExperiment Object by Gene
-#'
-#' @description
-#' Splits each SummarizedExperiment object in a data frame into chunks by gene.
-#'
-#' @param se_df Data frame containing SummarizedExperiment objects.
-#' @param .col Column in the data frame containing the SummarizedExperiment objects.
-#' @param .number_of_chunks Number of chunks to split into.
-#'
-#' @return Data frame with SummarizedExperiment objects split into chunks.
-#'
-#' @importFrom dplyr n
-#' @importFrom dplyr mutate
-#' @importFrom tidyr unnest
-#' @importFrom dplyr select
-#' @importFrom purrr map2
-#' @importFrom tidyr nest
-#' @importFrom rlang enquo
-#' @noRd
-map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
-  
-  .col = enquo(.col)
-  .number_of_chunks = enquo(.number_of_chunks)
-  
-  se_df |>
-    mutate(!!.col := map2(
-      !!.col, !!.number_of_chunks,
-      ~ {
-        chunks =
-          tibble(.feature = rownames(.x)) |>
-          mutate(chunk___ = min(1, .y):.y |> sample() |> rep(ceiling(nrow(.x)/max(1, .y))) |> head(nrow(.x)))
-        
-        # Join chunks
-        grouping_factor = chunks |> pull(chunk___) |> as.factor()
-        
-        .x |> splitRowData(f = grouping_factor)
-      }
-    )) |>
-    unnest(!!.col) |>
-    mutate(se_md5 = ids::random_id(n()))
-}
 
 splitColData <- function(x, f) {
   # This is by @jma1991
@@ -542,33 +466,6 @@ splitRowData <- function(x, f) {
   return(v)
   
 }
-
-#' @importFrom digest digest
-#' @importFrom rlang enquo
-#'
-#' @noRd
-map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_cells_before_split = 4763){
-  
-  .col = enquo(.col)
-  
-  sce_df |>
-    mutate(!!.col := map(
-      !!.col,
-      ~ {
-        
-        how_many_splits = ceiling(ncol(.x)/max_cells_before_split)*how_many_chunks_base
-        
-        grouping_factor = sample(seq_len(how_many_splits), size = nrow(.x), replace = TRUE) |> as.factor()
-        
-        .x |> splitRowData(f = grouping_factor)
-        
-      }
-    )) |>
-    unnest(!!.col) |>
-    mutate(sce_md5 = map_chr(!!.col, digest))
-}
-
-
 #' Append Code to a Targets Script
 #'
 #' @description

@@ -9,7 +9,6 @@ hpcell_test_differential_abundance(
   formula,
   store = tempfile(tmpdir = "."),
   computing_resources = crew_controller_local(workers = 1),
-  cpus_per_task = 1,
   debug_job_id = NULL,
   append = FALSE
 )
@@ -23,11 +22,11 @@ hpcell_test_differential_abundance(
 
 \item{computing_resources}{Computing resources configuration.}
 
-\item{cpus_per_task}{Number of CPUs allocated per task.}
-
 \item{debug_job_id}{Optional job ID for debugging.}
 
 \item{append}{Flag to append to existing script.}
+
+\item{cpus_per_task}{Number of CPUs allocated per task.}
 }
 \value{
 A \code{targets} pipeline output, typically a nested tibble with differential abundance estimates.
