@@ -1196,6 +1196,33 @@ map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
     mutate(se_md5 = ids::random_id(n()))
 }
 
+#' @export
+map_split_se_by_number_of_genes = function(se_df, .col, chunk_size = 100){
+  
+  .col = enquo(.col)
+  
+  se_df |>
+    mutate(!!.col := map(
+      !!.col,
+      ~ {
+        total_rows = nrow(.x)
+        num_chunks = ceiling(total_rows / chunk_size)
+        
+        chunks =
+          tibble(.feature = rownames(.x)) |>
+          mutate(chunk___ = rep(1:num_chunks, each = chunk_size, length.out = nrow(.x)))
+        
+        # Join chunks
+        grouping_factor = chunks |> pull(chunk___) |> as.factor()
+        
+        .x |> splitRowData(f = grouping_factor)
+      }
+    )) |>
+    unnest(!!.col) |>
+    mutate(se_md5 = ids::random_id(n()))
+}
+
+
 #' @importFrom digest digest
 #' @importFrom rlang enquo
 #'

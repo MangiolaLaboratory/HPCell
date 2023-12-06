@@ -54,6 +54,7 @@ map2_test_differential_abundance_hpc = function(
   computing_resources |> saveRDS("temp_computing_resources.rds")
   debug_job_id |> saveRDS("temp_debug_job_id.rds")
   .abundance |> saveRDS("temp_abundance_column_name.rds")
+  data_list |> length() |> saveRDS("temp_number_of_datasets.rds")
   
 
   # Header
@@ -95,7 +96,8 @@ map2_test_differential_abundance_hpc = function(
         tar_target(file_data, "temp_data.rds", format = "file", deployment = "main"),
         tar_target(file_formula, "temp_formula.rds", format = "file", deployment = "main"),
         tar_target(abundance, readRDS("temp_abundance_column_name.rds"), deployment = "main"),
-        tar_target( number_of_workers, readRDS("temp_computing_resources.rds")$client$workers, deployment = "main" )
+        tar_target( number_of_workers, readRDS("temp_computing_resources.rds")$client$workers, deployment = "main" ),
+        tar_target( number_of_datasets, readRDS("temp_number_of_datasets.rds"), deployment = "main" )
       )
     
   }, glue("{store}.R"))
@@ -132,7 +134,7 @@ map2_test_differential_abundance_hpc = function(
         pseudobulk_df_tissue_split_by_gene, 
         pseudobulk_df_tissue_dispersion |> map_split_se_by_gene(
           data, 
-          number_of_workers
+          number_of_workers # / number_of_datasets
         ), 
 
         pattern = map(pseudobulk_df_tissue_dispersion),
@@ -152,7 +154,7 @@ map2_test_differential_abundance_hpc = function(
         pseudobulk_df_tissue_split_by_gene_grouped |>
           
           # transform back to formula because I converted to character before
-          mutate(formula = formula |> as.formula()) |> 
+          mutate(formula = map(formula, as.formula)) |> 
           
           map_test_differential_abundance(
             data,

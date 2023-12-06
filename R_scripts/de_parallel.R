@@ -334,16 +334,16 @@ nest_detect_complete_confounder = function(.data, .col1, .col2){
 #     }
 #   )) |> 
 # mutate(data = map(data, tidybulk::identify_abundant, factor_of_interest = ethnicity_simplified )) |> 
-#
+# slice(1:22)
 # 
-# se_big |> saveRDS("R_scripts/se_big.rds")
+# se_big |> saveRDS("R_scripts/se_big.rds", compress = "xz")
 
 se_big = readRDS("~/PostDoc/HPCell/R_scripts/se_big.rds")
 
 tic()
 se_big |> 
   pull(data) %>%
-  .[[1]] |> 
+  .[[24]] |> 
   tidybulk::identify_abundant(factor_of_interest = ethnicity_simplified) |> 
   tidybulk::test_differential_abundance(
     ~ age_days * sex + ethnicity_simplified + assay_simplified + .aggregated_cells + (1 | file_id), 
@@ -362,16 +362,13 @@ slurm = crew.cluster::crew_controller_slurm(
 
 
 microbenchmark(
-  { set.seed(43); 
     x = 
     se_big |>
-    slice(1:10) |> 
     mutate(data = map2_test_differential_abundance_hpc(
       data,
       formula ,
       computing_resources = slurm
-    ))
-    }, 
+    )), 
   times = 1
 )
 
