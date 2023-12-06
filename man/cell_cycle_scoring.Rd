@@ -4,7 +4,7 @@
 \alias{cell_cycle_scoring}
 \title{Cell Cycle Scoring}
 \usage{
-cell_cycle_scoring(input_read_RNA_assay, empty_droplets_tbl)
+cell_cycle_scoring(input_read_RNA_assay, empty_droplets_tbl, assay = NULL)
 }
 \arguments{
 \item{input_read_RNA_assay}{SingleCellExperiment object containing RNA assay data.}

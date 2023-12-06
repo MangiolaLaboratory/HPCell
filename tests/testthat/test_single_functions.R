@@ -3,10 +3,8 @@ library(HPCell)
 library(Seurat)
 library(scRNAseq)
 ## Define arguments 
-filtered <- "TRUE"
+filter_empty_droplets <- "TRUE"
 tissue <- "pbmc"
-RNA_assay_name<- "originalexp"
-# reference_azimuth<- NULL
 
 input_seurat = 
   HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
@@ -14,37 +12,37 @@ input_seurat =
 
 sample_column<- "Tissue"
 ## Defining functions 
-input_read_RNA_assay = add_RNA_assay(input_seurat, RNA_assay_name)
-reference_label_fine = reference_label_fine_id(tissue)
-empty_droplets_tbl = empty_droplet_id(input_read_RNA_assay, filtered)
+
+reference_label_fine = HPCell:::reference_label_fine_id(tissue)
+empty_droplets_tbl = HPCell:::empty_droplet_id(input_seurat, filter_empty_droplets)
 
 # Define output from annotation_label_transfer 
-annotation_label_transfer_tbl = annotation_label_transfer(input_read_RNA_assay,
+annotation_label_transfer_tbl = HPCell:::annotation_label_transfer(input_seurat,
                                                           empty_droplets_tbl)
 
 # Define output from alive_identification
-alive_identification_tbl = alive_identification(input_read_RNA_assay,
+alive_identification_tbl = HPCell:::alive_identification(input_seurat,
                                                 empty_droplets_tbl,
                                                 annotation_label_transfer_tbl)
 
 
 # Define output from doublet_identification
-doublet_identification_tbl = doublet_identification(input_read_RNA_assay,
+doublet_identification_tbl = HPCell:::doublet_identification(input_seurat,
                                                     empty_droplets_tbl,
                                                     alive_identification_tbl,
                                                     annotation_label_transfer_tbl,
                                                     reference_label_fine)
 
 # Define output from cell_cycle_scoring
-cell_cycle_score_tbl = cell_cycle_scoring(input_read_RNA_assay, empty_droplets_tbl)
+cell_cycle_score_tbl = HPCell:::cell_cycle_scoring(input_seurat, empty_droplets_tbl)
 
 # Define output from non_batch_variation_removal
-non_batch_variation_removal_S = non_batch_variation_removal(input_read_RNA_assay,
+non_batch_variation_removal_S = non_batch_variation_removal(input_seurat,
                                                             empty_droplets_tbl,
                                                             alive_identification_tbl,
                                                             cell_cycle_score_tbl)
 # Define output from preprocessing_output
-preprocessing_output_S = preprocessing_output(tissue,
+preprocessing_output_S = HPCell:::preprocessing_output(tissue,
                                               non_batch_variation_removal_S,
                                               alive_identification_tbl,
                                               cell_cycle_score_tbl,
@@ -52,13 +50,13 @@ preprocessing_output_S = preprocessing_output(tissue,
                                               doublet_identification_tbl)
 
 # Define output from pseudobulk_preprocessing
-pseudobulk_preprocessing_SE = pseudobulk_preprocessing(reference_label_fine, 
+pseudobulk_preprocessing_SE = HPCell:::pseudobulk_preprocessing(reference_label_fine, 
                                                        list(preprocessing_output_S), 
                                                        sample_column)
 
 # Testing function outputs are as expected 
-test_that("input_read_RNA_assay_works", {
-  expect_s4_class(input_read_RNA_assay, "Seurat")
+test_that("input_seurat_works", {
+  expect_s4_class(input_seurat, "Seurat")
 })
 
 test_that("reference_label_fine works", {
@@ -71,7 +69,7 @@ test_that("reference_label_fine works", {
 
 test_that("empty_droplets_works", {
   expect_s3_class(empty_droplets_tbl, "tbl_df")
-  expect_true(nrow(empty_droplets_tbl) < nrow(input_read_RNA_assay))
+  expect_true(nrow(empty_droplets_tbl) < nrow(input_seurat))
 })
 
 test_that("cell_cycle_score_works", {
@@ -97,11 +95,12 @@ test_that("alive_identification_works", {
 })
 
 test_that("non_batch_variation_removal_S_dimensions", {
-  num_features_input = nrow(input_read_RNA_assay@assays$RNA@counts)
-  num_cells_input = ncol(input_read_RNA_assay@assays$RNA@counts)
+  num_features_input = nrow(input_seurat)
+  num_cells_input = ncol(input_seurat)
 
   num_features_non_batch = nrow(non_batch_variation_removal_S@assays$SCT@counts)
   num_cells_non_batch = ncol(non_batch_variation_removal_S@assays$SCT@counts)
+  
   # Expect less features 
   expect_true(num_features_non_batch < num_features_input)
   # Expect less cells 

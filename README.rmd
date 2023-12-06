@@ -16,15 +16,13 @@ Flowchart
 https://app.mural.co/t/covid7029/m/covid7029/1656652076667/c47e104697d76b36b8dee3bd05d8de9d96d99efd?sender=udbe1ea99c9618abb07196978
 
 
-Install Jascap/HPCell package
+Install HPCell
 
 ```{r, eval=FALSE}
 
 remote::install_github("stemangiola/HPCell")
 
 ```
-
-load jascap package
 
 ```{r message=FALSE, warning=FALSE}
 library(HPCell)
@@ -50,8 +48,7 @@ Execute Targets workflow and load results
 preprocessed_seurat = run_targets_pipeline(
     input_data = input_data_path,
     tissue = "pbmc",
-    filter_input = TRUE,
-    RNA_assay_name = "originalexp",
+    filter_empty_droplets = TRUE,
     sample_column = "Tissue", 
     debug_step = "annotation_label_transfer_tbl"
 )

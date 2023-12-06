@@ -10,7 +10,7 @@
 args = commandArgs(trailingOnly=TRUE)
 modality = args[[1]]
 tissue = args[[2]]
-filtered = args[[3]]
+filter_empty_droplets = args[[3]]
 
 if(!modality %in% c("preprocessing", "slow_pipeline", "fast_pipeline", "complete_pipeline"))
   stop("HPCell says: modality (the first argument) should be one of the following: preprocessing, slow_pipeline, fast_pipeline, complete_pipeline")
@@ -24,7 +24,7 @@ reference_azimuth_path = args[[9]]
 
 # modality = "preprocessing"
 # tissue = "pbmc"
-# filtered = "filtered"
+# filter_empty_droplets = "filter_empty_droplets"
 # result_directory = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches"
 # reports_directory = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches/preprocessing_results/reports/"
 # input_directory = "/home/users/allstaff/mangiola.s/PostDoc/covid19pbmc/data/all_batches/input_files"
@@ -84,7 +84,7 @@ commands =
   commands |>
   c(
     glue("CATEGORY={suffix}\nMEMORY=10024\nCORES=1\nWALL_TIME=30000"),
-    glue("{output_path_empty_droplets} {output_path_plot_pdf} {output_path_plot_rds}:{input_path_demultiplexed}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {filtered} {output_path_empty_droplets} {output_path_plot_pdf} {output_path_plot_rds}")
+    glue("{output_path_empty_droplets} {output_path_plot_pdf} {output_path_plot_rds}:{input_path_demultiplexed}\n{tab}Rscript {R_code_directory}/run{suffix}.R {code_directory} {input_path_demultiplexed} {filter_empty_droplets} {output_path_empty_droplets} {output_path_plot_pdf} {output_path_plot_rds}")
   #   ,
   #   glue("CATEGORY={suffix}_report\nMEMORY=30024\nCORES=2"),
   #   glue("{report_empty_droplets}:{input_path_demultiplexed |> str_c(collapse=' ')} {output_path_empty_droplets |> str_c(collapse=' ')}\n{tab}module load pandoc; Rscript -e \"rmarkdown::render('{R_code_directory_reports}/report{suffix}.Rmd', output_dir = '{reports_directory}', params=list(reports_directory = '{reports_directory}', file1 = '{input_directory_demultiplexed}', file2='{output_directory_empty_droplets}'))\"")

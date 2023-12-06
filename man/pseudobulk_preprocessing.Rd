@@ -7,7 +7,8 @@
 pseudobulk_preprocessing(
   reference_label_fine,
   preprocessing_output_S,
-  sample_column
+  sample_column,
+  assay = NULL
 )
 }
 \arguments{
