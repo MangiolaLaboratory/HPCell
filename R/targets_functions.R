@@ -26,11 +26,9 @@
 #' @importFrom rlang quo_is_symbolic
 #' 
 #' @export
-hpcell_map_test_differential_abundance = function(
-    data_df,
-    .formula_column, 
-    .data_column, 
-    .group_name_columns,
+map2_test_differential_abundance_hpc = function(
+    data_list,
+    formula_list, 
     .abundance = NULL,
     store =  tempfile(tmpdir = "."), 
     computing_resources = crew_controller_local(workers = 1) , 
@@ -39,30 +37,20 @@ hpcell_map_test_differential_abundance = function(
     append = FALSE
   ){
   
-  .data_column = enquo(.data_column)
-  .group_name_columns = enquo(.group_name_columns)
   .abundance = enquo(.abundance)
-  .formula_column = enquo(.formula_column)
-  
+
   if(quo_is_symbolic(.abundance)) .abundance = quo_names(.abundance)
   else .abundance =  
-    data_df |> 
-    pull(data) |> 
-    extract2(1) |> 
+    data_list[[1]] |> 
     assays() |> 
     names() |> 
     extract2(1)
   
-  # Check that names are different
-  if(data_df |> count(!!.group_name_columns) |> pull(n) |> max() > 1)
-    stop("HPCell says: the column name must contain unique identifiers")
+  data_list |> saveRDS("temp_data.rds")
   
-  data_df |> rename(
-    data = !!.data_column, 
-    name = !!.group_name_columns,
-    formula = !!.formula_column
-  ) |>  
-    saveRDS("temp_data.rds")
+  # convert to character because formula captures some 
+  # of the local environment and creates very big files
+  formula_list |> map(as.character) |>  saveRDS("temp_formula.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
   debug_job_id |> saveRDS("temp_debug_job_id.rds")
   .abundance |> saveRDS("temp_abundance_column_name.rds")
@@ -87,8 +75,7 @@ hpcell_map_test_differential_abundance = function(
     #-----------------------#
     tar_option_set( 
       packages = c(
-        "stringr", "tibble", "tidySingleCellExperiment", "dplyr", "Matrix",
-        "Seurat", "tidyseurat", "glue", "purrr", "tidybulk", "tidySummarizedExperiment", "edgeR",
+        "stringr", "tibble", "tidySingleCellExperiment", "dplyr", "tidyseurat", "glue", "purrr", "tidybulk", "tidySummarizedExperiment", "edgeR",
         "digest", "HPCell"
       ), 
       storage = "worker", 
@@ -96,15 +83,19 @@ hpcell_map_test_differential_abundance = function(
       # error = "continue", 		
       format = "qs",
       controller = computing_resources,
+      resources = tar_resources(
+        qs = tar_resources_qs(preset = "fast")
+      ),
       debug = debug_job_id # Set the target you want to debug.
       #cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
     )
 
     list_of_tar_de = 
       list(
-        tar_target(file, "temp_data.rds", format = "file"),
-        #tar_target(formula, readRDS("temp_formula.rds")),
-        tar_target(abundance, readRDS("temp_abundance_column_name.rds"))
+        tar_target(file_data, "temp_data.rds", format = "file", deployment = "main"),
+        tar_target(file_formula, "temp_formula.rds", format = "file", deployment = "main"),
+        tar_target(abundance, readRDS("temp_abundance_column_name.rds"), deployment = "main"),
+        tar_target( number_of_workers, readRDS("temp_computing_resources.rds")$client$workers, deployment = "main" )
       )
     
   }, glue("{store}.R"))
@@ -117,9 +108,16 @@ hpcell_map_test_differential_abundance = function(
     #-----------------------#
    list_of_tar_de = list_of_tar_de |> c(list(
       
-      tarchetypes::tar_group_by(pseudobulk_df_tissue, readRDS(file), name),
-      
-      tar_target( computing_resources, readRDS("temp_computing_resources.rds") ),
+      tarchetypes::tar_group_by(
+        pseudobulk_df_tissue, 
+         tibble(
+          data = readRDS(file_data),
+          formula = readRDS(file_formula)
+        ) |> 
+          rowid_to_column(var = "name"), 
+        name, 
+        deployment = "main"
+      ),
       
       # Dispersion
       tar_target(
@@ -127,8 +125,6 @@ hpcell_map_test_differential_abundance = function(
         pseudobulk_df_tissue |> map_add_dispersion_to_se(data, abundance), 
         pattern = map(pseudobulk_df_tissue),
         iteration = "group"
-        # , 
-        # resources = computing_resources
       ),
       
       # Split in gene chunks
@@ -136,13 +132,11 @@ hpcell_map_test_differential_abundance = function(
         pseudobulk_df_tissue_split_by_gene, 
         pseudobulk_df_tissue_dispersion |> map_split_se_by_gene(
           data, 
-          computing_resources$client$workers
+          number_of_workers
         ), 
 
         pattern = map(pseudobulk_df_tissue_dispersion),
         iteration = "group"
-        # , 
-        # resources = computing_resources
       ),
       
       # Parallelise rows
@@ -156,34 +150,23 @@ hpcell_map_test_differential_abundance = function(
       tar_target(
         estimates_chunk, 
         pseudobulk_df_tissue_split_by_gene_grouped |>
+          
+          # transform back to formula because I converted to character before
+          mutate(formula = formula |> as.formula()) |> 
+          
           map_test_differential_abundance(
             data,
             .formula = formula, 
             .abundance = abundance,
             max_rows_for_matrix_multiplication = 10000, 
-            cores = 1
-          ) , 
+            cores = 1, action = "get"
+          ) |> 
+          
+          # For some reason it occupies a LOT of space (29Mb) 
+          # probably ecause is carrying local variable with it
+          select(-formula), 
         pattern = map(pseudobulk_df_tissue_split_by_gene_grouped),
         iteration = "group"
-        # , 
-        # resources = computing_resources
-      ),
-      
-      # Regroup
-      tarchetypes::tar_group_by(
-        estimates_regrouped, 
-        estimates_chunk, 
-        name, 
-        deployment = "main"
-      ),
-      tar_target(
-        estimates, 
-        estimates_regrouped |> unnest_summarized_experiment(data) |> nest(se = -name) , 
-        pattern = map(estimates_regrouped),
-        iteration = "group", 
-        deployment = "main"
-        # , 
-        # resources = computing_resources
       )
       
     ))
@@ -224,14 +207,34 @@ hpcell_map_test_differential_abundance = function(
     file.remove("temp_computing_resources.rds")
   }
 
+  message("HPCell says: Start collecting results.")
+
+  estimates = 
+    tar_read(estimates_chunk, store = store) |> 
+    nest(my_group = -name) |> 
+    pull(my_group) |> 
+    map(~ do.call(
+      rbind, 
+      pull(.x, data) 
+    ))
+  
+  # Return
   if(!append)
-  tar_read(estimates, store = store)
+    map2(
+      data_list,
+      estimates,
+      ~ {
+        rowData(.x) = rowData(.x) |> cbind(.y)
+        .x
+      }
+    )
+  
 }
 
 #' Wrapper Function for HPCell Test Differential Abundance
 #'
 #' @description
-#' A wrapper function that formats data into a tibble and calls `hpcell_map_test_differential_abundance` for differential abundance testing.
+#' A wrapper function that formats data into a tibble and calls `map2_test_differential_abundance_hpc` for differential abundance testing.
 #'
 #' @param .data Data frame or similar object for analysis.
 #' @param formula Formula for the differential abundance test.
@@ -263,7 +266,7 @@ hpcell_test_differential_abundance = function(
   ) |> 
     
     # Call map function 
-    hpcell_map_test_differential_abundance(
+    map2_test_differential_abundance_hpc(
       .formula_column = formula,
       data,    
       .group_name_columns = name,

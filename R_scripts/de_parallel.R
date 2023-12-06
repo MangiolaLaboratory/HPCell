@@ -5,6 +5,7 @@ library(glue)
 library(tidySummarizedExperiment)
 library(tidybulk)
 library(tictoc)
+library(microbenchmark)
 
 # Small dataset
 se =
@@ -331,35 +332,50 @@ nest_detect_complete_confounder = function(.data, .col1, .col2){
 #       
 #       as.formula(my_formula)
 #     }
-#   ))
+#   )) |> 
+# mutate(data = map(data, tidybulk::identify_abundant, factor_of_interest = ethnicity_simplified )) |> 
+#
 # 
 # se_big |> saveRDS("R_scripts/se_big.rds")
 
-se_big = readRDS("R_scripts/se_big.rds")
+se_big = readRDS("~/PostDoc/HPCell/R_scripts/se_big.rds")
 
+tic()
 se_big |> 
   pull(data) %>%
   .[[1]] |> 
   tidybulk::identify_abundant(factor_of_interest = ethnicity_simplified) |> 
   tidybulk::test_differential_abundance(
     ~ age_days * sex + ethnicity_simplified + assay_simplified + .aggregated_cells + (1 | file_id), 
-    method = "glmmSeq_lme4", cores = 4
+    method = "glmmSeq_lme4", cores = 2
   )
+time_parallel_local = toc()
 
-se_big |>
-  slice(1) |> 
-  hpcell_map_test_differential_abundance(
-    .formula_column = formula ,
-    data,
-    cell_type_harmonised,
-    computing_resources = crew.cluster::crew_controller_slurm(
-      name = "slurm",
-      slurm_memory_gigabytes_per_cpu = 5,
-      slurm_cpus_per_task = 2,
-      workers = 200,
-      verbose = T
-    ), debug_job_id = "estimates"
-  )
+
+slurm = crew.cluster::crew_controller_slurm(
+  name = "slurm",
+  slurm_memory_gigabytes_per_cpu = 5,
+  slurm_cpus_per_task = 1,
+  workers = 200,
+  verbose = T
+)
+
+
+microbenchmark(
+  { set.seed(43); 
+    x = 
+    se_big |>
+    slice(1:10) |> 
+    mutate(data = map2_test_differential_abundance_hpc(
+      data,
+      formula ,
+      computing_resources = slurm
+    ))
+    }, 
+  times = 1
+)
+
+
 
 
 se =
@@ -369,12 +385,6 @@ se =
   se |>
     hpcell_test_differential_abundance(
       ~ dex + (1 | cell),
-      computing_resources = crew.cluster::crew_controller_slurm(
-        name = "slurm",
-        slurm_memory_gigabytes_per_cpu = 5,
-        slurm_cpus_per_task = 2,
-        workers = 200,
-        verbose = T
-      )
+      computing_resources = slurm
     )
 

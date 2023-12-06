@@ -32,5 +32,5 @@ hpcell_test_differential_abundance(
 A \code{targets} pipeline output, typically a nested tibble with differential abundance estimates.
 }
 \description{
-A wrapper function that formats data into a tibble and calls \code{hpcell_map_test_differential_abundance} for differential abundance testing.
+A wrapper function that formats data into a tibble and calls \code{map2_test_differential_abundance_hpc} for differential abundance testing.
 }
