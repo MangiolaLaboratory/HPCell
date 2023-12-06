@@ -37,7 +37,13 @@ eq = function(a,b){	a==b }
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' @noRd
 empty_droplet_id <- function(input_read_RNA_assay,
-                             filter_empty_droplets){
+                             filter_empty_droplets,
+                             assay = NULL){
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  
+  
   significance_threshold = 0.001
   # Genes to exclude
   location <- mapIds(
@@ -56,7 +62,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
   # }
   
   # Calculate bar-codes ranks
-  barcode_ranks = barcodeRanks(input_read_RNA_assay@assays$RNA@counts[!rownames(input_read_RNA_assay@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
+  barcode_ranks = barcodeRanks(GetAssayData(input_read_RNA_assay, assay, slot = "counts")[!rownames(GetAssayData(input_read_RNA_assay, assay, slot = "counts")) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
   
   # Set the minimum total RNA per cell for ambient RNA
   if(min(barcode_ranks$total) < 100) { lower = 100 } else {
@@ -73,7 +79,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
   if (
     # If filter_empty_droplets
     filter_empty_droplets == "TRUE") {
-    barcode_table <- input_read_RNA_assay@assays$RNA@counts[!rownames(input_read_RNA_assay@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
+    barcode_table <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")[!rownames(GetAssayData(input_read_RNA_assay, assay, slot = "counts")) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>
       mutate(empty_droplet = FDR >= significance_threshold) |>

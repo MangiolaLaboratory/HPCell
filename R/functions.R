@@ -26,12 +26,18 @@
 #' @importFrom Seurat CreateSeuratObject
 #' @importFrom Seurat CreateAssayObject
 #' @importFrom Seurat as.SingleCellExperiment
+#' @importFrom magrittr extract2
 #' 
 #' @export
 annotation_label_transfer <- function(input_read_RNA_assay,
                                       empty_droplets_tbl, 
-                                      reference_azimuth = NULL
+                                      reference_azimuth = NULL,
+                                      assay = NULL
 ){
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  
   # SingleR
   sce =
     input_read_RNA_assay |>
@@ -40,7 +46,6 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     left_join(empty_droplets_tbl, by = ".cell") |>
     filter(!empty_droplet) |>
     as.SingleCellExperiment() |>    # Add class to the tbl
-    add_class("sccomp_tbl") |> 
     logNormCounts()
   
   if(ncol(sce)==1){
@@ -160,7 +165,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     
     # Subset
-    RNA_assay = input_read_RNA_assay[["RNA"]][rownames(input_read_RNA_assay[["RNA"]]) %in% rownames(reference_azimuth[["SCT"]]),]
+    RNA_assay = input_read_RNA_assay[[assay]][rownames(input_read_RNA_assay[[assay]]) %in% rownames(reference_azimuth[["SCT"]]),]
     #RNA_assay <- input_read_RNA_assay@assays$RNA[["counts"]][rownames(input_read_RNA_assay@assays$RNA[["counts"]])%in% rownames(reference_azimuth[["SCT"]]),]
     #ADT_assay = input_read_RNA_assay[["ADT"]][rownames(input_read_RNA_assay[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
     input_read_RNA_assay <- CreateSeuratObject( counts = RNA_assay)
@@ -176,7 +181,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
       input_read_RNA_assay |>
       
       # Normalise RNA - not informed by smartly selected variable genes
-      SCTransform(assay="RNA") |>
+      SCTransform(assay=assay) |>
       ScaleData(assay = "SCT") |>
       RunPCA(assay = "SCT")
     
@@ -275,7 +280,12 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' @export
 alive_identification <- function(input_read_RNA_assay,
                                  empty_droplets_tbl,
-                                 annotation_label_transfer_tbl) {
+                                 annotation_label_transfer_tbl,
+                                 assay = NULL) {
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  
   input_read_RNA_assay =
     input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by=".cell") |>
@@ -294,7 +304,7 @@ alive_identification <- function(input_read_RNA_assay,
   
   # mitochondrion =
   #   input_read_RNA_assay |>
-  #   GetAssayData( slot = "counts", assay="RNA") |>
+  #   GetAssayData( slot = "counts", assay=assay) |>
   # 
   #   # Join mitochondrion statistics
   #   # Compute per-cell quality control metrics for a count matrix or a SingleCellExperiment
@@ -324,7 +334,7 @@ alive_identification <- function(input_read_RNA_assay,
   #   }()
   
   #Extract counts for RNA assay
-  rna_counts <- GetAssayData(input_read_RNA_assay, layer = "counts", assay="RNA")
+  rna_counts <- GetAssayData(input_read_RNA_assay, layer = "counts", assay=assay)
   
   # Compute per-cell QC metrics
   qc_metrics <- perCellQCMetrics(rna_counts, subsets=list(Mito=which_mito)) %>%
@@ -356,10 +366,10 @@ alive_identification <- function(input_read_RNA_assay,
     ribosome =
       input_read_RNA_assay |>
       select(.cell) |>
-      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1]) |>
+      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
       
       # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA") |> unique()) |>
+      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay) |> unique()) |>
       left_join(annotation_label_transfer_tbl, by = ".cell") |>
       nest(data = -blueprint_first.labels.fine) |>
       mutate(data = map(
@@ -377,12 +387,12 @@ alive_identification <- function(input_read_RNA_assay,
     # ribosome =
     #   input_read_RNA_assay |>
     #   select(.cell) |>
-    #   mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1])
+    #   mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1])
     ribosome =
       input_read_RNA_assay |>
       dplyr::select(.cell) |>
-      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1]) |>
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA"))|>
+      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
+      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay))|>
       nest(data = everything()) |>
       mutate(data = map(
         data,
@@ -408,7 +418,7 @@ alive_identification <- function(input_read_RNA_assay,
 #' Doublet Identification
 #'
 #' @description
-#' `doublet_identification` applies the scDblFinder algorithm to the filtered dataset. It supports integrating with
+#' `doublet_identification` applies the scDblFinder algorithm to the filter_empty_droplets dataset. It supports integrating with
 #' SingleR annotations if provided and outputs a tibble containing cells with their associated scDblFinder scores.
 #'
 #' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
@@ -427,7 +437,13 @@ doublet_identification <- function(input_read_RNA_assay,
                                    empty_droplets_tbl, 
                                    alive_identification_tbl, 
                                    annotation_label_transfer_tbl, 
-                                   reference_label_fine){
+                                   reference_label_fine,
+                                   assay = NULL){
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  
+  
   filter_empty_droplets <- input_read_RNA_assay |>
     
     # Filtering empty
@@ -467,7 +483,11 @@ doublet_identification <- function(input_read_RNA_assay,
 #' @importFrom Seurat CellCycleScoring
 #' @export
 cell_cycle_scoring <- function(input_read_RNA_assay, 
-                               empty_droplets_tbl){
+                               empty_droplets_tbl,
+                               assay = NULL){
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
   counts =
     input_read_RNA_assay |>
@@ -514,7 +534,13 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
 non_batch_variation_removal <- function(input_path_demultiplexed, 
                                         input_path_empty_droplets, 
                                         alive_identification_tbl, 
-                                        cell_cycle_score_tbl){
+                                        cell_cycle_score_tbl,
+                                        assay = NULL){
+  
+  # Get assay
+  if(is.null(assay)) assay = input_path_demultiplexed@assays |> names() |> extract2(1)
+  
+  
   counts =
     input_path_demultiplexed |>
     left_join(input_path_empty_droplets, by = ".cell") |>
@@ -542,7 +568,7 @@ non_batch_variation_removal <- function(input_path_demultiplexed,
   # Normalise RNA
   normalized_rna <- SCTransform(
     counts, 
-    assay="RNA",
+    assay=assay,
     return.only.var.genes=FALSE,
     residual.features = NULL,
     vars.to.regress = c("subsets_Mito_percent", "subsets_Ribo_percent", "G2M.Score"),
@@ -577,7 +603,7 @@ non_batch_variation_removal <- function(input_path_demultiplexed,
 #' @param annotation_label_transfer_tbl A tibble from annotation label transfer.
 #' @param doublet_identification_tbl A tibble from doublet identification.
 #'
-#' @return Processed and filtered dataset.
+#' @return Processed and filter_empty_droplets dataset.
 #'
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
@@ -653,9 +679,12 @@ preprocessing_output <- function(tissue,
 #' @export
 pseudobulk_preprocessing <- function(reference_label_fine, 
                                      preprocessing_output_S, 
-                                     sample_column){
+                                     sample_column,
+                                     assay = NULL){
+  
+
+  
   if (reference_label_fine %in% colnames(preprocessing_output_S[[1]]@meta.data)) {
-    assays = preprocessing_output_S[[1]]@assays |> names() |> intersect(c("RNA", "ADT"))
     
     #sample_column = enquo(sample_column)
     #sample_symbol <- rlang::sym(rlang::quo_get_expr(sample_column))
@@ -664,7 +693,17 @@ pseudobulk_preprocessing <- function(reference_label_fine,
       
       # Aggregate
       map(~ { 
-        library(rlang)
+
+        # Get assay
+        if(is.null(assay)) {
+          assay = .x@assays |> names() |> extract2(1)
+          .x = add_RNA_assay(.x, assay)
+          
+        }
+        
+        assays = .x@assays |> names() |> intersect(c("RNA", "ADT"))
+        
+        
         .x |> 
           tidyseurat::aggregate_cells(c(!!as.symbol(sample_column), !!as.symbol(reference_label_fine)), slot = "data", assays=assays) |>
           tidybulk::as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
@@ -741,16 +780,27 @@ pseudobulk_preprocessing <- function(reference_label_fine,
     
     gc()
     
-    # ONLY SAMPLE
+    # Pseuobul aggregated by sample ONLY SAMPLE
     pseudobulk =
       preprocessing_output_S |>
       
       # Aggregate
-      map(~
-            .x |>
-            tidyseurat::aggregate_cells(c(!!as.symbol(sample_column)), slot = "counts", assays=assays) |>
-            #tidybulk::as_SummarizedExperiment(!!sample_column, !!as.symbol(reference_label_fine), c(RNA, ADT)) |>
-            tidybulk::as_SummarizedExperiment(!!as.symbol(sample_column), .feature, any_of(c("RNA", "ADT"))) |>
+      map(~ {
+        
+        # Get assay
+        if(is.null(assay)) {
+          assay = .x@assays |> names() |> extract2(1)
+          .x = add_RNA_assay(.x, assay)
+          
+        }
+        
+        assays = .x@assays |> names() |> intersect(c("RNA", "ADT"))
+        
+        
+        .x |> 
+          tidyseurat::aggregate_cells(c(!!as.symbol(sample_column)), slot = "data", assays=assays) |>
+          tidybulk::as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
+
             # Reshape to make RNA and ADT both features
             tidyr::pivot_longer(
               cols = assays,
@@ -770,6 +820,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
               .transcript = .feature,
               .abundance = count
             )
+      }
       )
     
     # This should not be needed if I create count files weel form the beginning
@@ -811,7 +862,8 @@ pseudobulk_preprocessing <- function(reference_label_fine,
     return(list(
       pseudobulk_by_sample = output_path_sample,
       pseudobulk_by_sample_and_cell_type = output_path_sample_cell_type
-    ))}
+    ))
+    }
   else {return(NULL)}
 }
 

@@ -9,7 +9,8 @@ doublet_identification(
   empty_droplets_tbl,
   alive_identification_tbl,
   annotation_label_transfer_tbl,
-  reference_label_fine
+  reference_label_fine,
+  assay = NULL
 )
 }
 \arguments{
@@ -27,6 +28,6 @@ doublet_identification(
 A tibble containing cells with their scDblFinder scores.
 }
 \description{
-\code{doublet_identification} applies the scDblFinder algorithm to the filtered dataset. It supports integrating with
+\code{doublet_identification} applies the scDblFinder algorithm to the filter_empty_droplets dataset. It supports integrating with
 SingleR annotations if provided and outputs a tibble containing cells with their associated scDblFinder scores.
 }
