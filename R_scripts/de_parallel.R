@@ -13,7 +13,7 @@ se =
   tidybulk::keep_abundant()
   
 se |>
-  hpcell_test_differential_abundance(
+  test_differential_abundance_hpc(
     ~ dex + (1 | cell), 
     computing_resources = crew.cluster::crew_controller_slurm(
       name = "slurm",
@@ -26,7 +26,7 @@ se |>
 
 
 se |>
-  hpcell_test_differential_abundance(   ~ dex + (1 | cell)    )
+  test_differential_abundance_hpc(   ~ dex + (1 | cell)    )
   
 # Big dataset
 
@@ -387,7 +387,7 @@ se =
   tidybulk::keep_abundant()
 
   se |>
-    hpcell_test_differential_abundance(
+    test_differential_abundance_hpc(
       ~ dex + (1 | cell),
       computing_resources = slurm
     )

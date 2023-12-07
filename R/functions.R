@@ -676,6 +676,7 @@ preprocessing_output <- function(tissue,
 #' @importFrom S4Vectors cbind
 #' @importFrom purrr map
 #' @importFrom scater isOutlier
+#' @importFrom SummarizedExperiment rowData
 #' @export
 pseudobulk_preprocessing <- function(reference_label_fine, 
                                      preprocessing_output_S, 

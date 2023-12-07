@@ -24,6 +24,7 @@
 #' @importFrom magrittr extract2
 #' @import targets
 #' @importFrom rlang quo_is_symbolic
+#' @importFrom SummarizedExperiment assays
 #' 
 #' @export
 map2_test_differential_abundance_hpc = function(
@@ -245,13 +246,14 @@ map2_test_differential_abundance_hpc = function(
 #' @param cpus_per_task Number of CPUs allocated per task.
 #' @param debug_job_id Optional job ID for debugging.
 #' @param append Flag to append to existing script.
+#' @param magrittr extract2
 #'
 #' @return A `targets` pipeline output, typically a nested tibble with differential abundance estimates.
 #'
 #' @importFrom tibble tibble
 #' @export
 #' 
-hpcell_test_differential_abundance = function(
+test_differential_abundance_hpc = function(
     .data, 
     formula,
     store =  tempfile(tmpdir = "."),  
@@ -264,20 +266,19 @@ hpcell_test_differential_abundance = function(
   tibble(
     name = "my_data", 
     data = list(!!.data ),
-    formula = formula
+    formula = list(!!formula)
   ) |> 
     
-    # Call map function 
-    map2_test_differential_abundance_hpc(
-      .formula_column = formula,
-      data,    
-      .group_name_columns = name,
-      .abundance = NULL, 
+    mutate(data = map2_test_differential_abundance_hpc(
+      data,
+      formula ,
       store = store, 
       computing_resources = computing_resources,
       debug_job_id = debug_job_id, 
       append = append
-    )
+    )) |> 
+    pull(data) |> 
+    extract2(1)
 
   
 }
