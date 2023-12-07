@@ -128,10 +128,11 @@ test_that("pseudobulk_preprocessing handles input lists", {
   expect_s4_class(pseudobulk_preprocessing_SE[[2]], "SummarizedExperiment")                
 })
 
+# Test empty droplets
 rmarkdown::render(
-  input = paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
-  output_file = paste0(system.file(package = "HPCell"), "/Empty_droplet_report.html"),
-  params = list(x1 = list(input_read_RNA_assay), x2 = list(empty_droplets_tbl), x3 = list(alive_identification_tbl))
+  input = paste0(system.file(package = "HPCell"), "/rmd/template_targets.Rmd"),
+  output_file = "~/Documents/HPCell/template.html",
+  params = list(x1 = list(input_read_RNA_assay), x2 = list(empty_droplets_tbl))
 )
 
 

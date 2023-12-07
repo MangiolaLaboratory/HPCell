@@ -286,7 +286,7 @@ alive_identification <- function(input_read_RNA_assay,
   
   input_read_RNA_assay =
     input_read_RNA_assay |>
-    left_join(empty_droplets_tbl, by=".cell") |>
+    tidySummarizedExperiment::left_join(empty_droplets_tbl, by=".cell") |>
     filter(!empty_droplet)
   
   # Returns a named vector of IDs
@@ -367,7 +367,7 @@ alive_identification <- function(input_read_RNA_assay,
       #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
       
       # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay) |> unique()) |>
+      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)) |>
       left_join(annotation_label_transfer_tbl, by = ".cell") |>
       nest(data = -blueprint_first.labels.fine) |>
       mutate(data = map(
@@ -444,7 +444,6 @@ doublet_identification <- function(input_read_RNA_assay,
   
   
   filter_empty_droplets <- input_read_RNA_assay |>
-    
     # Filtering empty
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
     filter(!empty_droplet) |>
@@ -456,7 +455,6 @@ doublet_identification <- function(input_read_RNA_assay,
   # Annotate
   filter_empty_droplets <- filter_empty_droplets |> 
     left_join(annotation_label_transfer_tbl, by = ".cell")|>
-    as.SingleCellExperiment() |>
     #scDblFinder(clusters = ifelse(reference_label_fine=="none", TRUE, reference_label_fine)) |>
     scDblFinder(clusters = NULL) 
   
@@ -675,6 +673,7 @@ preprocessing_output <- function(tissue,
 #' @importFrom S4Vectors cbind
 #' @importFrom purrr map
 #' @importFrom scater isOutlier
+#' @importFrom SummarizedExperiment rowData
 #' @export
 pseudobulk_preprocessing <- function(reference_label_fine, 
                                      preprocessing_output_S, 

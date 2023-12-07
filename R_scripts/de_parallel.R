@@ -13,7 +13,7 @@ se =
   tidybulk::keep_abundant()
   
 se |>
-  hpcell_test_differential_abundance(
+  test_differential_abundance_hpc(
     ~ dex + (1 | cell), 
     computing_resources = crew.cluster::crew_controller_slurm(
       name = "slurm",
@@ -26,7 +26,7 @@ se |>
 
 
 se |>
-  hpcell_test_differential_abundance(   ~ dex + (1 | cell)    )
+  test_differential_abundance_hpc(   ~ dex + (1 | cell)    )
   
 # Big dataset
 
@@ -362,13 +362,20 @@ slurm = crew.cluster::crew_controller_slurm(
 
 
 microbenchmark(
-    x = 
     se_big |>
-    mutate(data = map2_test_differential_abundance_hpc(
+    mutate(data = map2(
       data,
       formula ,
-      computing_resources = slurm
+      ~ tidybulk::test_differential_abundance(
+        .x, .y, method = "glmmSeq_lme4", cores = 1
+      )
     )), 
+    se_big |>
+      mutate(data = map2_test_differential_abundance_hpc(
+        data,
+        formula ,
+        computing_resources = slurm
+      )),
   times = 1
 )
 
@@ -380,7 +387,7 @@ se =
   tidybulk::keep_abundant()
 
   se |>
-    hpcell_test_differential_abundance(
+    test_differential_abundance_hpc(
       ~ dex + (1 | cell),
       computing_resources = slurm
     )
