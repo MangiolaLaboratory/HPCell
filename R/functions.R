@@ -677,6 +677,7 @@ preprocessing_output <- function(tissue,
 #' @importFrom purrr map
 #' @importFrom scater isOutlier
 #' @importFrom SummarizedExperiment rowData
+#' @importFrom SummarizedExperiment `rowData<-`
 #' @export
 pseudobulk_preprocessing <- function(reference_label_fine, 
                                      preprocessing_output_S, 
