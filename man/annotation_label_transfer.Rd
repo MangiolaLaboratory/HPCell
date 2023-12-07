@@ -7,7 +7,8 @@
 annotation_label_transfer(
   input_read_RNA_assay,
   empty_droplets_tbl,
-  reference_azimuth = NULL
+  reference_azimuth = NULL,
+  assay = NULL
 )
 }
 \arguments{

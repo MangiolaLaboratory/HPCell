@@ -26,12 +26,18 @@
 #' @importFrom Seurat CreateSeuratObject
 #' @importFrom Seurat CreateAssayObject
 #' @importFrom Seurat as.SingleCellExperiment
+#' @importFrom magrittr extract2
 #' 
 #' @export
 annotation_label_transfer <- function(input_read_RNA_assay,
                                       empty_droplets_tbl, 
-                                      reference_azimuth = NULL
+                                      reference_azimuth = NULL,
+                                      assay = NULL
 ){
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  
   # SingleR
   sce =
     input_read_RNA_assay |>
@@ -40,7 +46,6 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     left_join(empty_droplets_tbl, by = ".cell") |>
     filter(!empty_droplet) |>
     as.SingleCellExperiment() |>    # Add class to the tbl
-    add_class("sccomp_tbl") |> 
     logNormCounts()
   
   if(ncol(sce)==1){
@@ -160,7 +165,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     
     # Subset
-    RNA_assay = input_read_RNA_assay[["RNA"]][rownames(input_read_RNA_assay[["RNA"]]) %in% rownames(reference_azimuth[["SCT"]]),]
+    RNA_assay = input_read_RNA_assay[[assay]][rownames(input_read_RNA_assay[[assay]]) %in% rownames(reference_azimuth[["SCT"]]),]
     #RNA_assay <- input_read_RNA_assay@assays$RNA[["counts"]][rownames(input_read_RNA_assay@assays$RNA[["counts"]])%in% rownames(reference_azimuth[["SCT"]]),]
     #ADT_assay = input_read_RNA_assay[["ADT"]][rownames(input_read_RNA_assay[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
     input_read_RNA_assay <- CreateSeuratObject( counts = RNA_assay)
@@ -176,7 +181,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
       input_read_RNA_assay |>
       
       # Normalise RNA - not informed by smartly selected variable genes
-      SCTransform(assay="RNA") |>
+      SCTransform(assay=assay) |>
       ScaleData(assay = "SCT") |>
       RunPCA(assay = "SCT")
     
@@ -275,7 +280,12 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' @export
 alive_identification <- function(input_read_RNA_assay,
                                  empty_droplets_tbl,
-                                 annotation_label_transfer_tbl) {
+                                 annotation_label_transfer_tbl,
+                                 assay = NULL) {
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  
   input_read_RNA_assay =
     input_read_RNA_assay |>
     tidySummarizedExperiment::left_join(empty_droplets_tbl, by=".cell") |>
@@ -294,7 +304,7 @@ alive_identification <- function(input_read_RNA_assay,
   
   # mitochondrion =
   #   input_read_RNA_assay |>
-  #   GetAssayData( slot = "counts", assay="RNA") |>
+  #   GetAssayData( slot = "counts", assay=assay) |>
   # 
   #   # Join mitochondrion statistics
   #   # Compute per-cell quality control metrics for a count matrix or a SingleCellExperiment
@@ -324,7 +334,7 @@ alive_identification <- function(input_read_RNA_assay,
   #   }()
   
   #Extract counts for RNA assay
-  rna_counts <- GetAssayData(input_read_RNA_assay, layer = "counts", assay="RNA")
+  rna_counts <- GetAssayData(input_read_RNA_assay, layer = "counts", assay=assay)
   
   # Compute per-cell QC metrics
   qc_metrics <- perCellQCMetrics(rna_counts, subsets=list(Mito=which_mito)) %>%
@@ -356,9 +366,10 @@ alive_identification <- function(input_read_RNA_assay,
     ribosome =
       input_read_RNA_assay |>
       select(.cell) |>
-      # I NEED UNIQUE BECAUSE SEURAT HAS POSSIBLY A BUG
-      # Output duplicate
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA") |> unique()) |>
+      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
+      
+      # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
+      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)) |>
       left_join(annotation_label_transfer_tbl, by = ".cell") |>
       nest(data = -blueprint_first.labels.fine) |>
       mutate(data = map(
@@ -376,12 +387,12 @@ alive_identification <- function(input_read_RNA_assay,
     # ribosome =
     #   input_read_RNA_assay |>
     #   select(.cell) |>
-    #   mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1])
+    #   mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1])
     ribosome =
       input_read_RNA_assay |>
       dplyr::select(.cell) |>
-      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA")[,1]) |>
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = "RNA"))|>
+      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
+      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay))|>
       nest(data = everything()) |>
       mutate(data = map(
         data,
@@ -407,7 +418,7 @@ alive_identification <- function(input_read_RNA_assay,
 #' Doublet Identification
 #'
 #' @description
-#' `doublet_identification` applies the scDblFinder algorithm to the filtered dataset. It supports integrating with
+#' `doublet_identification` applies the scDblFinder algorithm to the filter_empty_droplets dataset. It supports integrating with
 #' SingleR annotations if provided and outputs a tibble containing cells with their associated scDblFinder scores.
 #'
 #' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
@@ -426,9 +437,14 @@ doublet_identification <- function(input_read_RNA_assay,
                                    empty_droplets_tbl, 
                                    alive_identification_tbl, 
                                    annotation_label_transfer_tbl, 
-                                   reference_label_fine){
-  filter_input <- input_read_RNA_assay |>
-    as.SingleCellExperiment() |>
+                                   reference_label_fine,
+                                   assay = NULL){
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  
+  
+  filter_empty_droplets <- input_read_RNA_assay |>
     # Filtering empty
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
     filter(!empty_droplet) |>
@@ -438,13 +454,12 @@ doublet_identification <- function(input_read_RNA_assay,
     filter(!high_mitochondrion & !high_ribosome) 
   
   # Annotate
-  filter_input <- filter_input |> 
-    #as.SingleCellExperiment() |>
+  filter_empty_droplets <- filter_empty_droplets |> 
     left_join(annotation_label_transfer_tbl, by = ".cell")|>
     #scDblFinder(clusters = ifelse(reference_label_fine=="none", TRUE, reference_label_fine)) |>
     scDblFinder(clusters = NULL) 
   
-  as_tibble(colData(filter_input), rownames = ".cell")|> select(.cell, contains("scDblFinder")) 
+  as_tibble(colData(filter_empty_droplets), rownames = ".cell")|> select(.cell, contains("scDblFinder")) 
   
 }
 
@@ -466,7 +481,11 @@ doublet_identification <- function(input_read_RNA_assay,
 #' @importFrom Seurat CellCycleScoring
 #' @export
 cell_cycle_scoring <- function(input_read_RNA_assay, 
-                               empty_droplets_tbl){
+                               empty_droplets_tbl,
+                               assay = NULL){
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
   counts =
     input_read_RNA_assay |>
@@ -513,7 +532,13 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
 non_batch_variation_removal <- function(input_path_demultiplexed, 
                                         input_path_empty_droplets, 
                                         alive_identification_tbl, 
-                                        cell_cycle_score_tbl){
+                                        cell_cycle_score_tbl,
+                                        assay = NULL){
+  
+  # Get assay
+  if(is.null(assay)) assay = input_path_demultiplexed@assays |> names() |> extract2(1)
+  
+  
   counts =
     input_path_demultiplexed |>
     left_join(input_path_empty_droplets, by = ".cell") |>
@@ -541,7 +566,7 @@ non_batch_variation_removal <- function(input_path_demultiplexed,
   # Normalise RNA
   normalized_rna <- SCTransform(
     counts, 
-    assay="RNA",
+    assay=assay,
     return.only.var.genes=FALSE,
     residual.features = NULL,
     vars.to.regress = c("subsets_Mito_percent", "subsets_Ribo_percent", "G2M.Score"),
@@ -576,7 +601,7 @@ non_batch_variation_removal <- function(input_path_demultiplexed,
 #' @param annotation_label_transfer_tbl A tibble from annotation label transfer.
 #' @param doublet_identification_tbl A tibble from doublet identification.
 #'
-#' @return Processed and filtered dataset.
+#' @return Processed and filter_empty_droplets dataset.
 #'
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
@@ -606,19 +631,19 @@ preprocessing_output <- function(tissue,
     # Filter doublets
     left_join(doublet_identification_tbl |> select(.cell, scDblFinder.class), by = ".cell") |>
     filter(scDblFinder.class=="singlet") 
-    
-    if (inherits(annotation_label_transfer_tbl, "tbl_df")){
-      processed_data <- processed_data |>
+  
+  if (inherits(annotation_label_transfer_tbl, "tbl_df")){
+    processed_data <- processed_data |>
       left_join(annotation_label_transfer_tbl, by = ".cell")
-      }
-    
-    # Filter Red blood cells and platelets
+  }
+  
+  # Filter Red blood cells and platelets
   if (tolower(tissue) == "pbmc" & "predicted.celltype.l2" %in% c(rownames(annotation_label_transfer_tbl), colnames(annotation_label_transfer_tbl))) {
     filtered_data <- filter(processed_data, !predicted.celltype.l2 %in% c("Eryth", "Platelet"))
   } else {
     filtered_data <- processed_data
   }
-  }
+}
 
 
 #' Pseudobulk Preprocessing
@@ -649,12 +674,16 @@ preprocessing_output <- function(tissue,
 #' @importFrom S4Vectors cbind
 #' @importFrom purrr map
 #' @importFrom scater isOutlier
+#' @importFrom SummarizedExperiment rowData
 #' @export
 pseudobulk_preprocessing <- function(reference_label_fine, 
                                      preprocessing_output_S, 
-                                     sample_column){
+                                     sample_column,
+                                     assay = NULL){
+  
+
+  
   if (reference_label_fine %in% colnames(preprocessing_output_S[[1]]@meta.data)) {
-    assays = preprocessing_output_S[[1]]@assays |> names() |> intersect(c("RNA", "ADT"))
     
     #sample_column = enquo(sample_column)
     #sample_symbol <- rlang::sym(rlang::quo_get_expr(sample_column))
@@ -663,7 +692,17 @@ pseudobulk_preprocessing <- function(reference_label_fine,
       
       # Aggregate
       map(~ { 
-        library(rlang)
+
+        # Get assay
+        if(is.null(assay)) {
+          assay = .x@assays |> names() |> extract2(1)
+          .x = add_RNA_assay(.x, assay)
+          
+        }
+        
+        assays = .x@assays |> names() |> intersect(c("RNA", "ADT"))
+        
+        
         .x |> 
           tidyseurat::aggregate_cells(c(!!as.symbol(sample_column), !!as.symbol(reference_label_fine)), slot = "data", assays=assays) |>
           tidybulk::as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
@@ -740,16 +779,27 @@ pseudobulk_preprocessing <- function(reference_label_fine,
     
     gc()
     
-    # ONLY SAMPLE
+    # Pseuobul aggregated by sample ONLY SAMPLE
     pseudobulk =
       preprocessing_output_S |>
       
       # Aggregate
-      map(~
-            .x |>
-            tidyseurat::aggregate_cells(c(!!as.symbol(sample_column)), slot = "counts", assays=assays) |>
-            #tidybulk::as_SummarizedExperiment(!!sample_column, !!as.symbol(reference_label_fine), c(RNA, ADT)) |>
-            tidybulk::as_SummarizedExperiment(!!as.symbol(sample_column), .feature, any_of(c("RNA", "ADT"))) |>
+      map(~ {
+        
+        # Get assay
+        if(is.null(assay)) {
+          assay = .x@assays |> names() |> extract2(1)
+          .x = add_RNA_assay(.x, assay)
+          
+        }
+        
+        assays = .x@assays |> names() |> intersect(c("RNA", "ADT"))
+        
+        
+        .x |> 
+          tidyseurat::aggregate_cells(c(!!as.symbol(sample_column)), slot = "data", assays=assays) |>
+          tidybulk::as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
+
             # Reshape to make RNA and ADT both features
             tidyr::pivot_longer(
               cols = assays,
@@ -769,6 +819,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
               .transcript = .feature,
               .abundance = count
             )
+      }
       )
     
     # This should not be needed if I create count files weel form the beginning
@@ -810,7 +861,8 @@ pseudobulk_preprocessing <- function(reference_label_fine,
     return(list(
       pseudobulk_by_sample = output_path_sample,
       pseudobulk_by_sample_and_cell_type = output_path_sample_cell_type
-    ))}
+    ))
+    }
   else {return(NULL)}
 }
 
@@ -989,9 +1041,36 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 }
 
 
+#' Add Dispersion Estimates to SingleCellExperiment Object
+#'
+#' @description
+#' `map_add_dispersion_to_se` function adds dispersion estimates to each feature (gene) in a 
+#' SingleCellExperiment object. Dispersion estimates are added based on the abundance measure specified.
+#'
+#' @param se_df A data frame or list containing SingleCellExperiment objects.
+#' @param .col A symbol indicating the column in `se_df` that contains SingleCellExperiment objects.
+#' @param abundance (Optional) A character vector specifying the name of the assay to be used 
+#'                  for dispersion estimation. If NULL or not provided, the first assay is used.
+#'
+#' @return The input data frame or list (`se_df`) with the specified `.col` modified to include 
+#'         dispersion estimates in each SingleCellExperiment object.
+#'
+#' @details
+#' The function iterates over each SingleCellExperiment object in the specified column of the input data frame 
+#' or list. It calculates dispersion estimates for the features (genes) based on the specified abundance assay.
+#' The results are joined back to each SingleCellExperiment object. If no abundance assay is specified, 
+#' the function defaults to the first assay in each SingleCellExperiment object.
+#'
+#' @examples
+#' # Assuming `se_list` is a list of SingleCellExperiment objects
+#' result <- map_add_dispersion_to_se(se_list, .col = se_objects, abundance = "counts")
+#'
 #' @importFrom magrittr extract2
-#' 
-#' 
+#' @importFrom edgeR estimateDisp
+#' @importFrom dplyr mutate
+#' @importFrom dplyr left_join
+#' @importFrom tibble enframe
+#' @importFrom purrr map2
 #' @export
 map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
   
@@ -1000,7 +1079,9 @@ map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
   if(abundance |> length() > 1) stop("HPCell says: for now only one feature abundance measure can be selected")
   
   se_df |>
-      mutate(assay_name = abundance) |> 
+    
+    # This is adding a new column 
+    mutate(assay_name = abundance) |> 
     mutate(!!.col := map2(
       !!.col, assay_name,
       ~ {
@@ -1041,21 +1122,22 @@ map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
 #' @importFrom rlang enquo
 #' @export
 map_test_differential_abundance = function(
-
-    se, .col, formula, .abundance = NULL, max_rows_for_matrix_multiplication = NULL,
-    cores = 1, ...
-
+    
+  se, .col, .formula, .abundance = NULL, max_rows_for_matrix_multiplication = NULL,
+  cores = 1, ...
+  
 ){
   
   .col = enquo(.col)
-   
-  se |> mutate(!!.col := map(
-    !!.col,
+  .formula = enquo(.formula)
+  
+  se |> mutate(!!.col := map2(
+    !!.col, !!.formula,
     ~ .x |>
       
       # Test
       test_differential_abundance(
-        !!formula, 
+        .y, 
         .abundance = !!as.symbol(.abundance),
         method = "glmmSeq_lme4",
         cores = cores,
@@ -1069,4 +1151,100 @@ map_test_differential_abundance = function(
   
   
 }
+
+
+#' Split SummarizedExperiment Object by Gene
+#'
+#' @description
+#' Splits each SummarizedExperiment object in a data frame into chunks by gene.
+#'
+#' @param se_df Data frame containing SummarizedExperiment objects.
+#' @param .col Column in the data frame containing the SummarizedExperiment objects.
+#' @param .number_of_chunks Number of chunks to split into.
+#'
+#' @return Data frame with SummarizedExperiment objects split into chunks.
+#'
+#' @importFrom dplyr n
+#' @importFrom dplyr mutate
+#' @importFrom tidyr unnest
+#' @importFrom dplyr select
+#' @importFrom purrr map2
+#' @importFrom tidyr nest
+#' @importFrom rlang enquo
+#' @export
+map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
+  
+  .col = enquo(.col)
+  .number_of_chunks = enquo(.number_of_chunks)
+  
+  se_df |>
+    mutate(!!.col := map2(
+      !!.col, !!.number_of_chunks,
+      ~ {
+        chunks =
+          tibble(.feature = rownames(.x)) |>
+          mutate(chunk___ = min(1, .y):.y |> sample() |> rep(ceiling(nrow(.x)/max(1, .y))) |> head(nrow(.x)))
+        
+        # Join chunks
+        grouping_factor = chunks |> pull(chunk___) |> as.factor()
+        
+        .x |> splitRowData(f = grouping_factor)
+      }
+    )) |>
+    unnest(!!.col) |>
+    mutate(se_md5 = ids::random_id(n()))
+}
+
+#' @export
+map_split_se_by_number_of_genes = function(se_df, .col, chunk_size = 100){
+  
+  .col = enquo(.col)
+  
+  se_df |>
+    mutate(!!.col := map(
+      !!.col,
+      ~ {
+        total_rows = nrow(.x)
+        num_chunks = ceiling(total_rows / chunk_size)
+        
+        chunks =
+          tibble(.feature = rownames(.x)) |>
+          mutate(chunk___ = rep(1:num_chunks, each = chunk_size, length.out = nrow(.x)))
+        
+        # Join chunks
+        grouping_factor = chunks |> pull(chunk___) |> as.factor()
+        
+        .x |> splitRowData(f = grouping_factor)
+      }
+    )) |>
+    unnest(!!.col) |>
+    mutate(se_md5 = ids::random_id(n()))
+}
+
+
+#' @importFrom digest digest
+#' @importFrom rlang enquo
+#'
+#' @export
+map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_cells_before_split = 4763){
+  
+  .col = enquo(.col)
+  
+  sce_df |>
+    mutate(!!.col := map(
+      !!.col,
+      ~ {
+        
+        how_many_splits = ceiling(ncol(.x)/max_cells_before_split)*how_many_chunks_base
+        
+        grouping_factor = sample(seq_len(how_many_splits), size = nrow(.x), replace = TRUE) |> as.factor()
+        
+        .x |> splitRowData(f = grouping_factor)
+        
+      }
+    )) |>
+    unnest(!!.col) |>
+    mutate(sce_md5 = map_chr(!!.col, digest))
+}
+
 

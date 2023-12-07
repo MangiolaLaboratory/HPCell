@@ -6,7 +6,7 @@ set.seed(42)
 args = commandArgs(trailingOnly=TRUE)
 code_directory = args[[1]]
 input_path = args[[2]]
-filtered = args[[3]]
+filter_empty_droplets = args[[3]]
 output_path_result = args[[4]]
 output_path_plot_pdf = args[[5]]
 output_path_plot_rds = args[[6]]
@@ -62,8 +62,8 @@ barcode_table =
   input_file |>
   when(
 
-    # If filtered
-    filtered == "unfiltered" ~
+    # If filter_empty_droplets
+    filter_empty_droplets == "unfiltered" ~
       (.)@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>
@@ -71,7 +71,7 @@ barcode_table =
       replace_na(list(empty_droplet = TRUE)),
 
     # If unfiltered
-    filtered == "filtered" ~
+    filter_empty_droplets == "filter_empty_droplets" ~
       tidyseurat::select(., .cell) |>
       as_tibble() |>
       mutate( empty_droplet = FALSE)
