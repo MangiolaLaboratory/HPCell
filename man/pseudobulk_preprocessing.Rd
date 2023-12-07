@@ -21,7 +21,7 @@ pseudobulk_preprocessing(
 List containing pseudobulk data aggregated by sample and by both sample and cell type.
 }
 \description{
-Aggregates cells based on sample and cell type annotations, creating pseudobulk samples 
-for each combination. Handles RNA and ADT assays, ensuring that missing genes are accounted 
+Aggregates cells based on sample and cell type annotations, creating pseudobulk samples
+for each combination. Handles RNA and ADT assays, ensuring that missing genes are accounted
 for and aligns data across multiple samples.
 }

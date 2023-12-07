@@ -24,7 +24,7 @@ remote::install_github("stemangiola/HPCell")
 
 load HPCell package
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(HPCell)
 ```
 

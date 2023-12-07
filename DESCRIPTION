@@ -1,12 +1,16 @@
 Package: HPCell
-Type: Package
-Title: What the Package Does (Title Case
+Title: Massively-parallel R native pipeline for single-cell analysis
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Authors@R: c(person("Stefano", "Mangiola", email = "mangiolastefano@gmail.com",
+                  role = c("aut", "cre")),
+                  person("Jiayi", "Si", email = "si.j@wehi.edu.au",
+                  role = c("aut"))
+                  )
+Description: Massively-parallel R native pipeline for single-cell analysis.
+License: GPL-3 
+Roxygen: list(markdown = TRUE)
+Depends: 
+    R (>= 4.2.0)
 Remotes: sqjin/CellChat
 Biarch: true
 Imports:
@@ -75,4 +79,5 @@ biocViews:
 LazyDataCompression: xz
 Config/testthat/edition: 3
 Suggests: 
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    scRNAseq

@@ -1,15 +1,28 @@
 
+#' Main Function for HPCell Map Test Differential Abundance
+#'
+#' @description
+#' This function prepares and runs a differential abundance test pipeline using the 'targets' package. It sets up necessary files, appends scripts, and executes the pipeline.
+#'
+#' @param data_df Data frame to be processed.
+#' @param formula Formula for the differential abundance test.
+#' @param .data_column Column in the data frame containing the data.
+#' @param store File path for temporary storage.
+#' @param computing_resources Computing resources configuration.
+#' @param cpus_per_task Number of CPUs allocated per task.
+#' @param debug_job_id Optional job ID for debugging.
+#' @param append Flag to append to existing script.
+#'
+#' @return A `targets` pipeline output, typically a nested tibble with differential abundance estimates.
+#'
 #' @importFrom targets tar_script
 #' @importFrom targets tar_option_set
 #' @importFrom dplyr pull
 #' @importFrom dplyr count
 #' @importFrom dplyr rename
 #' @importFrom crew crew_controller_local
-#' 
 #' @import targets
-#' 
 #' @export
-#' 
 hpcell_map_test_differential_abundance = function(
     data_df,
     formula, 
@@ -199,10 +212,23 @@ hpcell_map_test_differential_abundance = function(
   tar_read(estimates, store = store)
 }
 
+#' Wrapper Function for HPCell Test Differential Abundance
+#'
+#' @description
+#' A wrapper function that formats data into a tibble and calls `hpcell_map_test_differential_abundance` for differential abundance testing.
+#'
+#' @param .data Data frame or similar object for analysis.
+#' @param formula Formula for the differential abundance test.
+#' @param store File path for temporary storage.
+#' @param computing_resources Computing resources configuration.
+#' @param cpus_per_task Number of CPUs allocated per task.
+#' @param debug_job_id Optional job ID for debugging.
+#' @param append Flag to append to existing script.
+#'
+#' @return A `targets` pipeline output, typically a nested tibble with differential abundance estimates.
+#'
 #' @importFrom tibble tibble
-#' 
 #' @export
-#' 
 hpcell_test_differential_abundance = function(.data, formula, store =  tempfile(tmpdir = "."),  computing_resources = crew_controller_local(workers = 1) ,     cpus_per_task = 1, debug_job_id = NULL, append = FALSE){
   
   # Create input dataframe

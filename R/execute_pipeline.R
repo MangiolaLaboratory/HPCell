@@ -1,8 +1,25 @@
-#' @importFrom glue glue
-#' @import targets
+#' Run Targets Pipeline for HPCell
 #'
+#' @description
+#' This function sets up and executes a `targets` pipeline for HPCell. It saves input data and configurations, 
+#' writes a pipeline script, and runs the pipeline using the 'targets' package.
+#'
+#' @param input_data Input data for the pipeline.
+#' @param store Directory path for storing the pipeline files.
+#' @param input_reference Optional reference data.
+#' @param tissue Tissue type for the analysis.
+#' @param computing_resources Configuration for computing resources.
+#' @param debug_step Optional step for debugging.
+#' @param filter_input Flag to indicate if input filtering is needed.
+#' @param RNA_assay_name Name of the RNA assay.
+#' @param sample_column Column name for sample identification.
+#'
+#' @return The output of the `targets` pipeline, typically a preprocessed dataset.
+#'
+#' @importFrom glue glue
+#' @importFrom targets tar_script
+#' @import targets
 #' @export
-#' 
 run_targets_pipeline <- function(
     input_data, 
     store =  "./", 

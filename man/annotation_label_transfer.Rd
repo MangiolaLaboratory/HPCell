@@ -21,7 +21,7 @@ annotation_label_transfer(
 A tibble with cell type annotation data.
 }
 \description{
-`annotation_label_transfer` utilizes SingleR for cell-type identification using reference datasets
+\code{annotation_label_transfer} utilizes SingleR for cell-type identification using reference datasets
 (Blueprint and Monaco Immune data). It can also perform cell type labeling using Azimuth when a reference
 is provided.
 }
