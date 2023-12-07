@@ -114,7 +114,7 @@ plot_list
 ```
 Blue = knee, green = inflection
 
-##Proportion of empty droplets 
+## Proportion of empty droplets 
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 empty_df |>
   group_by(Tissue) |>
@@ -122,7 +122,7 @@ empty_df |>
 
 ```
 
-##Number and proportion of cells (non-empty droplets), everything above knee is retained.
+## Number and proportion of cells (non-empty droplets), everything above knee is retained.
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 # Number of non-empty droplets -------------------------------------------------
 empty_df %>%
@@ -142,7 +142,7 @@ empty_df %>%
     Empty_droplets = sum(!is.cell, na.rm = TRUE)   # Count of FALSE values, NA values removed
   )
 ```
-##Histogram of p-values: (only if empty droplets have been identified)
+## Histogram of p-values: (only if empty droplets have been identified)
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 if(empty_df |> filter(empty_droplet) |> nrow() != 0){
   q = quantile(empty_df$Total, 0.1)
@@ -168,7 +168,7 @@ plot <- ggplot(empty_df_filtered, aes(x = PValue)) +
 # Step 3: Display the plot
 print(plot)
 ```
-##Percentage of reads assigned to mitochondrial transcrips against library size 
+## Percentage of reads assigned to mitochondrial transcrips against library size 
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 plot(qc_metrics$subsets_Mito_sum, qc_metrics$subsets_Mito_percent, log="x",
      xlab="Total count", ylab='Mitochondrial %')
