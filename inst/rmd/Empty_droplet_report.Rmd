@@ -1,0 +1,182 @@
+---
+title: "Empty_droplet_report"
+author: "SS"
+date: "2023-12-07"
+output: html_document
+---
+
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(HPCell)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(purrr)
+library(Seurat)
+library(tidyseurat)
+library(glue)
+library(scater)
+library(DropletUtils)
+library(EnsDb.Hsapiens.v86)
+library(here)
+library(stringr)
+library(rlang)
+library(scuttle)
+library(scDblFinder)
+library(ggupset)
+library(tidySummarizedExperiment)
+library(broom)
+library(tarchetypes)
+library(SeuratObject)
+library(SingleCellExperiment)
+library(SingleR)
+library(celldex)
+library(tidySingleCellExperiment)
+library(tibble)
+library(magrittr)
+library(qs)
+library(S4Vectors)
+
+# ma plot: mito is green, ribo is red
+col <- rep('black',ncol(empty_droplets_tbl))
+col[rownames(empty_droplets_tbl) %in% mito_genes] <-'green'
+col[rownames(empty_droplets_tbl) %in% ribo_genes] <-'red'
+
+which_mito = rownames(input_read_RNA_assay) |> str_which("^MT")
+rna_counts <- GetAssayData(input_read_RNA_assay, layer = "counts", assay="RNA")
+# Compute per-cell QC metrics
+qc_metrics <- perCellQCMetrics(rna_counts, subsets=list(Mito=which_mito)) %>%
+  as_tibble(rownames = ".cell") %>%
+  dplyr::select(-sum, -detected)
+
+#Identify mitochondrial content
+mitochondrion <- qc_metrics %>%
+  left_join(annotation_label_transfer_tbl, by = ".cell") %>%
+  nest(data = -blueprint_first.labels.fine) %>%
+  mutate(data = map(data, ~ .x %>%
+                      mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
+                             high_mitochondrion = as.logical(high_mitochondrion)))) %>%
+  unnest(cols = data)
+```
+
+## Barcode rank plot
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Add RNA assay
+input_read<- readRDS(input_data_path)
+input_read[["RNA"]] = input_read[["originalexp"]]
+DefaultAssay(object = input_read) <- "RNA"
+input_read[["originalexp"]] = NULL
+
+input<-input_read@meta.data |>
+  tibble::rownames_to_column(var = '.cell')
+empty_df <- empty_droplets_tbl |> 
+  left_join(input |> dplyr::select(.cell, Tissue), by = '.cell')
+
+grep('^MT-', rownames(input_read[['RNA']]), value=T)
+#define mito and ribo genes and add the plot:
+mito_genes <- grep('^MT-', rownames(input_read[['RNA']]), value=T)
+ribo_genes <-grep('^RP(S|L)', rownames(input_read[['RNA']]), value=T)
+
+col <- rep('cornflowerblue',ncol(input_read))
+col[rownames(input_read) %in% mito_genes] <-'green'
+col[rownames(input_read) %in% ribo_genes] <-'red'
+col[rownames(input_read) %in% NA] <-'grey'
+sample_numbers = 1:length(list(input_read))
+tissue_names <- unique(input$Tissue)
+# ma plot: mito is green, ribo is red
+empty_droplet_plot<- function(empty_droplets_tbl, tissue_names){
+  
+#Code used to calculate the ranking (which is already present in our seurat), can be find at https://github.com/Melbourne-COVID-Predict/PBMC/blob/main/analysis/pseudobulk/pseudobulk_analysis_1.Rmd
+#plot the graphs faceted:
+  
+empty_df %>%
+with_groups(Tissue, ~ .x |> sample_n(min(1000, n()))) %>% #between 0-1, 1=all cells
+ggplot(aes(rank, total)) + 
+geom_point() + 
+facet_wrap(~Tissue, ncol=8) + 
+geom_line(aes(rank, fitted), color='red') + 
+geom_hline(aes(yintercept = knee), color='dodgerblue') +
+geom_hline(aes(yintercept = inflection), color='forestgreen') +
+scale_x_log10() + 
+scale_y_log10() + 
+ggtitle(tissue_names)+
+theme_bw() +
+theme(aspect.ratio=1, axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+}
+
+data_list <- split(input, input$Tissue)
+
+# Apply the plotting function to each subset
+plot_list <- mapply(FUN = empty_droplet_plot, data_list, names(data_list), SIMPLIFY = FALSE)
+plot_list
+```
+Blue = knee, green = inflection
+
+##Proportion of empty droplets 
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+empty_df |>
+  group_by(Tissue) |>
+  select(empty_droplet) |> table()
+
+```
+
+##Number and proportion of cells (non-empty droplets), everything above knee is retained.
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+# Number of non-empty droplets -------------------------------------------------
+empty_df %>%
+  group_by(Tissue) %>%
+  summarize(
+    "Count (FDR<0.001)" = sum(FDR < 0.001, na.rm = TRUE),  # Count of FDR values less than 0.001
+    "P roportion (FDR<0.001)" = mean(FDR < 0.001, na.rm = TRUE)  # Proportion of FDR values less than 0.001
+  )
+```
+## Count of cells vs empty droplets
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+is.cell <- empty_df$FDR <= 0.001
+empty_df %>%
+  group_by(Tissue) %>%
+  summarize(
+    Cells = sum(is.cell, na.rm = TRUE),      # Count of TRUE values, NA values removed
+    Empty_droplets = sum(!is.cell, na.rm = TRUE)   # Count of FALSE values, NA values removed
+  )
+```
+##Histogram of p-values: (only if empty droplets have been identified)
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+if(empty_df |> filter(empty_droplet) |> nrow() != 0){
+  q = quantile(empty_df$Total, 0.1)
+
+hist(empty_df$PValue[empty_df$Total <= q & empty_df$Total > 0],
+     main = glue("Droplets with 0 < libsize <= {q}"),
+     xlab = "P-value")
+}
+
+empty_df_filtered <- empty_df %>%
+  group_by(Tissue) %>%
+  filter(empty_droplet) %>%
+  mutate(Total_quantile = quantile(Total[Total > 0], 0.1)) %>%
+  filter(Total <= Total_quantile & Total > 0) %>%
+  ungroup()
+
+plot <- ggplot(empty_df_filtered, aes(x = PValue)) +
+  geom_histogram(binwidth = 0.2, fill = "cornflowerblue", color = "grey") +
+  facet_wrap(~ Tissue) +
+  labs(x = "P-value", y = "Frequency") +
+  ggtitle("Droplets with 0 < libsize <= 10th Percentile of Total per Tissue")
+
+# Step 3: Display the plot
+print(plot)
+```
+##Percentage of reads assigned to mitochondrial transcrips against library size 
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+plot(qc_metrics$subsets_Mito_sum, qc_metrics$subsets_Mito_percent, log="x",
+     xlab="Total count", ylab='Mitochondrial %')
+# summary(mitochondrion$high_mitochondrion)
+subset_high_mitochondrion <- mitochondrion %>%
+    filter(high_mitochondrion == TRUE) %>%
+    select(subsets_Mito_percent)
+discard<- isOutlier(mitochondrion$subsets_Mito_percent, type = "higher")
+abline(h= attr(discard, "threshold")["higher"], col = "red")
+```
+
