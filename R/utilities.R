@@ -22,7 +22,7 @@ eq = function(a,b){	a==b }
 #' indicating whether cells are empty droplets.
 #'
 #' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
-#' @param filter_input Logical value indicating whether to filter the input data.
+#' @param filter_empty_droplets Logical value indicating whether to filter the input data.
 #'
 #' @return A tibble with columns: logprob, FDR, empty_droplet (classification of droplets).
 #'
@@ -38,7 +38,13 @@ eq = function(a,b){	a==b }
 #' @export
 #' @noRd
 empty_droplet_id <- function(input_read_RNA_assay,
-                             filter_input){
+                             filter_empty_droplets,
+                             assay = NULL){
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  
+  
   significance_threshold = 0.001
   # Genes to exclude
   location <- mapIds(
@@ -57,7 +63,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
   # }
   
   # Calculate bar-codes ranks
-  barcode_ranks = barcodeRanks(input_read_RNA_assay@assays$RNA@counts[!rownames(input_read_RNA_assay@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
+  barcode_ranks = barcodeRanks(GetAssayData(input_read_RNA_assay, assay, slot = "counts")[!rownames(GetAssayData(input_read_RNA_assay, assay, slot = "counts")) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
   
   # Set the minimum total RNA per cell for ambient RNA
   if(min(barcode_ranks$total) < 100) { lower = 100 } else {
@@ -72,9 +78,9 @@ empty_droplet_id <- function(input_read_RNA_assay,
   
   # Remove genes from input
   if (
-    # If filter_input
-    filter_input == "TRUE") {
-    barcode_table <- input_read_RNA_assay@assays$RNA@counts[!rownames(input_read_RNA_assay@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
+    # If filter_empty_droplets
+    filter_empty_droplets == "TRUE") {
+    barcode_table <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")[!rownames(GetAssayData(input_read_RNA_assay, assay, slot = "counts")) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>
       mutate(empty_droplet = FDR >= significance_threshold) |>
@@ -439,82 +445,6 @@ subset_top_rank_variable_genes_across_batches = function(
 }
 
 
-#' Add Dispersion to SummarizedExperiment Object
-#'
-#' @description
-#' Maps and adds dispersion data to each element in a list of SummarizedExperiment objects.
-#'
-#' @param se_df Data frame containing SummarizedExperiment objects.
-#' @param .col Column in the data frame containing the SummarizedExperiment objects.
-#'
-#' @return Modified data frame with added dispersion data.
-#'
-#' @importFrom rlang enquo
-#' @noRd
-map_add_dispersion_to_se = function(se_df, .col){
-  
-  .col = enquo(.col)
-  
-  se_df |>
-    mutate(!!.col := map(
-      !!.col,
-      ~ {
-        counts = .x |> assay("counts")
-        
-        .x |>
-          left_join(
-            
-            # Dispersion data frame
-            estimateDisp(counts)$tagwise.dispersion |>
-              setNames(rownames(counts)) |>
-              enframe(name = ".feature", value = "dispersion")
-          )
-      }
-    ))
-  
-}
-
-#' Split SummarizedExperiment Object by Gene
-#'
-#' @description
-#' Splits each SummarizedExperiment object in a data frame into chunks by gene.
-#'
-#' @param se_df Data frame containing SummarizedExperiment objects.
-#' @param .col Column in the data frame containing the SummarizedExperiment objects.
-#' @param .number_of_chunks Number of chunks to split into.
-#'
-#' @return Data frame with SummarizedExperiment objects split into chunks.
-#'
-#' @importFrom dplyr n
-#' @importFrom dplyr mutate
-#' @importFrom tidyr unnest
-#' @importFrom dplyr select
-#' @importFrom purrr map2
-#' @importFrom tidyr nest
-#' @importFrom rlang enquo
-#' @noRd
-map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
-  
-  .col = enquo(.col)
-  .number_of_chunks = enquo(.number_of_chunks)
-  
-  se_df |>
-    mutate(!!.col := map2(
-      !!.col, !!.number_of_chunks,
-      ~ {
-        chunks =
-          tibble(.feature = rownames(.x)) |>
-          mutate(chunk___ = min(1, .y):.y |> sample() |> rep(ceiling(nrow(.x)/max(1, .y))) |> head(nrow(.x)))
-        
-        # Join chunks
-        grouping_factor = chunks |> pull(chunk___) |> as.factor()
-        
-        .x |> splitRowData(f = grouping_factor)
-      }
-    )) |>
-    unnest(!!.col) |>
-    mutate(se_md5 = ids::random_id(n()))
-}
 
 splitColData <- function(x, f) {
   # This is by @jma1991
@@ -545,33 +475,6 @@ splitRowData <- function(x, f) {
   return(v)
   
 }
-
-#' @importFrom digest digest
-#' @importFrom rlang enquo
-#'
-#' @noRd
-map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_cells_before_split = 4763){
-  
-  .col = enquo(.col)
-  
-  sce_df |>
-    mutate(!!.col := map(
-      !!.col,
-      ~ {
-        
-        how_many_splits = ceiling(ncol(.x)/max_cells_before_split)*how_many_chunks_base
-        
-        grouping_factor = sample(seq_len(how_many_splits), size = nrow(.x), replace = TRUE) |> as.factor()
-        
-        .x |> splitRowData(f = grouping_factor)
-        
-      }
-    )) |>
-    unnest(!!.col) |>
-    mutate(sce_md5 = map_chr(!!.col, digest))
-}
-
-
 #' Append Code to a Targets Script
 #'
 #' @description

@@ -27,7 +27,7 @@ preprocessing_output(
 \item{doublet_identification_tbl}{A tibble from doublet identification.}
 }
 \value{
-Processed and filtered dataset.
+Processed and filter_empty_droplets dataset.
 }
 \description{
 Incorporates outputs from doublets and dead cell filtering, cell cycle scoring,

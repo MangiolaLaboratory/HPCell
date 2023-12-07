@@ -8,7 +8,8 @@ non_batch_variation_removal(
   input_path_demultiplexed,
   input_path_empty_droplets,
   alive_identification_tbl,
-  cell_cycle_score_tbl
+  cell_cycle_score_tbl,
+  assay = NULL
 )
 }
 \arguments{
