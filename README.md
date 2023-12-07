@@ -41,6 +41,8 @@ library(tidybulk)
 
 ## High-performance single-cell, pseudobulk random-effect modelling
 
+### One datasets/cell-type
+
 The interface is intuitive and consistent with `tidybulk`
 `test_differential_abundance()`. By default `HPCell` uses
 `test_differential_abundance(..., method = "glmmSeq_lme4")`
@@ -61,34 +63,36 @@ tidySummarizedExperiment::se |>
   
   # Spread the workload onto 200 workers and collects the results seamlessly
   test_differential_abundance_hpc(
-    ~ dex + (1 | cell)
+    ~ dex + (1 | cell), 
+    computing_resources = slurm
   )
 ```
 
     ## ▶ start target file_data
-    ## ● built target file_data [21.029 seconds]
+    ## ● built target file_data [21.084 seconds]
     ## ▶ start target abundance
-    ## ● built target abundance [0 seconds]
+    ## ● built target abundance [0.001 seconds]
     ## ▶ start target file_formula
     ## ● built target file_formula [0 seconds]
     ## ▶ start target pseudobulk_df_tissue
     ## ● built target pseudobulk_df_tissue [0.016 seconds]
     ## ▶ start branch pseudobulk_df_tissue_dispersion_5a2c6e14
+    ## Submitted batch job 14937691
     ## ▶ start target number_of_workers
     ## ● built target number_of_workers [0.004 seconds]
     ## ▶ start target number_of_datasets
-    ## ● built target number_of_datasets [0.001 seconds]
-    ## ● built branch pseudobulk_df_tissue_dispersion_5a2c6e14 [1.178 seconds]
+    ## ● built target number_of_datasets [0 seconds]
+    ## ● built branch pseudobulk_df_tissue_dispersion_5a2c6e14 [0.848 seconds]
     ## ● built pattern pseudobulk_df_tissue_dispersion
     ## ▶ start branch pseudobulk_df_tissue_split_by_gene_64917c93
-    ## ● built branch pseudobulk_df_tissue_split_by_gene_64917c93 [0.136 seconds]
+    ## ● built branch pseudobulk_df_tissue_split_by_gene_64917c93 [0.103 seconds]
     ## ● built pattern pseudobulk_df_tissue_split_by_gene
     ## ▶ start target pseudobulk_df_tissue_split_by_gene_grouped
-    ## ● built target pseudobulk_df_tissue_split_by_gene_grouped [0.111 seconds]
-    ## ▶ start branch estimates_chunk_0a46ab0a
-    ## ● built branch estimates_chunk_0a46ab0a [29.599 seconds]
+    ## ● built target pseudobulk_df_tissue_split_by_gene_grouped [0.076 seconds]
+    ## ▶ start branch estimates_chunk_fbce870e
+    ## ● built branch estimates_chunk_fbce870e [24.346 seconds]
     ## ● built pattern estimates_chunk
-    ## ▶ end pipeline [1.261 minutes]
+    ## ▶ end pipeline [1.168 minutes]
     ## Warning messages:
     ## 1: replacing previous import ‘tidySingleCellExperiment::plot_ly’ by ‘tidySummarizedExperiment::plot_ly’ when loading ‘HPCell’ 
     ## 2: replacing previous import ‘tidySingleCellExperiment::tidy’ by ‘tidySummarizedExperiment::tidy’ when loading ‘HPCell’ 
@@ -120,6 +124,63 @@ tidySummarizedExperiment::se |>
     ## #   `N052611_cell__(Intercept)__lower` <dbl>,
     ## #   `N061011_cell__(Intercept)__lower` <dbl>,
     ## #   `N080611_cell__(Intercept)__lower` <dbl>, …
+
+### Many datasets/cell-types
+
+Sometime we do pseudobulk analyses for each cell type. HPCell allows to
+scale all those, in a coherent paralleisation to the HPC.
+
+This would be the input dataset
+
+``` r
+# A tibble: 22 × 3
+   cell_type_harmonised data            formula  
+   <chr>                <list>          <list>   
+ 1 b memory             <SmmrzdEx[,35]> <formula>
+ 2 b naive              <SmmrzdEx[,35]> <formula>
+ 3 plasma               <SmmrzdEx[,35]> <formula>
+ 4 ilc                  <SmmrzdEx[,38]> <formula>
+ 5 cd4 th1              <SmmrzdEx[,37]> <formula>
+ 6 cd4 th2              <SmmrzdEx[,40]> <formula>
+ 7 mait                 <SmmrzdEx[,26]> <formula>
+ 8 cd8 naive            <SmmrzdEx[,28]> <formula>
+ 9 cd8 tcm              <SmmrzdEx[,36]> <formula>
+10 macrophage           <SmmrzdEx[,21]> <formula>
+# ℹ 12 more rows
+# ℹ Use `print(n = ...)` to see more rows
+```
+
+And here the call to the `map` version of
+`test_differential_abundance_hpc`
+
+``` r
+nested_se |>
+      mutate(data = map2_test_differential_abundance_hpc(
+        data,
+        formula ,
+        computing_resources = slurm
+      ))
+```
+
+This is the output
+
+``` r
+# A tibble: 22 × 3
+   cell_type_harmonised data            formula  
+   <chr>                <list>          <list>   
+ 1 b memory             <SmmrzdEx[,35]> <formula>
+ 2 b naive              <SmmrzdEx[,35]> <formula>
+ 3 plasma               <SmmrzdEx[,35]> <formula>
+ 4 ilc                  <SmmrzdEx[,38]> <formula>
+ 5 cd4 th1              <SmmrzdEx[,37]> <formula>
+ 6 cd4 th2              <SmmrzdEx[,40]> <formula>
+ 7 mait                 <SmmrzdEx[,26]> <formula>
+ 8 cd8 naive            <SmmrzdEx[,28]> <formula>
+ 9 cd8 tcm              <SmmrzdEx[,36]> <formula>
+10 macrophage           <SmmrzdEx[,21]> <formula>
+# ℹ 12 more rows
+# ℹ Use `print(n = ...)` to see more rows
+```
 
 ## High-performance single-cell preprocessing
 
@@ -214,7 +275,7 @@ preprocessed_seurat = run_targets_pipeline(
 
     ## ✔ skip target pseudobulk_preprocessing_SE
 
-    ## ✔ skip pipeline [0.195 seconds]
+    ## ✔ skip pipeline [0.237 seconds]
 
     ## HPCell says: you can read your output executing tar_read(preprocessing_output_S, store = "./")
 
