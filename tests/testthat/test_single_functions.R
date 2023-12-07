@@ -5,14 +5,12 @@ library(scRNAseq)
 ## Define arguments 
 filter_empty_droplets <- "TRUE"
 tissue <- "pbmc"
-<<<<<<< HEAD
 RNA_assay_name<- "originalexp"
 #reference_azimuth<- NULL
-=======
->>>>>>> 4eacd4b6a865b77be4db79fe8c88d0af402a334e
+
 
 input_seurat = 
-  HeOrganAtlasData(ensembl=FALSE,location=FALSE)|> 
+  HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400]|> 
   as.Seurat(data = NULL) 
 
 sample_column<- "Tissue"
@@ -130,6 +128,10 @@ test_that("pseudobulk_preprocessing handles input lists", {
   expect_s4_class(pseudobulk_preprocessing_SE[[2]], "SummarizedExperiment")                
 })
 
-
+rmarkdown::render(
+  input = paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
+  output_file = paste0(system.file(package = "HPCell"), "/Empty_droplet_report.html"),
+  params = list(x1 = list(input_read_RNA_assay), x2 = list(empty_droplets_tbl), x3 = list(alive_identification_tbl))
+)
 
 
