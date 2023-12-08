@@ -37,6 +37,9 @@ remote::install_github("stemangiola/HPCell")
 ``` r
 library(HPCell)
 library(tidybulk)
+
+# To keep the original non-tidy SummarizedExperiment view
+options("restore_SummarizedExperiment_show" = TRUE)
 ```
 
 ## High-performance single-cell, pseudobulk random-effect modelling
@@ -69,30 +72,30 @@ tidySummarizedExperiment::se |>
 ```
 
     ## ▶ start target file_data
-    ## ● built target file_data [21.084 seconds]
+    ## ● built target file_data [21.311 seconds]
     ## ▶ start target abundance
-    ## ● built target abundance [0.001 seconds]
+    ## ● built target abundance [0 seconds]
     ## ▶ start target file_formula
-    ## ● built target file_formula [0 seconds]
+    ## ● built target file_formula [0.001 seconds]
     ## ▶ start target pseudobulk_df_tissue
     ## ● built target pseudobulk_df_tissue [0.016 seconds]
     ## ▶ start branch pseudobulk_df_tissue_dispersion_5a2c6e14
-    ## Submitted batch job 14937691
+    ## Submitted batch job 14937770
     ## ▶ start target number_of_workers
     ## ● built target number_of_workers [0.004 seconds]
     ## ▶ start target number_of_datasets
-    ## ● built target number_of_datasets [0 seconds]
-    ## ● built branch pseudobulk_df_tissue_dispersion_5a2c6e14 [0.848 seconds]
+    ## ● built target number_of_datasets [0.001 seconds]
+    ## ● built branch pseudobulk_df_tissue_dispersion_5a2c6e14 [0.796 seconds]
     ## ● built pattern pseudobulk_df_tissue_dispersion
     ## ▶ start branch pseudobulk_df_tissue_split_by_gene_64917c93
     ## ● built branch pseudobulk_df_tissue_split_by_gene_64917c93 [0.103 seconds]
     ## ● built pattern pseudobulk_df_tissue_split_by_gene
     ## ▶ start target pseudobulk_df_tissue_split_by_gene_grouped
-    ## ● built target pseudobulk_df_tissue_split_by_gene_grouped [0.076 seconds]
-    ## ▶ start branch estimates_chunk_fbce870e
-    ## ● built branch estimates_chunk_fbce870e [24.346 seconds]
+    ## ● built target pseudobulk_df_tissue_split_by_gene_grouped [0.075 seconds]
+    ## ▶ start branch estimates_chunk_f60975ce
+    ## ● built branch estimates_chunk_f60975ce [23.002 seconds]
     ## ● built pattern estimates_chunk
-    ## ▶ end pipeline [1.168 minutes]
+    ## ▶ end pipeline [1.155 minutes]
     ## Warning messages:
     ## 1: replacing previous import ‘tidySingleCellExperiment::plot_ly’ by ‘tidySummarizedExperiment::plot_ly’ when loading ‘HPCell’ 
     ## 2: replacing previous import ‘tidySingleCellExperiment::tidy’ by ‘tidySummarizedExperiment::tidy’ when loading ‘HPCell’ 
@@ -103,27 +106,15 @@ tidySummarizedExperiment::se |>
 
     ## HPCell says: Start collecting results.
 
-    ## # A SummarizedExperiment-tibble abstraction: 200 × 39
-    ## # [90mFeatures=25 | Samples=8 | Assays=counts[0m
-    ##    .feature        .sample   counts SampleName cell  dex   albut Run   avgLength
-    ##    <chr>           <chr>      <int> <fct>      <fct> <fct> <fct> <fct>     <int>
-    ##  1 ENSG00000122707 SRR10395…  11225 GSM1275862 N613… untrt untrt SRR1…       126
-    ##  2 ENSG00000104979 SRR10395…    993 GSM1275862 N613… untrt untrt SRR1…       126
-    ##  3 ENSG00000180902 SRR10395…    369 GSM1275862 N613… untrt untrt SRR1…       126
-    ##  4 ENSG00000260359 SRR10395…     28 GSM1275862 N613… untrt untrt SRR1…       126
-    ##  5 ENSG00000159556 SRR10395…     25 GSM1275862 N613… untrt untrt SRR1…       126
-    ##  6 ENSG00000260290 SRR10395…    197 GSM1275862 N613… untrt untrt SRR1…       126
-    ##  7 ENSG00000167291 SRR10395…   2169 GSM1275862 N613… untrt untrt SRR1…       126
-    ##  8 ENSG00000135441 SRR10395…    105 GSM1275862 N613… untrt untrt SRR1…       126
-    ##  9 ENSG00000075240 SRR10395…    891 GSM1275862 N613… untrt untrt SRR1…       126
-    ## 10 ENSG00000196152 SRR10395…    170 GSM1275862 N613… untrt untrt SRR1…       126
-    ## # ℹ 190 more rows
-    ## # ℹ 30 more variables: Experiment <fct>, Sample <fct>, BioSample <fct>,
-    ## #   bla <chr>, .abundant <lgl>, Dispersion <dbl>, AIC <dbl>, logLik <dbl>,
-    ## #   meanExp <dbl>, `(Intercept)` <dbl>, dexuntrt <dbl>,
-    ## #   `N052611_cell__(Intercept)__lower` <dbl>,
-    ## #   `N061011_cell__(Intercept)__lower` <dbl>,
-    ## #   `N080611_cell__(Intercept)__lower` <dbl>, …
+    ## class: RangedSummarizedExperiment 
+    ## dim: 25 8 
+    ## metadata(1): ''
+    ## assays(1): counts
+    ## rownames(25): ENSG00000122707 ENSG00000104979 ... ENSG00000246982
+    ##   ENSG00000115687
+    ## rowData names(26): bla .abundant ... P_dex P_dex_adjusted
+    ## colnames(8): SRR1039508 SRR1039509 ... SRR1039520 SRR1039521
+    ## colData names(9): SampleName cell ... Sample BioSample
 
 ### Many datasets/cell-types
 
@@ -275,7 +266,7 @@ preprocessed_seurat = run_targets_pipeline(
 
     ## ✔ skip target pseudobulk_preprocessing_SE
 
-    ## ✔ skip pipeline [0.237 seconds]
+    ## ✔ skip pipeline [0.227 seconds]
 
     ## HPCell says: you can read your output executing tar_read(preprocessing_output_S, store = "./")
 

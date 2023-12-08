@@ -4,7 +4,7 @@
 \alias{map_add_dispersion_to_se}
 \title{Add Dispersion Estimates to SingleCellExperiment Object}
 \usage{
-map_add_dispersion_to_se(se_df, .col, abundance = NULL)
+map_add_dispersion_to_se(se_df, .col, .formula, abundance = NULL)
 }
 \arguments{
 \item{se_df}{A data frame or list containing SingleCellExperiment objects.}

@@ -684,7 +684,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
                                      sample_column,
                                      assay = NULL){
   
-
+  
   
   if (reference_label_fine %in% colnames(preprocessing_output_S[[1]]@meta.data)) {
     
@@ -695,7 +695,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
       
       # Aggregate
       map(~ { 
-
+        
         # Get assay
         if(is.null(assay)) {
           assay = .x@assays |> names() |> extract2(1)
@@ -802,26 +802,26 @@ pseudobulk_preprocessing <- function(reference_label_fine,
         .x |> 
           tidyseurat::aggregate_cells(c(!!as.symbol(sample_column)), slot = "data", assays=assays) |>
           tidybulk::as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
-
-            # Reshape to make RNA and ADT both features
-            tidyr::pivot_longer(
-              cols = assays,
-              names_to = "data_source",
-              values_to = "count"
-            ) |>
-            dplyr::filter(!count |> is.na()) |>
-            
-            # Some manipulation to get unique feature because RNa and ADT both can have sma name genes
-            rename(symbol = .feature) |>
-            mutate(data_source = str_remove(data_source, "abundance_")) |>
-            unite( ".feature", c(symbol, data_source), remove = FALSE) |>
-            
-            # Covert
-            tidybulk::as_SummarizedExperiment(
-              .sample = c( !!as.symbol(sample_column)),
-              .transcript = .feature,
-              .abundance = count
-            )
+          
+          # Reshape to make RNA and ADT both features
+          tidyr::pivot_longer(
+            cols = assays,
+            names_to = "data_source",
+            values_to = "count"
+          ) |>
+          dplyr::filter(!count |> is.na()) |>
+          
+          # Some manipulation to get unique feature because RNa and ADT both can have sma name genes
+          rename(symbol = .feature) |>
+          mutate(data_source = str_remove(data_source, "abundance_")) |>
+          unite( ".feature", c(symbol, data_source), remove = FALSE) |>
+          
+          # Covert
+          tidybulk::as_SummarizedExperiment(
+            .sample = c( !!as.symbol(sample_column)),
+            .transcript = .feature,
+            .abundance = count
+          )
       }
       )
     
@@ -865,7 +865,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
       pseudobulk_by_sample = output_path_sample,
       pseudobulk_by_sample_and_cell_type = output_path_sample_cell_type
     ))
-    }
+  }
   else {return(NULL)}
 }
 
@@ -1069,15 +1069,18 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 #' result <- map_add_dispersion_to_se(se_list, .col = se_objects, abundance = "counts")
 #'
 #' @importFrom magrittr extract2
-#' @importFrom edgeR estimateDisp
+#' @importFrom glmGamPoi glm_gp
 #' @importFrom dplyr mutate
 #' @importFrom dplyr left_join
 #' @importFrom tibble enframe
 #' @importFrom purrr map2
+#' @importFrom lme4 nobars
+#' @importFrom magrittr %$%
 #' @export
-map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
+map_add_dispersion_to_se = function(se_df, .col, .formula, abundance = NULL){
   
   .col = enquo(.col)
+  .formula = enquo(.formula)
   
   if(abundance |> length() > 1) stop("HPCell says: for now only one feature abundance measure can be selected")
   
@@ -1085,21 +1088,34 @@ map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
     
     # This is adding a new column 
     mutate(assay_name = abundance) |> 
-    mutate(!!.col := map2(
-      !!.col, assay_name,
+    mutate(!!.col := pmap(
+      list(!!.col, !!.formula, assay_name),
       ~ {
-        
+
         # If not defined take the first assay
-        if(is.null(.y) || .y == "NULL") .y = .x |> assays() |> extract2(1)
+        # Different datasets may have different assay names
+        if(is.null(..3) || ..3 == "NULL") ..3 = ..1 |> assays() |> extract2(1)
         
-        counts = .x |> assay(.y)
+        # Get counts
+        counts = ..1 |> assay(..3)
         
-        .x |>
+        # Create design matrix for dispersion, removing random effects
+        design =
+          model.matrix(
+            object = ..2 |> paste0(collapse = " ") |> as.formula() |>  nobars(),
+            data = colData(..1)
+          )
+        
+        dispersion = 
+          counts |> 
+          glm_gp(design=design) |> 
+          as.list() %$% 
+          overdispersions |> 
+          setNames(rownames(counts))
+        
+        ..1 |>
           left_join(
-            
-            # Dispersion data frame
-            estimateDisp(counts)$tagwise.dispersion |>
-              setNames(rownames(counts)) |>
+            dispersion |>
               enframe(name = ".feature", value = "dispersion")
           )
       }
