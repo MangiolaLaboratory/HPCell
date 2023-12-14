@@ -33,7 +33,9 @@ library(broom)
 library(tarchetypes)
 library(SeuratObject)
 library(SingleCellExperiment)
-library(SingleR)
+library(SingleR)process_input <- function(input_seurat) {
+process_input <- function(input_seurat) {
+  input<- input_seurat@meta.data |>
 library(celldex)
 library(tidySingleCellExperiment)
 library(tibble)
@@ -209,9 +211,9 @@ plot_hist
 
 Percentage of reads assigned to mitochondrial transcrips against library size
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
-plot_each_sample <- function(input_seurat, tissue_name) {
-  if(is.null(assay)) {assay = input_seurat@assays |> names() |> extract2(1)}
-  which_mito = rownames(input_seurat) |> str_which("^MT")
+plot_mito_data <- function(input_seurat, tissue_name){
+if(is.null(assay)) {assay = input_seurat@assays |> names() |> extract2(1)}
+  c = rownames(input_seurat) |> str_which("^MT")
   rna_counts <- GetAssayData(input_seurat, layer = "counts", assay=assay)
   # Compute per-cell QC metrics
   qc_metrics <- perCellQCMetrics(rna_counts, subsets=list(Mito=which_mito)) %>%
@@ -229,48 +231,51 @@ plot_each_sample <- function(input_seurat, tissue_name) {
 
   discard <- isOutlier(mitochondrion$subsets_Mito_percent, type = "higher")
   threshold <- attr(discard, "threshold")["higher"]
-  plot <- ggplot(mitochondrion, aes(x = subsets_Mito_sum, y = subsets_Mito_percent)) +
+  plot_mito <- data.frame( 
+    tissue_name = tissue_name,
+    qc_metrics = qc_metrics,
+    mitochondrion = mitochondrion,
+    discard <- as.logical(discard), 
+    threshold = threshold, 
+    high_mitochondrion <- mitochondrion$high_mitochondrion,
+    subsets_Mito_sum <- mitochondrion$subsets_Mito_sum,
+    subsets_Mito_percent <- mitochondrion$subsets_Mito_percent
+  )
+  return(plot_mito)
+}
+
+all_data <- lapply(seq_along(input_seurat_list), function(i) {
+  plot_mito_data(input_seurat_list[[i]], tissue_names[i])
+})
+
+# Combine all data into a single tibble
+combined_plot_mito_data <- bind_rows(all_data)
+
+plot_each_sample <- function(combined_plot_mito_data) {
+  plot <- ggplot(combined_plot_mito_data, aes(x = subsets_Mito_sum, y = subsets_Mito_percent)) +
+    facet_wrap(~ tissue_name) +
     geom_point(aes(color = high_mitochondrion), alpha = 0.5) +  # Adds points
     scale_x_log10() +  # Log scale for x-axis
-    geom_hline(yintercept = threshold, color = "red", linetype = "dashed") +
+    geom_hline(yintercept = threshold, color = "red", linetype = "dashed")
     labs(x = "Total count", y = "Mitochondrial %", title = tissue_name) +
     theme_minimal()
 
   return(plot)
 }
-
-plots <- map2(input_seurat_list, tissue_name, plot_each_sample)
-plots
+plot_each_sample(combined_plot_mito_data)
 ```
+## MA plot 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-# Plot compares the expression of genes in high-confidence empty droplets versus ambiguous droplets.
-#define mito and ribo genes and add the plot:
-if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
-mito_genes <- grep('^MT-', rownames(input_seurat[[assay]]), value=T)
-ribo_genes <-grep('^RP(S|L)', rownames(input_seurat[[assay]]), value=T)
-
-if(joined_data |> filter(empty_droplet) |> nrow() != 0) {
-  # x<- tibble(
-  # sample_number = sample_numbers,
-  # input_files = list(input_read),
-  # empty_droplets = list(empty_droplets_tbl)
-  # )
-  # y<- x|>
-  # group_by(sample_number) |>
-  # nest(data = -sample_numbers)
-  
-  dplyr::tibble(
+plot_data <- dplyr::tibble(
   tissue_name = tissue_name,
   input_files = input_seurat_list,
   empty_droplets = empty_droplets_tissue_list
-  ) |>
-  group_by(tissue_name) |>
-  # nest(data = -sample_numbers) |>
-  mutate(MA_plot = map2(
-    input_files, empty_droplets,
-    ~ {
-
+) %>%
+group_by(tissue_name) %>%
+mutate(plot_data = map2(
+  input_files, empty_droplets,
+  ~ {
       input_seurat = .x
       combined_df = .y
 
@@ -287,25 +292,24 @@ if(joined_data |> filter(empty_droplet) |> nrow() != 0) {
       # Ambiguous empty droplets
       amb.mu  <-input_seurat |> filter(.cell %in% amb) |> GetAssayData(assay,slot = "counts") |> rowSums()
 
-      edgeR::maPlot(extra.mu, amb.mu, normalize = TRUE, colors = col, plot.it = FALSE) |>
+    # Create a data frame to return
+    data_to_plot <- tibble(
+      A = extra.mu,   
+      M = amb.mu,  
+      color = col,
+      tissue = tissue_name
+    )
+    return(data_to_plot)
+  }
+)) %>%
+pull(plot_data) %>%
+bind_rows()
 
-      # ggplot
-      enframe() |>
-        pivot_wider() |>
-        unnest(A, M, w, v) |>
-        # filter(!is.na(col)) |>
-        ggplot(aes(A, M, color = col)) +
-        geom_point(alpha = 0.5) +
-        scale_color_manual(values = c("others" = "blue", "mito" = "green", "ribo" = "red")) +
-        #scale_color_manual(values = c("blue", "green", "red")) +
-        # scale_size_manual(values = c(0.2, 0.5, 0.8)) + 
-        labs(
-        x = "True empty", 
-        y = "Ambiguous") +
-        # geom_hline(aes(lower), linetype = "dashed", color = "blue")
-        theme_minimal()
-    }
-  )) |>
-  pull(MA_plot)}
-
+ggplot(plot_data, aes(x = A, y = M, color = color)) +
+  geom_point(alpha = 0.5) +
+  facet_wrap(~ tissue) +
+  scale_color_manual(values = c("others" = "blue", "mito" = "green", "ribo" = "red")) +
+  labs(x = "True empty", y = "Ambiguous") +
+  theme_minimal()
 ```
+
