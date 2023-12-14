@@ -445,6 +445,7 @@ doublet_identification <- function(input_read_RNA_assay,
   
   filter_empty_droplets <- input_read_RNA_assay |>
     # Filtering empty
+    as.SingleCellExperiment() |>
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
     filter(!empty_droplet) |>
     
