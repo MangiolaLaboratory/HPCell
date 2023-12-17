@@ -30,9 +30,14 @@ remote::install_github("stemangiola/HPCell")
 ```{r message=FALSE, warning=FALSE}
 library(HPCell)
 library(tidybulk)
+
+# # To keep the original non-tidy SummarizedExperiment view
+# options("restore_SummarizedExperiment_show" = TRUE)
 ```
 
 ## High-performance single-cell, pseudobulk random-effect modelling
+
+### One datasets/cell-type
 
 The interface is intuitive and consistent with `tidybulk` `test_differential_abundance()`. By default `HPCell` uses `test_differential_abundance(..., method = "glmmSeq_lme4")`
 
@@ -53,8 +58,66 @@ tidySummarizedExperiment::se |>
   
   # Spread the workload onto 200 workers and collects the results seamlessly
   test_differential_abundance_hpc(
-    ~ dex + (1 | cell)
+    ~ dex + (1 | cell), 
+    computing_resources = slurm
   )
+```
+
+### Many datasets/cell-types
+
+Sometime we do pseudobulk analyses for each cell type. HPCell allows to scale all those, in a coherent paralleisation to the HPC.
+
+This would be the input dataset
+
+```{r, eval=FALSE}
+
+# A tibble: 22 × 3
+   cell_type_harmonised data            formula  
+   <chr>                <list>          <list>   
+ 1 b memory             <SmmrzdEx[,35]> <formula>
+ 2 b naive              <SmmrzdEx[,35]> <formula>
+ 3 plasma               <SmmrzdEx[,35]> <formula>
+ 4 ilc                  <SmmrzdEx[,38]> <formula>
+ 5 cd4 th1              <SmmrzdEx[,37]> <formula>
+ 6 cd4 th2              <SmmrzdEx[,40]> <formula>
+ 7 mait                 <SmmrzdEx[,26]> <formula>
+ 8 cd8 naive            <SmmrzdEx[,28]> <formula>
+ 9 cd8 tcm              <SmmrzdEx[,36]> <formula>
+10 macrophage           <SmmrzdEx[,21]> <formula>
+# ℹ 12 more rows
+# ℹ Use `print(n = ...)` to see more rows
+
+```
+
+And here the call to the `map` version of `test_differential_abundance_hpc`
+
+```{r, eval=FALSE}
+nested_se |>
+      mutate(data = map2_test_differential_abundance_hpc(
+        data,
+        formula ,
+        computing_resources = slurm
+      ))
+```
+
+This is the output 
+
+```{r, eval=FALSE}
+# A tibble: 22 × 3
+   cell_type_harmonised data            formula  
+   <chr>                <list>          <list>   
+ 1 b memory             <SmmrzdEx[,35]> <formula>
+ 2 b naive              <SmmrzdEx[,35]> <formula>
+ 3 plasma               <SmmrzdEx[,35]> <formula>
+ 4 ilc                  <SmmrzdEx[,38]> <formula>
+ 5 cd4 th1              <SmmrzdEx[,37]> <formula>
+ 6 cd4 th2              <SmmrzdEx[,40]> <formula>
+ 7 mait                 <SmmrzdEx[,26]> <formula>
+ 8 cd8 naive            <SmmrzdEx[,28]> <formula>
+ 9 cd8 tcm              <SmmrzdEx[,36]> <formula>
+10 macrophage           <SmmrzdEx[,21]> <formula>
+# ℹ 12 more rows
+# ℹ Use `print(n = ...)` to see more rows
 ```
 
 ## High-performance single-cell preprocessing
@@ -96,7 +159,7 @@ preprocessed_seurat
 
 Details to come.
 
-```{r, eval=FALSE} 
+```{r, eval=FALSE}
 
 input_reference_path  <- "reference_azimuth.rds" 
 reference_url <- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat" 
