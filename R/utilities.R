@@ -35,6 +35,7 @@ eq = function(a,b){	a==b }
 #' @importFrom DropletUtils barcodeRanks
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @export
 #' @noRd
 empty_droplet_id <- function(input_read_RNA_assay,
                              filter_empty_droplets,
@@ -144,6 +145,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' @param tissue Type of tissue.
 #'
 #' @return Appropriate reference label for fine categorization.
+#' @export
 #' @noRd
 reference_label_fine_id <- function(tissue) {
   return(
@@ -182,6 +184,7 @@ reference_label_coarse_id <- function(tissue) {
 #' @return Modified Seurat object with the default assay set to RNA.
 #'
 #' @importFrom Seurat DefaultAssay
+#' @export
 #' @noRd
 add_RNA_assay <- function(input_read, RNA_assay_name){
   

@@ -1,5 +1,3 @@
-
-
 #' Cell Type Annotation Transfer
 #'
 #' @description
@@ -44,8 +42,8 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     # Filter empty
     left_join(empty_droplets_tbl, by = ".cell") |>
-    filter(!empty_droplet) |>
-    as.SingleCellExperiment() |>    # Add class to the tbl
+    dplyr::filter(!empty_droplet) |>
+    as.SingleCellExperiment() |>
     logNormCounts()
   
   if(ncol(sce)==1){
@@ -431,6 +429,7 @@ alive_identification <- function(input_read_RNA_assay,
 #'
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
+#' @importFrom Matrix Matrix 
 #' @import scDblFinder
 #' @export
 doublet_identification <- function(input_read_RNA_assay, 
@@ -446,6 +445,7 @@ doublet_identification <- function(input_read_RNA_assay,
   
   filter_empty_droplets <- input_read_RNA_assay |>
     # Filtering empty
+    as.SingleCellExperiment() |>
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
     filter(!empty_droplet) |>
     
@@ -706,6 +706,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
         
         .x |> 
           tidyseurat::aggregate_cells(c(!!as.symbol(sample_column), !!as.symbol(reference_label_fine)), slot = "data", assays=assays) |>
+          #tidyseurat::aggregate_cells(c(!!sample_column, !!as.symbol(reference_label_fine)), slot = "data", assays=assays) |>
           tidybulk::as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
           #tidybulk::as_SummarizedExperiment(.sample, .feature, c(RNA)) |>
           
@@ -726,6 +727,7 @@ pseudobulk_preprocessing <- function(reference_label_fine,
           # Covert
           tidybulk::as_SummarizedExperiment(
             .sample = c( !!as.symbol(sample_column), !!as.symbol(reference_label_fine)),
+            #.sample = c( !!sample_column, !!as.symbol(reference_label_fine)),
             .transcript = .feature,
             .abundance = count
           )

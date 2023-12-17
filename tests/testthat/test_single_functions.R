@@ -5,16 +5,18 @@ library(scRNAseq)
 ## Define arguments 
 filter_empty_droplets <- "TRUE"
 tissue <- "pbmc"
+RNA_assay_name<- "originalexp"
+#reference_azimuth<- NULL
 
-input_seurat = 
-  HeOrganAtlasData(ensembl=FALSE,location=FALSE)[, 1:400] |> 
+input_seurat_abc = 
+  HeOrganAtlasData(ensembl=FALSE,location=FALSE)|> 
   as.Seurat(data = NULL) 
 
 sample_column<- "Tissue"
 ## Defining functions 
 
 reference_label_fine = HPCell:::reference_label_fine_id(tissue)
-empty_droplets_tbl = HPCell:::empty_droplet_id(input_seurat, filter_empty_droplets)
+empty_droplets_tbl = HPCell:::empty_droplet_id(input_seurat_abc, filter_empty_droplets = TRUE)
 
 # Define output from annotation_label_transfer 
 annotation_label_transfer_tbl = HPCell:::annotation_label_transfer(input_seurat,
@@ -125,11 +127,45 @@ test_that("pseudobulk_preprocessing handles input lists", {
   expect_s4_class(pseudobulk_preprocessing_SE[[2]], "SummarizedExperiment")                
 })
 
+
+## Test reports 
+# Subset 2 tissues to test reports
+subset_tissue <- subset(input_seurat_abc, subset = Tissue %in% c("Heart", "Trachea"))
+input_seurat<- add_RNA_assay(subset_tissue, "originalexp")
+heart <- subset(input_seurat, subset = Tissue == "Heart")
+trachea <- subset(input_seurat, subset = Tissue == "Trachea")
+input_seurat_list <- c(heart, trachea)
+
 # Test empty droplets
+empty_droplets_tissue_list <- lapply(input_seurat_list, function(df) {
+  HPCell:::empty_droplet_id(df, filter_empty_droplets = TRUE)
+})
+annotation_label_transfer_tbl_list <- lapply(c(input_seurat_list, empty_droplets_tissue_list), function(input_seurat, empty_droplets_tbl) {
+  HPCell:::annotation_label_transfer(input_seurat, empty_droplets_tbl)
+})
+
 rmarkdown::render(
-  input = paste0(system.file(package = "HPCell"), "/rmd/template_targets.Rmd"),
-  output_file = "~/Documents/HPCell/template.html",
-  params = list(x1 = list(input_read_RNA_assay), x2 = list(empty_droplets_tbl))
+  input = paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
+  output_file = paste0(system.file(package = "HPCell"), "/Empty_droplet_report.html"),
+  params = list(x1 = input_seurat_list, x2 = empty_droplets_tissue_list)
 )
+
+# Unit test 
+test_that("R Markdown render works", {
+  # Define output paths
+  input_path <- paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd")
+  output_path <- paste0(system.file(package = "HPCell"), "/Empty_droplet_report.html")
+  
+  # Test execution: Render the R Markdown file
+  rmarkdown::render(
+    input = input_path,
+    output_file = output_path,
+    params = list(x1 = input_seurat_list, x2 = empty_droplets_tissue_list)
+  )
+  
+  # Assertions
+  expect_true(file.exists(output_path), info = "Output file should exist")
+  # Add more assertions as needed, e.g., checking file content, format, etc.
+})
 
 

@@ -1,0 +1,315 @@
+---
+title: "Empty_droplet_report"
+author: "SS"
+date: "2023-12-07"
+output: html_document
+params: 
+  x1: "input_seurat_list"
+  x2: "empty_droplets_tissue_list"
+---
+
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(HPCell)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(purrr)
+library(Seurat)
+library(tidyseurat)
+library(glue)
+library(scater)
+library(DropletUtils)
+library(EnsDb.Hsapiens.v86)
+library(here)
+library(stringr)
+library(rlang)
+library(scuttle)
+library(scDblFinder)
+library(ggupset)
+library(tidySummarizedExperiment)
+library(broom)
+library(tarchetypes)
+library(SeuratObject)
+library(SingleCellExperiment)
+library(SingleR)process_input <- function(input_seurat) {
+process_input <- function(input_seurat) {
+  input<- input_seurat@meta.data |>
+library(celldex)
+library(tidySingleCellExperiment)
+library(tibble)
+library(magrittr)
+library(qs)
+library(S4Vectors)
+
+# Subset 2 tissues (sample types)
+# heart <- subset(input_seurat, subset = Tissue == "Heart")
+# trachea <- subset(input_seurat, subset = Tissue == "Trachea")
+# input_seurat_list <- c(heart, trachea)
+
+# # ma plot: mito is green, ribo is red
+# col <- rep('black',ncol(empty_droplets_tbl))
+# col[rownames(empty_droplets_tbl) %in% mito_genes] <-'green'
+# col[rownames(empty_droplets_tbl) %in% ribo_genes] <-'red'
+# 
+# Process input data
+process_input <- function(input_seurat) {
+  input<- input_seurat@meta.data |>
+  tibble::rownames_to_column(var = '.cell')
+  # grep('^MT-', rownames(input_seurat[['RNA']]), value=T)
+  #define mito and ribo genes and add the plot:
+  mito_genes <- grep('^MT-', rownames(input_seurat[['RNA']]), value=T)
+  ribo_genes <-grep('^RP(S|L)', rownames(input_seurat[['RNA']]), value=T)
+
+  col <- rep('cornflowerblue',ncol(input_seurat))
+  col[rownames(input_seurat) %in% mito_genes] <-'green'
+  col[rownames(input_seurat) %in% ribo_genes] <-'red'
+  col[rownames(input_seurat) %in% NA] <-'grey'
+  sample_numbers = 1:length(list(input_seurat))
+  tissue_names <- unique(input$Tissue)
+  return(c(input_seurat, tissue_names))
+}
+processed_input_list <- map(input_seurat_list, process_input)
+ input <- input_seurat@meta.data |> 
+    tibble::rownames_to_column(var = '.cell')
+  
+  joined_data <- empty_droplets_tbl |> 
+    left_join(input |> dplyr::select(.cell, Tissue), by = '.cell')
+  
+# Defining Tissue names
+tissue_names <- sapply(1:length(processed_input_list), function(i) {
+        return(processed_input_list[[i]][[2]][[1]])
+})
+```
+
+## Barcode rank plot
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Process empty droplets data 
+empty_df <- function(input_seurat, empty_droplets_tbl) {
+  input <- input_seurat@meta.data |> 
+    tibble::rownames_to_column(var = '.cell')
+  
+  joined_data <- empty_droplets_tbl |> 
+    left_join(input |> dplyr::select(.cell, Tissue), by = '.cell')
+
+  # Create a data frame with plotting information
+  plot_data <- data.frame(
+    x = joined_data$rank,
+    y = joined_data$total, 
+    rank = joined_data$rank, 
+    inflection = joined_data$inflection,
+    knee = joined_data$knee,
+    fitted = joined_data$fitted, 
+    empty = joined_data$empty_droplet, 
+    FDR = joined_data$FDR,
+    Total = joined_data$Total, 
+    PValue = joined_data$PValue
+  )
+  return(plot_data)
+}
+
+process_empty_droplet_list <- purrr::map2(input_seurat_list, empty_droplets_tissue_list, empty_df)
+
+# Combined tibble with an identifier for each tissue/sample
+combined_df <- bind_rows(process_empty_droplet_list, .id = "tissue_id") %>%
+  mutate(tissue_id = factor(tissue_id, labels = tissue_names))
+
+# Generate plot
+plot <- ggplot(combined_df, aes(x = x, y = y)) +
+    geom_point(color = 'lightblue', alpha = 0.5) +
+    scale_x_log10() +
+    scale_y_log10() +
+    geom_line(aes(x = rank, y = fitted), color='darkblue') +
+    geom_hline(aes(yintercept = knee, linetype = "knee"), color='red') +
+    geom_hline(aes(yintercept = inflection, linetype = "inflection"), color='forestgreen') +
+    scale_linetype_manual(values = c("knee" = "dashed", "inflection" = "dashed"),
+                          guide = guide_legend(override.aes = list(color = c("red", "forestgreen")))) +
+    facet_wrap(~tissue_id, scales = "free") +
+    theme_minimal() +
+    labs(x = "Barcodes", y = "Total UMI count", color = "Legend") +
+    theme(legend.position = "bottom")  # Adjust legend position as needed
+
+print(plot)
+```
+
+## Proportion of empty droplets
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+empty_count <- function(df) {
+  # Count the TRUE and FALSE values in the empty_droplet column
+  tibble <- df %>%
+    group_by(tissue_id) %>%
+    summarise(
+      Empty_count = sum(empty == TRUE),
+      Cell_count = sum(empty == FALSE)
+    )
+  return(tibble)
+}
+
+# Apply the function to the combined_df
+empty_count_results <- empty_count(combined_df)
+empty_count_results
+```
+
+## Number and proportion of cells (non-empty droplets), everything above knee is retained.
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+# Number of non-empty droplets -------------------------------------------------
+empty_table <- function(df) {
+  # Count the TRUE and FALSE values in the empty_droplet column
+  tibble <- df %>%
+    group_by(tissue_id) %>%
+    summarise(
+     "Number: True cells (FDR<0.001)" = sum(FDR < 0.001, na.rm = TRUE),  # Count of FDR values less than 0.001
+     "Proportion: True cells (FDR<0.001)" = mean(FDR < 0.001, na.rm = TRUE)  # Proportion of FDR values less than 0.001
+    )
+  return(tibble)
+}
+empty_count_results <- empty_table(combined_df)
+empty_count_results
+```
+
+<!-- ## Count of cells vs empty droplets -->
+<!-- ```{r,  warning=FALSE, message=FALSE, echo=FALSE} -->
+<!-- count <- function(df) { -->
+<!--   is.cell <- df$FDR <= 0.001 -->
+<!--   tibble<- df %>% -->
+<!--   group_by(tissue_id) %>% -->
+<!--   summarise( -->
+<!--     Cells = sum(is.cell, na.rm = TRUE),      # Count of TRUE values, NA values removed -->
+<!--     Empty_droplets = sum(!is.cell, na.rm = TRUE)   # Count of FALSE values, NA values removed -->
+<!--   ) -->
+<!--   return(tibble) -->
+<!-- } -->
+<!-- count_results <- count(combined_df) -->
+<!-- count_results -->
+<!-- ``` -->
+
+
+## Histogram of p-values: (only if empty droplets have been identified)
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+hist_p_val <- function(df) {
+  if(df |> filter(empty) |> nrow() != 0){
+  df_filtered <- df %>%
+  group_by(tissue_id) %>%
+  filter(empty) %>%
+  mutate(Total_quantile = quantile(Total[Total > 0], 0.1)) %>%
+  filter(Total <= Total_quantile & Total > 0) %>%
+  ungroup()
+
+plot_hist <- ggplot(df_filtered, aes(x = PValue)) +
+  geom_histogram(binwidth = 0.2, fill = "cornflowerblue", color = "grey") +
+  facet_wrap(~ tissue_id) +
+  labs(x = "P-value", y = "Frequency") +
+  ggtitle("Droplets with 0 < libsize <= 10th Percentile of Total per Tissue") + 
+  theme_minimal()
+}}
+
+plot_hist <- hist_p_val(combined_df)
+plot_hist
+```
+
+Percentage of reads assigned to mitochondrial transcrips against library size
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+plot_mito_data <- function(input_seurat, tissue_name){
+if(is.null(assay)) {assay = input_seurat@assays |> names() |> extract2(1)}
+  c = rownames(input_seurat) |> str_which("^MT")
+  rna_counts <- GetAssayData(input_seurat, layer = "counts", assay=assay)
+  # Compute per-cell QC metrics
+  qc_metrics <- perCellQCMetrics(rna_counts, subsets=list(Mito=which_mito)) %>%
+    as_tibble(rownames = ".cell") %>%
+    dplyr::select(-sum, -detected)
+
+  #Identify mitochondrial content
+  mitochondrion <- qc_metrics %>%
+    left_join(annotation_label_transfer_tbl, by = ".cell") %>%
+    nest(data = -blueprint_first.labels.fine) %>%
+    mutate(data = map(data, ~ .x %>%
+                        mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
+                               high_mitochondrion = as.logical(high_mitochondrion)))) %>%
+    unnest(cols = data)
+
+  discard <- isOutlier(mitochondrion$subsets_Mito_percent, type = "higher")
+  threshold <- attr(discard, "threshold")["higher"]
+  plot_mito <- data.frame( 
+    tissue_name = tissue_name,
+    qc_metrics = qc_metrics,
+    mitochondrion = mitochondrion,
+    discard <- as.logical(discard), 
+    threshold = threshold, 
+    high_mitochondrion <- mitochondrion$high_mitochondrion,
+    subsets_Mito_sum <- mitochondrion$subsets_Mito_sum,
+    subsets_Mito_percent <- mitochondrion$subsets_Mito_percent
+  )
+  return(plot_mito)
+}
+
+all_data <- lapply(seq_along(input_seurat_list), function(i) {
+  plot_mito_data(input_seurat_list[[i]], tissue_names[i])
+})
+
+# Combine all data into a single tibble
+combined_plot_mito_data <- bind_rows(all_data)
+
+plot_each_sample <- function(combined_plot_mito_data) {
+  plot <- ggplot(combined_plot_mito_data, aes(x = subsets_Mito_sum, y = subsets_Mito_percent)) +
+    facet_wrap(~ tissue_name) +
+    geom_point(aes(color = high_mitochondrion), alpha = 0.5) +  # Adds points
+    scale_x_log10() +  # Log scale for x-axis
+    geom_hline(yintercept = threshold, color = "red", linetype = "dashed")
+    labs(x = "Total count", y = "Mitochondrial %", title = tissue_name) +
+    theme_minimal()
+
+  return(plot)
+}
+plot_each_sample(combined_plot_mito_data)
+```
+## MA plot 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+plot_data <- dplyr::tibble(
+  tissue_name = tissue_name,
+  input_files = input_seurat_list,
+  empty_droplets = empty_droplets_tissue_list
+) %>%
+group_by(tissue_name) %>%
+mutate(plot_data = map2(
+  input_files, empty_droplets,
+  ~ {
+      input_seurat = .x
+      combined_df = .y
+
+      col <- rep('black',ncol(input_seurat))
+      col[rownames(input_seurat[[assay]]) %in% mito_genes] <-'green'
+      col[rownames(input_seurat[[assay]]) %in% ribo_genes] <-'red'
+      col <- factor(col, levels = c('black', 'green', 'red'), labels = c('other', 'mito', 'ribo'))
+
+      extra <- joined_data |> filter(FDR < 0.001) |> pull(.cell)
+      amb  <- joined_data |> filter(is.na(FDR)) |> pull(.cell)
+      
+      # Sum of RNA-seq counts for each cell (or droplet) that is considered likely to be empty based on the FDR threshold
+      extra.mu <- input_seurat |> filter(.cell %in% extra) |> GetAssayData(assay,slot = "counts") |> rowSums()
+      # Ambiguous empty droplets
+      amb.mu  <-input_seurat |> filter(.cell %in% amb) |> GetAssayData(assay,slot = "counts") |> rowSums()
+
+    # Create a data frame to return
+    data_to_plot <- tibble(
+      A = extra.mu,   
+      M = amb.mu,  
+      color = col,
+      tissue = tissue_name
+    )
+    return(data_to_plot)
+  }
+)) %>%
+pull(plot_data) %>%
+bind_rows()
+
+ggplot(plot_data, aes(x = A, y = M, color = color)) +
+  geom_point(alpha = 0.5) +
+  facet_wrap(~ tissue) +
+  scale_color_manual(values = c("others" = "blue", "mito" = "green", "ribo" = "red")) +
+  labs(x = "True empty", y = "Ambiguous") +
+  theme_minimal()
+```
+

@@ -253,7 +253,6 @@ run_targets_pipeline <- function(
                                                                        preprocessing_output_S, 
                                                                        !!sample_column))
       ))
-
   }, script = glue("{store}.R"), ask = FALSE)
 
   #Running targets 
