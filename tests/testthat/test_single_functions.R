@@ -5,11 +5,6 @@ library(scRNAseq)
 ## Define arguments 
 filter_empty_droplets <- "TRUE"
 tissue <- "pbmc"
-<<<<<<< HEAD
-RNA_assay_name<- "originalexp"
-#reference_azimuth<- NULL
-=======
->>>>>>> 4eacd4b6a865b77be4db79fe8c88d0af402a334e
 
 input_seurat = 
   HeOrganAtlasData(ensembl=FALSE,location=FALSE)|> 
