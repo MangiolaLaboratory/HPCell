@@ -1152,18 +1152,24 @@ map_test_differential_abundance = function(
   
   se |> mutate(!!.col := map2(
     !!.col, !!.formula,
-    ~ .x |>
+    ~ {
       
+      if(ncol(.x) > 2000) method = "glmmseq_glmmTMB"
+      else method = "glmmSeq_lme4"
+      
+
       # Test
       test_differential_abundance(
+        .x,
         .y, 
         .abundance = !!as.symbol(.abundance),
-        method = "glmmSeq_lme4",
+        method = method,
         cores = cores,
         max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,
         .dispersion = dispersion,
         ...
-      ),
+      )
+      },
     ...
     
   ))
