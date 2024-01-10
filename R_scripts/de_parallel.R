@@ -396,6 +396,53 @@ se =
   
   # Test of multilevel models
   
+  # Load necessary libraries
+  library(CuratedAtlasQueryR)  # For accessing curated atlas data
+  library(tidyverse)          # For data manipulation and visualization
+  
+  # Retrieve and process the metadata
+  get_metadata() |> 
+    # Filter for specific conditions
+    filter(
+      tissue_harmonised == "blood",          # Select only 'blood' tissue
+      cell_type_harmonised == "b memory",    # Select only 'b memory' cell type
+      disease %in% c("normal", "COVID-19")   # Filter for 'normal' and 'COVID-19' diseases
+    ) |> 
+    # Convert the data frame to a tibble for better handling
+    as_tibble() |> 
+    # Nest data excluding sample and disease columns
+    nest(data_cells = -c(sample_, disease)) |> 
+    # Add a new column 'n' that contains the row count of each nested dataframe
+    mutate(n = map_int(data_cells, nrow)) |> 
+    # Filter out groups with less than 10 rows
+    filter(n > 9) |> 
+    # Nest the data again, this time excluding the disease column
+    nest(data_samples = -disease) |> 
+    # Add columns for lower and upper count thresholds
+    mutate(count_low = c(30, 30), count_high = c(500, 30)) |> 
+    # Apply function to each row using parallel mapping
+    mutate(data_samples = pmap(
+      list(data_samples, count_low, count_high),
+      ~ bind_rows(
+        # Select nine samples closest to the lower count threshold
+        ..1 |> 
+          arrange(abs(n-..2)) |> 
+          head(9),
+        
+        # Select one sample closest to the higher count threshold
+        ..1 |> 
+          arrange(abs(n-..3)) |> 
+          head(1)
+      )
+    )) |> 
+    # Unnest the nested 'data_samples' dataframe
+    unnest(data_samples) |> 
+    # Group by 'disease' and sort each group by 'n'
+    with_groups(disease, ~ .x |> arrange(n)) |> 
+    # Finally, unnest the 'data_cells' to expand the nested data
+    unnest(data_cells) |> 
+    get_single_cell_experiment()
+  
   
   
   
@@ -434,8 +481,8 @@ se =
   
   counts |> 
     mutate(log_counts = log1p(counts)) |> 
-    with_groups(c(sample, condition), ~ .x |> summarise(log_counts = mean(log_counts))) |> 
-    lm(log_counts~condition, data = _) |> 
+    with_groups(c(sample, condition, number_of_cells), ~ .x |> summarise(log_counts = mean(log_counts))) |> 
+    lm(log_counts~condition + number_of_cells, data = _, ) |> 
     summary()
   
   counts |> 
