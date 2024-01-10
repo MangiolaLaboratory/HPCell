@@ -392,3 +392,67 @@ se =
       computing_resources = slurm
     )
 
+
+  
+  # Test of multilevel models
+  
+  
+  
+  
+  counts = 
+    tibble(
+    sample = letters[1:10],
+    condition  = rep(c("a_untreated", "b_treated"), each = 5), 
+    number_of_cells = 10,
+    mrna_abundance = rep(c(100, 10), each =5)
+  ) |> 
+    mutate(
+      number_of_cells = if_else(sample==max(sample), 500, number_of_cells),
+      mrna_abundance = if_else(sample==max(sample), 500, mrna_abundance),
+    ) |> 
+    mutate(counts = map2(
+      mrna_abundance,
+      number_of_cells,
+      ~ rnbinom(mu = .x,n = .y, size = 5) |> 
+        enframe(value = "counts", name = "cell")
+    )) |> 
+    unnest(counts) |> 
+    unite("cell_name", cell, sample, remove = FALSE)  
+  
+  counts |> 
+    ggplot(aes(fct_reorder(sample, condition), counts)) + 
+    geom_boxplot(aes(fill = condition), varwidth = TRUE, outlier.shape = NA) + 
+    geom_jitter(shape = ".") +
+    scale_y_log10()
+  
+  
+  # single cell with fixed effect models
+  counts |> 
+    mutate(log_counts = log1p(counts)) |> 
+    lm(log_counts~condition, data = _) |> 
+    summary()
+  
+  counts |> 
+    mutate(log_counts = log1p(counts)) |> 
+    with_groups(c(sample, condition), ~ .x |> summarise(log_counts = mean(log_counts))) |> 
+    lm(log_counts~condition, data = _) |> 
+    summary()
+  
+  counts |> 
+    mutate(log_counts = log1p(counts)) |> 
+    lmerTest::lmer(log_counts~condition + (1|sample), data = _) |> 
+    summary()
+    
+  counts |> 
+    mutate(feature = "gene_x") |> 
+    filter(counts>0) |> 
+    tidybulk::test_differential_abundance(
+      ~condition, 
+      cell_name, feature, counts, 
+      scaling_method = "none" 
+    ) |> 
+    pivot_transcript(feature)
+  
+  
+    lmerTest::lmer(log_counts~condition + (1|sample), data = _) |> 
+    summary()
