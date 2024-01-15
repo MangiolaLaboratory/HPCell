@@ -33,9 +33,7 @@ library(broom)
 library(tarchetypes)
 library(SeuratObject)
 library(SingleCellExperiment)
-library(SingleR)process_input <- function(input_seurat) {
-process_input <- function(input_seurat) {
-  input<- input_seurat@meta.data |>
+library(SingleR)
 library(celldex)
 library(tidySingleCellExperiment)
 library(tibble)

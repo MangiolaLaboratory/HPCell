@@ -19,17 +19,18 @@ reference_label_fine = HPCell:::reference_label_fine_id(tissue)
 empty_droplets_tbl = HPCell:::empty_droplet_id(input_seurat_abc, filter_empty_droplets = TRUE)
 
 # Define output from annotation_label_transfer 
-annotation_label_transfer_tbl = HPCell:::annotation_label_transfer(input_seurat,
+annotation_label_transfer_tbl = HPCell:::annotation_label_transfer(input_seurat_abc,
                                                           empty_droplets_tbl)
 
 # Define output from alive_identification
-alive_identification_tbl = HPCell:::alive_identification(input_seurat,
+alive_identification_tbl = HPCell:::alive_identification(input_seurat_abc,
                                                 empty_droplets_tbl,
-                                                annotation_label_transfer_tbl)
+                                                annotation_label_transfer_tbl, 
+                                                assay = NULL)
 
 
 # Define output from doublet_identification
-doublet_identification_tbl = HPCell:::doublet_identification(input_seurat,
+doublet_identification_tbl = HPCell:::doublet_identification(input_seurat_abc,
                                                     empty_droplets_tbl,
                                                     alive_identification_tbl,
                                                     annotation_label_transfer_tbl,
@@ -140,9 +141,30 @@ input_seurat_list <- c(heart, trachea)
 empty_droplets_tissue_list <- lapply(input_seurat_list, function(df) {
   HPCell:::empty_droplet_id(df, filter_empty_droplets = TRUE)
 })
-annotation_label_transfer_tbl_list <- lapply(c(input_seurat_list, empty_droplets_tissue_list), function(input_seurat, empty_droplets_tbl) {
-  HPCell:::annotation_label_transfer(input_seurat, empty_droplets_tbl)
-})
+
+annotation_label_transfer_tbl_list <- mapply(FUN = HPCell:::annotation_label_transfer, 
+       input_seurat_list, 
+       empty_droplets_tissue_list,
+       SIMPLIFY = FALSE)
+
+alive_identification_tbl_list <- mapply(FUN = HPCell:::alive_identification, 
+                                        input_seurat_list, 
+                                        empty_droplets_tissue_list, annotation_label_transfer_tbl_list,
+                                        SIMPLIFY = FALSE)
+
+doublet_identification_tbl_list <- mapply(FUN = HPCell:::doublet_identification, 
+                                          input_seurat_list, 
+                                          empty_droplets_tissue_list, 
+                                          alive_identification_tbl_list, 
+                                          annotation_label_transfer_tbl_list, 
+                                          reference_label_fine
+                                          )
+
+
+
+
+
+# Test doublet identification 
 
 rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
