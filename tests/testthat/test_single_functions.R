@@ -140,14 +140,23 @@ input_seurat_list <- c(heart, trachea)
 empty_droplets_tissue_list <- lapply(input_seurat_list, function(df) {
   HPCell:::empty_droplet_id(df, filter_empty_droplets = TRUE)
 })
-annotation_label_transfer_tbl_list <- lapply(c(input_seurat_list, empty_droplets_tissue_list), function(input_seurat, empty_droplets_tbl) {
-  HPCell:::annotation_label_transfer(input_seurat, empty_droplets_tbl)
-})
 
-rmarkdown::render(
-  input = paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
-  output_file = paste0(system.file(package = "HPCell"), "/Empty_droplet_report.html"),
-  params = list(x1 = input_seurat_list, x2 = empty_droplets_tissue_list)
+annotation_label_transfer_tbl_list <- mapply(FUN = HPCell:::annotation_label_transfer, 
+                                             input_seurat_list, 
+                                             empty_droplets_tissue_list,
+                                             SIMPLIFY = FALSE)
+
+alive_identification_tbl_list <- mapply(FUN = HPCell:::alive_identification, 
+                                        input_seurat_list, 
+                                        empty_droplets_tissue_list, annotation_label_transfer_tbl_list,
+                                        SIMPLIFY = FALSE)
+
+doublet_identification_tbl_list <- mapply(FUN = HPCell:::doublet_identification, 
+                                          input_seurat_list, 
+                                          empty_droplets_tissue_list, 
+                                          alive_identification_tbl_list, 
+                                          annotation_label_transfer_tbl_list, 
+                                          reference_label_fine
 )
 
 # Unit test 

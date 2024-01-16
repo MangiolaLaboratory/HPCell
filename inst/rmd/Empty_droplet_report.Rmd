@@ -33,9 +33,7 @@ library(broom)
 library(tarchetypes)
 library(SeuratObject)
 library(SingleCellExperiment)
-library(SingleR)process_input <- function(input_seurat) {
-process_input <- function(input_seurat) {
-  input<- input_seurat@meta.data |>
+library(SingleR)
 library(celldex)
 library(tidySingleCellExperiment)
 library(tibble)
@@ -189,12 +187,12 @@ empty_count_results
 ## Histogram of p-values: (only if empty droplets have been identified)
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 hist_p_val <- function(df) {
-  if(df |> filter(empty) |> nrow() != 0){
+  if(df |> dplyr::filter(empty) |> nrow() != 0){
   df_filtered <- df %>%
   group_by(tissue_id) %>%
-  filter(empty) %>%
+  dplyr::filter(empty) %>%
   mutate(Total_quantile = quantile(Total[Total > 0], 0.1)) %>%
-  filter(Total <= Total_quantile & Total > 0) %>%
+  dplyr::filter(Total <= Total_quantile & Total > 0) %>%
   ungroup()
 
 plot_hist <- ggplot(df_filtered, aes(x = PValue)) +
@@ -215,6 +213,7 @@ plot_mito_data <- function(input_seurat, tissue_name){
 if(is.null(assay)) {assay = input_seurat@assays |> names() |> extract2(1)}
   c = rownames(input_seurat) |> str_which("^MT")
   rna_counts <- GetAssayData(input_seurat, layer = "counts", assay=assay)
+  which_mito = rownames(input_seurat) |> str_which("^MT")
   # Compute per-cell QC metrics
   qc_metrics <- perCellQCMetrics(rna_counts, subsets=list(Mito=which_mito)) %>%
     as_tibble(rownames = ".cell") %>%
@@ -252,12 +251,12 @@ all_data <- lapply(seq_along(input_seurat_list), function(i) {
 combined_plot_mito_data <- bind_rows(all_data)
 
 plot_each_sample <- function(combined_plot_mito_data) {
-  plot <- ggplot(combined_plot_mito_data, aes(x = subsets_Mito_sum, y = subsets_Mito_percent)) +
-    facet_wrap(~ tissue_name) +
-    geom_point(aes(color = high_mitochondrion), alpha = 0.5) +  # Adds points
-    scale_x_log10() +  # Log scale for x-axis
-    geom_hline(yintercept = threshold, color = "red", linetype = "dashed")
-    labs(x = "Total count", y = "Mitochondrial %", title = tissue_name) +
+    plot <- ggplot(combined_plot_mito_data, aes(x = subsets_Mito_sum, y = subsets_Mito_percent)) +
+    facet_wrap(~ tissue_name) + 
+    geom_point(aes(color = high_mitochondrion), alpha = 0.5) +
+    scale_x_log10() +
+    geom_hline(yintercept = threshold, color = "red", linetype = "dashed") +
+    labs(x = "Total count", y = "Mitochondrial %", title = "tissue_name") +
     theme_minimal()
 
   return(plot)
@@ -268,7 +267,7 @@ plot_each_sample(combined_plot_mito_data)
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 plot_data <- dplyr::tibble(
-  tissue_name = tissue_name,
+  tissue_name = tissue_names,
   input_files = input_seurat_list,
   empty_droplets = empty_droplets_tissue_list
 ) %>%
@@ -284,13 +283,13 @@ mutate(plot_data = map2(
       col[rownames(input_seurat[[assay]]) %in% ribo_genes] <-'red'
       col <- factor(col, levels = c('black', 'green', 'red'), labels = c('other', 'mito', 'ribo'))
 
-      extra <- joined_data |> filter(FDR < 0.001) |> pull(.cell)
-      amb  <- joined_data |> filter(is.na(FDR)) |> pull(.cell)
+      extra <- joined_data |> dplyr::filter(FDR < 0.001) |> pull(.cell)
+      amb  <- joined_data |> dplyr::filter(is.na(FDR)) |> pull(.cell)
       
       # Sum of RNA-seq counts for each cell (or droplet) that is considered likely to be empty based on the FDR threshold
-      extra.mu <- input_seurat |> filter(.cell %in% extra) |> GetAssayData(assay,slot = "counts") |> rowSums()
+      extra.mu <- input_seurat |> dplyr::filter(.cell %in% extra) |> GetAssayData(assay,slot = "counts") |> rowSums()
       # Ambiguous empty droplets
-      amb.mu  <-input_seurat |> filter(.cell %in% amb) |> GetAssayData(assay,slot = "counts") |> rowSums()
+      amb.mu  <-input_seurat |> dplyr::filter(.cell %in% amb) |> GetAssayData(assay,slot = "counts") |> rowSums()
 
     # Create a data frame to return
     data_to_plot <- tibble(
