@@ -53,8 +53,12 @@ preprocessing_output_S = HPCell:::preprocessing_output(tissue,
 
 # Define output from pseudobulk_preprocessing
 pseudobulk_preprocessing_SE = HPCell:::pseudobulk_preprocessing(reference_label_fine, 
-                                                       list(preprocessing_output_S), 
+                                                       preprocessing_output_S, 
                                                        sample_column)
+
+create_pseudobulk_sample = HPCell:::create_pseudobulk(preprocessing_output_S, assays = "RNA", x = c(Tissue, Cell_type_in_each_tissue))
+
+pseudobulk_merge_all_samples = pseudobulk_merge(list(create_pseudobulk_sample), assays = "RNA", x = c(Tissue))
 
 # Testing function outputs are as expected 
 test_that("input_seurat_works", {
@@ -122,11 +126,18 @@ test_that("Preprocessing_works", {
   expect_s4_class(preprocessing_output_S, "Seurat")
 })
 
-test_that("pseudobulk_preprocessing handles input lists", {
-  expect_s4_class(pseudobulk_preprocessing_SE[[1]], "SummarizedExperiment") 
-  expect_s4_class(pseudobulk_preprocessing_SE[[2]], "SummarizedExperiment")                
+# test_that("pseudobulk_preprocessing handles input lists", {
+#   expect_s4_class(pseudobulk_preprocessing_SE[[1]], "SummarizedExperiment") 
+#   expect_s4_class(pseudobulk_preprocessing_SE[[2]], "SummarizedExperiment")                
+# })
+
+test_that("pseudobulk_sample_works", {
+  expect_
 })
 
+test_that("pseudobulk_preprocessing_works", {
+  expect_s4_class(pseudobulk_preprocessing_SE, "Seurat")
+})
 
 ## Test reports 
 # Subset 2 tissues to test reports
@@ -135,6 +146,12 @@ input_seurat<- add_RNA_assay(subset_tissue, "originalexp")
 heart <- subset(input_seurat, subset = Tissue == "Heart")
 trachea <- subset(input_seurat, subset = Tissue == "Trachea")
 input_seurat_list <- c(heart, trachea)
+
+
+unique_idents <- unique(input_seurat$orig.ident)
+list_of_subsets <- lapply(unique_idents, function(ident) {
+  subset(input_seurat, subset = orig.ident == ident)
+})
 
 # Test empty droplets
 empty_droplets_tissue_list <- lapply(input_seurat_list, function(df) {
@@ -176,5 +193,9 @@ test_that("R Markdown render works", {
   expect_true(file.exists(output_path), info = "Output file should exist")
   # Add more assertions as needed, e.g., checking file content, format, etc.
 })
+
+preprocessing_output_S
+
+
 
 

@@ -248,11 +248,19 @@ run_targets_pipeline <- function(
                                doublet_identification_tbl),
                  iteration = "list"),
       
-      # pseudobulk preprocessing
-      tar_target(pseudobulk_preprocessing_SE, pseudobulk_preprocessing(reference_label_fine,
-                                                                       preprocessing_output_S, 
-                                                                       !!sample_column))
-      ))
+      # pseudobulk preprocessing for each sample 
+      tar_target(create_pseudobulk_sample, create_pseudobulk(preprocessing_output_S, 
+                                                                   assays = "RNA", 
+                                                                   x = c(Tissue, Cell_type_in_each_tissue)), 
+                 pattern = map(preprocessing_output_S), 
+                 iteration = "list")
+      ), 
+      tar_target(pseudobulk_merge_all_samples, pseudobulk_merge(create_pseudobulk_sample, 
+                                                                assays = "RNA", 
+                                                                x = c(Tissue)), 
+                 pattern = map(create_pseudobulk_sample), 
+                 iteration = "list")
+                 )
   }, script = glue("{store}.R"), ask = FALSE)
 
   #Running targets 
