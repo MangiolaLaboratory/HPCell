@@ -286,7 +286,7 @@ alive_identification <- function(input_read_RNA_assay,
   
   input_read_RNA_assay =
     input_read_RNA_assay |>
-    left_join(empty_droplets_tbl, by=".cell") |>
+    tidySummarizedExperiment::left_join(empty_droplets_tbl, by=".cell") |>
     filter(!empty_droplet)
   
   # Returns a named vector of IDs
@@ -367,7 +367,7 @@ alive_identification <- function(input_read_RNA_assay,
       #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
       
       # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay) |> unique()) |>
+      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)) |>
       left_join(annotation_label_transfer_tbl, by = ".cell") |>
       nest(data = -blueprint_first.labels.fine) |>
       mutate(data = map(
@@ -444,8 +444,8 @@ doublet_identification <- function(input_read_RNA_assay,
   
   
   filter_empty_droplets <- input_read_RNA_assay |>
-    
     # Filtering empty
+    as.SingleCellExperiment() |>
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
     filter(!empty_droplet) |>
     
@@ -456,7 +456,6 @@ doublet_identification <- function(input_read_RNA_assay,
   # Annotate
   filter_empty_droplets <- filter_empty_droplets |> 
     left_join(annotation_label_transfer_tbl, by = ".cell")|>
-    as.SingleCellExperiment() |>
     #scDblFinder(clusters = ifelse(reference_label_fine=="none", TRUE, reference_label_fine)) |>
     scDblFinder(clusters = NULL) 
   
@@ -647,19 +646,52 @@ preprocessing_output <- function(tissue,
 }
 
 
-#' Pseudobulk Preprocessing
+#' #' Pseudobulk Preprocessing
+#' #'
+#' #' @description
+#' #' Aggregates cells based on sample and cell type annotations, creating pseudobulk samples 
+#' #' for each combination. Handles RNA and ADT assays, ensuring that missing genes are accounted 
+#' #' for and aligns data across multiple samples.
+#' #'
+#' #' @param reference_label_fine Reference label for fine categorization.
+#' #' @param preprocessing_output_S Processed dataset from preprocessing.
+#' #' @param sample_column Column name indicating sample identifiers.
+#' #'
+#' #' @return List containing pseudobulk data aggregated by sample and by both sample and cell type.
+#' #'
+#' #' @import tidySingleCellExperiment
+#' #' @import tidySummarizedExperiment
+#' #' @importFrom dplyr left_join
+#' #' @importFrom dplyr filter
+#' #' @importFrom dplyr mutate
+#' #' @importFrom dplyr rename
+#' #' @importFrom dplyr select
+#' #' @importFrom stringr str_remove
+#' #' @importFrom tidyr unite
+#' #' @importFrom tidyr pivot_longer
+#' #' @importFrom tidyseurat aggregate_cells
+#' #' @importFrom tidybulk as_SummarizedExperiment
+#' #' @importFrom S4Vectors cbind
+#' #' @importFrom purrr map
+#' #' @importFrom scater isOutlier
+#' #' @importFrom SummarizedExperiment rowData
+#' #' @export
+#' #' 
+#' 
+#' #c(!!as.symbol(sample_column), !!as.symbol(reference_label_fine))
+
+
+#' Create pseudobulk
 #'
 #' @description
 #' Aggregates cells based on sample and cell type annotations, creating pseudobulk samples 
-#' for each combination. Handles RNA and ADT assays, ensuring that missing genes are accounted 
-#' for and aligns data across multiple samples.
+#' for each combination. Handles RNA and ADT assays
 #'
-#' @param reference_label_fine Reference label for fine categorization.
 #' @param preprocessing_output_S Processed dataset from preprocessing.
-#' @param sample_column Column name indicating sample identifiers.
-#'
+#' @param assays assay used, default = "RNA" 
+#' 
 #' @return List containing pseudobulk data aggregated by sample and by both sample and cell type.
-#'
+#' 
 #' @import tidySingleCellExperiment
 #' @import tidySummarizedExperiment
 #' @importFrom dplyr left_join
@@ -675,203 +707,93 @@ preprocessing_output <- function(tissue,
 #' @importFrom S4Vectors cbind
 #' @importFrom purrr map
 #' @importFrom scater isOutlier
+#' @importFrom SummarizedExperiment rowData
 #' @export
-pseudobulk_preprocessing <- function(reference_label_fine, 
-                                     preprocessing_output_S, 
-                                     sample_column,
-                                     assay = NULL){
-  
 
+# Create pseudobulk for each sample 
+create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
   
-  if (reference_label_fine %in% colnames(preprocessing_output_S[[1]]@meta.data)) {
-    
-    #sample_column = enquo(sample_column)
-    #sample_symbol <- rlang::sym(rlang::quo_get_expr(sample_column))
-    pseudobulk =
-      preprocessing_output_S |>
-      
-      # Aggregate
-      map(~ { 
+  x = enquo(x)
+  
+  # Aggregate cells
+  preprocessing_output_S |> 
+    aggregate_cells(!!x, slot = "data", assays=assays) |>
+    as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
+    pivot_longer(cols = assays, names_to = "data_source", values_to = "count") |>
+    filter(!count |> is.na()) |>
 
-        # Get assay
-        if(is.null(assay)) {
-          assay = .x@assays |> names() |> extract2(1)
-          .x = add_RNA_assay(.x, assay)
-          
-        }
-        
-        assays = .x@assays |> names() |> intersect(c("RNA", "ADT"))
-        
-        
-        .x |> 
-          tidyseurat::aggregate_cells(c(!!as.symbol(sample_column), !!as.symbol(reference_label_fine)), slot = "data", assays=assays) |>
-          #tidyseurat::aggregate_cells(c(!!sample_column, !!as.symbol(reference_label_fine)), slot = "data", assays=assays) |>
-          tidybulk::as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
-          #tidybulk::as_SummarizedExperiment(.sample, .feature, c(RNA)) |>
-          
-          # Reshape to make RNA and ADT both features
-          tidyr::pivot_longer(
-            cols = assays,
-            names_to = "data_source",
-            values_to = "count"
-          ) |>
-          dplyr::filter(!count |> is.na()) |>
-          
-          # Some manipulation to get unique feature because RNA and ADT
-          # both can have sma name genes
-          rename(symbol = .feature) |>
-          mutate(data_source = str_remove(data_source, "abundance_")) |>
-          unite( ".feature", c(symbol, data_source), remove = FALSE) |>
-          
-          # Covert
-          tidybulk::as_SummarizedExperiment(
-            .sample = c( !!as.symbol(sample_column), !!as.symbol(reference_label_fine)),
-            #.sample = c( !!sample_column, !!as.symbol(reference_label_fine)),
-            .transcript = .feature,
-            .abundance = count
-          )
-        
-      })
-    
-    # pseudobulk |> saveRDS("/stornext/Bioinf/data/bioinf-data/Papenfuss_lab/projects/mangiola.s/PostDoc/PPCG_tumour_microenvironment/PPCG_deconvolution_signatures_single_cell/PPCG_deconvolution_signatures_single_cell_PROCESSED_v3/preprocessing_results/pseudobulk_preprocessing/temp_pseudobulk_preprocessing_sample_output.rds")
-    
-    # This should not be needed if I create count files weel form the beginning
-    # Select only common column
+    # Some manipulation to get unique feature because RNA and ADT
+    # both can have sma name genes
+    rename(symbol = .feature) |>
+    mutate(data_source = stringr::str_remove(data_source, "abundance_")) |>
+    unite(".feature", c(symbol, data_source), remove = FALSE) |>
+
+    # Covert
+    as_SummarizedExperiment(
+      .sample = c(!!x),
+      .transcript = .feature,
+      .abundance = count
+    )
+}
+#' Merge pseudobulk from all samples 
+#'
+#' @description
+#' Merge pseudobulk from all samples. Ensures that missing genes are accounted 
+#' for and aligns data across multiple samples.
+#' 
+#' @importFrom purrr map
+#' @importFrom dplyr select
+#' @importFrom S4Vectors cbind
+#' @importFrom SummarizedExperiment SummarizedExperiment
+#' @export
+#' 
+pseudobulk_merge <- function(create_pseudobulk_sample, assays, x , ...) {
+  
+    # Select only common columns
     common_columns =
-      pseudobulk |>
+      create_pseudobulk_sample |>
       map(~ .x |> as_tibble() |> colnames()) |>
       unlist() |>
       table() %>%
       .[.==max(.)] |>
       names()
     
+    # All genes 
     all_genes =
-      pseudobulk |>
+      create_pseudobulk_sample |>
       map(~ .x |> rownames()) |>
       unlist() |>
       unique() |>
       as.character()
     
-    # Select and save
-    output_path_sample_cell_type <- pseudobulk |>
-      
+    output_path_sample <- create_pseudobulk_sample |>
       # Add missing genes
       map(~{
-        
+
         missing_genes = all_genes |> setdiff(rownames(.x))
-        
+
         missing_matrix = matrix(rep(0, length(missing_genes) * ncol(.x)), ncol = ncol(.x))
-        
+
         rownames(missing_matrix) = missing_genes
         colnames(missing_matrix) = colnames(.x)
-        
-        new_se = SummarizedExperiment(assays = SimpleList(count = missing_matrix))
-        colData(new_se) = colData(.x)
-        #rowData(new_se) =  DataFrame(symbol = missing_genes, row.names = missing_genes)
-        rowData(.x) = NULL
-        .x = .x |> rbind(new_se)
-        
-        .x[all_genes,]
-        
-      }) |>
-      
-      map(~ .x |> dplyr::select(any_of(common_columns)))   %>%
-      
-      do.call(S4Vectors::cbind, .)
-    
-    gc()
-    
-    # Pseuobul aggregated by sample ONLY SAMPLE
-    pseudobulk =
-      preprocessing_output_S |>
-      
-      # Aggregate
-      map(~ {
-        
-        # Get assay
-        if(is.null(assay)) {
-          assay = .x@assays |> names() |> extract2(1)
-          .x = add_RNA_assay(.x, assay)
-          
-        }
-        
-        assays = .x@assays |> names() |> intersect(c("RNA", "ADT"))
-        
-        
-        .x |> 
-          tidyseurat::aggregate_cells(c(!!as.symbol(sample_column)), slot = "data", assays=assays) |>
-          tidybulk::as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
-            # Reshape to make RNA and ADT both features
-            tidyr::pivot_longer(
-              cols = assays,
-              names_to = "data_source",
-              values_to = "count"
-            ) |>
-            dplyr::filter(!count |> is.na()) |>
-            
-            # Some manipulation to get unique feature because RNa and ADT both can have sma name genes
-            rename(symbol = .feature) |>
-            mutate(data_source = str_remove(data_source, "abundance_")) |>
-            unite( ".feature", c(symbol, data_source), remove = FALSE) |>
-            
-            # Covert
-            tidybulk::as_SummarizedExperiment(
-              .sample = c( !!as.symbol(sample_column)),
-              #.sample = c(!!sample_column),
-              .transcript = .feature,
-              .abundance = count
-            )
-      }
-      )
-    
-    # This should not be needed if I create count files weel form the beginning
-    # Select only common column
-    common_columns =
-      pseudobulk |>
-      map(~ .x |> as_tibble() |> colnames()) |>
-      unlist() |>
-      table() %>%
-      .[.==max(.)] |>
-      names()
-    
-    # Select and save
-    output_path_sample <- pseudobulk |>
-      # Add missing genes
-      map(~{
-        
-        missing_genes = all_genes |> setdiff(rownames(.x))
-        
-        missing_matrix = matrix(rep(0, length(missing_genes) * ncol(.x)), ncol = ncol(.x))
-        
-        rownames(missing_matrix) = missing_genes
-        colnames(missing_matrix) = colnames(.x)
-        
+
         new_se = SummarizedExperiment(assay = list(count = missing_matrix))
         colData(new_se) = colData(.x)
         #rowData(new_se) =  DataFrame(symbol = missing_genes, row.names = missing_genes)
         rowData(.x) = NULL
         .x = .x |> rbind(new_se)
-        
+
         .x[all_genes,]
-        
+
       }) |>
-      
+
       map(~ .x |> dplyr::select(any_of(common_columns)))   %>%
-      
+
       do.call(S4Vectors::cbind, .)
-    
-    return(list(
-      pseudobulk_by_sample = output_path_sample,
-      pseudobulk_by_sample_and_cell_type = output_path_sample_cell_type
-    ))
+
+    # Return the pseudobulk data for this single sample
+    return(create_pseudobulk_sample)
     }
-  else {return(NULL)}
-}
-
-
-
-
-
 
 #' Ligand-Receptor Count from Seurat Data
 #'
