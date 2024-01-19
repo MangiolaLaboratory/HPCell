@@ -517,8 +517,8 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
 #' Regresses out variations due to mitochondrial content, ribosomal content, and 
 #' cell cycle effects.
 #'
-#' @param input_path_demultiplexed Path to demultiplexed data.
-#' @param input_path_empty_droplets Path to empty droplets data.
+#' @param input_read_RNA_assay Path to demultiplexed data.
+#' @param empty_droplets_tbl Path to empty droplets data.
 #' @param alive_identification_tbl A tibble from alive cell identification.
 #' @param cell_cycle_score_tbl A tibble from cell cycle scoring.
 #'
@@ -529,19 +529,19 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
 #' @importFrom Seurat NormalizeData
 #' @import sctransform
 #' @export
-non_batch_variation_removal <- function(input_path_demultiplexed, 
-                                        input_path_empty_droplets, 
+non_batch_variation_removal <- function(input_read_RNA_assay, 
+                                        empty_droplets_tbl, 
                                         alive_identification_tbl, 
                                         cell_cycle_score_tbl,
                                         assay = NULL){
   
   # Get assay
-  if(is.null(assay)) assay = input_path_demultiplexed@assays |> names() |> extract2(1)
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
   
   counts =
-    input_path_demultiplexed |>
-    left_join(input_path_empty_droplets, by = ".cell") |>
+    input_read_RNA_assay |>
+    left_join(empty_droplets_tbl, by = ".cell") |>
     filter(!empty_droplet) |>
     
     left_join(
