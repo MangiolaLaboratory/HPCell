@@ -19,27 +19,27 @@ reference_label_fine = HPCell:::reference_label_fine_id(tissue)
 empty_droplets_tbl = HPCell:::empty_droplet_id(input_seurat_abc, filter_empty_droplets = TRUE)
 
 # Define output from annotation_label_transfer 
-annotation_label_transfer_tbl = HPCell:::annotation_label_transfer(input_seurat,
+annotation_label_transfer_tbl = HPCell:::annotation_label_transfer(input_seurat_abc,
                                                           empty_droplets_tbl)
 
 # Define output from alive_identification
-alive_identification_tbl = HPCell:::alive_identification(input_seurat,
+alive_identification_tbl = HPCell:::alive_identification(input_seurat_abc,
                                                 empty_droplets_tbl,
                                                 annotation_label_transfer_tbl)
 
 
 # Define output from doublet_identification
-doublet_identification_tbl = HPCell:::doublet_identification(input_seurat,
+doublet_identification_tbl = HPCell:::doublet_identification(input_seurat_abc,
                                                     empty_droplets_tbl,
                                                     alive_identification_tbl,
                                                     annotation_label_transfer_tbl,
                                                     reference_label_fine)
 
 # Define output from cell_cycle_scoring
-cell_cycle_score_tbl = HPCell:::cell_cycle_scoring(input_seurat, empty_droplets_tbl)
+cell_cycle_score_tbl = HPCell:::cell_cycle_scoring(input_seurat_abc, empty_droplets_tbl)
 
 # Define output from non_batch_variation_removal
-non_batch_variation_removal_S = non_batch_variation_removal(input_seurat,
+non_batch_variation_removal_S = non_batch_variation_removal(input_seurat_abc,
                                                             empty_droplets_tbl,
                                                             alive_identification_tbl,
                                                             cell_cycle_score_tbl)
