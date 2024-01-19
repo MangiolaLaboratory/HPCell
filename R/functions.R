@@ -286,7 +286,7 @@ alive_identification <- function(input_read_RNA_assay,
   
   input_read_RNA_assay =
     input_read_RNA_assay |>
-    tidySummarizedExperiment::left_join(empty_droplets_tbl, by=".cell") |>
+    left_join(empty_droplets_tbl, by=".cell") |>
     filter(!empty_droplet)
   
   # Returns a named vector of IDs
