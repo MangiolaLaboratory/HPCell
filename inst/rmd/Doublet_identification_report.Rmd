@@ -1,0 +1,404 @@
+---
+title: "Doublet_identification_report"
+author: "SS"
+date: "2023-12-05"
+output: html_document
+params: 
+  x1: "input_seurat_list"
+  x2: "empty_droplets_tissue_list"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(purrr)
+# library(sccomp)
+library(ggrepel)
+library(Seurat)
+library(glue)
+library(scDblFinder)
+library(Seurat)
+library(tidyseurat)
+library(tidySingleCellExperiment)
+library(patchwork)
+library(tibble)
+library(scran)
+
+# get_labels_clusters = function(.data, label_column, dim1, dim2){
+#     
+#     tidy_dist = function(x1, x2, y1, y2){
+#         
+#         tibble(x1, x2, y1, y2) %>%
+#             rowwise() %>%
+#             mutate(dist = matrix(c(x1, x2, y1, y2), nrow = 2, byrow = T) %>% dist()) %>%
+#             pull(dist)
+#         
+#     }
+#     
+#     label_column = enquo(label_column)
+#     dim1 = enquo(dim1)
+#     dim2 = enquo(dim2)
+#     
+#     .data %>%
+#         nest(data = -!!label_column) %>%
+#         mutate(
+#             !!dim1 := map_dbl(data, ~ .x %>% pull(!!dim1) %>% median()),
+#             !!dim2 := map_dbl(data, ~ .x %>% pull(!!dim2) %>% median())
+#         ) %>%
+#         select(-data)
+# }
+```
+
+```{r, warning=FALSE, message=FALSE,echo=FALSE, results='hide'}
+
+# Create dir
+# params$reports_directory |> dir.create( showWarnings = FALSE, recursive = TRUE)
+
+#variable_genes = readRDS(params$output_path_marged_variable_genes)
+
+merged_combined_annotation_doublets <- tibble(
+    input_seurat = input_seurat_list,
+    input_annotation = annotation_label_transfer_tbl_list,
+    input_doublets = doublet_identification_tbl_list,
+    input_norm = non_batch_variation_removal_list,
+    input_var_genes = lapply(input_seurat_list, function(seurat_obj) {
+    seurat_obj <- FindVariableFeatures(seurat_obj)
+    return(seurat_obj)
+})
+) |>
+    mutate(
+        sample = map_chr(input_seurat_list, ~ .x$Tissue[1])) |>
+  #distinct(sample) |>
+  # Join information
+  mutate(data = map2(
+    non_batch_variation_removal_list, # normalised target
+    sample, # sample_id e.e. Tissue
+    # Read counts
+    ~ {
+      seu = 
+        #.x$input_norm %>% {print(.y); (.)} |> 
+        input_norm |>
+      
+        # Subset dataset
+      map( ~ .x[input_var_genes,] |> sample_frac(0.1)) 
+      
+      seu = merge(seu[[1]], seu |> tail(-1)) 
+      
+      # Variable features
+      VariableFeatures(seu) = variable_genes
+      
+      seu |> 
+      
+      # Calculate UMAP of clusters
+      RunPCA(features = variable_genes) |>
+      FindNeighbors(dims = 1:30) |>
+      FindClusters(resolution = 0.5) |>
+      RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
+      as_tibble() |> 
+      
+      # Join annotation
+      left_join(
+        .x$files_annotation |>
+        map(readRDS) |>
+        purrr::reduce(bind_rows), by=".cell"
+      ) |>
+    
+      #join doublets identified
+      left_join(
+          .x$files_doublets |>
+          map(readRDS) |>
+          purrr::reduce(bind_rows), by = c(".cell")
+        )
+    }
+      ) 
+  ) 
+
+
+```
+
+
+```{r, fig.width=16, warning=FALSE, message=FALSE,echo=FALSE}
+merged_combined_annotation_doublets |> 
+  
+  # Make plots
+  mutate(plot_by_doublet = map(
+    data,
+    ~ {
+      merged_combined_annotation_doublets = .x |>
+      
+      # Sample to non overwhelmm the plotting
+      nest(doublet_class = -scDblFinder.class) |> 
+      mutate(number_to_sample = if_else(scDblFinder.class=="singlet", 10000, Inf)) |> 
+      replace_na(list(number_to_sample = Inf)) |> 
+      mutate(doublet_class = map2(doublet_class, number_to_sample, ~ .x |> sample_n(min(n(), .y)))) |> 
+      unnest(doublet_class) 
+      
+     merged_combined_annotation_doublets |> 
+      
+      ggplot(aes(refUMAP_1, refUMAP_2, color = scDblFinder.class)) +
+      geom_point(shape=".") +
+      theme_bw() +
+  
+  ggrepel::geom_text_repel(
+		data= get_labels_clusters(
+			merged_combined_annotation_doublets, 
+			scDblFinder.class,
+			refUMAP_1, 
+			refUMAP_2
+		) ,
+		aes(refUMAP_1, refUMAP_2, label = scDblFinder.class), size = 2.5
+	)
+    }
+  )) |> 
+  
+  mutate(plot_by_cluster = map(
+    data,
+    ~ {
+      merged_combined_annotation_doublets = .x |> 
+
+            
+      # Sample to non overwhelmm the plotting
+      nest(doublet_class = -scDblFinder.class) |> 
+      mutate(number_to_sample = if_else(scDblFinder.class=="singlet", 10000, Inf)) |> 
+        replace_na(list(number_to_sample = Inf)) |> 
+     mutate(doublet_class = map2(doublet_class, number_to_sample, ~ .x |> sample_n(min(n(), .y)))) |> 
+     unnest(doublet_class) 
+      
+      merged_combined_annotation_doublets |> 
+      
+      
+  ggplot(aes(refUMAP_1, refUMAP_2, color = predicted.celltype.l2)) +
+  geom_point(shape=".") +
+  theme_bw() +
+  
+  ggrepel::geom_text_repel(
+		data= get_labels_clusters(
+			merged_combined_annotation_doublets, 
+			predicted.celltype.l2,
+			refUMAP_1, 
+			refUMAP_2
+		) ,
+		aes(refUMAP_1, refUMAP_2, label = predicted.celltype.l2), size = 2.5
+	)
+    }
+  )) |> 
+  
+  # merge plots
+  mutate(plots = map2(
+    plot_by_doublet, plot_by_cluster,
+    ~ .x + .y
+  )) |> 
+  
+  pull(plots) 
+  
+```
+
+
+
+```{r, fig.width=16, warning=FALSE, message=FALSE,echo=FALSE}
+merged_combined_annotation_doublets |> 
+  
+  # Make plots
+  mutate(plot_by_doublet = map(
+    data,
+    ~ {
+      merged_combined_annotation_doublets = .x |>
+      
+      # Sample to non overwhelmm the plotting
+      nest(doublet_class = -scDblFinder.class) |> 
+      mutate(number_to_sample = if_else(scDblFinder.class=="singlet", 10000, Inf)) |> 
+      replace_na(list(number_to_sample = Inf)) |> 
+      mutate(doublet_class = map2(doublet_class, number_to_sample, ~ .x |> sample_n(min(n(), .y)))) |> 
+      unnest(doublet_class) 
+      
+     merged_combined_annotation_doublets |> 
+      
+      ggplot(aes(refUMAP_1, refUMAP_2, color = scDblFinder.class)) +
+      geom_point(shape=".") +
+      theme_bw() +
+  
+  ggrepel::geom_text_repel(
+		data= get_labels_clusters(
+			merged_combined_annotation_doublets, 
+			scDblFinder.class,
+			refUMAP_1, 
+			refUMAP_2
+		) ,
+		aes(refUMAP_1, refUMAP_2, label = scDblFinder.class), size = 2.5
+	)
+    }
+  )) |> 
+  
+  mutate(plot_by_cluster = map(
+    data,
+    ~ {
+      merged_combined_annotation_doublets = .x |> 
+
+            
+      # Sample to non overwhelmm the plotting
+      nest(doublet_class = -scDblFinder.class) |> 
+      mutate(number_to_sample = if_else(scDblFinder.class=="singlet", 10000, Inf)) |> 
+        replace_na(list(number_to_sample = Inf)) |> 
+     mutate(doublet_class = map2(doublet_class, number_to_sample, ~ .x |> sample_n(min(n(), .y)))) |> 
+     unnest(doublet_class) 
+      
+      merged_combined_annotation_doublets |> 
+      
+      
+  ggplot(aes(refUMAP_1, refUMAP_2, color = predicted.celltype.l2)) +
+  geom_point(shape=".") +
+  theme_bw() +
+  
+  ggrepel::geom_text_repel(
+		data= get_labels_clusters(
+			merged_combined_annotation_doublets, 
+			predicted.celltype.l2,
+			refUMAP_1, 
+			refUMAP_2
+		) ,
+		aes(refUMAP_1, refUMAP_2, label = predicted.celltype.l2), size = 2.5
+	)
+    }
+  )) |> 
+  
+  # merge plots
+  mutate(plots = map2(
+    plot_by_doublet, plot_by_cluster,
+    ~ .x + .y
+  )) |> 
+  
+  pull(plots) 
+  
+```
+
+UMAP re-clustering, to do an unsupervised visualization of the clustering of the doublets.
+#selecting gene names for features
+
+```{r, fig.width=16, warning=FALSE, message=FALSE,echo=FALSE}
+merged_combined_annotation_doublets |> 
+  
+  # Make plots
+  mutate(plot_by_doublet = map(
+    data,
+    ~ {
+      merged_combined_annotation_doublets_reclustered = .x |>
+      
+      # Sample to non overwhelmm the plotting
+      nest(doublet_class = -scDblFinder.class) |> 
+      mutate(number_to_sample = if_else(scDblFinder.class=="singlet", 10000, Inf)) |> 
+      replace_na(list(number_to_sample = Inf)) |> 
+      mutate(doublet_class = map2(doublet_class, number_to_sample, ~ .x |> sample_n(min(n(), .y)))) |> 
+      unnest(doublet_class) 
+      
+     merged_combined_annotation_doublets_reclustered |> 
+      
+     ggplot(aes(UMAP_1, UMAP_2, color = scDblFinder.class)) +
+  geom_point(shape=".") +
+  guides(color = guide_legend(override.aes = list(size = 5))) +
+  theme_bw() +
+  
+  ggrepel::geom_text_repel(
+		data= get_labels_clusters(
+			merged_combined_annotation_doublets_reclustered, 
+			scDblFinder.class,
+			UMAP_1, 
+			UMAP_2
+		) ,
+		aes(UMAP_1, UMAP_2, label = scDblFinder.class), size = 2.5
+	)
+    }
+  )) |> 
+  
+  mutate(plot_by_cluster = map(
+    data,
+    ~ {
+      merged_combined_annotation_doublets_reclustered = .x |> 
+
+            
+      # Sample to non overwhelmm the plotting
+      nest(doublet_class = -scDblFinder.class) |> 
+      mutate(number_to_sample = if_else(scDblFinder.class=="singlet", 10000, Inf)) |> 
+        replace_na(list(number_to_sample = Inf)) |> 
+     mutate(doublet_class = map2(doublet_class, number_to_sample, ~ .x |> sample_n(min(n(), .y)))) |> 
+     unnest(doublet_class) 
+      
+      merged_combined_annotation_doublets_reclustered |> 
+      
+      
+   ggplot(aes(UMAP_1, UMAP_2, color = predicted.celltype.l2)) +
+  geom_point(shape=".") +
+  guides(color = guide_legend(override.aes = list(size = 5))) +
+  theme_bw() +
+  
+  ggrepel::geom_text_repel(
+		data= get_labels_clusters(
+			merged_combined_annotation_doublets_reclustered, 
+			predicted.celltype.l2,
+			UMAP_1, 
+			UMAP_2
+		) ,
+		aes(UMAP_1, UMAP_2, label = predicted.celltype.l2), size = 2.5
+	)
+    }
+  )) |> 
+  
+  # merge plots
+  mutate(plots = map2(
+    plot_by_doublet, plot_by_cluster,
+    ~ .x + .y
+  )) |> 
+  
+  pull(plots) 
+  
+```
+
+
+
+
+```{r, fig.width=16, warning=FALSE, message=FALSE,echo=FALSE}
+# 2a) Create the composition of the doublets
+
+merged_combined_annotation_doublets %>% 
+  mutate(doublet_composition = map(
+    data,
+    ~ .x |> 
+      select(sample, scDblFinder.class) |> 
+      table()
+  )) |> 
+  select(batch, doublet_composition) |> 
+  deframe()
+  
+
+#calculate proportion and plot
+  merged_combined_annotation_doublets |>
+  mutate(doublet_composition_plot = map(
+    data,
+    ~ .x |> 
+
+  # create frquency column
+    
+  count(sample, predicted.celltype.l2, scDblFinder.class, name= "count_class") |> 
+    with_groups(c(sample, predicted.celltype.l2), ~ .x |> mutate(proprtion = count_class/sum(count_class))) |> 
+  # mutate(frequency = nCount_SCT/sum(nCount_SCT)*100) |>
+  # 
+  # # create the proportion column
+  # group_by(sample, scDblFinder.class) |>
+  # mutate(tot_sample_proportion = sum(frequency)) |>
+  # ungroup() |>
+  # mutate(proportion = (frequency * 1)/tot_sample_proportion) |>
+  
+  #plot proportion
+  ggplot(aes(x = predicted.celltype.l2 , y = proprtion, fill = scDblFinder.class)) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  facet_wrap(~sample) +
+  theme(axis.text.x=element_text(angle=70, hjust=1))
+  )) |> 
+    pull(doublet_composition_plot)
+ 
+
+```
+
+
+
