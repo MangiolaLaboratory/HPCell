@@ -6,3 +6,4 @@
 README.md
 HPCell.Rproj
 pipeline_stores
+^.*\.rds$

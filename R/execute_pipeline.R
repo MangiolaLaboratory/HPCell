@@ -1,8 +1,25 @@
-#' @importFrom glue glue
-#' @import targets
+#' Run Targets Pipeline for HPCell
 #'
+#' @description
+#' This function sets up and executes a `targets` pipeline for HPCell. It saves input data and configurations, 
+#' writes a pipeline script, and runs the pipeline using the 'targets' package.
+#'
+#' @param input_data Input data for the pipeline.
+#' @param store Directory path for storing the pipeline files.
+#' @param input_reference Optional reference data.
+#' @param tissue Tissue type for the analysis.
+#' @param computing_resources Configuration for computing resources.
+#' @param debug_step Optional step for debugging.
+#' @param filter_empty_droplets Flag to indicate if input filtering is needed.
+#' @param RNA_assay_name Name of the RNA assay.
+#' @param sample_column Column name for sample identification.
+#'
+#' @return The output of the `targets` pipeline, typically a preprocessed dataset.
+#'
+#' @importFrom glue glue
+#' @importFrom targets tar_script
+#' @import targets
 #' @export
-#' 
 run_targets_pipeline <- function(
     input_data, 
     store =  "./", 
@@ -10,7 +27,7 @@ run_targets_pipeline <- function(
     tissue,
     computing_resources = crew_controller_local(workers = 1), 
     debug_step = NULL,
-    filter_input = TRUE, 
+    filter_empty_droplets = TRUE, 
     RNA_assay_name = "RNA", 
     sample_column = "sample"
 ){
@@ -23,7 +40,7 @@ run_targets_pipeline <- function(
   input_reference |> saveRDS("input_reference.rds")
   tissue |> saveRDS("tissue.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
-  filter_input |> saveRDS("filtered.rds")
+  filter_empty_droplets |> saveRDS("filter_empty_droplets.rds")
   sample_column |> saveRDS("sample_column.rds")
   # Write pipeline to a file
   tar_script({
@@ -136,7 +153,7 @@ run_targets_pipeline <- function(
       #tar_target(reference_file, "input_reference.rds", format = "rds"), 
       tar_target(reference_file, readRDS("input_reference.rds")), 
       tar_target(tissue_file, readRDS("tissue.rds")), 
-      tar_target(filtered_file, readRDS("filtered.rds")), 
+      tar_target(filtered_file, readRDS("filter_empty_droplets.rds")), 
       tar_target(sample_column_file, readRDS("sample_column.rds")))
     
     #-----------------------#
@@ -151,7 +168,7 @@ run_targets_pipeline <- function(
       # tarchetypes::tar_files(name= reference_track,
       #                        read_reference_file, 
       #                        deployment = "main"),
-      tar_target(filter_input, filtered_file, deployment = "main"),
+      tar_target(filter_empty_droplets, filtered_file, deployment = "main"),
       tar_target(tissue, tissue_file, deployment = "main"),
       tar_target(sample_column, sample_column_file, deployment = "main"),
       tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
@@ -160,60 +177,58 @@ run_targets_pipeline <- function(
       tar_target(input_read, readRDS(read_file),
                  pattern = map(read_file),
                  iteration = "list", deployment = "main"),
-      tar_target(input_read_RNA_assay, add_RNA_assay(input_read, RNA_assay_name), 
-                 pattern = map(input_read), 
-                 iteration = "list"),
+
       tar_target(reference_read, reference_file, deployment = "main"),
       
       # Identifying empty droplets
       tar_target(empty_droplets_tbl,
-                 empty_droplet_id(input_read_RNA_assay, filter_input),
-                 pattern = map(input_read_RNA_assay),
+                 empty_droplet_id(input_read, filter_empty_droplets),
+                 pattern = map(input_read),
                  iteration = "list"),
       
       # Cell cycle scoring
-      tar_target(cell_cycle_score_tbl, cell_cycle_scoring(input_read_RNA_assay,
+      tar_target(cell_cycle_score_tbl, cell_cycle_scoring(input_read,
                                                           empty_droplets_tbl),
-                 pattern = map(input_read_RNA_assay,
+                 pattern = map(input_read,
                                empty_droplets_tbl),
                  iteration = "list"),
       
       # Annotation label transfer
       tar_target(annotation_label_transfer_tbl,
-                 annotation_label_transfer(input_read_RNA_assay,
-                                           reference_read,
-                                           empty_droplets_tbl),
-                 pattern = map(input_read_RNA_assay,
+                 annotation_label_transfer(input_read,
+                                           empty_droplets_tbl,
+                                           reference_read),
+                 pattern = map(input_read,
                                empty_droplets_tbl),
                  iteration = "list"),
       
       # Alive identification
-      tar_target(alive_identification_tbl, alive_identification(input_read_RNA_assay,
+      tar_target(alive_identification_tbl, alive_identification(input_read,
                                                                 empty_droplets_tbl,
                                                                 annotation_label_transfer_tbl),
-                 pattern = map(input_read_RNA_assay,
+                 pattern = map(input_read,
                                empty_droplets_tbl,
                                annotation_label_transfer_tbl),
                  iteration = "list"),
       
       # Doublet identification
-      tar_target(doublet_identification_tbl, doublet_identification(input_read_RNA_assay,
+      tar_target(doublet_identification_tbl, doublet_identification(input_read,
                                                                     empty_droplets_tbl,
                                                                     alive_identification_tbl,
                                                                     annotation_label_transfer_tbl,
                                                                     reference_label_fine),
-                 pattern = map(input_read_RNA_assay,
+                 pattern = map(input_read,
                                empty_droplets_tbl,
                                alive_identification_tbl,
                                annotation_label_transfer_tbl),
                  iteration = "list"),
       
       # Non-batch variation removal
-      tar_target(non_batch_variation_removal_S, non_batch_variation_removal(input_read_RNA_assay,
+      tar_target(non_batch_variation_removal_S, non_batch_variation_removal(input_read,
                                                                             empty_droplets_tbl,
                                                                             alive_identification_tbl,
                                                                             cell_cycle_score_tbl),
-                 pattern = map(input_read_RNA_assay,
+                 pattern = map(input_read,
                                empty_droplets_tbl,
                                alive_identification_tbl,
                                cell_cycle_score_tbl),
@@ -233,15 +248,25 @@ run_targets_pipeline <- function(
                                doublet_identification_tbl),
                  iteration = "list"),
       
-      # pseudobulk preprocessing
-      tar_target(pseudobulk_preprocessing_SE, pseudobulk_preprocessing(reference_label_fine,
-                                                                       preprocessing_output_S, 
-                                                                       !!sample_column)
-                 
-    )))
-    
+      # pseudobulk preprocessing for each sample 
+      tar_target(create_pseudobulk_sample, create_pseudobulk(preprocessing_output_S, 
+                                                                   assays = "RNA", 
+                                                                   x = c(Tissue, Cell_type_in_each_tissue)), 
+                 pattern = map(preprocessing_output_S), 
+                 iteration = "list"),
+      
+      tar_target(pseudobulk_merge_all_samples, pseudobulk_merge(create_pseudobulk_sample, 
+                                                                assays = "RNA", 
+                                                                x = c(Tissue)), 
+                 pattern = map(create_pseudobulk_sample), 
+                 iteration = "list"),
+      
+      tar_target(calc_UMAP_dbl_report, calc_UMAP(input_read), 
+                 pattern = map(input_read), 
+                 iteration = "list")
+      ))
   }, script = glue("{store}.R"), ask = FALSE)
-  
+
   #Running targets 
   # input_files<- c("CB150T04X__batch14.rds","CB291T01X__batch8.rds")
   # run_targets <- function(input_files){
