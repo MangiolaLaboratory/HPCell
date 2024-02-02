@@ -58,18 +58,17 @@ pseudobulk_preprocessing_SE = HPCell:::pseudobulk_preprocessing(reference_label_
 
 create_pseudobulk_sample = HPCell::create_pseudobulk(preprocessing_output_S, assays = "RNA", x = c(Tissue, Cell_type_in_each_tissue))
 
-pseudobulk_merge_all_samples = pseudobulk_merge(create_pseudobulk_sample_list, assays = "RNA", x = c(Tissue))
-
 # For a list of preprocessing outputs
-create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk, 
-                                       preprocessing_output_S_list, 
-                                       assays = "RNA", 
-                                       x = c(Tissue, Cell_type_in_each_tissue))
+# create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk, 
+#                                        preprocessing_output_S_list, 
+#                                        assays = "RNA", 
+#                                        x = c(Tissue, Cell_type_in_each_tissue))
 
 create_pseudobulk_sample_list <- lapply(preprocessing_output_S_list, function(obj) {
-  create_pseudobulk(obj, assays = "RNA", x = c(Tissue, Cell_type_in_each_tissue))
+  create_pseudobulk(obj, assays = "originalexp", x = c(Tissue, Cell_type_in_each_tissue))
 })
 
+pseudobulk_merge_all_samples = pseudobulk_merge(create_pseudobulk_sample_list, assays = "RNA", x = c(Tissue))
 
 # Testing function outputs are as expected 
 test_that("input_seurat_works", {
@@ -236,6 +235,8 @@ create_pseudobulk_sample_list<- list(create_pseudobulk_sample_heart, create_pseu
 create_pseudobulk_sample_list <- lapply(preprocessing_output_S_list, function(obj) {
   create_pseudobulk(obj, assays = NULL, x = c(Tissue, Cell_type_in_each_tissue))
 })
+
+pseudobulk_merged_results <- pseudobulk_merge(create_pseudobulk_sample_list, assays, x)
 
 # Test calc_UMAP_dbl_report
 calc_UMAP_result<- calc_UMAP(input_seurat)
