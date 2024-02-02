@@ -166,9 +166,6 @@ reference_url <- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimod
 download.file(reference_url, input_reference_path) 
 LoadH5Seurat(input_reference_path) |> saveRDS(input_reference_path)
 ```
-<<<<<<< HEAD
-=======
-
 
 # HPCell Pipeline Documentation
 
