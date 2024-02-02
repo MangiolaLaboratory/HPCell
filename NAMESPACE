@@ -63,11 +63,7 @@ importFrom(Seurat,ScaleData)
 importFrom(Seurat,VariableFeatures)
 importFrom(Seurat,as.SingleCellExperiment)
 importFrom(SingleR,SingleR)
-<<<<<<< HEAD
-importFrom(SummarizedExperiment,`rowData<-`)
-=======
 importFrom(SummarizedExperiment,SummarizedExperiment)
->>>>>>> susansjy22-master
 importFrom(SummarizedExperiment,assays)
 importFrom(SummarizedExperiment,rowData)
 importFrom(celldex,BlueprintEncodeData)
