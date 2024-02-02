@@ -63,7 +63,7 @@ files_doublets = dir(params$dir3, full.names = TRUE, pattern = "output.rds")
 variable_genes = readRDS(params$output_path_marged_variable_genes)
 
 
-
+## Produce tibble with targets 
 
 merged_combined_annotation_doublets = 
   tibble(
@@ -77,28 +77,28 @@ merged_combined_annotation_doublets =
   
   # Join information
   mutate(data = map2(
-    files_df, batch,
-    
+    files_df, 
+    batch,
     # Read counts
     ~ {
       seu = 
         .x$files %>% {print(.y); (.)} |> 
       
       # Subset dataset
-      map( ~ readRDS(.x)[variable_genes,] |> sample_frac(0.1)) 
+      map( ~ readRDS(.x)[variable_genes,] |> sample_frac(0.1)) # Create a target to
       
-      seu = merge(seu[[1]], seu |> tail(-1)) 
+      seu = merge(seu[[1]], seu |> tail(-1)) # Skip merge 
       
       # Variable features
       VariableFeatures(seu) = variable_genes
       
       seu |> 
-      
+      # assay = SCT specify 
       # Calculate UMAP of clusters
       RunPCA(features = variable_genes) |>
       FindNeighbors(dims = 1:30) |>
       FindClusters(resolution = 0.5) |>
-      RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
+      RunUMAP(dims = 1:30, spread = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
       as_tibble() |> 
       
       # Join annotation
@@ -123,8 +123,6 @@ merged_combined_annotation_doublets =
 
 
 
-
-
 ```{r, fig.width=16, warning=FALSE, message=FALSE,echo=FALSE}
 merged_combined_annotation_doublets |> 
   
@@ -142,7 +140,6 @@ merged_combined_annotation_doublets |>
       unnest(doublet_class) 
       
      merged_combined_annotation_doublets |> 
-      
       ggplot(aes(refUMAP_1, refUMAP_2, color = scDblFinder.class)) +
       geom_point(shape=".") +
       theme_bw() +
@@ -281,7 +278,6 @@ merged_combined_annotation_doublets |>
   pull(plots) 
   
 ```
-
 
 
 
