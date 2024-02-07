@@ -160,7 +160,6 @@ preprocessed_seurat
 Details to come.
 
 ```{r, eval=FALSE}
-
 input_reference_path  <- "reference_azimuth.rds" 
 reference_url <- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat" 
 download.file(reference_url, input_reference_path) 
@@ -413,4 +412,811 @@ run_targets_pipeline <- function(
   tar_read(preprocessing_output_S, store = store)
 }
 ```
+
+# HPCell Pipeline Documentation
+
+## Introduction to `targets`
+The `targets` package in R automates and streamlines the execution of complex data analysis pipelines. It manages dependencies between steps (targets) and only reruns parts of the workflow that have changed. Users can also map targets dynamically to manage a list of input and/or parameters. 
+
+## Overview 
+The `run_targets_pipeline` function orchestrates a targeted workflow for processing single-cell RNA sequencing data, using the `targets` R package. This documentation explains the pipeline's structure, methods used, and provides code snippets to illustrate its operation. It's designed to help beginners understand both the how and the why of each step.
+
+## Pipeline arguments 
+Default arguments. User can adjust accordingly. 
+
+```{r}
+run_targets_pipeline( store =  "./", 
+                      input_reference = NULL,
+                      computing_resources = crew_controller_local(workers = 1), 
+                      debug_step = NULL,
+                      filter_empty_droplets = TRUE, 
+                      RNA_assay_name = "RNA", 
+                      sample_column = "sample"
+)
+```
+
+User specified arguments 
+### 1. Input_data = path/to/input/dataset 
+Example:
+```{r}
+input_data_path =  tempfile(tmpdir = ".") |> paste0(".rds")
+  HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
+    as.Seurat(data = NULL) |>
+    saveRDS(input_data_path)
+    
+  input_data = input_data_path
+```
+
+### 2. Tissue 
+Currently 4 options: "pbmc", "solid", "atypical", "none"
+
+```{r}
+ tissue = "pbmc"
+```
+
+### 3. filter_empty_droplets: 
+TRUE = Filter dataset for empty droplets 
+FALSE = Skip filtering 
+
+```{r}
+ filter_empty_droplets = TRUE
+```
+
+## Pipeline Steps and Methods
+Saving Input Parameters
+User-defined parameters and data are saved as .rds files. This step ensures that all 
+necessary information is available to the targets pipeline as input targets.
+
+```{r}
+  input_data |> saveRDS("input_file.rds")
+  input_reference |> saveRDS("input_reference.rds")
+  tissue |> saveRDS("tissue.rds")
+  computing_resources |> saveRDS("temp_computing_resources.rds")
+  filter_empty_droplets |> saveRDS("filter_empty_droplets.rds")
+  sample_column |> saveRDS("sample_column.rds")
+```
+
+We use the tar_script() function to create a target script file _targets.R in our current working directory
+
+```{r}
+tar_script({ 
+  
+    library(targets)
+    library(tarchetypes)
+    library(crew)
+    library(crew.cluster)
+
+    computing_resources = readRDS("temp_computing_resources.rds")
+    ...
+ })
+```
+
+## Configuring'targets' 
+Using tar_option_set, we configure default arguments such as: 
+
+Packages
+
+```{r}
+tar_option_set(
+      packages = c(
+        "HPCell",
+        "readr",
+        "dplyr",
+        "tidyr",
+        "ggplot2",
+        "purrr",
+        "Seurat",
+        "tidyseurat",
+        "glue",
+        "scater",
+        "DropletUtils",
+        "EnsDb.Hsapiens.v86",
+        "here",
+        "stringr",
+        "readr",
+        "rlang",
+        "scuttle",
+        "scDblFinder",
+        "ggupset",
+        "tidySummarizedExperiment",
+        "broom",
+        "tarchetypes",
+        "SeuratObject",
+        "SingleCellExperiment", 
+        "SingleR", 
+        "celldex", 
+        "tidySingleCellExperiment", 
+        "tibble", 
+        "magrittr",
+        "qs", 
+        "S4Vectors"
+      ))
+```
+
+Other tar_option_set arguments:
+Controller is set to user defined parameter: e.g., crew_class_controller
+
+```{r}
+ tar_option_set(memory = "transient",
+ garbage_collection = TRUE,
+ #trust_object_timestamps = TRUE,
+ storage = "worker", 
+ retrieval = "worker", 
+ #error = "continue",         
+ format = "qs", 
+ #debug = debug_step, # Set the target you want to debug.
+ # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
+ controller = computing_resources)
+```
+
+## Defining targets 
+Targets represent each step in the data analysis process. 
+For instance, filtering empty droplets, annotating cell types, and identifying cell cycles 
+are defined as individual targets within the pipeline.
+
+## Managing dependencies 
+Each analysis step depends on the output of previous steps. targets tracks these dependencies automatically. 
+
+## Mapping
+Target are defined that operates over a list of data sets or a range of parameters. 
+Allows the application the same processing steps to multiple samples or data sets.
+    
+First user defined parameters are read from the .rds files saved in the package directory
+
+```{r}
+list(
+ tar_target(filter_empty_droplets, filtered_file, deployment = "main"),
+ tar_target(tissue, tissue_file, deployment = "main"),
+ tar_target(sample_column, sample_column_file, deployment = "main"),
+ tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
+ tar_target(reference_label_fine, reference_label_fine_id(tissue), deployment = "main")
+ )
+```
+
+## Input data set and reference files (if supplied) are also read 
+
+```{r}
+list(
+ tar_target(input_read, readRDS(read_file),
+            pattern = map(read_file),
+            iteration = "list", deployment = "main"),
+ tar_target(reference_read, reference_file, deployment = "main")
+)
+```
+
+# Documentation about the steps of the pipeline
+
+## STEP 1: Filtering out empty droplets (function `empty_droplet_id`)
+
+Parameters 
+### 1. input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
+### 2. filter_empty_droplets Logical value indicating whether to filter the input data.
+
+We filter empty droplets as they don't represent cells, but include only ambient RNA, which is uninformative for our biological analyses. 
+
+This step includes 4 sub steps: Filtering mitochondrial and ribosomal genes, ranking droplets, identifying minimum threshold and removing cells with RNA counts below this threshold
+
+```{r, eval=FALSE}
+tar_target(empty_droplets_tbl,
+                 empty_droplet_id(input_read, filter_empty_droplets),
+                 pattern = map(input_read),
+                 iteration = "list")
+```
+
+### 1. Filtering mitochondrial and ribosomal genes based on EnsDb.Hsapiens.v8 reference dataset 
+
+Mitochondrial and ribosomal genes exhibit expression patterns in single-cell RNA sequencing (scRNA-seq) data that are distinct from the patterns observed in the rest of the transcriptome. They are filtered out to improve the quality and interpretability of scRNA-seq data, focusing the analysis on genes more likely to yield insights
+
+```{r, eval=FALSE}
+ # Genes to exclude
+  location <- AnnotationDbi::mapIds(
+    EnsDb.Hsapiens.v86,
+    keys=rownames(input_read_RNA_assay),
+    column="SEQNAME",
+    keytype="SYMBOL"
+  )
+  mitochondrial_genes = BiocGenerics::which(location=="MT") |> names()
+  ribosome_genes = rownames(input_read_RNA_assay) |> stringr::str_subset("^RPS|^RPL")
+```
+
+### 2. Ranking droplets from the one with highest amount of mRNA, to the lowest amount of mRNA. For this we use the function `barcodeRanks()`
+
+```{r, eval=FALSE}
+DropletUtils::barcodeRanks(GetAssayData(input_read_RNA_assay, assay, slot = "counts"))
+```
+
+### 3. A minimum threshold cutoff 'lower' is set to exclude cells with low RNA counts 
+       If the minimum total count is greater than 100, we exclude the bottom 5% of barcodes by count. 
+       Otherwise lower is set to 100. 
+
+```{r, eval=FALSE}
+if(min(barcode_ranks$total) < 100) { lower = 100 } else {
+    lower = quantile(barcode_ranks$total, 0.05)}
+```
+
+### 4. Remove cells with low RNA counts 
+    (This step will not be executed if the filter_empty_droplets argument is set to FALSE, in which case all cells will be retained)
+   
+#### .cell column 
+  - The emptyDrops() function from dropletUtils is applied to the filtered data set with the lower bound set to 'lower' as defined earlier 
+  - True, non-empty cells are assigned to a column named '.cell' in the output tibble "barcode_table"
+  
+#### empty_droplet column 
+  - Column empty_droplet is added by flagging droplets as empty (empty_droplet = TRUE) if their False Discovery Rate (FDR) from the             emptyDrops test is equal to or greater than a specified significance threshold (in this case 0.001)
+    
+    (Any droplets with missing data in the empty_droplet column are conservatively assumed to be empty.)
+
+```{r, eval=FALSE}
+significance_threshold = 0.001
+
+if (
+    # If filter_empty_droplets
+    filter_empty_droplets == "TRUE") {
+    barcode_table <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")[!rownames(GetAssayData(input_read_RNA_assay, assay, slot = "counts")) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
+      emptyDrops( test.ambient = TRUE, lower=lower) |>
+      as_tibble(rownames = ".cell") |>
+      mutate(empty_droplet = FDR >= significance_threshold) |>
+      replace_na(list(empty_droplet = TRUE))
+  } else {
+    barcode_table <- select(., .cell) |>
+      as_tibble() |>
+      mutate( empty_droplet = FALSE)
+  }
+
+```
+
+### 5. Knee and inflection points are added to to barcode_table (to assisted with plotting barcode rank plot)
+       The final output is a tibble containing log probabilities, FDR, and a classification
+       indicating whether cells are empty droplets.
+
+```{r, eval=FALSE}
+barcode_table <- barcode_table |>
+  left_join(
+    barcode_ranks |>
+      as_tibble(rownames = ".cell") |>
+      mutate(
+        knee =  metadata(barcode_ranks)$knee,
+        inflection =  metadata(barcode_ranks)$inflection
+        ))
+```
+
+## STEP 2: Assign cell cycle scores based on expression of G2/M and S phase markers (function: `cell_cycle_scoring`)
+
+Parameters 
+1. input_read_RNA_assay: SingleCellExperiment object containing RNA assay data.
+2. empty_droplets_tbl: A tibble identifying empty droplets.
+
+This step includes 3 sub steps: Joining input and empty_droplet output data, normalization and cell cycle scoring.  
+
+Returns a tibble containing cell identifiers with their predicted classification into cell cycle phases: G2M, S, or G1 phase.
+
+```{r, eval=FALSE}
+tar_target(cell_cycle_score_tbl, cell_cycle_scoring(input_read,
+                                                          empty_droplets_tbl),
+                 pattern = map(input_read,
+                               empty_droplets_tbl),
+                 iteration = "list")
+```
+
+### 1. Join input data with the empty droplet output by common .cell identifier 
+
+```{r, eval=FALSE}
+input_read_RNA_assay |>
+  left_join(empty_droplets_tbl, by = ".cell") |>
+  filter(!empty_droplet)
+```
+
+### 2. Normalize the data using the `NormalizeData` function from Seurat to make the expression levels of genes across different cells more comparable
+
+```{r, eval=FALSE}
+ ...|>
+  NormalizeData()
+```
+
+### 3. Using the `CellCycleScoring` function to assign cell cycle scores of each cell based on its expression of G2/M and S phase markers.
+Stores S and G2/M scores in object meta data along with predicted classification of each cell in either G2M, S or G1 phase
+```{r, eval=FALSE}
+ ...|> 
+  CellCycleScoring(  
+    s.features = Seurat::cc.genes$s.genes,
+    g2m.features = Seurat::cc.genes$g2m.genes,
+    set.ident = FALSE 
+    ) |> 
+  as_tibble() |>
+  select(.cell,  S.Score, G2M.Score, Phase)
+```
+
+## STEP 3: Filtering dead cells (function `alive_identification`) 
+Parameters 
+1. input_read_RNA_assay: SingleCellExperiment object containing RNA assay data.
+2. empty_droplets_tbl: A tibble identifying empty droplets.
+3. annotation_label_transfer_tbl: A tibble with annotation label transfer data.
+
+Filters out dead cells by analyzing mitochondrial and ribosomal gene expression percentages. 
+
+Returns a tibble containing alive cells. 
+
+This step includes 6 sub-steps: Identifying chromosomal location of each read, identifying mitochondrial genes, extracting raw `Assay` (e.g., RNA) count data, compute per-cell QC metrics, determine high mitochondrion content, identify cells with unusually high ribosomal content 
+
+```{r, eval=FALSE}
+tar_target(alive_identification_tbl, alive_identification(input_read,
+                                                                empty_droplets_tbl,
+                                                                annotation_label_transfer_tbl),
+                 pattern = map(input_read,
+                               empty_droplets_tbl,
+                               annotation_label_transfer_tbl),
+                 iteration = "list")
+```
+
+### 1. Retrieves the chromosome locations for genes based on their gene symbols. 
+The `mapIds` function from the `AnnotationDbi` package is used for mapping between different types of gene identifiers. The `EnsDb.Hsapiens.v86` Ensembl database is used as the reference dataset. 
+
+```{r, eval=FALSE}
+ location <- mapIds(
+    EnsDb.Hsapiens.v86,
+    keys=rownames(input_read_RNA_assay),
+    column="SEQNAME",
+    keytype="SYMBOL"
+  )
+```
+
+### 2. Identify the mitochondrial genes based on their symbol (starting with "MT")
+
+```{r, eval=FALSE}
+  which_mito = rownames(input_read_RNA_assay) |> str_which("^MT")
+```
+
+### 3. Extracting raw `Assay` (e.g., RNA) count data 
+Raw count data from the the "RNA" assay is extracted using the `GetAssayData` function from `Seurat` and stored in the "rna_counts" variable. This extracted data can be used for further analysis such as normalisation, scaling, identification of variable genes, etc., 
+
+```{r, eval=FALSE}
+  rna_counts <- Seurat::GetAssayData(input_read_RNA_assay, layer = "counts", assay=assay)
+```
+
+### 4. Compute per-cell QC metrics 
+Quality control metrics are calculated using the `perCellQCMetrics` function from the `scater` package. Metrics include sum of couonts (library size), and the number of detected features. 
+
+```{r, eval=FALSE}
+qc_metrics <- scuttle::perCellQCMetrics(rna_counts, subsets=list(Mito=which_mito)) %>%
+    as_tibble(rownames = ".cell") %>%
+    dplyr::select(-sum, -detected)
+```
+
+### 5. Determine high mitochondrion content 
+High Mitochondrial content is identified by applying the the `isOutlier` function from `scuttle` to the subsets_Mito_percent column. The outlier stays is converted to a logical value: `TRUE` for outliers and `FALSE` for non-outliers. 
+```{r, eval=FALSE}
+    mitochondrion <- qc_metrics %>%
+      left_join(annotation_label_transfer_tbl, by = ".cell") %>%
+      nest(data = -blueprint_first.labels.fine) %>%
+      mutate(data = map(data, ~ .x %>%
+                          mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
+                                 high_mitochondrion = as.logical(high_mitochondrion)))) %>%
+      unnest(cols = data)
+```
+
+### 6. Identify cells with unusually high ribosomal content 
+`PercentageFeatureSet` from `Seurat` is used to compute the proportion of counts corresponding to ribosomal genes
+High ribosomal content is identified by applying the the `isOutlier` function from `scuttle` to the subsets_Ribo_percent column. The outlier stays is converted to a logical value: `TRUE` for outliers and `FALSE` for non-outliers. 
+
+```{r, eval=FALSE}
+ ribosome =
+      input_read_RNA_assay |>
+      select(.cell) |>
+      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
+      
+      # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
+      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)) |>
+      left_join(annotation_label_transfer_tbl, by = ".cell") |>
+      nest(data = -blueprint_first.labels.fine) |>
+      mutate(data = map(
+        data,
+        ~ .x |>
+          mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
+          mutate(high_ribosome = as.logical(high_ribosome)) |>
+          as_tibble() |>
+          select(.cell, subsets_Ribo_percent, high_ribosome)
+      )) |>
+      unnest(data)
+```
+
+## STEP 4 Identifying doublets (function: `doublet_identification`)
+Parameters: 
+1. input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
+2. empty_droplets_tbl A tibble identifying empty droplets.
+3. alive_identification_tbl A tibble identifying alive cells.
+4. annotation_label_transfer_tbl A tibble with annotation label transfer data.
+5. reference_label_fine Optional reference label for fine-tuning.
+
+Applies the `scDblFinder` algorithm to the filter_empty_droplets dataset. It supports integrating with
+`SingleR` annotations if provided and outputs a tibble containing cells with their associated scDblFinder scores.
+
+Returns a tibble containing cells with their `scDblFinder` scores
+
+```{r, eval=FALSE}
+HPCell::doublet_identification(input_read,
+                               empty_droplets_tbl,
+                               alive_identification_tbl,
+                               annotation_label_transfer_tbl,
+                               reference_label_fine)
+```
+
+The `scDblFinder` function from `scDblFinder` is used to detect doublets, which are cells originating from two or more cells being captured in the same droplet, in the scRNA-seq data. Doublets can skew analyses and lead to incorrect interpretations, so identifying and potentially removing or flagging them is important.
+
+In our current code, clustering is set to NULL. 
+Alternatively clustering can be dynamically be set to NULL if reference_label_fine == "none" and equal to reference_label_fine if it's provided. 
+
+```{r, eval=FALSE}
+filter_empty_droplets <- filter_empty_droplets |> 
+    left_join(annotation_label_transfer_tbl, by = ".cell")|>
+    #scDblFinder(clusters = ifelse(reference_label_fine=="none", NULL, reference_label_fine)) |>
+    scDblFinder(clusters = NULL) 
+```
+
+## STEP 5: Add annotation labelling to data set (function `annotation_label_transfer`)
+
+Parameters
+1. input_read_RNA_assay: `SingleCellExperiment` object containing RNA assay data.
+2. empty_droplets_tbl: A tibble identifying empty droplets.
+3. reference_azimuth: Optional reference data for Azimuth.
+
+This step utilizes `SingleR` for cell-type identification using reference data sets
+(Blueprint and Monaco Immune data). It can also perform cell type labeling using Azimuth when a reference is provided.
+
+This step includes 3 sub steps: Filtering and normalisation, reference data loading and cell Type Annotation with BlueprintEncodeData for Fine or Coarse Labels
+
+```{r, eval=FALSE}
+tar_target(annotation_label_transfer_tbl,
+                 annotation_label_transfer(input_read,
+                                           empty_droplets_tbl,
+                                           reference_read),
+                 pattern = map(input_read,
+                               empty_droplets_tbl),
+                 iteration = "list")
+```
+
+### 1. Filtering and normalisation
+Cells flagged as empty_droplet are removed from the dataset using the `filter` function from dplyr.
+The filtered data set is then converted into a SingleCellExperiment object which facilitates further processing by providing a standardized data structure. `logNormCounts` is then used to apply log-normalization to the count data. This helps to make the gene expression levels more comparable across cells. 
+
+```{r, eval=FALSE}
+ sce =
+    input_read_RNA_assay |>
+    # Filter empty
+    left_join(empty_droplets_tbl, by = ".cell") |>
+    dplyr::filter(!empty_droplet) |>
+    Seurat::as.SingleCellExperiment() |>
+    scuttle::logNormCounts()
+```
+
+### 2. Reference data loading 
+Load cell type reference data from `BlueprintEncodeData` and `MonacoImmuneData` provided by the `celldex` package for cell annotation based on gene expression profiles 
+
+```{r, eval=FALSE}
+ blueprint <- celldex::BlueprintEncodeData()
+ MonacoImmuneData = celldex::MonacoImmuneData()
+```
+
+### 3. Cell Type Annotation with BlueprintEncodeData for Fine and Coarse Labels (depending on the tissue type selected by the user)
+Performs cell type annotation using `SingleR` with the `MonacoImmuneData` reference with fine-grained cell type labels and coarse-grained labels 
+
+Creates column blueprint_first.labels.fine and blueprint_first.labels.coarse which contains scores on the likely cell type that each read belongs to
+
+```{r, eval=FALSE}
+data_annotated =
+    
+    sce |>
+    SingleR(
+      ref = blueprint,
+      assay.type.test= 1,
+      labels = blueprint$label.fine
+    )  |>
+    as_tibble(rownames=".cell") |>
+    nest(blueprint_scores_fine = starts_with("score")) |>
+    select(-one_of("delta.next"),- pruned.labels) |>
+    rename(blueprint_first.labels.fine = labels) |>
+    
+    left_join(
+      
+      sce |>
+        SingleR(
+          ref = blueprint,
+          assay.type.test= 1,
+          labels = blueprint$label.main
+        )  |>
+        as_tibble(rownames=".cell") |>
+        nest(blueprint_scores_coarse = starts_with("score")) |>
+        select(-one_of("delta.next"),- pruned.labels) |>
+        rename( blueprint_first.labels.coarse = labels))
+```
+
+### 4. 
+- Performs cell type annotation using `SingleR` with the `blueprint` reference with fine-grained cell type labels and coarse-grained labels. 
+- Creates column monaco_first.labels.fine and monaco_first.labels.coarse which contains scores on the likely cell type that each read         belongs to
+
+```{r, eval=FALSE}
+ data_annotated =
+    data_annotated |>
+    
+    left_join(
+      sce |>
+        SingleR::SingleR(
+          ref = MonacoImmuneData,
+          assay.type.test= 1,
+          labels = MonacoImmuneData$label.fine
+        )  |>
+        as_tibble(rownames=".cell") |>
+        nest(monaco_scores_fine = starts_with("score")) |>
+        select(-delta.next,-pruned.labels) |>
+        rename(monaco_first.labels.fine = labels)
+      
+    ) |>
+    
+    left_join(
+      sce |>
+        SingleR(
+          ref = MonacoImmuneData,
+          assay.type.test= 1,
+          labels = MonacoImmuneData$label.main
+        )  |>
+        as_tibble(rownames=".cell") |>
+        
+        nest(monaco_scores_coarse = starts_with("score")) |>
+        select(-delta.next,- pruned.labels) |>
+        rename( monaco_first.labels.coarse = labels)
+    ) 
+```
+
+## STEP 6 Data normalisation (function: `non_batch_variation_removal`)
+Regressing out variations due to mitochondrial content, ribosomal content, and 
+cell cycle effects.
+
+Parameters 
+1. input_read_RNA_assay Path to demultiplexed data.
+2. empty_droplets_tbl Path to empty droplets data.
+3. alive_identification_tbl A tibble from alive cell identification.
+4. cell_cycle_score_tbl A tibble from cell cycle scoring.
+
+Returns normalized and adjusted data
+
+This step includes 3 sub-steps: Construction of `counts` data frame, data normalization with `SCTransform` and normalization with `NormalizeData`
+```{r, eval=FALSE}
+ HPCell::non_batch_variation_removal(input_read,
+                                                                            empty_droplets_tbl,
+                                                                            alive_identification_tbl,
+                                                                            cell_cycle_score_tbl)
+```
+
+### 1. Construction of `counts` data frame: We construct the `counts` data frame by aggregating outputs empty_droplets_tbl,                        alive_identification_tbl and cell_cycle_score_tbl. 
+       We exclude empty droplets from initial raw count data. 
+       Next we incorporate ribosomal and mitochondrial percentages which offer insights into cellular health and metabolic activity 
+       Finally we add cell cycle G2/M score to each cell's profile. 
+
+```{r, eval=FALSE}
+counts =
+    input_read_RNA_assay |>
+    left_join(empty_droplets_tbl, by = ".cell") |>
+    filter(!empty_droplet) |>
+    
+    left_join(
+      alive_identification_tbl |>
+        select(.cell, subsets_Ribo_percent, subsets_Mito_percent),
+      by=".cell"
+    ) |>
+    
+    left_join(
+      cell_cycle_score_tbl |>
+        select(.cell, G2M.Score),
+      by=".cell"
+    )
+```
+
+### 2. Data normalization with `SCTransform`: We apply the `SCTransform` function to apply variance-stabilizing transformation (VST) to            `counts` which normalizes and scales the data and also performs feature selection and controls for confounding factors. This results        in data that is better suited for downstream analysis such as dimensionality reduction and differential expression analysis. 
+
+```{r, eval=FALSE}
+ normalized_rna <- SCTransform(
+    counts, 
+    assay=assay,
+    return.only.var.genes=FALSE,
+    residual.features = NULL,
+    vars.to.regress = c("subsets_Mito_percent", "subsets_Ribo_percent", "G2M.Score"),
+    vst.flavor = "v2",
+    scale_factor=2186
+  )
+```
+
+### 3. Normalization with `NormalizeData`: If the `ADT` assay is present, we further normalize our `counts` data using the centered log            ratio (CLR) normalization method. This mitigates the effects of varying total protein expression across cells. If the `ADT` assay is        absent, we can simply omit this step. 
+
+```{r, eval=FALSE}
+  if ( "ADT" %in% names(normalized_rna@assays)) {
+    normalized_data <- normalized_rna %>%
+      Seurat::NormalizeData(normalization.method = 'CLR', margin = 2, assay="ADT") %>%
+      select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
+  } else { 
+    normalized_data <- normalized_rna %>%
+      # Drop alive columns
+      select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
+  }
+```
+
+## STEP 7 Generate preprocessing output (function: `preprocessing_output`)
+Parameters 
+1. tissue: Type of tissue.
+2. non_batch_variation_removal_S: Result from non-batch variation removal.
+3. alive_identification_tbl A tibble from alive cell identification.
+4. cell_cycle_score_tbl A tibble from cell cycle scoring.
+5. annotation_label_transfer_tbl A tibble from annotation label transfer.
+6. doublet_identification_tbl A tibble from doublet identification.
+
+Incorporates outputs from doublets and dead cell filtering, cell cycle scoring, and optionally includes annotation label transfer information 
+
+Returns a processed data set ready for downstream analysis.
+
+This step includes 4 sub steps: Filtering dead cells, merging cell cycle results, filtering doublet cells and joining cell type prediction data
+```{r, eval=FALSE}
+HPCell::preprocessing_output(tissue,
+                             non_batch_variation_removal_S,
+                             alive_identification_tbl,
+                             cell_cycle_score_tbl,
+                             annotation_label_transfer_tbl,
+                             doublet_identification_tbl)
+```
+
+### 1. Filtering dead cells: Starting off with the output from non_batch_variation_removal, we filter out dead cells by keeping only those         marked as `alive`. 
+### 2. Merging cell cycle results: We then merge the results from cell_cycle_score_tbl. 
+### 3. Filtering doublet cells: Finally we filters out doublets by retaining only cells classified as “singlet” by scDblFinder, thereby ensuring that the data set consists of genuine, single-cell data points.
+
+```{r, eval=FALSE}
+processed_data <- non_batch_variation_removal_S |>
+    # Filter dead cells
+    left_join(
+      alive_identification_tbl |>
+        select(.cell, alive, subsets_Mito_percent, subsets_Ribo_percent, high_mitochondrion, high_ribosome),
+      by = ".cell"
+    ) |>
+    filter(alive) |>
+    
+    # Add cell cycle
+    left_join(
+      cell_cycle_score_tbl,
+      by=".cell"
+    ) |>
+    
+    # Filter doublets
+    left_join(doublet_identification_tbl |> select(.cell, scDblFinder.class), by = ".cell") |>
+    filter(scDblFinder.class=="singlet") 
+```
+
+### 4. Joining cell type prediction data: If annotation data is provided, we then join the cell type prediction data to our current data           frame and form our final processed data 
+```{r, eval=FALSE}
+  if (inherits(annotation_label_transfer_tbl, "tbl_df")){
+    processed_data <- processed_data |>
+      left_join(annotation_label_transfer_tbl, by = ".cell")
+  }
+  
+  # Filter Red blood cells and platelets
+  if (tolower(tissue) == "pbmc" & "predicted.celltype.l2" %in% c(rownames(annotation_label_transfer_tbl), colnames(annotation_label_transfer_tbl))) {
+    filtered_data <- filter(processed_data, !predicted.celltype.l2 %in% c("Eryth", "Platelet"))
+  } else {
+    filtered_data <- processed_data
+  }
+```
+
+STEP 8 Creating individual pseudo bulk samples (function: `create_pseudobulk`)
+Parameters
+1. preprocessing_output_S: Processed dataset from preprocessing
+2. assays: assay used, default = "RNA" 
+3. x: User defined character vector for c(Tissue, Cell_type_in_each_tissue)
+
+Aggregates cells based on sample and cell type annotations, creating pseudobulk samples 
+for each combination. Handles RNA and ADT assays. 
+
+Returns a list containing pseudobulk data aggregated by sample and by both sample and cell type. 
+
+This step includes 6 substeps: Cell aggregation by tissue and cell type, conversion to `SummarizedExperiment`, reshaping data with `PivotLonger`, filtering out missing data, renaming features for clarity and creating unique feature identifiers
+
+```{r, eval=FALSE}
+HPCell::create_pseudobulk(preprocessing_output_S,   assays = "RNA",  x = c(Tissue, Cell_type_in_each_tissue))
+```
+
+Capture the expression of the input x (Tissue and Cell_type_in_each_tissue) and enable its later evaluation.
+
+```{r, eval=FALSE}
+x = enquo(x)
+```
+
+We apply some data manipulation steps to get unique feature because RNA and ADT both can have similarly named genes. 
+In our data set we may contain information on both RNA and ADT assays: 
+- RNA: Measures the abundance of RNA molecules for different genes within a cell.
+- ADT: Quantifies protein levels on the cell surface using antibodies tagged with DNA bar codes, which are then detected alongside RNA.
+
+The challenge arises because both RNA and ADT data might include identifiers (gene names for RNA, protein names for ADT) that could be the same or very similar. However, they represent different types of biological molecules (nucleic acids vs. proteins). To accurately analyze and distinguish between these two data types in a combined data set, we need to ensure that each feature (whether it's an RNA-measured gene or an ADT-measured protein) has a unique identifier. Thus we apply these data manipulation steps: 
+
+1. Cells are aggregated based on the `Tissue` and `Cell_type_in_each_tissue` columns. By summarizing single-cell data into groups, it mimics    traditional bulk RNA-seq data while retaining the ability to dissect biological variability at a finer resolution
+2. We then transform the aggregated data to a `SummarizedExperiment` object which facilitates further data manipulation steps
+3. We use the `pivot_longer` function from `tidySummarizedExperiment` to take multiple columns specified by assays, collapses them into a      single column named `data_source` which holds the original column names, and places their corresponding values in a new column named        `count`. This operation makes the data set taller and narrower. 
+4. Data set is then filtered to remove any rows with missing values in the `count` column. 
+5. The `.feature` column is renamed to `symbol`
+6. To distinguish between potentially identical feature names across RNA and ADT assays, the `symbol` and modified `data_source` columns are    combined into a new `.feature` column using the `unite` function. This step ensures each feature has a unique identifier
+
+```{r, eval=FALSE}
+# Aggregate cells
+preprocessing_output_S |> 
+  tidySingleCellExperiment::aggregate_cells(!!x, slot = "data", assays=assays) |>
+  ...
+```
+
+STEP 9 Merging all pseudobulk samples (function: `pseudobulk_merge`)
+Parameters
+1. create_pseudobulk_sample: A list pseudobulk samples generated by `create_pseudobulk`
+2. assays: Default is set of `RNA` 
+3. x: User specified character vector for the column from which we subset the samples for pseudobulk analysis 
+
+This step consists of 6 substeps: Cell Aggregation by Tissue and Cell Type, Conversion to `SummarizedExperiment`, Reshaping Data with `Pivot Longer`, Filtering Out Missing Data, Renaming Features for Clarity and Creating Unique Feature Identifiers, combining individual samples into a single data frame
+```{r, eval=FALSE}
+ HPCell::pseudobulk_merge(create_pseudobulk_sample, 
+                          assays = "RNA", 
+                          x = c(Tissue))
+```
+
+
+Defines a unique set of gene names extracted from all pseudobulk samples in the create_pseudobulk_sample list. This
+
+```{r, eval=FALSE}
+all_genes =
+    HPCell::create_pseudobulk_sample |>
+    purrr::map(~ .x |> rownames()) |>
+    unlist() |>
+    unique() |>
+    as.character()
+```
+
+
+### 1. Identify missing genes: For each sample, we identify missing_genes by finding which genes in all_genes are not present in the current sample's row names 
+
+```{r, eval=FALSE}
+missing_genes = all_genes |> setdiff(rownames(.x))
+```
+
+### 2. Create a Zero-Count Matrix for Missing Genes: A matrix of zeros (missing_matrix) is created for the missing genes. We then use this matrix to represent counts (or expression levels) for the missing genes. 
+
+```{r, eval=FALSE}
+missing_matrix = matrix(rep(0, length(missing_genes) * ncol(.x)), ncol = ncol(.x))
+```
+
+### 3. Row names of the matrix are set to the missing_genes, and column names are matched to those of create_pseudobulk_sample
+
+```{r, eval=FALSE}
+rownames(missing_matrix) = missing_genes
+colnames(missing_matrix) = colnames(.x)
+```
+
+### 4. We create a new `SummarizedExperiment` object (`new_se`) with the missing genes matrix as its assay data. 
+### 5. The original sample's row metadata (`rowData`) is cleared, and the missing genes `SummarizedExperiment` is appended to the original         data using `rbind`
+### 6. Rows are reordered and filtered according to `all_genes` to ensure consistency across all samples.
+
+```{r, eval=FALSE}
+new_se = SummarizedExperiment(assay = list(count = missing_matrix))
+      colData(new_se) = colData(.x)
+      #rowData(new_se) =  DataFrame(symbol = missing_genes, row.names = missing_genes)
+      rowData(.x) = NULL
+      .x = .x |> rbind(new_se)
+      
+      .x[all_genes,]
+```
+
+### 7. Samples are combined side-by-side into a single data set using `do.call` with `S4Vectors`::`cbind`, which binds them by columns.
+
+```{r, eval=FALSE}
+ ... |> 
+  purrr::map(~ .x |> dplyr::select(any_of(common_columns))) |>
+  do.call(S4Vectors::cbind, .)
+```
+
+
+
+
+
+
+
+
 
