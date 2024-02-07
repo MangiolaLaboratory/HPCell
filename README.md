@@ -628,7 +628,7 @@ run_targets_pipeline <- function(
       retrieval = "worker", 
       #error = "continue",         
       format = "qs", 
-      debug = debug_step, # Set the target you want to debug.
+      #debug = debug_step, # Set the target you want to debug.
       # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
       controller = computing_resources
     )
