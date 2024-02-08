@@ -138,8 +138,8 @@ Flowchart
         # debug_step = "non_batch_variation_removal_S"
     )
 
-    ## Warning: Targets and globals must have unique names. Ignoring global objects that conflict with target names: sample_column, tissue, filter_empty_droplets. Warnings like this one are important, but if you must suppress them, you can do so with Sys.setenv(TAR_WARN =
-    ## "false").
+    ## Warning: Targets and globals must have unique names. Ignoring global objects that conflict with target names: sample_column, tissue,
+    ## filter_empty_droplets. Warnings like this one are important, but if you must suppress them, you can do so with Sys.setenv(TAR_WARN = "false").
 
     ## ✔ skipped target reference_file
 
@@ -207,7 +207,7 @@ Flowchart
 
     ## ✔ skipped target reference_label_coarse
 
-    ## ✔ skipped pipeline [0.188 seconds]
+    ## ✔ skipped pipeline [0.174 seconds]
 
     ## HPCell says: you can read your output executing tar_read(preprocessing_output_S, store = "./")
 
@@ -217,23 +217,25 @@ Flowchart
     ## $preprocessing_output_S_a0ced377
     ## # A Seurat-tibble abstraction: 290 × 46
     ## # [90mFeatures=9552 | Cells=290 | Active assay=SCT | Assays=originalexp, SCT[0m
-    ##    .cell   orig.ident nCount_originalexp nFeature_originalexp Tissue nCount_RNA nFeature_RNA percent.mito RNA_snn_res.orig seurat_clusters Cell_type_in_each_ti…¹ Cell_type_in_merged_…² reclustered.broad reclustered.fine Total LogProb  PValue Limited     FDR empty_droplet
-    ##    <chr>   <fct>                   <dbl>                <int> <chr>       <int>        <int>        <dbl>            <int>           <int> <chr>                  <chr>                  <chr>             <chr>            <int>   <dbl>   <dbl> <lgl>     <dbl> <lgl>        
-    ##  1 Bladde… Bladder                  1133                  592 Bladd…       1152          610       0.0790                7              15 Monocyte Bladder       Monocyte               Myeloid           Classical_Mon_A…   830  -2399. 1.00e-4 TRUE    1.25e-4 FALSE        
-    ##  2 Bladde… Bladder                  3495                 1374 Bladd…       3551         1415       0.0569               14               8 Macrophage HLA-DPB1_h… Macrophage C1QB        Myeloid           cDC2              2567  -5145. 1.00e-4 TRUE    0       FALSE        
-    ##  3 Bladde… Bladder                  1297                  797 Bladd…       1599          890       0.0269               13              13 Fibroblast APOD_high … Fibroblast PTGDS       FibSmo            Fib_CHI3L1_high   1175  -3175. 1.00e-4 TRUE    1.25e-4 FALSE        
-    ##  4 Bladde… Bladder                  2071                  953 Bladd…       2355         1093       0.0412                6              17 FibSmo APOE_high Blad… FibSmo Cell            FibSmo            FibSmo_FOXF1_hi…  1537  -3508. 1.00e-4 TRUE    1.25e-4 FALSE        
-    ##  5 Bladde… Bladder                  2166                 1102 Bladd…       2474         1263       0.0154                5              17 FibSmo ACTA2_high Bla… FibSmo Cell            FibSmo            FibSmo_LINC0108…  1681  -4026. 1.00e-4 TRUE    0       FALSE        
-    ##  6 Bladde… Bladder                  2486                 1185 Bladd…       2734         1320       0.0640                5              17 FibSmo ACTA2_high Bla… FibSmo Cell            FibSmo            FibSmo_LINC0108…  1859  -4188. 1.00e-4 TRUE    0       FALSE        
-    ##  7 Bladde… Bladder                  3175                 1418 Bladd…       3727         1603       0.0384                0              11 Fibroblast IGFBP6_hig… Fibroblast PLA2G2A     FibSmo            Fib_SLIT3_high    2619  -5245. 1.00e-4 TRUE    0       FALSE        
-    ##  8 Bladde… Bladder                  1847                  932 Bladd…       2013         1039       0.0427                2              17 FibSmo PLPPR4_high Bl… FibSmo Cell            FibSmo            FibSmo_LINC0108…  1372  -3318. 1.00e-4 TRUE    1.25e-4 FALSE        
-    ##  9 Bladde… Bladder                  2546                 1104 Bladd…       2649         1139       0.0287               11               8 Macrophage RNASE1_hig… Macrophage C1QB        Myeloid           Intermediate_Mo…  2075  -4331. 1.00e-4 TRUE    0       FALSE        
-    ## 10 Bladde… Bladder                   969                  574 Bladd…       1138          658       0.0387                0              11 Fibroblast IGFBP6_hig… Fibroblast PLA2G2A     FibSmo            Fib_SLIT3_high     738  -2209. 1.00e-4 TRUE    1.25e-4 FALSE        
+    ##    .cell                 orig.ident nCount_originalexp nFeature_originalexp Tissue nCount_RNA nFeature_RNA percent.mito RNA_snn_res.orig seurat_clusters
+    ##    <chr>                 <fct>                   <dbl>                <int> <chr>       <int>        <int>        <dbl>            <int>           <int>
+    ##  1 Bladder_cDNA_AAACCTG… Bladder                  1133                  592 Bladd…       1152          610       0.0790                7              15
+    ##  2 Bladder_cDNA_AAACCTG… Bladder                  3495                 1374 Bladd…       3551         1415       0.0569               14               8
+    ##  3 Bladder_cDNA_AAACCTG… Bladder                  1297                  797 Bladd…       1599          890       0.0269               13              13
+    ##  4 Bladder_cDNA_AAACCTG… Bladder                  2071                  953 Bladd…       2355         1093       0.0412                6              17
+    ##  5 Bladder_cDNA_AAACCTG… Bladder                  2166                 1102 Bladd…       2474         1263       0.0154                5              17
+    ##  6 Bladder_cDNA_AAACCTG… Bladder                  2486                 1185 Bladd…       2734         1320       0.0640                5              17
+    ##  7 Bladder_cDNA_AAACCTG… Bladder                  3175                 1418 Bladd…       3727         1603       0.0384                0              11
+    ##  8 Bladder_cDNA_AAACCTG… Bladder                  1847                  932 Bladd…       2013         1039       0.0427                2              17
+    ##  9 Bladder_cDNA_AAACGGG… Bladder                  2546                 1104 Bladd…       2649         1139       0.0287               11               8
+    ## 10 Bladder_cDNA_AAACGGG… Bladder                   969                  574 Bladd…       1138          658       0.0387                0              11
     ## # ℹ 280 more rows
-    ## # ℹ abbreviated names: ¹​Cell_type_in_each_tissue, ²​Cell_type_in_merged_data
-    ## # ℹ 26 more variables: rank <dbl>, total <int>, fitted <dbl>, knee <dbl>, inflection <dbl>, nCount_SCT <dbl>, nFeature_SCT <int>, alive <lgl>, subsets_Mito_percent <dbl>, subsets_Ribo_percent <dbl>, high_mitochondrion <lgl>, high_ribosome <lgl>, S.Score <dbl>,
-    ## #   G2M.Score <dbl>, Phase <chr>, scDblFinder.class <fct>, blueprint_first.labels.fine <chr>, blueprint_scores_fine <list>, blueprint_first.labels.coarse <chr>, blueprint_scores_coarse <list>, monaco_first.labels.fine <chr>, monaco_scores_fine <list>,
-    ## #   monaco_first.labels.coarse <chr>, monaco_scores_coarse <list>, tSNE_1 <dbl>, tSNE_2 <dbl>
+    ## # ℹ 36 more variables: Cell_type_in_each_tissue <chr>, Cell_type_in_merged_data <chr>, reclustered.broad <chr>, reclustered.fine <chr>, Total <int>,
+    ## #   LogProb <dbl>, PValue <dbl>, Limited <lgl>, FDR <dbl>, empty_droplet <lgl>, rank <dbl>, total <int>, fitted <dbl>, knee <dbl>, inflection <dbl>,
+    ## #   nCount_SCT <dbl>, nFeature_SCT <int>, alive <lgl>, subsets_Mito_percent <dbl>, subsets_Ribo_percent <dbl>, high_mitochondrion <lgl>,
+    ## #   high_ribosome <lgl>, S.Score <dbl>, G2M.Score <dbl>, Phase <chr>, scDblFinder.class <fct>, blueprint_first.labels.fine <chr>,
+    ## #   blueprint_scores_fine <list>, blueprint_first.labels.coarse <chr>, blueprint_scores_coarse <list>, monaco_first.labels.fine <chr>,
+    ## #   monaco_scores_fine <list>, monaco_first.labels.coarse <chr>, monaco_scores_coarse <list>, tSNE_1 <dbl>, tSNE_2 <dbl>
 
 ### Include reference dataset for azimuth annotation
 
@@ -413,15 +415,19 @@ classification into cell cycle phases: G2M, S, or G1 phase.
 
 ### 1. normalization:
 
-    Normalize the data using the `NormalizeData` function from Seurat to make the expression levels of genes across different cells more comparable
+Normalize the data using the `NormalizeData` function from Seurat to
+make the expression levels of genes across different cells more
+comparable
 
      ...|>
       NormalizeData()
 
 ### 2. cell cycle scoring:
 
-    Using the `CellCycleScoring` function to assign cell cycle scores of each cell based on its expression of G2/M and S phase markers.
-    Stores S and G2/M scores in object meta data along with predicted classification of each cell in either G2M, S or G1 phase
+Using the `CellCycleScoring` function to assign cell cycle scores of
+each cell based on its expression of G2/M and S phase markers. Stores S
+and G2/M scores in object meta data along with predicted classification
+of each cell in either G2M, S or G1 phase
 
      ...|> 
       CellCycleScoring(  
@@ -728,10 +734,12 @@ data normalization with `SCTransform` and normalization with
 
 ### 1. Construction of `counts` data frame:
 
-       We construct the `counts` data frame by aggregating outputs from empty_droplets_tbl, alive_identification_tbl and cell_cycle_score_tbl. 
-       - We exclude empty droplets from initial raw count data. 
-       - Next we incorporate ribosomal and mitochondrial percentages which offer insights into cellular health and metabolic activity 
-       - Finally we add cell cycle G2/M score to each cell's profile. 
+We construct the `counts` data frame by aggregating outputs from
+empty\_droplets\_tbl, alive\_identification\_tbl and
+cell\_cycle\_score\_tbl. - We exclude empty droplets from initial raw
+count data. - Next we incorporate ribosomal and mitochondrial
+percentages which offer insights into cellular health and metabolic
+activity - Finally we add cell cycle G2/M score to each cell’s profile.
 
     counts =
         input_read_RNA_assay |>
@@ -752,8 +760,12 @@ data normalization with `SCTransform` and normalization with
 
 ### 2. Data normalization with `SCTransform`:
 
-       We apply the `SCTransform` function to apply variance-stabilizing transformation (VST) to `counts` which normalizes and scales the data and also performs feature selection and controls for
-       confounding factors. This results in data that is better suited for downstream analysis such as dimensionality reduction and differential expression analysis. 
+We apply the `SCTransform` function to apply variance-stabilizing
+transformation (VST) to `counts` which normalizes and scales the data
+and also performs feature selection and controls for confounding
+factors. This results in data that is better suited for downstream
+analysis such as dimensionality reduction and differential expression
+analysis.
 
      normalized_rna <- Seurat::SCTransform(
         counts, 
@@ -767,7 +779,10 @@ data normalization with `SCTransform` and normalization with
 
 ### 3. Normalization with `NormalizeData`:
 
-       If the `ADT` assay is present, we further normalize our `counts` data using the centered log ratio (CLR) normalization method. This mitigates the effects of varying total protein expression across        cells. If the `ADT` assay is absent, we can simply omit this step. 
+If the `ADT` assay is present, we further normalize our `counts` data
+using the centered log ratio (CLR) normalization method. This mitigates
+the effects of varying total protein expression across cells. If the
+`ADT` assay is absent, we can simply omit this step.
 
       if ( "ADT" %in% names(normalized_rna@assays)) {
         normalized_data <- normalized_rna %>%
@@ -810,15 +825,13 @@ results, filtering doublet cells and joining cell type prediction data
 
 ### 1. Filtering dead cells:
 
-       Starting off with the output from non_batch_variation_removal, we filter out dead cells by keeping only those marked as `alive`. 
-
-### 2. Merging cell cycle results:
-
-       We then merge the results from cell_cycle_score_tbl. 
-
-### 3. Filtering doublet cells:
-
-       Finally we filters out doublets by retaining only cells classified as “singlet” by scDblFinder, thereby ensuring that the data set consists of genuine, single-cell data points.
+Starting off with the output from non\_batch\_variation\_removal, we
+filter out dead cells by keeping only those marked as `alive`. \### 2.
+Merging cell cycle results: We then merge the results from
+cell\_cycle\_score\_tbl. \### 3. Filtering doublet cells: Finally we
+filters out doublets by retaining only cells classified as “singlet” by
+scDblFinder, thereby ensuring that the data set consists of genuine,
+single-cell data points.
 
     processed_data <- non_batch_variation_removal_S |>
         # Filter dead cells
@@ -841,7 +854,8 @@ results, filtering doublet cells and joining cell type prediction data
 
 ### 4. Joining cell type prediction data:
 
-       If annotation data is provided, we then join the cell type prediction data to our current data frame and form our final processed data. 
+If annotation data is provided, we then join the cell type prediction
+data to our current data frame and form our final processed data.
 
       if (inherits(annotation_label_transfer_tbl, "tbl_df")){
         processed_data <- processed_data |>
