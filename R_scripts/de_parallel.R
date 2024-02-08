@@ -400,6 +400,7 @@ se =
   library(CuratedAtlasQueryR)  # For accessing curated atlas data
   library(tidyverse)          # For data manipulation and visualization
   
+  counts = 
   # Retrieve and process the metadata
   get_metadata() |> 
     # Filter for specific conditions
@@ -433,18 +434,69 @@ se =
         ..1 |> 
           arrange(abs(n-..3)) |> 
           head(1)
-      )
+      ) |> 
+        distinct()
     )) |> 
     # Unnest the nested 'data_samples' dataframe
     unnest(data_samples) |> 
-    # Group by 'disease' and sort each group by 'n'
-    with_groups(disease, ~ .x |> arrange(n)) |> 
     # Finally, unnest the 'data_cells' to expand the nested data
     unnest(data_cells) |> 
     get_single_cell_experiment()
   
+  assay(counts) = assay(counts) |> as.matrix()
   
   
+ de_results = 
+   counts |> 
+   mutate(disease = if_else(disease == "normal", "a_normal", "b_COVID-19")) |> 
+   tidybulk::keep_abundant(factor_of_interest = disease) |> 
+    tidybulk::test_differential_abundance(
+      ~disease, 
+      scaling_method = "TMMwsp"
+    ) 
+ 
+ de_results |> 
+   as("SummarizedExperiment") |> 
+   tidybulk::scale_abundance(method = "TMMwsp") |> 
+   _[rowData(de_results)$FDR<0.05,] |> 
+   _[7, , drop=FALSE] |> 
+   # _[
+   #   de_results |> 
+   #     rowData() |> 
+   #     as_tibble(rownames = "feature") |> 
+   #     arrange(desc(abs(logFC))) |> 
+   #     head(10) |> 
+   #     pull(feature)
+   #  ,] |> 
+   
+   ggplot(aes(sample_, counts_scaled)) +
+   geom_boxplot(aes(fill = disease), varwidth = TRUE, outlier.shape = NA) + 
+   geom_jitter(shape = ".") +
+   facet_wrap(~.feature) +
+   scale_y_log10()
+ 
+ de_results_lme4 = 
+   counts |> 
+   mutate(disease = if_else(disease == "normal", "a_normal", "b_COVID-19")) |> 
+   tidybulk::keep_abundant(factor_of_interest = disease) |> 
+   HPCell::test_differential_abundance_hpc(
+     ~disease + (1|sample_), 
+     scaling_method = "TMMwsp", 
+     computing_resources = 
+       crew.cluster::crew_controller_slurm(
+         name = "slurm",
+         slurm_memory_gigabytes_per_cpu = 5,
+         slurm_cpus_per_task = 1,
+         workers = 200,
+         verbose = T
+       )
+   ) 
+ 
+   as("SummarizedExperiment") |> 
+   as_tibble()
+    filter(FDR<0.05) |> 
+    nest(data = .feature)
+    tidybulk::pivot_transcript(feature)
   
   counts = 
     tibble(

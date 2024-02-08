@@ -165,7 +165,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     
     # Subset
-    RNA_assay = input_read_RNA_assay[[assay]][rownames(input_read_RNA_assay[[assay]]) %in% rownames(reference_azimuth[["SCT"]]),]
+    RNA_assay = input_read_RNA_assay[rownames(input_read_RNA_assay[[assay]]) %in% rownames(reference_azimuth[["SCT"]]),][[assay]]
     #RNA_assay <- input_read_RNA_assay@assays$RNA[["counts"]][rownames(input_read_RNA_assay@assays$RNA[["counts"]])%in% rownames(reference_azimuth[["SCT"]]),]
     #ADT_assay = input_read_RNA_assay[["ADT"]][rownames(input_read_RNA_assay[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
     input_read_RNA_assay <- CreateSeuratObject( counts = RNA_assay)
@@ -1272,4 +1272,99 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
     mutate(sce_md5 = map_chr(!!.col, digest))
 }
 
+#' Harmonize cell type annotations based on consensus
+#'
+#' This function harmonizes cell type annotations by matching them with a reference annotation
+#' and applying specific rules for non-immune cell types.
+#'
+#' @param single_cell_data A data frame containing single-cell data with cell type annotations.
+#' @param .sample_column The column name specifying sample information.
+#' @param .cell_type The column name for the cell type annotations.
+#' @param .azimuth The column name for Azimuth annotations.
+#' @param .blueprint The column name for Blueprint annotations.
+#' @param .monaco The column name for Monaco annotations.
+#'
+#' @return A data frame with harmonized cell type annotations.
+#'
+#' @export
+annotation_consensus = function(single_cell_data, .sample_column, .cell_type, .azimuth, .blueprint, .monaco){
+  
+  .sample_column = enquo(.sample_column)
+  .azimuth = enquo(.azimuth)
+  .blueprint = enquo(.blueprint)
+  .monaco = enquo(.monaco)
+  .cell_type = enquo(.cell_type)
+  
+  # reference_annotation =
+  #   CuratedAtlasQueryR::get_metadata() |> 
+  #   filter(cell_type_harmonised!="immune_unclassified" | is.na(cell_type_harmonised)) |> 
+  #   select(cell_type,
+  #          cell_type_harmonised, 
+  #          cell_annotation_azimuth_l2, 
+  #          cell_annotation_blueprint_singler, 
+  #          cell_annotation_monaco_singler,
+  #          confidence_class
+  #   ) |> 
+  #   as_tibble() |> 
+  #   mutate(cell_type_clean = cell_type |> clean_cell_types()) |> 
+  #   clean_cell_types_deeper() |> 
+  #   select(-cell_type) |> 
+  #   
+  #   count(cell_type_harmonised, cell_annotation_azimuth_l2, cell_annotation_blueprint_singler, cell_annotation_monaco_singler, confidence_class, cell_type_clean) |>
+  #   with_groups(c(cell_annotation_azimuth_l2, cell_annotation_blueprint_singler, cell_annotation_monaco_singler, cell_type_clean), ~ .x |> arrange(desc(n)) |> slice(1) )
+  # 
+  # reference_annotation |> saveRDS("reference_annotation_16_jan_2024.rds")
+  
+  reference_annotation = readRDS("reference_annotation_16_jan_2024.rds")
+  
+  annotation=
+    single_cell_data |>
+    rename(
+      .sample := !!.sample_column,
+      cell_type := !!.cell_type,
+      cell_annotation_azimuth_l2 := !!.azimuth,
+      cell_annotation_blueprint_singler := !!.blueprint,
+      cell_annotation_monaco_singler := !!.monaco
+    ) |>
+    select(.cell, .sample, cell_type, cell_annotation_azimuth_l2,cell_annotation_blueprint_singler, cell_annotation_monaco_singler) |> 
+    mutate(across(c(cell_annotation_azimuth_l2, cell_annotation_blueprint_singler, cell_annotation_monaco_singler),	tolower	)) |>
+    mutate(across(c(cell_annotation_azimuth_l2, cell_annotation_blueprint_singler, cell_annotation_monaco_singler),	clean_cell_types	)) |>
+    
+    is_strong_evidence(cell_annotation_azimuth_l2, cell_annotation_blueprint_singler) |> 
+    
+    # Clen cell types
+    mutate(cell_type_clean = cell_type |> clean_cell_types()) |> 
+    left_join(read_csv("~/PostDoc/CuratedAtlasQueryR/dev/metadata_cell_type.csv"),  by = "cell_type") |> 
+    clean_cell_types_deeper() |>
+    
+    # Reference annotation link
+    left_join(reference_annotation ) 
+  
+  annotation_connie_non_immune = 
+    annotation |> 
+    filter(cell_type_harmonised |> is.na()) |> 
+    
+    harmonise_names_non_immune() |> 
+    
+    # Fix some gaps in the original code
+    mutate(cell_type_harmonised = case_when(
+      cell_type |> tolower() |> str_detect("endothelial") ~ "endothelial_cell",
+      cell_type |> tolower() |> str_detect("enodothelial") ~ "endothelial_cell",
+      cell_type |> tolower() |> str_detect("epithelial") ~ "epithelial_cell",
+      cell_type |> tolower() |> str_detect("fibroblast") ~ "fibroblast",
+      TRUE ~ cell_type
+    )) |>
+    
+    mutate(confidence_class = 1)
+  
+  single_cell_data |> 
+    left_join(
+      annotation |> 
+        filter(!cell_type_harmonised |> is.na()) |> 
+        bind_rows(annotation_connie_non_immune) |>
+        select(.cell, .sample, cell_type_harmonised, confidence_class),
+      by = join_by(.cell, !!.sample_column == .sample)
+    )
+  
+}
 

@@ -168,21 +168,21 @@ run_targets_pipeline <- function(
       # tarchetypes::tar_files(name= reference_track,
       #                        read_reference_file, 
       #                        deployment = "main"),
-      tar_target(filter_empty_droplets, filtered_file, deployment = "main"),
-      tar_target(tissue, tissue_file, deployment = "main"),
-      tar_target(sample_column, sample_column_file, deployment = "main"),
-      tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
-      tar_target(reference_label_fine, reference_label_fine_id(tissue), deployment = "main"), 
+      tar_target(do_filter_empty_droplets, filtered_file, deployment = "main"),
+      tar_target(tissue_type, tissue_file, deployment = "main"),
+      tar_target(sample_column_name, sample_column_file, deployment = "main"),
+      tar_target(reference_label_coarse, reference_label_coarse_id(tissue_type), deployment = "main"), 
+      tar_target(reference_label_fine, reference_label_fine_id(tissue_type), deployment = "main"), 
       # Reading input files
       tar_target(input_read, readRDS(read_file),
                  pattern = map(read_file),
                  iteration = "list", deployment = "main"),
 
-      tar_target(reference_read, reference_file, deployment = "main"),
+      tar_target(reference_read, switch((!is.null(reference_file)) + 1, NULL, readRDS(reference_file)), deployment = "main"),
       
       # Identifying empty droplets
       tar_target(empty_droplets_tbl,
-                 empty_droplet_id(input_read, filter_empty_droplets),
+                 empty_droplet_id(input_read, do_filter_empty_droplets),
                  pattern = map(input_read),
                  iteration = "list"),
       
@@ -235,7 +235,7 @@ run_targets_pipeline <- function(
                  iteration = "list"),
       
       # Pre-processing output
-      tar_target(preprocessing_output_S, preprocessing_output(tissue,
+      tar_target(preprocessing_output_S, preprocessing_output(tissue_type,
                                                               non_batch_variation_removal_S,
                                                               alive_identification_tbl,
                                                               cell_cycle_score_tbl,
@@ -251,7 +251,7 @@ run_targets_pipeline <- function(
       # pseudobulk preprocessing
       tar_target(pseudobulk_preprocessing_SE, pseudobulk_preprocessing(reference_label_fine,
                                                                        preprocessing_output_S, 
-                                                                       !!sample_column)
+                                                                       sample_column_name)
                  
     )))
     
