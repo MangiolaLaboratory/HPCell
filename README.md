@@ -139,8 +139,9 @@ Flowchart
         # debug_step = "non_batch_variation_removal_S"
     )
 
-    ## Warning: Targets and globals must have unique names. Ignoring global objects that conflict with target names: sample_column, tissue,
-    ## filter_empty_droplets. Warnings like this one are important, but if you must suppress them, you can do so with Sys.setenv(TAR_WARN = "false").
+    ## Warning: Targets and globals must have unique names. Ignoring global objects that conflict with target names: sample_column,
+    ## tissue, filter_empty_droplets. Warnings like this one are important, but if you must suppress them, you can do so with
+    ## Sys.setenv(TAR_WARN = "false").
 
     ## ✔ skipped target reference_file
 
@@ -208,7 +209,7 @@ Flowchart
 
     ## ✔ skipped target reference_label_coarse
 
-    ## ✔ skipped pipeline [0.108 seconds]
+    ## ✔ skipped pipeline [0.118 seconds]
 
     ## HPCell says: you can read your output executing tar_read(preprocessing_output_S, store = "~/Desktop")
 
@@ -218,25 +219,25 @@ Flowchart
     ## $preprocessing_output_S_a0ced377
     ## # A Seurat-tibble abstraction: 290 × 46
     ## # [90mFeatures=9552 | Cells=290 | Active assay=SCT | Assays=originalexp, SCT[0m
-    ##    .cell             orig.ident nCount_originalexp nFeature_originalexp Tissue nCount_RNA nFeature_RNA percent.mito RNA_snn_res.orig seurat_clusters
-    ##    <chr>             <fct>                   <dbl>                <int> <chr>       <int>        <int>        <dbl>            <int>           <int>
-    ##  1 Bladder_cDNA_AAA… Bladder                  1133                  592 Bladd…       1152          610       0.0790                7              15
-    ##  2 Bladder_cDNA_AAA… Bladder                  3495                 1374 Bladd…       3551         1415       0.0569               14               8
-    ##  3 Bladder_cDNA_AAA… Bladder                  1297                  797 Bladd…       1599          890       0.0269               13              13
-    ##  4 Bladder_cDNA_AAA… Bladder                  2071                  953 Bladd…       2355         1093       0.0412                6              17
-    ##  5 Bladder_cDNA_AAA… Bladder                  2166                 1102 Bladd…       2474         1263       0.0154                5              17
-    ##  6 Bladder_cDNA_AAA… Bladder                  2486                 1185 Bladd…       2734         1320       0.0640                5              17
-    ##  7 Bladder_cDNA_AAA… Bladder                  3175                 1418 Bladd…       3727         1603       0.0384                0              11
-    ##  8 Bladder_cDNA_AAA… Bladder                  1847                  932 Bladd…       2013         1039       0.0427                2              17
-    ##  9 Bladder_cDNA_AAA… Bladder                  2546                 1104 Bladd…       2649         1139       0.0287               11               8
-    ## 10 Bladder_cDNA_AAA… Bladder                   969                  574 Bladd…       1138          658       0.0387                0              11
+    ##    .cell           orig.ident nCount_originalexp nFeature_originalexp Tissue nCount_RNA nFeature_RNA percent.mito RNA_snn_res.orig
+    ##    <chr>           <fct>                   <dbl>                <int> <chr>       <int>        <int>        <dbl>            <int>
+    ##  1 Bladder_cDNA_A… Bladder                  1133                  592 Bladd…       1152          610       0.0790                7
+    ##  2 Bladder_cDNA_A… Bladder                  3495                 1374 Bladd…       3551         1415       0.0569               14
+    ##  3 Bladder_cDNA_A… Bladder                  1297                  797 Bladd…       1599          890       0.0269               13
+    ##  4 Bladder_cDNA_A… Bladder                  2071                  953 Bladd…       2355         1093       0.0412                6
+    ##  5 Bladder_cDNA_A… Bladder                  2166                 1102 Bladd…       2474         1263       0.0154                5
+    ##  6 Bladder_cDNA_A… Bladder                  2486                 1185 Bladd…       2734         1320       0.0640                5
+    ##  7 Bladder_cDNA_A… Bladder                  3175                 1418 Bladd…       3727         1603       0.0384                0
+    ##  8 Bladder_cDNA_A… Bladder                  1847                  932 Bladd…       2013         1039       0.0427                2
+    ##  9 Bladder_cDNA_A… Bladder                  2546                 1104 Bladd…       2649         1139       0.0287               11
+    ## 10 Bladder_cDNA_A… Bladder                   969                  574 Bladd…       1138          658       0.0387                0
     ## # ℹ 280 more rows
-    ## # ℹ 36 more variables: Cell_type_in_each_tissue <chr>, Cell_type_in_merged_data <chr>, reclustered.broad <chr>, reclustered.fine <chr>,
-    ## #   Total <int>, LogProb <dbl>, PValue <dbl>, Limited <lgl>, FDR <dbl>, empty_droplet <lgl>, rank <dbl>, total <int>, fitted <dbl>, knee <dbl>,
-    ## #   inflection <dbl>, nCount_SCT <dbl>, nFeature_SCT <int>, alive <lgl>, subsets_Mito_percent <dbl>, subsets_Ribo_percent <dbl>,
-    ## #   high_mitochondrion <lgl>, high_ribosome <lgl>, S.Score <dbl>, G2M.Score <dbl>, Phase <chr>, scDblFinder.class <fct>,
-    ## #   blueprint_first.labels.fine <chr>, blueprint_scores_fine <list>, blueprint_first.labels.coarse <chr>, blueprint_scores_coarse <list>,
-    ## #   monaco_first.labels.fine <chr>, monaco_scores_fine <list>, monaco_first.labels.coarse <chr>, monaco_scores_coarse <list>, tSNE_1 <dbl>, …
+    ## # ℹ 37 more variables: seurat_clusters <int>, Cell_type_in_each_tissue <chr>, Cell_type_in_merged_data <chr>,
+    ## #   reclustered.broad <chr>, reclustered.fine <chr>, Total <int>, LogProb <dbl>, PValue <dbl>, Limited <lgl>, FDR <dbl>,
+    ## #   empty_droplet <lgl>, rank <dbl>, total <int>, fitted <dbl>, knee <dbl>, inflection <dbl>, nCount_SCT <dbl>,
+    ## #   nFeature_SCT <int>, alive <lgl>, subsets_Mito_percent <dbl>, subsets_Ribo_percent <dbl>, high_mitochondrion <lgl>,
+    ## #   high_ribosome <lgl>, S.Score <dbl>, G2M.Score <dbl>, Phase <chr>, scDblFinder.class <fct>, blueprint_first.labels.fine <chr>,
+    ## #   blueprint_scores_fine <list>, blueprint_first.labels.coarse <chr>, blueprint_scores_coarse <list>, …
 
 ### Include reference dataset for azimuth annotation
 
@@ -332,14 +333,18 @@ focusing the analysis on genes more likely to yield insights
     mitochondrial_genes = BiocGenerics::which(location=="MT") |> names()
     ribosome_genes = BiocGenerics::rownames(input_read_RNA_assay) |> stringr::str_subset("^RPS|^RPL")
 
-### 2. Ranking droplets from the one with highest amount of mRNA, to the lowest amount of mRNA. For this we use the function `barcodeRanks()`
+### 2. Ranking droplets
+
+From the one with highest amount of mRNA, to the lowest amount of mRNA.
+For this we use the function `barcodeRanks()`
 
     DropletUtils::barcodeRanks(GetAssayData(input_read_RNA_assay, assay, slot = "counts"))
 
-### 3. A minimum threshold cutoff ‘lower’ is set to exclude cells with low RNA counts
+### 3. Set min threshold
 
-If the minimum total count is greater than 100, we exclude the bottom 5%
-of barcodes by count. Otherwise lower is set to 100.
+A minimum threshold cutoff ‘lower’ is set to exclude cells with low RNA
+counts If the minimum total count is greater than 100, we exclude the
+bottom 5% of barcodes by count. Otherwise lower is set to 100.
 
     if(min(barcode_ranks$total) < 100) { lower = 100 } else {
         lower = quantile(barcode_ranks$total, 0.05)}
