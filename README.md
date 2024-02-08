@@ -207,7 +207,7 @@ Flowchart
 
     ## ✔ skipped target reference_label_coarse
 
-    ## ✔ skipped pipeline [0.165 seconds]
+    ## ✔ skipped pipeline [0.188 seconds]
 
     ## HPCell says: you can read your output executing tar_read(preprocessing_output_S, store = "./")
 
@@ -217,18 +217,18 @@ Flowchart
     ## $preprocessing_output_S_a0ced377
     ## # A Seurat-tibble abstraction: 290 × 46
     ## # [90mFeatures=9552 | Cells=290 | Active assay=SCT | Assays=originalexp, SCT[0m
-    ##    .cell  orig.ident nCount_originalexp nFeature_originalexp Tissue nCount_RNA nFeature_RNA percent.mito RNA_snn_res.orig seurat_clusters Cell_type_in_each_ti…¹ Cell_type_in_merged_…² reclustered.broad reclustered.fine Total LogProb  PValue Limited     FDR empty_droplet
-    ##    <chr>  <fct>                   <dbl>                <int> <chr>       <int>        <int>        <dbl>            <int>           <int> <chr>                  <chr>                  <chr>             <chr>            <int>   <dbl>   <dbl> <lgl>     <dbl> <lgl>        
-    ##  1 Bladd… Bladder                  1133                  592 Bladd…       1152          610       0.0790                7              15 Monocyte Bladder       Monocyte               Myeloid           Classical_Mon_A…   830  -2399. 1.00e-4 TRUE    1.25e-4 FALSE        
-    ##  2 Bladd… Bladder                  3495                 1374 Bladd…       3551         1415       0.0569               14               8 Macrophage HLA-DPB1_h… Macrophage C1QB        Myeloid           cDC2              2567  -5145. 1.00e-4 TRUE    0       FALSE        
-    ##  3 Bladd… Bladder                  1297                  797 Bladd…       1599          890       0.0269               13              13 Fibroblast APOD_high … Fibroblast PTGDS       FibSmo            Fib_CHI3L1_high   1175  -3175. 1.00e-4 TRUE    1.25e-4 FALSE        
-    ##  4 Bladd… Bladder                  2071                  953 Bladd…       2355         1093       0.0412                6              17 FibSmo APOE_high Blad… FibSmo Cell            FibSmo            FibSmo_FOXF1_hi…  1537  -3508. 1.00e-4 TRUE    1.25e-4 FALSE        
-    ##  5 Bladd… Bladder                  2166                 1102 Bladd…       2474         1263       0.0154                5              17 FibSmo ACTA2_high Bla… FibSmo Cell            FibSmo            FibSmo_LINC0108…  1681  -4026. 1.00e-4 TRUE    0       FALSE        
-    ##  6 Bladd… Bladder                  2486                 1185 Bladd…       2734         1320       0.0640                5              17 FibSmo ACTA2_high Bla… FibSmo Cell            FibSmo            FibSmo_LINC0108…  1859  -4188. 1.00e-4 TRUE    0       FALSE        
-    ##  7 Bladd… Bladder                  3175                 1418 Bladd…       3727         1603       0.0384                0              11 Fibroblast IGFBP6_hig… Fibroblast PLA2G2A     FibSmo            Fib_SLIT3_high    2619  -5245. 1.00e-4 TRUE    0       FALSE        
-    ##  8 Bladd… Bladder                  1847                  932 Bladd…       2013         1039       0.0427                2              17 FibSmo PLPPR4_high Bl… FibSmo Cell            FibSmo            FibSmo_LINC0108…  1372  -3318. 1.00e-4 TRUE    1.25e-4 FALSE        
-    ##  9 Bladd… Bladder                  2546                 1104 Bladd…       2649         1139       0.0287               11               8 Macrophage RNASE1_hig… Macrophage C1QB        Myeloid           Intermediate_Mo…  2075  -4331. 1.00e-4 TRUE    0       FALSE        
-    ## 10 Bladd… Bladder                   969                  574 Bladd…       1138          658       0.0387                0              11 Fibroblast IGFBP6_hig… Fibroblast PLA2G2A     FibSmo            Fib_SLIT3_high     738  -2209. 1.00e-4 TRUE    1.25e-4 FALSE        
+    ##    .cell   orig.ident nCount_originalexp nFeature_originalexp Tissue nCount_RNA nFeature_RNA percent.mito RNA_snn_res.orig seurat_clusters Cell_type_in_each_ti…¹ Cell_type_in_merged_…² reclustered.broad reclustered.fine Total LogProb  PValue Limited     FDR empty_droplet
+    ##    <chr>   <fct>                   <dbl>                <int> <chr>       <int>        <int>        <dbl>            <int>           <int> <chr>                  <chr>                  <chr>             <chr>            <int>   <dbl>   <dbl> <lgl>     <dbl> <lgl>        
+    ##  1 Bladde… Bladder                  1133                  592 Bladd…       1152          610       0.0790                7              15 Monocyte Bladder       Monocyte               Myeloid           Classical_Mon_A…   830  -2399. 1.00e-4 TRUE    1.25e-4 FALSE        
+    ##  2 Bladde… Bladder                  3495                 1374 Bladd…       3551         1415       0.0569               14               8 Macrophage HLA-DPB1_h… Macrophage C1QB        Myeloid           cDC2              2567  -5145. 1.00e-4 TRUE    0       FALSE        
+    ##  3 Bladde… Bladder                  1297                  797 Bladd…       1599          890       0.0269               13              13 Fibroblast APOD_high … Fibroblast PTGDS       FibSmo            Fib_CHI3L1_high   1175  -3175. 1.00e-4 TRUE    1.25e-4 FALSE        
+    ##  4 Bladde… Bladder                  2071                  953 Bladd…       2355         1093       0.0412                6              17 FibSmo APOE_high Blad… FibSmo Cell            FibSmo            FibSmo_FOXF1_hi…  1537  -3508. 1.00e-4 TRUE    1.25e-4 FALSE        
+    ##  5 Bladde… Bladder                  2166                 1102 Bladd…       2474         1263       0.0154                5              17 FibSmo ACTA2_high Bla… FibSmo Cell            FibSmo            FibSmo_LINC0108…  1681  -4026. 1.00e-4 TRUE    0       FALSE        
+    ##  6 Bladde… Bladder                  2486                 1185 Bladd…       2734         1320       0.0640                5              17 FibSmo ACTA2_high Bla… FibSmo Cell            FibSmo            FibSmo_LINC0108…  1859  -4188. 1.00e-4 TRUE    0       FALSE        
+    ##  7 Bladde… Bladder                  3175                 1418 Bladd…       3727         1603       0.0384                0              11 Fibroblast IGFBP6_hig… Fibroblast PLA2G2A     FibSmo            Fib_SLIT3_high    2619  -5245. 1.00e-4 TRUE    0       FALSE        
+    ##  8 Bladde… Bladder                  1847                  932 Bladd…       2013         1039       0.0427                2              17 FibSmo PLPPR4_high Bl… FibSmo Cell            FibSmo            FibSmo_LINC0108…  1372  -3318. 1.00e-4 TRUE    1.25e-4 FALSE        
+    ##  9 Bladde… Bladder                  2546                 1104 Bladd…       2649         1139       0.0287               11               8 Macrophage RNASE1_hig… Macrophage C1QB        Myeloid           Intermediate_Mo…  2075  -4331. 1.00e-4 TRUE    0       FALSE        
+    ## 10 Bladde… Bladder                   969                  574 Bladd…       1138          658       0.0387                0              11 Fibroblast IGFBP6_hig… Fibroblast PLA2G2A     FibSmo            Fib_SLIT3_high     738  -2209. 1.00e-4 TRUE    1.25e-4 FALSE        
     ## # ℹ 280 more rows
     ## # ℹ abbreviated names: ¹​Cell_type_in_each_tissue, ²​Cell_type_in_merged_data
     ## # ℹ 26 more variables: rank <dbl>, total <int>, fitted <dbl>, knee <dbl>, inflection <dbl>, nCount_SCT <dbl>, nFeature_SCT <int>, alive <lgl>, subsets_Mito_percent <dbl>, subsets_Ribo_percent <dbl>, high_mitochondrion <lgl>, high_ribosome <lgl>, S.Score <dbl>,
@@ -245,14 +245,6 @@ Details to come.
     LoadH5Seurat(input_reference_path) |> saveRDS(input_reference_path)
 
 # HPCell Pipeline Documentation
-
-## Introduction to `targets`
-
-The `targets` package in R automates and streamlines the execution of
-complex data analysis pipelines. It manages dependencies between steps
-(targets) and only reruns parts of the workflow that have changed. Users
-can also map targets dynamically to manage a list of input and/or
-parameters.
 
 ## Overview
 
@@ -280,8 +272,8 @@ User specified arguments \### 1. Input\_data = path/to/input/dataset
 Example:
 
     input_data_path =  tempfile(tmpdir = ".") |> paste0(".rds")
-      HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
-        as.Seurat(data = NULL) |>
+      scRNAseq::HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
+        Seurat::as.Seurat(data = NULL) |>
         saveRDS(input_data_path)
         
       input_data = input_data_path
@@ -302,125 +294,6 @@ filtering, or very small data sets)
 
     filter_empty_droplets = TRUE
 
-## Pipeline Steps and Methods
-
-Saving Input Parameters - User-defined parameters and data are saved as
-.rds files. This step ensures that all necessary information is
-available to the targets pipeline as input targets.
-
-    input_data |> saveRDS("input_file.rds")
-    input_reference |> saveRDS("input_reference.rds")
-    tissue |> saveRDS("tissue.rds")
-    computing_resources |> saveRDS("temp_computing_resources.rds")
-    filter_empty_droplets |> saveRDS("filter_empty_droplets.rds")
-    sample_column |> saveRDS("sample_column.rds")
-
-We use the tar\_script() function to create a target script file
-\_targets.R in our current working directory
-
-    tar_script({ 
-      
-        library(targets)
-        library(tarchetypes)
-        library(crew)
-        library(crew.cluster)
-
-        computing_resources = readRDS("temp_computing_resources.rds")
-        ...
-     })
-
-## Configuring’targets’
-
-Using tar\_option\_set, we configure default arguments such as:
-
-\###Packages
-
-    tar_option_set(
-          packages = c(
-            "HPCell",
-            "readr",
-            "dplyr",
-            "tidyr",
-            "ggplot2",
-            "purrr",
-            "Seurat",
-            "tidyseurat",
-            "glue",
-            "scater",
-            "DropletUtils",
-            "EnsDb.Hsapiens.v86",
-            "here",
-            "stringr",
-            "readr",
-            "rlang",
-            "scuttle",
-            "scDblFinder",
-            "ggupset",
-            "tidySummarizedExperiment",
-            "broom",
-            "tarchetypes",
-            "SeuratObject",
-            "SingleCellExperiment", 
-            "SingleR", 
-            "celldex", 
-            "tidySingleCellExperiment", 
-            "tibble", 
-            "magrittr",
-            "qs", 
-            "S4Vectors"
-          ))
-
-Other tar\_option\_set arguments: (Controller is set to user defined
-parameter: e.g., computing\_resources = crew\_class\_controller)
-
-     tar_option_set(memory = "transient",
-                    garbage_collection = TRUE,
-                    #trust_object_timestamps = TRUE,
-                    storage = "worker", 
-                    retrieval = "worker", 
-                    #error = "continue",         
-                    format = "qs", 
-                    #debug = debug_step, # Set the target you want to debug.
-                    # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
-                    controller = computing_resources)
-
-## Defining targets
-
-Targets represent each step in the data analysis process. For instance,
-filtering empty droplets, annotating cell types, and identifying cell
-cycles are defined as individual targets within the pipeline.
-
-## Managing dependencies
-
-Each analysis step depends on the output of previous steps. targets
-tracks these dependencies automatically.
-
-## Mapping
-
-Target are defined that operates over a list of data sets or a range of
-parameters. Allows the application the same processing steps to multiple
-samples or data sets.
-
-First user defined parameters are read from the .rds files saved in the
-package directory
-
-    list(
-     tar_target(filter_empty_droplets, filtered_file, deployment = "main"),
-     tar_target(tissue, tissue_file, deployment = "main"),
-     tar_target(sample_column, sample_column_file, deployment = "main"),
-     tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
-     tar_target(reference_label_fine, reference_label_fine_id(tissue), deployment = "main")
-     )
-
-## Input data set and reference files (if supplied) are also read
-
-    list(
-     tar_target(input_read, readRDS(read_file),
-                pattern = map(read_file),
-                iteration = "list", deployment = "main"),
-     tar_target(reference_read, reference_file, deployment = "main")
-    )
-
 # Documentation about the steps of the pipeline
 
 ## STEP 1: Filtering out empty droplets (function `empty_droplet_id`)
@@ -436,10 +309,7 @@ This step includes 4 sub steps: Filtering mitochondrial and ribosomal
 genes, ranking droplets, identifying minimum threshold and removing
 cells with RNA counts below this threshold
 
-    tar_target(empty_droplets_tbl,
-                     empty_droplet_id(input_read, filter_empty_droplets),
-                     pattern = map(input_read),
-                     iteration = "list")
+    empty_droplet_id(input_read, filter_empty_droplets)
 
 ### 1. Filtering mitochondrial and ribosomal genes based on EnsDb.Hsapiens.v8 reference dataset
 
@@ -533,34 +403,22 @@ of barcodes by count. Otherwise lower is set to 100.
     assay data.
 2.  empty\_droplets\_tbl: A tibble identifying empty droplets.
 
-This step includes 3 sub steps: Joining input and empty\_droplet output
-data, normalization and cell cycle scoring.
+This step includes 2 sub steps: Normalization and cell cycle scoring.
 
 Returns a tibble containing cell identifiers with their predicted
 classification into cell cycle phases: G2M, S, or G1 phase.
 
-    tar_target(cell_cycle_score_tbl, cell_cycle_scoring(input_read,
-                                                              empty_droplets_tbl),
-                     pattern = map(input_read,
-                                   empty_droplets_tbl),
-                     iteration = "list")
+    HPCell::cell_cycle_scoring(input_read,
+                       empty_droplets_tbl)
 
-### 1. Joining input and empty\_droplet output data:
-
-    Join input data with the empty droplet output by common .cell identifier 
-
-    input_read_RNA_assay |>
-      left_join(empty_droplets_tbl, by = ".cell") |>
-      filter(!empty_droplet)
-
-### 2. normalization:
+### 1. normalization:
 
     Normalize the data using the `NormalizeData` function from Seurat to make the expression levels of genes across different cells more comparable
 
      ...|>
       NormalizeData()
 
-### 3. cell cycle scoring:
+### 2. cell cycle scoring:
 
     Using the `CellCycleScoring` function to assign cell cycle scores of each cell based on its expression of G2/M and S phase markers.
     Stores S and G2/M scores in object meta data along with predicted classification of each cell in either G2M, S or G1 phase
@@ -595,13 +453,9 @@ RNA) count data, compute per-cell QC metrics, determine high
 mitochondrion content, identify cells with unusually high ribosomal
 content
 
-    tar_target(alive_identification_tbl, alive_identification(input_read,
-                                                                    empty_droplets_tbl,
-                                                                    annotation_label_transfer_tbl),
-                     pattern = map(input_read,
-                                   empty_droplets_tbl,
-                                   annotation_label_transfer_tbl),
-                     iteration = "list")
+    HPCell::alive_identification(input_read,
+                         empty_droplets_tbl,
+                         annotation_label_transfer_tbl)
 
 ### 1. Identifying chromosomal location of each read:
 
@@ -668,11 +522,11 @@ logical value: `TRUE` for outliers and `FALSE` for non-outliers.
 
      ribosome =
           input_read_RNA_assay |>
-          select(.cell) |>
+          tidybulk::select(.cell) |>
           #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
           
           # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
-          mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)) |>
+          tidybulk::mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)) |>
           left_join(annotation_label_transfer_tbl, by = ".cell") |>
           nest(data = -blueprint_first.labels.fine) |>
           mutate(data = map(
@@ -718,9 +572,9 @@ can be dynamically be set to NULL if reference\_label\_fine == “none”
 and equal to reference\_label\_fine if it’s provided.
 
     filter_empty_droplets <- filter_empty_droplets |> 
-        left_join(annotation_label_transfer_tbl, by = ".cell")|>
+        tidybulk::left_join(annotation_label_transfer_tbl, by = ".cell")|>
         #scDblFinder(clusters = ifelse(reference_label_fine=="none", NULL, reference_label_fine)) |>
-        scDblFinder(clusters = NULL) 
+        scDblFinder::scDblFinder(clusters = NULL) 
 
 ## STEP 5: Add annotation labelling to data set (function `annotation_label_transfer`)
 
@@ -738,13 +592,9 @@ data loading, Cell Type Annotation with `MonacoImmuneData` for Fine and
 Coarse Labels and cell Type Annotation with `BlueprintEncodeData` for
 Fine or Coarse Labels
 
-    tar_target(annotation_label_transfer_tbl,
-                     annotation_label_transfer(input_read,
-                                               empty_droplets_tbl,
-                                               reference_read),
-                     pattern = map(input_read,
-                                   empty_droplets_tbl),
-                     iteration = "list")
+    HPCell::annotation_label_transfer(input_read,
+                                      empty_droplets_tbl,
+                                      reference_read)
 
 ### 1. Filtering and normalisation
 
@@ -758,7 +608,7 @@ gene expression levels more comparable across cells.
      sce =
         input_read_RNA_assay |>
         # Filter empty
-        left_join(empty_droplets_tbl, by = ".cell") |>
+        tidybulk::left_join(empty_droplets_tbl, by = ".cell") |>
         dplyr::filter(!empty_droplet) |>
         Seurat::as.SingleCellExperiment() |>
         scuttle::logNormCounts()
@@ -788,7 +638,7 @@ based on gene expression profiles
     data_annotated =
         
         sce |>
-        SingleR(
+        SingleR::SingleR(
           ref = blueprint,
           assay.type.test= 1,
           labels = blueprint$label.fine
@@ -798,7 +648,7 @@ based on gene expression profiles
         select(-one_of("delta.next"),- pruned.labels) |>
         rename(blueprint_first.labels.fine = labels) |>
         
-        left_join(
+        dplyr::left_join(
           
           sce |>
             SingleR(
@@ -841,7 +691,7 @@ based on gene expression profiles
         
         left_join(
           sce |>
-            SingleR(
+            SingleR::SingleR(
               ref = MonacoImmuneData,
               assay.type.test= 1,
               labels = MonacoImmuneData$label.main
@@ -905,7 +755,7 @@ data normalization with `SCTransform` and normalization with
        We apply the `SCTransform` function to apply variance-stabilizing transformation (VST) to `counts` which normalizes and scales the data and also performs feature selection and controls for
        confounding factors. This results in data that is better suited for downstream analysis such as dimensionality reduction and differential expression analysis. 
 
-     normalized_rna <- SCTransform(
+     normalized_rna <- Seurat::SCTransform(
         counts, 
         assay=assay,
         return.only.var.genes=FALSE,
@@ -1020,19 +870,13 @@ results, filtering doublet cells and joining cell type prediction data
 -   Returns a list containing pseudo bulk data aggregated by sample and
     by both sample and cell type.
 
--   This step includes 6 sub steps: Cell aggregation by tissue and cell
-    type, conversion to `SummarizedExperiment`, reshaping data with
-    `PivotLonger`, filtering out missing data, renaming features for
-    clarity and creating unique feature identifiers
+-   This step includes 3 sub steps: Cell aggregation by tissue and cell
+    type, renaming features for clarity and creating unique feature
+    identifiers
 
 <!-- -->
 
     HPCell::create_pseudobulk(preprocessing_output_S,   assays = "RNA",  x = c(Tissue, Cell_type_in_each_tissue))
-
-Capture the expression of the input x (Tissue and
-Cell\_type\_in\_each\_tissue) and enable its later evaluation.
-
-    x = enquo(x)
 
 We apply some data manipulation steps to get unique feature because RNA
 and ADT both can have similarly named genes. In our data set we may
@@ -1057,25 +901,10 @@ Cells are aggregated based on the `Tissue` and
 groups, it mimics traditional bulk RNA-seq data while retaining the
 ability to dissect biological variability at a finer resolution
 
-### 2. Conversion to `SummarizedExperiment`
-
-We then transform the aggregated data to a `SummarizedExperiment` object
-which facilitates further data manipulation steps
-
-\###3. Reshaping data with `PivotLonger` We use the `pivot_longer`
-function from `tidySummarizedExperiment` to take multiple columns
-specified by assays, collapses them into a single column named
-`data_source` which holds the original column names, and places their
-corresponding values in a new column named `count`. This operation makes
-the data set taller and narrower.
-
-\###4. Filtering out missing data Data set is then filtered to remove
-any rows with missing values in the `count` column.
-
-\###5. Renaming features for clarity The `.feature` column is renamed to
+\###2. Renaming features for clarity The `.feature` column is renamed to
 `symbol`
 
-\###6. Creating unique feature identifiers To distinguish between
+\###3. Creating unique feature identifiers To distinguish between
 potentially identical feature names across RNA and ADT assays, the
 `symbol` and modified `data_source` columns are combined into a new
 `.feature` column using the `unite` function. This step ensures each
@@ -1096,11 +925,9 @@ feature has a unique identifier
 3.  x: User specified character vector for the column from which we
     subset the samples for pseudobulk analysis
 
-This step consists of 6 substeps: Identify missing genes, create a
-Zero-Count Matrix for Missing Genes, reset row and column names,
-transform data into `SummarizedExperiment`, clearing Row Metadata,
-appending missing genes and reordering and filtering rows for
-consistency and Combining Samples into a Unified Dataset.
+This step consists of 3 substeps: Identify missing genes, appending
+missing genes and reordering + filtering rows for consistency and
+Combining Samples into a Unified Dataset.
 
     HPCell::pseudobulk_merge(create_pseudobulk_sample, 
                               assays = "RNA", 
@@ -1123,39 +950,12 @@ all\_genes are not present in the current sample’s row names
 
     missing_genes = all_genes |> setdiff(rownames(.x))
 
-### 2. Create a Zero-Count Matrix for Missing Genes:
-
-A matrix of zeros (missing\_matrix) is created for the missing genes. We
-then use this matrix to represent counts (or expression levels) for the
-missing genes.
-
-    missing_matrix = matrix(rep(0, length(missing_genes) * ncol(.x)), ncol = ncol(.x))
-
-### 3. Reset row and column names:
-
-Set row names of the matrix to missing\_genes, and column names to match
-those of create\_pseudobulk\_sample
-
-    rownames(missing_matrix) = missing_genes
-    colnames(missing_matrix) = colnames(.x)
-
-### 4. transform data into `SummarizedExperiment`:
-
-We create a new `SummarizedExperiment` object (`new_se`) with the
-missing genes matrix as its assay data.
-
-### 5. Clearing Row Metadata and Appending Missing Genes
-
-The original sample’s row metadata (`rowData`) is cleared, and the
-missing genes `SummarizedExperiment` is appended to the original data
-using `rbind`
-
-### 6. Reordering and Filtering Rows for Consistency
+### 2. Reordering and Filtering Rows for Consistency
 
 Rows are reordered and filtered according to `all_genes` to ensure
 consistency across all samples.
 
-    new_se = SummarizedExperiment(assay = list(count = missing_matrix))
+    new_se = SummarizedExperiment::SummarizedExperiment(assay = list(count = missing_matrix))
           colData(new_se) = colData(.x)
           #rowData(new_se) =  DataFrame(symbol = missing_genes, row.names = missing_genes)
           rowData(.x) = NULL
@@ -1163,7 +963,7 @@ consistency across all samples.
           
           .x[all_genes,]
 
-### 7. Combining Samples into a Unified Dataset
+### 3. Combining Samples into a Unified Dataset
 
 Samples are combined side-by-side into a single data set using `do.call`
 with `S4Vectors`::`cbind`, which binds them by columns.
