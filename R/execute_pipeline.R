@@ -248,15 +248,25 @@ run_targets_pipeline <- function(
                                doublet_identification_tbl),
                  iteration = "list"),
       
-      # pseudobulk preprocessing
-      tar_target(pseudobulk_preprocessing_SE, pseudobulk_preprocessing(reference_label_fine,
-                                                                       preprocessing_output_S, 
-                                                                       sample_column_name)
-                 
-    )))
-    
+      # pseudobulk preprocessing for each sample 
+      tar_target(create_pseudobulk_sample, create_pseudobulk(preprocessing_output_S, 
+                                                                   assays = "SCT", 
+                                                                   x = c(Tissue, Cell_type_in_each_tissue)), 
+                 pattern = map(preprocessing_output_S), 
+                 iteration = "list"),
+      
+      tar_target(pseudobulk_merge_all_samples, pseudobulk_merge(create_pseudobulk_sample, 
+                                                                assays = "RNA", 
+                                                                x = c(Tissue)), 
+                 iteration = "list"),
+      
+      tar_target(calc_UMAP_dbl_report, calc_UMAP(input_read), 
+                 pattern = map(input_read), 
+                 iteration = "list")
+      ))
+
   }, script = glue("{store}.R"), ask = FALSE)
-  
+
   #Running targets 
   # input_files<- c("CB150T04X__batch14.rds","CB291T01X__batch8.rds")
   # run_targets <- function(input_files){
