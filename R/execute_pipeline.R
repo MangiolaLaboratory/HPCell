@@ -250,7 +250,7 @@ run_targets_pipeline <- function(
       
       # pseudobulk preprocessing for each sample 
       tar_target(create_pseudobulk_sample, create_pseudobulk(preprocessing_output_S, 
-                                                                   assays = "RNA", 
+                                                                   assays = "SCT", 
                                                                    x = c(Tissue, Cell_type_in_each_tissue)), 
                  pattern = map(preprocessing_output_S), 
                  iteration = "list"),
@@ -258,7 +258,6 @@ run_targets_pipeline <- function(
       tar_target(pseudobulk_merge_all_samples, pseudobulk_merge(create_pseudobulk_sample, 
                                                                 assays = "RNA", 
                                                                 x = c(Tissue)), 
-                 pattern = map(create_pseudobulk_sample), 
                  iteration = "list"),
       
       tar_target(calc_UMAP_dbl_report, calc_UMAP(input_read), 

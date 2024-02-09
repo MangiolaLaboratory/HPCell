@@ -53,11 +53,11 @@ preprocessing_output_S = HPCell:::preprocessing_output(tissue,
                                               doublet_identification_tbl)
 
 # Define output from pseudobulk_preprocessing
-pseudobulk_preprocessing_SE = HPCell:::pseudobulk_preprocessing(reference_label_fine, 
-                                                       preprocessing_output_S, 
-                                                       sample_column)
+# pseudobulk_preprocessing_SE = HPCell:::pseudobulk_preprocessing(reference_label_fine, 
+#                                                        preprocessing_output_S, 
+#                                                        sample_column)
 
-create_pseudobulk_sample = HPCell::create_pseudobulk(preprocessing_output_S, assays = "RNA", x = c(Tissue, Cell_type_in_each_tissue))
+create_pseudobulk_sample = HPCell::create_pseudobulk(preprocessing_output_S, assays = "SCT", x = c(Tissue, Cell_type_in_each_tissue))
 
 # For a list of preprocessing outputs
 # create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk, 
@@ -223,19 +223,19 @@ preprocessing_output_S_list = mapply(FUN = HPCell:::preprocessing_output,
                                      annotation_label_transfer_tbl_list,
                                      doublet_identification_tbl_list)
 
-create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk, 
-                                       preprocessing_output_S_list, 
-                                       assays = assay, 
-                                       x = c(Tissue, Cell_type_in_each_tissue))
+# create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk, 
+#                                        preprocessing_output_S_list, 
+#                                        assays = assay, 
+#                                        x = c(Tissue, Cell_type_in_each_tissue))
 
 create_pseudobulk_sample_heart<- create_pseudobulk(preprocessing_output_S_list[[1]], assays = assay, x = c(Tissue, Cell_type_in_each_tissue))
 create_pseudobulk_sample_trachea <- create_pseudobulk(preprocessing_output_S_list[[2]], assays = assay, x = c(Tissue, Cell_type_in_each_tissue))
 
 create_pseudobulk_sample_list<- list(create_pseudobulk_sample_heart, create_pseudobulk_sample_trachea)
 
-create_pseudobulk_sample_list <- lapply(preprocessing_output_S_list, function(obj) {
-  create_pseudobulk(obj, assays = NULL, x = c(Tissue, Cell_type_in_each_tissue))
-})
+# create_pseudobulk_sample_list <- lapply(preprocessing_output_S_list, function(obj) {
+#   create_pseudobulk(obj, assays = NULL, x = c(Tissue, Cell_type_in_each_tissue))
+# })
 
 pseudobulk_merged_results <- pseudobulk_merge(create_pseudobulk_sample_list, assays, x)
 
