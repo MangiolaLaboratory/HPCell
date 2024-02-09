@@ -1,0 +1,30 @@
+name: Render RMD to MD
+
+on:
+  push:
+    paths:
+      - '**.Rmd'
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v1
+      
+      - name: Install rmarkdown
+        run: Rscript -e 'install.packages("rmarkdown")'
+      
+      - name: Render README.Rmd to README.md
+        run: Rscript -e 'rmarkdown::render("README.Rmd", output_file = "README.md")'
+      
+      - name: Commit and push if changed
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git add README.md
+          git commit -m 'Update README.md' || echo "No changes to commit"
+          git push origin || echo "No changes to commit"
