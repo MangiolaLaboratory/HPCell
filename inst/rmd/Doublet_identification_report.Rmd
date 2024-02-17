@@ -4,10 +4,10 @@ author: "SS"
 date: "2023-12-05"
 output: html_document
 params: 
-  x1: "input_seurat_list"
-  x2: "calc_UMAP_result_list"
-  x3: "doublet_identification_tbl_list"
-  x4: "annotation_label_transfer_tbl_list"
+  x1: "NA"
+  x2: "NA"
+  x3: "NA"
+  x4: "NA"
 ---
 
 ```{r setup, include=FALSE}
@@ -56,10 +56,10 @@ get_labels_clusters = function(.data, label_column, dim1, dim2){
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
 # Joining info and returning a list opf tibbles
 merged_combined_annotation_doublets <- list(
-  #input_seurat_list,
-  calc_UMAP_result_list,
-  doublet_identification_tbl_list,
-  annotation_label_transfer_tbl_list
+  #x1,
+  x2,
+  x3,
+  x4
 ) |>
     pmap(
         ~ ..1 |>
@@ -152,13 +152,13 @@ plot_merged_combined_annotation_doublets
   # patchwork::wrap_elements() |> 
   # map(~ .x |>
   #        left_join(
-  #       annotation_label_transfer_tbl_list |>
+  #       x4 |>
   #       purrr::reduce(bind_rows), by=".cell"
   #     ) |>
   # 
   #     #join doublets identified
   #     left_join(
-  #         doublet_identification_tbl_list |>
+  #         x3 |>
   #         purrr::reduce(bind_rows), by = c(".cell")
   #       )
   # )

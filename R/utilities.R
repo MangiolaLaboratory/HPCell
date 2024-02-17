@@ -507,3 +507,24 @@ addition = function(a, b){
   c<-a+b
   c
 }
+
+#' Calculate UMAP Embeddings for Seurat Object
+#' 
+#' @description
+#' Identify variable features, scale the data, run Principal Component Analysis (PCA), find neighbors, identify clusters,
+#' and compute UMAP (Uniform Manifold Approximation and Projection) embeddings for 
+#' visualization of cell clusters. 
+#'
+#' @noRd
+calc_UMAP <- function(input_seurat){
+  find_var_genes <- FindVariableFeatures(input_seurat)
+  var_genes<- find_var_genes@assays$originalexp@var.features
+  
+  ScaleData(input_seurat) |>
+    # Calculate UMAP of clusters
+    RunPCA(features = var_genes) |>
+    FindNeighbors(dims = 1:30) |>
+    FindClusters(resolution = 0.5) |>
+    RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
+    as_tibble()
+}

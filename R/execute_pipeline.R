@@ -262,7 +262,17 @@ run_targets_pipeline <- function(
       
       tar_target(calc_UMAP_dbl_report, calc_UMAP(input_read), 
                  pattern = map(input_read), 
-                 iteration = "list")
+                 iteration = "list"), 
+      # tar_target(empty_droplets_report, rmarkdown::render(
+      #   input = "./inst/rmd/Empty_droplet_report.Rmd",
+      #   output_file = store,
+      #   params = list(x1 = input_read, x2 = empty_droplets_tbl)
+      # )), 
+      tar_render(
+        name = empty_droplets_report, # The name of the target
+        path = "./inst/rmd/Empty_droplet_report.Rmd", 
+        params = list(x1= input_read, x2= empty_droplets_tbl, x3 = annotation_label_transfer_tbl)
+      )
       ))
   }, script = glue("{store}.R"), ask = FALSE)
 

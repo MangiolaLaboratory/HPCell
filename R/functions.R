@@ -1175,18 +1175,20 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
     mutate(sce_md5 = map_chr(!!.col, digest))
 }
 
+
 # Doublet identification report tible construction 
 calc_UMAP <- function(input_seurat){
   find_var_genes <- FindVariableFeatures(input_seurat)
   var_genes<- find_var_genes@assays$originalexp@var.features
   
-  ScaleData(input_seurat) |>
+  x<- ScaleData(input_seurat) |>
     # Calculate UMAP of clusters
     RunPCA(features = var_genes) |>
     FindNeighbors(dims = 1:30) |>
     FindClusters(resolution = 0.5) |>
     RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
     as_tibble()
+  return(x)
 }
 
 
