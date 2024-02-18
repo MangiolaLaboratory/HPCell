@@ -1,5 +1,5 @@
 ---
-title: "Doublet_identification_report"
+title: "Doublet identification report"
 author: "SS"
 date: "2023-12-05"
 output: html_document
@@ -52,14 +52,16 @@ get_labels_clusters = function(.data, label_column, dim1, dim2){
 }
 ```
 
+## Comprehensive UMAP Visualization of Cell Typing and Doublet Detection Across Tissue Samples
+This visualization highlights the clustering of cell types and identifies singlets and doublets in the population. This allows for an exploration of similarities and differences in gene expression profiles between cells from different tissues. 
 
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
 # Joining info and returning a list opf tibbles
 merged_combined_annotation_doublets <- list(
-  #x1,
-  x2,
-  x3,
-  x4
+  #params$x1,
+  params$x2,
+  params$x3,
+  params$x4
 ) |>
     pmap(
         ~ ..1 |>
@@ -152,19 +154,26 @@ plot_merged_combined_annotation_doublets
   # patchwork::wrap_elements() |> 
   # map(~ .x |>
   #        left_join(
-  #       x4 |>
+  #       params$x4 |>
   #       purrr::reduce(bind_rows), by=".cell"
   #     ) |>
   # 
   #     #join doublets identified
   #     left_join(
-  #         x3 |>
+  #         params$x3 |>
   #         purrr::reduce(bind_rows), by = c(".cell")
   #       )
   # )
 
 ```
 
+## Singlet and Doublet Cell Distributions Across Tissues 
+Each bar in the plot corresponds to a specific cell type within each tissue.
+
+From this plot, we can infer: 
+
+1. The overall quality of the cell separation process in the sequencing data, indicated by the proportion of singlets to doublets.
+2. Potential differences in the rate of doublet formation between cell types, which might be related to cell size and tissue type
 
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
 # 2a) Create the composition of the doublets

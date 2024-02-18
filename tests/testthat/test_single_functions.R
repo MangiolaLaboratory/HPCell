@@ -223,11 +223,11 @@ preprocessing_output_S_list = mapply(FUN = HPCell:::preprocessing_output,
                                      annotation_label_transfer_tbl_list,
                                      doublet_identification_tbl_list)
 
-# create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk, 
-#                                        preprocessing_output_S_list, 
-#                                        assays = assay, 
-#                                        x = c(Tissue, Cell_type_in_each_tissue))
-
+create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk, 
+                                       preprocessing_output_S_list, 
+                                       assays = assay, 
+                                       x = c(Tissue, Cell_type_in_each_tissue))
+ 
 create_pseudobulk_sample_heart<- create_pseudobulk(preprocessing_output_S_list[[1]], assays = assay, x = c(Tissue, Cell_type_in_each_tissue))
 create_pseudobulk_sample_trachea <- create_pseudobulk(preprocessing_output_S_list[[2]], assays = assay, x = c(Tissue, Cell_type_in_each_tissue))
 
@@ -246,6 +246,7 @@ calc_UMAP_result_list<- lapply(input_seurat_list, function(df) {
   #HPCell:::calc_UMAP(df)
   calc_UMAP(df)
 })
+
 # Unit test 
 test_that("R Markdown render empty droplet works", {
   # Define output paths
@@ -255,8 +256,8 @@ test_that("R Markdown render empty droplet works", {
   # Test execution: Render the R Markdown file
   rmarkdown::render(
     input = input_path,
-    output_file = output_path,
-    params = list(x1 = input_seurat_list, x2 = empty_droplets_tissue_list)
+    output_file = "~/Documents/HPCell",
+    params = list(x1 = input_seurat_list, x2 = empty_droplets_tissue_list, x3 = annotation_label_transfer_tbl_list, x4 = unique_idents)
   )
   
   # Assertions
@@ -296,3 +297,26 @@ rmarkdown::render(
   params = list(x1 = pseudobulk_merge_all_samples)
 )
 })
+
+
+## Technical_variation_report 
+
+rmarkdown::render(
+  input = "~/Documents/HPCell/inst/rmd/Technical_variation_report.Rmd",
+  output_file = "~/Documents/HPCell/Technical_variation_report.html",
+  params = list(
+  x1 = input_seurat_list,
+  x2 = empty_droplets_tissue_list)
+)
+
+
+## Subset all tissues in input dataset 
+
+# Get the unique tissue types
+unique_tissues <- unique(input_seurat_abc@meta.data$Tissue)
+
+# Use lapply to create a list of Seurat objects, each one a subset for a unique tissue
+seurat_subsets <- lapply(unique_tissues, function(tissue) Subset(input_seurat_abc, subset = Tissue == tissue))
+
+
+

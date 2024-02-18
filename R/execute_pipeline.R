@@ -177,7 +177,14 @@ run_targets_pipeline <- function(
       tar_target(input_read, readRDS(read_file),
                  pattern = map(read_file),
                  iteration = "list", deployment = "main"),
-
+      tar_target(unique_tissues,
+        HPCell::get_unique_tissues(input_read)
+      ),
+      tar_target(
+        tissue_subsets,
+        subset(input_read, subset = Tissue %in% unique_tissues),
+        iteration = "list"
+      ),
       tar_target(reference_read, reference_file, deployment = "main"),
       
       # Identifying empty droplets
@@ -271,7 +278,7 @@ run_targets_pipeline <- function(
       tar_render(
         name = empty_droplets_report, # The name of the target
         path = "./inst/rmd/Empty_droplet_report.Rmd", 
-        params = list(x1= input_read, x2= empty_droplets_tbl, x3 = annotation_label_transfer_tbl)
+        params = list(x1= input_read, x2= empty_droplets_tbl, x3 = annotation_label_transfer_tbl, x4 = unique_tissues)
       )
       ))
   }, script = glue("{store}.R"), ask = FALSE)
