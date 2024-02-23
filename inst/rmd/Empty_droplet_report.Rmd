@@ -1,5 +1,5 @@
 ---
-title: "Empty_droplet_report"
+title: "Empty droplet report"
 author: "SS"
 date: "2023-12-07"
 output: html_document
@@ -197,6 +197,9 @@ empty_count_results
 
 
 ## Histogram of p-values: (only if empty droplets have been identified)
+
+- Shows the distribution of p-values for droplets in the lower 10 percentile of total within each tissue 
+- A low p-value signifies significance therefore we would reject those droplets as empty
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 hist_p_val <- function(df) {
   if(df |> dplyr::filter(empty) |> nrow() != 0){
@@ -219,7 +222,9 @@ plot_hist <- hist_p_val(combined_df)
 plot_hist
 ```
 
-##Percentage of reads assigned to mitochondrial transcrips against library size
+## Percentage of reads assigned to mitochondrial transcrips against library size
+- Shows the distribution of reads with varying percentages of mitochondrial content 
+- Cut off threshold classifies reads as being high mitochondria 
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 plot_mito_data <- function(input_seurat, tissue_name, annotation_labels){
   c = rownames(input_seurat) |> str_which("^MT")
@@ -274,7 +279,11 @@ plot_each_sample <- function(combined_plot_mito_data) {
 }
 plot_each_sample(combined_plot_mito_data)
 ```
+
 ## MA plot 
+
+- In droplet-based scRNA-seq technologies, like the 10X Genomics platform, not all droplets contain cells. Some droplets are empty, while others might contain ambient RNA or debris, leading to ambiguous reads. 
+- The MA plot shows the distribution of total RNA counts so that we can set thresholds to filter out both true empty and ambiguous droplets. 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 plot_data <- dplyr::tibble(

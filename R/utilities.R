@@ -529,8 +529,10 @@ calc_UMAP <- function(input_seurat){
     as_tibble()
 }
 #' Subsetting input dataset into a list of seurat objects by sample/ tissue 
-#' 
+#'  @description
 #' Function to subset Seurat object by tissue
+#' 
+#' @noRd
 get_unique_tissues <- function(seurat_object) {
   unique(seurat_object@meta.data$Tissue)
 }

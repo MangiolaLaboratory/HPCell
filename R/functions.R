@@ -1175,7 +1175,7 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
     mutate(sce_md5 = map_chr(!!.col, digest))
 }
 
-
+#'@export
 # Doublet identification report tible construction 
 calc_UMAP <- function(input_seurat){
   find_var_genes <- FindVariableFeatures(input_seurat)
@@ -1191,4 +1191,12 @@ calc_UMAP <- function(input_seurat){
   return(x)
 }
 
+#' Subsetting input dataset into a list of seurat objects by sample/ tissue 
+#' 
+#' Function to subset Seurat object by tissue
+#' 
+#'@export
+get_unique_tissues <- function(seurat_object) {
+  unique(seurat_object@meta.data$Tissue)
+}
 

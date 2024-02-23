@@ -53,7 +53,8 @@ get_labels_clusters = function(.data, label_column, dim1, dim2){
 ```
 
 ## Comprehensive UMAP Visualization of Cell Typing and Doublet Detection Across Tissue Samples
-This visualization highlights the clustering of cell types and identifies singlets and doublets in the population. This allows for an exploration of similarities and differences in gene expression profiles between cells from different tissues. 
+- This visualization highlights the clustering of cell types and identifies singlets and doublets in the population. 
+- This allows for an exploration of similarities and differences in gene expression profiles between cells from different tissues. 
 
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
 # Joining info and returning a list opf tibbles
@@ -168,6 +169,7 @@ plot_merged_combined_annotation_doublets
 ```
 
 ## Singlet and Doublet Cell Distributions Across Tissues 
+
 Each bar in the plot corresponds to a specific cell type within each tissue.
 
 From this plot, we can infer: 

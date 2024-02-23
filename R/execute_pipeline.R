@@ -279,6 +279,15 @@ run_targets_pipeline <- function(
         name = empty_droplets_report, # The name of the target
         path = "./inst/rmd/Empty_droplet_report.Rmd", 
         params = list(x1= input_read, x2= empty_droplets_tbl, x3 = annotation_label_transfer_tbl, x4 = unique_tissues)
+      ), 
+      tar_render(
+        name = doublet_identification_report, 
+        path = path_to_doublet_identification_report, 
+        params = list(x1 = input_read,
+                      x2 = calc_UMAP_dbl_report,
+                      x3 = doublet_identification_tbl_list,
+                      x4 = annotation_label_transfer_tbl_list)
+        
       )
       ))
   }, script = glue("{store}.R"), ask = FALSE)

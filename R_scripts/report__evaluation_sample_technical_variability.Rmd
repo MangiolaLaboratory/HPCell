@@ -20,10 +20,7 @@ params$reports_directory |> dir.create( showWarnings = FALSE, recursive = TRUE)
 
 ```
 
-
-
 UMAP plot coloured by sample, with randomised cell order. We see that cells from distinct samples from the same batch overap. therefore, we can conclude that the batch unit is sequencing batch and not sample. 
-
 
 ```{r, fig.dim = c(15, 15)}
 params$dir1 |> dir(pattern="plot_umap_output", full.names = T) |> map(~ readRDS(.x)[[1]] + ggtitle(.x))
