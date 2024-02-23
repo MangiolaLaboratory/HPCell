@@ -7,57 +7,59 @@ filter_empty_droplets <- "TRUE"
 tissue <- "pbmc"
 RNA_assay_name<- "originalexp"
 
-input_seurat_abc = 
+input_seurat_list = 
   HeOrganAtlasData(ensembl=FALSE,location=FALSE)|> 
-  as.Seurat(data = NULL) 
+  as.Seurat(data = NULL) |>
+  subset(subset = Tissue %in% c("Heart", "Trachea")) |>
+  group_split()
 
 sample_column<- "Tissue"
 ## Defining functions 
-
+# 
 reference_label_fine = HPCell:::reference_label_fine_id(tissue)
-empty_droplets_tbl = HPCell:::empty_droplet_id(input_seurat_abc, filter_empty_droplets = TRUE)
-
-# Define output from annotation_label_transfer 
-annotation_label_transfer_tbl = HPCell:::annotation_label_transfer(input_seurat_abc,
-                                                          empty_droplets_tbl)
-
-# Define output from alive_identification
-alive_identification_tbl = HPCell:::alive_identification(input_seurat_abc,
-                                                empty_droplets_tbl,
-                                                annotation_label_transfer_tbl, 
-                                                assay = NULL)
-
-
-# Define output from doublet_identification
-doublet_identification_tbl = HPCell:::doublet_identification(input_seurat_abc,
-                                                    empty_droplets_tbl,
-                                                    alive_identification_tbl,
-                                                    annotation_label_transfer_tbl,
-                                                    reference_label_fine)
-
-# Define output from cell_cycle_scoring
-cell_cycle_score_tbl = HPCell:::cell_cycle_scoring(input_seurat_abc, empty_droplets_tbl)
-
-# Define output from non_batch_variation_removal
-non_batch_variation_removal_S = HPCell:::non_batch_variation_removal(input_seurat_abc,
-                                                            empty_droplets_tbl,
-                                                            alive_identification_tbl,
-                                                            cell_cycle_score_tbl, 
-                                                            assay = NULL)
-# Define output from preprocessing_output
-preprocessing_output_S = HPCell:::preprocessing_output(tissue,
-                                              non_batch_variation_removal_S,
-                                              alive_identification_tbl,
-                                              cell_cycle_score_tbl,
-                                              annotation_label_transfer_tbl,
-                                              doublet_identification_tbl)
+# empty_droplets_tbl = HPCell:::empty_droplet_id(input_seurat_list[[1]], filter_empty_droplets = TRUE)
+# 
+# # Define output from annotation_label_transfer 
+# annotation_label_transfer_tbl = HPCell:::annotation_label_transfer(input_seurat_list[[1]],
+#                                                           empty_droplets_tbl)
+# 
+# # Define output from alive_identification
+# alive_identification_tbl = HPCell:::alive_identification(input_seurat_list[[1]],
+#                                                 empty_droplets_tbl,
+#                                                 annotation_label_transfer_tbl, 
+#                                                 assay = NULL)
+# 
+# 
+# # Define output from doublet_identification
+# doublet_identification_tbl = HPCell:::doublet_identification(input_seurat_list[[1]],
+#                                                     empty_droplets_tbl,
+#                                                     alive_identification_tbl,
+#                                                     annotation_label_transfer_tbl,
+#                                                     reference_label_fine)
+# 
+# # Define output from cell_cycle_scoring
+# cell_cycle_score_tbl = HPCell:::cell_cycle_scoring(input_seurat_list[[1]], empty_droplets_tbl)
+# 
+# # Define output from non_batch_variation_removal
+# non_batch_variation_removal_S = HPCell:::non_batch_variation_removal(input_seurat_list[[1]],
+#                                                             empty_droplets_tbl,
+#                                                             alive_identification_tbl,
+#                                                             cell_cycle_score_tbl, 
+#                                                             assay = NULL)
+# # Define output from preprocessing_output
+# preprocessing_output_S = HPCell:::preprocessing_output(tissue,
+#                                               non_batch_variation_removal_S,
+#                                               alive_identification_tbl,
+#                                               cell_cycle_score_tbl,
+#                                               annotation_label_transfer_tbl,
+#                                               doublet_identification_tbl)
 
 # Define output from pseudobulk_preprocessing
 # pseudobulk_preprocessing_SE = HPCell:::pseudobulk_preprocessing(reference_label_fine, 
 #                                                        preprocessing_output_S, 
 #                                                        sample_column)
-
-create_pseudobulk_sample = HPCell::create_pseudobulk(preprocessing_output_S, assays = "SCT", x = c(Tissue, Cell_type_in_each_tissue))
+# 
+# create_pseudobulk_sample = HPCell::create_pseudobulk(preprocessing_output_S, assays = "SCT", x = c(Tissue, Cell_type_in_each_tissue))
 
 # For a list of preprocessing outputs
 # create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk, 
@@ -150,22 +152,13 @@ test_that("pseudobulk_preprocessing_works", {
   expect_s4_class(pseudobulk_preprocessing_SE, "Seurat")
 })
 
-input_seurat_abc = 
-  HeOrganAtlasData(ensembl=FALSE,location=FALSE)|> 
-  as.Seurat(data = NULL) 
-## Test reports 
-# Subset 2 tissues to test reports
-subset_tissue <- subset(input_seurat_abc, subset = Tissue %in% c("Heart", "Trachea"))
-#input_seurat<- add_RNA_assay(subset_tissue, "originalexp")
-heart <- subset(input_seurat_abc, subset = Tissue == "Heart")
-trachea <- subset(input_seurat_abc, subset = Tissue == "Trachea")
-input_seurat_list <- c(heart, trachea)
 
-
-unique_idents <- unique(input_seurat_abc$orig.ident)
-list_of_subsets <- lapply(unique_idents, function(ident) {
-  subset(input_seurat_abc, subset = orig.ident == ident)
-})
+unique_idents <- 
+  c(
+    get_unique_tissues(input_seurat_list[[1]]),
+    get_unique_tissues(input_seurat_list[[2]])
+  )
+  
 
 if(is.null(assay)) assay = input_seurat_abc@assays |> names() |> extract2(1)
 #reference_azimuth<- NULL
@@ -177,7 +170,7 @@ process_seurat_object <- function(input_seurat_abc, assay = NULL) {
   return(assay)
 }
 
-assay<- process_seurat_object(input_seurat_abc)
+assay<- process_seurat_object(input_seurat_list[[1]])
 
 # Test empty droplets
 empty_droplets_tissue_list <- lapply(input_seurat_list, function(df) {
@@ -223,11 +216,11 @@ preprocessing_output_S_list = mapply(FUN = HPCell:::preprocessing_output,
                                      annotation_label_transfer_tbl_list,
                                      doublet_identification_tbl_list)
 
-# create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk, 
-#                                        preprocessing_output_S_list, 
-#                                        assays = assay, 
-#                                        x = c(Tissue, Cell_type_in_each_tissue))
-
+create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk, 
+                                       preprocessing_output_S_list, 
+                                       assays = assay, 
+                                       x = c(Tissue, Cell_type_in_each_tissue))
+ 
 create_pseudobulk_sample_heart<- create_pseudobulk(preprocessing_output_S_list[[1]], assays = assay, x = c(Tissue, Cell_type_in_each_tissue))
 create_pseudobulk_sample_trachea <- create_pseudobulk(preprocessing_output_S_list[[2]], assays = assay, x = c(Tissue, Cell_type_in_each_tissue))
 
@@ -246,6 +239,7 @@ calc_UMAP_result_list<- lapply(input_seurat_list, function(df) {
   #HPCell:::calc_UMAP(df)
   calc_UMAP(df)
 })
+
 # Unit test 
 test_that("R Markdown render empty droplet works", {
   # Define output paths
@@ -256,7 +250,7 @@ test_that("R Markdown render empty droplet works", {
   rmarkdown::render(
     input = input_path,
     output_file = output_path,
-    params = list(x1 = input_seurat_list, x2 = empty_droplets_tissue_list)
+    params = list(x1 = input_seurat_list, x2 = empty_droplets_tissue_list, x3 = annotation_label_transfer_tbl_list, x4 = unique_idents)
   )
   
   # Assertions
@@ -289,10 +283,62 @@ test_that("R Markdown render doublet identification works", {
 
 test_that("R Markdown render pseudobulk analysis works", {
   input_path <- paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd")
-  #output_path <- paste0(system.file(package = "HPCell"), "/Pseudobulk_analysis_report.html")
+  output_path <- paste0(system.file(package = "HPCell"), "/Pseudobulk_analysis_report.html")
 rmarkdown::render(
   input = input_path,
-  output_file = "~/Documents/HPCell/Pseudobulk_analysis_report.html",
+  output_file = output_path,
   params = list(x1 = pseudobulk_merge_all_samples)
 )
 })
+
+
+## Technical_variation_report 
+
+rmarkdown::render(
+  input = paste0(system.file(package = "HPCell"), "/rmd/Technical_variation_report.Rmd"),
+  output_file = paste0(system.file(package = "HPCell"), "/Technical_variation_report.html"),
+  params = list(
+  x1 = input_seurat_list,
+  x2 = empty_droplets_tissue_list)
+)
+
+path<- paste0(system.file(package = "HPCell"), "extdata/Test.Rmd")
+
+## Testing in Targets 
+
+## Empty Droplets
+rmarkdown::render(
+  input =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
+  output_file = paste0(system.file(package = "HPCell"), "/Empty_droplet_report.html"),
+  params = list(x1 = tar_read(input_read, store = "/vast/scratch/users/si.j/store6"), x2 = tar_read(empty_droplets_tbl, store = "/vast/scratch/users/si.j/store8"), x3 = tar_read(annotation_label_transfer_tbl, store = "/vast/scratch/users/si.j/store8"), x4 = tar_read(unique_tissues, store = "/vast/scratch/users/si.j/store8"))
+)
+## Doublet identification 
+rmarkdown::render(
+  input = paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
+  output_file = "~/HPCell/Doublet_identification_report.html",
+  params = list(x1 = tar_read(input_read, store = "/vast/scratch/users/si.j/store8"),
+                x2 = tar_read(calc_UMAP_dbl_report, store = "/vast/scratch/users/si.j/store8"),
+                x3 = tar_read(doublet_identification_tbl, store = "/vast/scratch/users/si.j/store8"),
+                x4 = tar_read(annotation_label_transfer_tbl, store = "/vast/scratch/users/si.j/store8"), 
+                x5 = tar_read(sample_column, store = "/vast/scratch/users/si.j/store8") |> quo_name()
+))
+
+## Technical variation 
+rmarkdown::render(
+  input = paste0(system.file(package = "HPCell"), "/rmd/Technical_variation_report.Rmd"),
+  output_file = paste0(system.file(package = "HPCell"), "/Technical_variation_report.html"),
+  params = list(x1 = tar_read(input_read, store = "/vast/scratch/users/si.j/store6"),
+                x2 = tar_read(empty_droplets_tbl, store = "/vast/scratch/users/si.j/store8")
+                )
+  )
+
+## Pseudobulk analysis report 
+
+rmarkdown::render(
+  input = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
+  output_file = paste0(system.file(package = "HPCell"), "/pseudobulk_analysis_report.html"),
+  params = list(x1 = tar_read(pseudobulk_merge_all_samples, store = "/vast/scratch/users/si.j/store8"))
+  )
+
+
+

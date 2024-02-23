@@ -7,6 +7,7 @@ params:
   x1: "NA"
   x2: "NA"
   x3: "NA"
+  x4: "NA"
 ---
 
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
@@ -41,6 +42,9 @@ library(tibble)
 library(magrittr)
 library(qs)
 library(S4Vectors)
+
+# Subsetting tissues in input data 
+unique_tissues <- unique(input_seurat_abc@meta.data$Tissue)
 
 assay = params$x1[[1]]@assays |> names() |> extract2(1)
 # Subset 2 tissues (sample types)
@@ -215,7 +219,7 @@ plot_hist <- hist_p_val(combined_df)
 plot_hist
 ```
 
-Percentage of reads assigned to mitochondrial transcrips against library size
+##Percentage of reads assigned to mitochondrial transcrips against library size
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 plot_mito_data <- function(input_seurat, tissue_name, annotation_labels){
   c = rownames(input_seurat) |> str_which("^MT")

@@ -528,3 +528,9 @@ calc_UMAP <- function(input_seurat){
     RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
     as_tibble()
 }
+#' Subsetting input dataset into a list of seurat objects by sample/ tissue 
+#' 
+#' Function to subset Seurat object by tissue
+get_unique_tissues <- function(seurat_object) {
+  unique(seurat_object@meta.data$Tissue)
+}
