@@ -32,7 +32,7 @@ library(magrittr)
 library(here)
 ```
 
-```{r}
+```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 # Load data
 pseudobulk <- do.call(cbind, params$x1)
@@ -130,6 +130,7 @@ ggplot(scree_data, aes(x = PC, y = Variance)) +
 ```
 
 ## Principal Component Associations with Biological Variables
+
 Here we see which variable is associated with which principal component. We hope the biological variable are associated with the top principal components.
 
 In our sample data set we're clustering by Tissue type: Samples from the same tissue type cluster together in the PCA space, which indicates that the gene expression profiles are similar within a tissue type 

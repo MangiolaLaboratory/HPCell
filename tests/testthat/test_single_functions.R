@@ -273,12 +273,31 @@ test_that("calc_UMAP returns correctly structured tibble", {
   expect_true(is_tibble(output))
   })
 
-test_that("R Markdown render doublet identification works", {
+
+## Empty Droplet 
+test_that("R Markdown render empty droplet report works", {
   input_path <- paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd")
   output_path <- paste0(system.file(package = "HPCell"), "/Doublet_identification_report.html")
   
   rmarkdown::render(
     input = input_path,
+    output_file = "~/Documents/HPCell/Empty_droplet_report.html",
+    params = list(x1 = input_seurat_list,
+                  x2 = calc_UMAP_result_list,
+                  x3 =  doublet_identification_tbl_list,
+                  x4 = annotation_label_transfer_tbl_list)
+  )
+  expect_true(file.exists(output_path), info = "Output file should exist")
+})
+
+
+## Doublet Identification report 
+test_that("R Markdown render doublet identification works", {
+  input_path <- paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd")
+  output_path <- paste0(system.file(package = "HPCell"), "/Doublet_identification_report.html")
+  
+  rmarkdown::render(
+    input = path_to_doublet_identification_report,
     output_file = "~/Documents/HPCell/Doublet_identification_report.html",
     params = list(x1 = input_seurat_list,
                   x2 =  calc_UMAP_result_list,
@@ -288,6 +307,8 @@ test_that("R Markdown render doublet identification works", {
   expect_true(file.exists(output_path), info = "Output file should exist")
 })
 
+
+## Pseudobulk analysis report 
 test_that("R Markdown render pseudobulk analysis works", {
   input_path <- paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd")
   #output_path <- paste0(system.file(package = "HPCell"), "/Pseudobulk_analysis_report.html")

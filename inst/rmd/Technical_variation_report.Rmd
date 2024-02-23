@@ -11,10 +11,12 @@ params:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-assay_of_choice = "originalexp"
+assay_of_choice = if(is.null(assay)) assay = params$x1[[1]]@assays |> names() |> extract2(1)
+
 metadata_list <- lapply(params$x1, function(seurat_obj) {
   return(seurat_obj@meta.data)
 })
+
 variable_genes_per_sample =
 
   # input
@@ -52,6 +54,9 @@ my_variable_genes = variable_genes_per_sample |> pull(variable_genes) |> unlist(
 ```
 
 ## UMAP colored by Tissue 
+- Each point represents an individual cell, and the coloring corresponds to the tissue of origin for each cell
+- Visualise tissue specific clustering: Cells from the same tissue have similar gene expression profiles 
+- Diversity within a tissue: If cells from single tissue forms multiple distinct clusters, this indicates heterogeneity within the tissue 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 data_umap =
