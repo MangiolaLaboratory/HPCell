@@ -8,6 +8,7 @@ params:
   x2: "NA"
   x3: "NA"
   x4: "NA"
+  x5: "NA"
 ---
 
 ```{r setup, include=FALSE}
@@ -187,7 +188,7 @@ doublet_composition<- merged_combined_annotation_doublets %>%
     ~ {
       #browser() 
       .x|> 
-      dplyr::select(sample_column, scDblFinder.class)}
+      dplyr::select(all_of(params$x5), scDblFinder.class)}
       )) |> 
       #table()|> 
   dplyr::select(sample_name, doublet_composition) |> 
@@ -195,14 +196,14 @@ doublet_composition<- merged_combined_annotation_doublets %>%
   
 
 #calculate proportion and plot
-  merged_combined_annotation_doublets<- merged_combined_annotation_doublets |>
+  merged_combined_annotation_doublets <- 
+    merged_combined_annotation_doublets |>
   mutate(doublet_composition_plot = map(
     annotated_metadata,
-    ~ .x |> 
-
+      ~ .x |> 
+      #browser() |> 
   # create frquency column
-    
-  count(Tissue, Cell_type_in_each_tissue, scDblFinder.class, name= "count_class") |> 
+  dplyr::count(Tissue, Cell_type_in_each_tissue, scDblFinder.class, name= "count_class") |> 
     group_by(Tissue, Cell_type_in_each_tissue) |> 
     mutate(proportion = count_class/sum(count_class)) |>
     ungroup() |>

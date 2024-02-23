@@ -3,6 +3,7 @@
 export(add_RNA_assay)
 export(alive_identification)
 export(annotation_label_transfer)
+export(calc_UMAP)
 export(cell_cycle_scoring)
 export(create_pseudobulk)
 export(doublet_identification)
