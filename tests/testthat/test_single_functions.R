@@ -310,25 +310,31 @@ path<- paste0(system.file(package = "HPCell"), "extdata/Test.Rmd")
 rmarkdown::render(
   input =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/Empty_droplet_report.html"),
-  params = list(x1 = tar_read(input_read, store = "/vast/scratch/users/si.j/store6"), x2 = tar_read(empty_droplets_tbl, store = "/vast/scratch/users/si.j/store8"), x3 = tar_read(annotation_label_transfer_tbl, store = "/vast/scratch/users/si.j/store8"), x4 = tar_read(unique_tissues, store = "/vast/scratch/users/si.j/store8"))
+  params = list(x1 = tar_read(input_read, store = store), 
+                x2 = tar_read(empty_droplets_tbl, store = store),
+                x3 = tar_read(annotation_label_transfer_tbl, store = store),
+                x4 = tar_read(unique_tissues, store = store))
 )
+
 ## Doublet identification 
 rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
-  output_file = "~/HPCell/Doublet_identification_report.html",
-  params = list(x1 = tar_read(input_read, store = "/vast/scratch/users/si.j/store8"),
-                x2 = tar_read(calc_UMAP_dbl_report, store = "/vast/scratch/users/si.j/store8"),
-                x3 = tar_read(doublet_identification_tbl, store = "/vast/scratch/users/si.j/store8"),
-                x4 = tar_read(annotation_label_transfer_tbl, store = "/vast/scratch/users/si.j/store8"), 
-                x5 = tar_read(sample_column, store = "/vast/scratch/users/si.j/store8") |> quo_name()
+  output_file = paste0(system.file(package = "HPCell"),"/Doublet_identification_report.html"),
+  params = list(x1 = tar_read(input_read, store = store),
+                x2 = tar_read(calc_UMAP_dbl_report, store = store),
+                x3 = tar_read(doublet_identification_tbl, store = store),
+                x4 = tar_read(annotation_label_transfer_tbl, store = store), 
+                x5 = tar_read(sample_column, store = store) |> quo_name()
 ))
 
 ## Technical variation 
 rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/Technical_variation_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/Technical_variation_report.html"),
-  params = list(x1 = tar_read(input_read, store = "/vast/scratch/users/si.j/store6"),
-                x2 = tar_read(empty_droplets_tbl, store = "/vast/scratch/users/si.j/store8")
+  params = list(x1 = tar_read(input_read, store = store),
+                x2 = tar_read(empty_droplets_tbl, store = store), 
+                x3 = tar_read(variable_gene_list, store = store), 
+                x4 = tar_read(calc_UMAP_dbl_report, store = store)
                 )
   )
 
@@ -337,8 +343,15 @@ rmarkdown::render(
 rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/pseudobulk_analysis_report.html"),
-  params = list(x1 = tar_read(pseudobulk_merge_all_samples, store = "/vast/scratch/users/si.j/store8"))
+  params = list(x1 = tar_read(pseudobulk_merge_all_samples, store = store))
   )
 
-
-
+# 
+# tissues <- unique(input_seurat$Tissue)
+# seurat_objects <- list()
+# 
+# for (tissue in tissues) {
+#   seurat_objects[[tissue]] <- subset(input_seurat, idents = tissue)
+# }
+# seurat_objects[["Heart"]]
+# seurat_objects[["Trachea"]]

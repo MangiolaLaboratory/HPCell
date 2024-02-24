@@ -139,15 +139,24 @@ HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
 ### Execute Targets workflow and load results
 
 ```{r}
-input_data_path = "~/Documents/HPCell/file15ca234d00f5b.rds"
+# input_data_path<- "~/HPCell/file4df43b24e7cf.rds"
+store<- "/vast/scratch/users/si.j/store8s"
+
 # Running the pipeline
 preprocessed_seurat = run_targets_pipeline(
-    input_data = input_data_path,
+    input_data = c("~/HPCell/input_HEorgandata/input_bladder.rds",
+                   "~/HPCell/input_HEorgandata/input_Blood.rds",
+                   "~/HPCell/input_HEorgandata/input_Common.bile.duct.rds",
+                   "~/HPCell/input_HEorgandata/input_Esophagus.rds",
+                   "~/HPCell/input_HEorgandata/input_heart.rds",
+                   "~/HPCell/input_HEorgandata/input_Liver.rds", 
+                   "~/HPCell/input_HEorgandata/input_Lymph.node .rds",
+                   "~/HPCell/input_HEorgandata/input_Marrow.rds"),
     tissue = "pbmc",
     filter_empty_droplets = TRUE,
     sample_column = "Tissue", 
-    store = "~/Desktop"
-    # debug_step = "non_batch_variation_removal_S"
+    store = store
+    # debug_step = "variable_gene_list"
 )
 
 # Load results
