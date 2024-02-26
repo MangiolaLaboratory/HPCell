@@ -290,7 +290,7 @@ test_that("R Markdown render doublet identification works", {
   output_path <- paste0(system.file(package = "HPCell"), "/Doublet_identification_report.html")
   
   rmarkdown::render(
-    input = path_to_doublet_identification_report,
+    input = input_path,
     output_file = "~/Documents/HPCell/Doublet_identification_report.html",
     params = list(x1 = input_seurat_list,
                   x2 =  calc_UMAP_result_list,
@@ -331,17 +331,17 @@ path<- paste0(system.file(package = "HPCell"), "extdata/Test.Rmd")
 rmarkdown::render(
   input =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/Empty_droplet_report.html"),
-  params = list(x1 = tar_read(input_read, store = "/vast/scratch/users/si.j/store6"), x2 = tar_read(empty_droplets_tbl, store = "/vast/scratch/users/si.j/store8"), x3 = tar_read(annotation_label_transfer_tbl, store = "/vast/scratch/users/si.j/store8"), x4 = tar_read(unique_tissues, store = "/vast/scratch/users/si.j/store8"))
+    params = list(x1 = tar_read(input_read, store = store), x2 = tar_read(empty_droplets_tbl, store = store), x3 = tar_read(annotation_label_transfer_tbl, store = store), x4 = tar_read(unique_tissues, store = store))
 )
 ## Doublet identification 
 rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
   output_file = "~/HPCell/Doublet_identification_report.html",
-  params = list(x1 = tar_read(input_read, store = "/vast/scratch/users/si.j/store8"),
-                x2 = tar_read(calc_UMAP_dbl_report, store = "/vast/scratch/users/si.j/store8"),
-                x3 = tar_read(doublet_identification_tbl, store = "/vast/scratch/users/si.j/store8"),
-                x4 = tar_read(annotation_label_transfer_tbl, store = "/vast/scratch/users/si.j/store8"), 
-                x5 = tar_read(sample_column, store = "/vast/scratch/users/si.j/store8") |> quo_name()
+  params = list(x1 = tar_read(input_read, store = store),
+                x2 = tar_read(calc_UMAP_dbl_report, store = store),
+                x3 = tar_read(doublet_identification_tbl, store = store),
+                x4 = tar_read(annotation_label_transfer_tbl, store = store), 
+                x5 = tar_read(sample_column, store = store) |> quo_name()
 ))
 
 ## Technical variation 
@@ -349,7 +349,7 @@ rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/Technical_variation_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/Technical_variation_report.html"),
   params = list(x1 = tar_read(input_read, store = "/vast/scratch/users/si.j/store6"),
-                x2 = tar_read(empty_droplets_tbl, store = "/vast/scratch/users/si.j/store8")
+                x2 = tar_read(empty_droplets_tbl, store = store)
                 )
   )
 
@@ -358,7 +358,7 @@ rmarkdown::render(
 rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/pseudobulk_analysis_report.html"),
-  params = list(x1 = tar_read(pseudobulk_merge_all_samples, store = "/vast/scratch/users/si.j/store8"))
+  params = list(x1 = tar_read(pseudobulk_merge_all_samples, store = store))
   )
 
 
