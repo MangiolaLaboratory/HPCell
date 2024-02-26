@@ -103,7 +103,7 @@ test_that("annotation_label_transfer_works", {
   #   # Expect the output to be a tibble
   #   expect_equal(ncol(annotation_label_transfer_tbl), 10)
   # } else {
-    expect_equal(ncol(annotation_label_transfer_tbl), 9)
+  expect_equal(ncol(annotation_label_transfer_tbl), 9)
   # }
 })
 
@@ -116,7 +116,7 @@ test_that("alive_identification_works", {
 test_that("non_batch_variation_removal_S_dimensions", {
   num_features_input = nrow(input_seurat)
   num_cells_input = ncol(input_seurat)
-
+  
   num_features_non_batch = nrow(non_batch_variation_removal_S@assays$SCT@counts)
   num_cells_non_batch = ncol(non_batch_variation_removal_S@assays$SCT@counts)
   
@@ -158,7 +158,7 @@ unique_idents <-
     get_unique_tissues(input_seurat_list[[1]]),
     get_unique_tissues(input_seurat_list[[2]])
   )
-  
+
 
 if(is.null(assay)) assay = input_seurat_abc@assays |> names() |> extract2(1)
 #reference_azimuth<- NULL
@@ -220,7 +220,7 @@ create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk,
                                        preprocessing_output_S_list, 
                                        assays = assay, 
                                        x = c(Tissue, Cell_type_in_each_tissue))
- 
+
 create_pseudobulk_sample_heart<- create_pseudobulk(preprocessing_output_S_list[[1]], assays = assay, x = c(Tissue, Cell_type_in_each_tissue))
 create_pseudobulk_sample_trachea <- create_pseudobulk(preprocessing_output_S_list[[2]], assays = assay, x = c(Tissue, Cell_type_in_each_tissue))
 
@@ -264,27 +264,8 @@ test_that("calc_UMAP returns correctly structured tibble", {
   
   # Check if output is a tibble
   expect_true(is_tibble(output))
-  })
-
-
-## Empty Droplet 
-test_that("R Markdown render empty droplet report works", {
-  input_path <- paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd")
-  output_path <- paste0(system.file(package = "HPCell"), "/Doublet_identification_report.html")
-  
-  rmarkdown::render(
-    input = input_path,
-    output_file = "~/Documents/HPCell/Empty_droplet_report.html",
-    params = list(x1 = input_seurat_list,
-                  x2 = calc_UMAP_result_list,
-                  x3 =  doublet_identification_tbl_list,
-                  x4 = annotation_label_transfer_tbl_list)
-  )
-  expect_true(file.exists(output_path), info = "Output file should exist")
 })
 
-
-## Doublet Identification report 
 test_that("R Markdown render doublet identification works", {
   input_path <- paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd")
   output_path <- paste0(system.file(package = "HPCell"), "/Doublet_identification_report.html")
@@ -296,20 +277,18 @@ test_that("R Markdown render doublet identification works", {
                   x2 =  calc_UMAP_result_list,
                   x3 =  doublet_identification_tbl_list,
                   x4 = annotation_label_transfer_tbl_list)
-    )
+  )
   expect_true(file.exists(output_path), info = "Output file should exist")
 })
 
-
-## Pseudobulk analysis report 
 test_that("R Markdown render pseudobulk analysis works", {
   input_path <- paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd")
   output_path <- paste0(system.file(package = "HPCell"), "/Pseudobulk_analysis_report.html")
-rmarkdown::render(
-  input = input_path,
-  output_file = output_path,
-  params = list(x1 = pseudobulk_merge_all_samples)
-)
+  rmarkdown::render(
+    input = input_path,
+    output_file = output_path,
+    params = list(x1 = pseudobulk_merge_all_samples)
+  )
 })
 
 
@@ -319,8 +298,8 @@ rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/Technical_variation_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/Technical_variation_report.html"),
   params = list(
-  x1 = input_seurat_list,
-  x2 = empty_droplets_tissue_list)
+    x1 = input_seurat_list,
+    x2 = empty_droplets_tissue_list)
 )
 
 path<- paste0(system.file(package = "HPCell"), "extdata/Test.Rmd")
@@ -331,27 +310,33 @@ path<- paste0(system.file(package = "HPCell"), "extdata/Test.Rmd")
 rmarkdown::render(
   input =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/Empty_droplet_report.html"),
-    params = list(x1 = tar_read(input_read, store = store), x2 = tar_read(empty_droplets_tbl, store = store), x3 = tar_read(annotation_label_transfer_tbl, store = store), x4 = tar_read(unique_tissues, store = store))
+  params = list(x1 = tar_read(input_read, store = store), 
+                x2 = tar_read(empty_droplets_tbl, store = store),
+                x3 = tar_read(annotation_label_transfer_tbl, store = store),
+                x4 = tar_read(unique_tissues, store = store))
 )
+
 ## Doublet identification 
 rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
-  output_file = "~/HPCell/Doublet_identification_report.html",
+  output_file = paste0(system.file(package = "HPCell"),"/Doublet_identification_report.html"),
   params = list(x1 = tar_read(input_read, store = store),
                 x2 = tar_read(calc_UMAP_dbl_report, store = store),
                 x3 = tar_read(doublet_identification_tbl, store = store),
                 x4 = tar_read(annotation_label_transfer_tbl, store = store), 
                 x5 = tar_read(sample_column, store = store) |> quo_name()
-))
+  ))
 
 ## Technical variation 
 rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/Technical_variation_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/Technical_variation_report.html"),
-  params = list(x1 = tar_read(input_read, store = "/vast/scratch/users/si.j/store6"),
-                x2 = tar_read(empty_droplets_tbl, store = store)
-                )
+  params = list(x1 = tar_read(input_read, store = store),
+                x2 = tar_read(empty_droplets_tbl, store = store), 
+                x3 = tar_read(variable_gene_list, store = store), 
+                x4 = tar_read(calc_UMAP_dbl_report, store = store)
   )
+)
 
 ## Pseudobulk analysis report 
 
@@ -359,7 +344,14 @@ rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/pseudobulk_analysis_report.html"),
   params = list(x1 = tar_read(pseudobulk_merge_all_samples, store = store))
-  )
+)
 
-
-
+# 
+# tissues <- unique(input_seurat$Tissue)
+# seurat_objects <- list()
+# 
+# for (tissue in tissues) {
+#   seurat_objects[[tissue]] <- subset(input_seurat, idents = tissue)
+# }
+# seurat_objects[["Heart"]]
+# seurat_objects[["Trachea"]]

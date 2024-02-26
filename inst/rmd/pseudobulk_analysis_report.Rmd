@@ -7,7 +7,6 @@ params:
   x1: "NA"
 ---
 
-
 ```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
 library(ggplot2)
 library(stringr)
@@ -35,25 +34,27 @@ library(here)
 ```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 # Load data
-pseudobulk <- do.call(cbind, params$x1)
+# pseudobulk <- do.call(cbind, params$x1)
+pseudobulk <-  params$x1
 #metadata_clinical_sample <- readRDS(params$metadata_path)
 library(ggplot2)
-
+# pseudobulk <-  params$x1
 # Extract the proportion of variance explained by each principal component
-var_explained <- my_pca$sdev^2
-var_explained <- var_explained / sum(var_explained)
-cum_var_explained <- cumsum(var_explained)
+# var_explained <- my_pca$sdev^2
+# var_explained <- var_explained / sum(var_explained)
+# cum_var_explained <- cumsum(var_explained)
 
 # Find the number of components that explain at least 90% of the variance
-num_components <- which(cum_var_explained >= 0.9)[1]
+# num_components <- which(cum_var_explained >= 0.9)[1]
 ```
 
-# Analysis for assay
+
 ```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 #pbmc_pseudobulk from sce:
 pbmc_pseudobulk <- 
   pseudobulk %>% 
-  filter(data_source == assay) |> 
+  # filter(data_source == assay) |> 
   #separate( .sample, c("single_cell_rna_id", "batch1"), "__" , remove=FALSE) |> 
   #left_join(metadata_clinical_sample |> tidybulk::pivot_sample(sample)) |>
   tidybulk::identify_abundant() %>%
@@ -63,24 +64,26 @@ data_for_pca =
   pbmc_pseudobulk |> 
   keep_abundant() |> 
   keep_variable(.abundance = "count_scaled", top=500) |> 
-  select(-TMM, -multiplier, -count_scaled) |> 
+  dplyr::select(-TMM, -multiplier, -count_scaled) |> 
   tidybulk::scale_abundance(method = "TMMwsp") 
 ```
 
-Checking that the input counts don't have global sequencing-depth effect
+## Checking that the input counts don't have global sequencing-depth effect
 
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
+
 data_for_pca |> 
   ggplot(aes(count_scaled + 1, color=.sample)) + geom_density(alpha=0.3) + scale_x_log10() + guides(color="none")
 ```
 
-Calculate PCA of pseudobulk
+## Calculate PCA of pseudobulk
 
 ```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 metadata =
   data_for_pca |>
   pivot_sample() |>
-  select(Tissue, .sample, alive, Cell_type_in_each_tissue, .aggregated_cells)
+  dplyr::select(Tissue, .sample, alive, Cell_type_in_each_tissue, .aggregated_cells)
 
 metadata = as.data.frame(metadata)
 rownames(metadata) = metadata$`.sample`
@@ -92,7 +95,13 @@ my_pca =
   scale() |> 
   pca(metadata = metadata) 
 #
+# Extract the proportion of variance explained by each principal component
+var_explained <- my_pca$sdev^2
+var_explained <- var_explained / sum(var_explained)
+cum_var_explained <- cumsum(var_explained)
 
+# Find the number of components that explain at least 90% of the variance
+num_components <- which(cum_var_explained >= 0.9)[1]
 ## Without metadata 
 # my_pca =
 #   data_for_pca@assays@data$count_scaled |>
@@ -106,6 +115,7 @@ my_pca =
 # Find the number of components that explain at least 90% of the variance
 num_components <- which(cum_var_explained >= 0.9)[1]
 ```
+
 ## Scree plot 
 Graphical representation to show the proportion of variance explained by each principal component. 
 This gives an idea of how many principal components we need to keep to represent the data faithfully. In this case we see a gradual decrease of variance explained, indicating that we might need up to principal component `num_components` for explaining 90% of the variance.
@@ -130,7 +140,6 @@ ggplot(scree_data, aes(x = PC, y = Variance)) +
 ```
 
 ## Principal Component Associations with Biological Variables
-
 Here we see which variable is associated with which principal component. We hope the biological variable are associated with the top principal components.
 
 In our sample data set we're clustering by Tissue type: Samples from the same tissue type cluster together in the PCA space, which indicates that the gene expression profiles are similar within a tissue type 

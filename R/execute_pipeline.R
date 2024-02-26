@@ -106,7 +106,7 @@ run_targets_pipeline <- function(
     
     # library(future)
     # library("future.batchtools")
-    # slurm <- 
+    # slurm <-
     #     `batchtools_slurm` |>
     #     future::tweak( template = glue("/stornext/Bioinf/data/bioinf-data/Papenfuss_lab_projects/people/mangiola.s/third_party_sofware/slurm_batchtools.tmpl"),
     #                                  resources=list(
@@ -116,8 +116,8 @@ run_targets_pipeline <- function(
     #                                  )
     #     )
     # plan(slurm)
-    
-    # small_slurm = 
+
+    # small_slurm =
     #   tar_resources(
     #     future = tar_resources_future(
     #       plan = tweak(
@@ -131,8 +131,8 @@ run_targets_pipeline <- function(
     #       )
     #     )
     #   )
-    # 
-    # big_slurm = 
+    #
+    # big_slurm =
     #   tar_resources(
     #     future = tar_resources_future(
     #       plan = tweak(
@@ -180,8 +180,7 @@ run_targets_pipeline <- function(
       tar_target(unique_tissues,
                  get_unique_tissues(input_read),
                  pattern = map(input_read),
-                 iteration = "list", deployment = "main"
-                 ),
+                 iteration = "list", deployment = "main"),
       # tar_target(
       #   tissue_subsets,
       #   input_read, split.by = "Tissue"), 
@@ -305,10 +304,40 @@ run_targets_pipeline <- function(
       #                 x2 = tar_read(empty_droplets_tbl, store = store)
       #   )
       # ),
+      tar_target(variable_gene_list, find_variable_genes(input_read, 
+                                                         empty_droplets_tbl), 
+                 pattern = map(input_read, empty_droplets_tbl), 
+                 iteration = "list"),
+
       tar_render(
-        name = pseudobulk_processing_report, 
-        path = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"), 
-        params = list(x1 = tar_read(pseudobulk_merge_all_samples, store = store))
+        name = empty_droplets_report, # The name of the target
+        path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
+        params = list(x1 = tar_read(input_read, store = store), 
+                      x2 = tar_read(empty_droplets_tbl, store = store),
+                      x3 = tar_read(annotation_label_transfer_tbl, store = store),
+                      x4 = tar_read(unique_tissues, store = store))
+      ),
+      tar_render(
+        name = doublet_identification_report,
+        path = paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
+        params = list(x1 = input_read,
+                      x2 = calc_UMAP_dbl_report,
+                      x3 = doublet_identification_tbl,
+                      x4 = annotation_label_transfer_tbl,
+                      x5 = sample_column |> quo_name())
+      ),
+      tar_render(
+        name = Technical_variation_report,
+        path =  paste0(system.file(package = "HPCell"), "/rmd/Technical_variation_report.Rmd"),
+        params = list(x1= input_read,
+                      x2= empty_droplets_tbl,
+                      x3 = variable_gene_list,
+                      x4 = calc_UMAP_dbl_report)
+      ),
+      tar_render(
+        name = pseudobulk_processing_report,
+        path = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
+        params = list(x1 = pseudobulk_merge_all_samples)
       )
       ))
   }, script = glue("{store}.R"), ask = FALSE)

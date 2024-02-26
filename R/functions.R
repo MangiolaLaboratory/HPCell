@@ -796,7 +796,7 @@ pseudobulk_merge <- function(create_pseudobulk_sample, assays, x , ...) {
     do.call(S4Vectors::cbind, .)
   
   # Return the pseudobulk data for this single sample
-  return(create_pseudobulk_sample)
+  return(output_path_sample)
 }
 
 #' Ligand-Receptor Count from Seurat Data
@@ -1175,8 +1175,9 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
     mutate(sce_md5 = map_chr(!!.col, digest))
 }
 
-#'@export
-# Doublet identification report tible construction 
+
+#' Doublet identification report tible construction 
+#' @export
 calc_UMAP <- function(input_seurat){
   find_var_genes <- FindVariableFeatures(input_seurat)
   var_genes<- find_var_genes@assays$originalexp@var.features
@@ -1191,12 +1192,45 @@ calc_UMAP <- function(input_seurat){
   return(x)
 }
 
-#' Subsetting input dataset into a list of seurat objects by sample/ tissue 
+#' Get unique tissues 
+#' Obtain unique tissues/ samples from input dataset 
 #' 
-#' Function to subset Seurat object by tissue
-#' 
-#'@export
+#' @export
 get_unique_tissues <- function(seurat_object) {
   unique(seurat_object@meta.data$Tissue)
 }
+
+#' Find variable genes 
+#' 
+#' @param input_seurat Singl Seurat object (Input data)
+#' @param empty_droplet Single dataframe containing empty droplet filtering information 
+#' @return A vector of variable gene names
+#' @export
+# Find set of variable genes 
+find_variable_genes <- function(input_seurat, empty_droplet){
+  
+  # Set the assay of choice
+  assay_of_choice = "originalexp"
+  
+  # Ensure "HTO" and "ADT" assays are removed if present
+  if("HTO" %in% names(input_seurat@assays)) input_seurat[["HTO"]] = NULL
+  if("ADT" %in% names(input_seurat@assays)) input_seurat[["ADT"]] = NULL
+  
+  # Filter out empty droplets
+  seu<- dplyr::left_join(input_seurat, empty_droplet) |>
+    dplyr::filter(!empty_droplet)
+  
+  # Update Seurat object meta.data after filtering
+  # input_seurat@meta.data <- seu
+  
+  # Scale data
+  input_seurat <- ScaleData(seu, assay=assay_of_choice, return.only.var.genes=FALSE)
+  
+  # Find and retrieve variable features
+  input_seurat <- FindVariableFeatures(input_seurat, assay=assay_of_choice, nfeatures = 500)
+  my_variable_genes <- VariableFeatures(input_seurat, assay=assay_of_choice)
+  
+  return(my_variable_genes)
+}
+
 
