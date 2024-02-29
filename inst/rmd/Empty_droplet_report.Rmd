@@ -8,6 +8,7 @@ params:
   x2: "NA"
   x3: "NA"
   x4: "NA"
+  x5: "NA"
 ---
 
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
@@ -73,7 +74,7 @@ assay = params$x1[[1]]@assays |> names() |> extract2(1)
 #   col[rownames(input_seurat) %in% ribo_genes] <-'red'
 #   col[rownames(input_seurat) %in% NA] <-'grey'
 #   sample_numbers = 1:length(list(input_seurat))
-#   #tissue_names <- unique(input$Tissue)
+#   #sample_names <- unique(input$Tissue)
 # }
 # processed_input_list <- map(params$x1, process_input)
 
@@ -84,21 +85,21 @@ assay = params$x1[[1]]@assays |> names() |> extract2(1)
 #     left_join(input |> dplyr::select(.cell, Tissue), by = '.cell')
   
 # Defining Tissue names
-# tissue_names <- sapply(1:length(params$x1), function(i) {
+# sample_names <- sapply(1:length(params$x1), function(i) {
 #   #browser()
 #         return(params$x1[[i]][[i]])
 # })
 # 
 
-# tissue_names <- lapply(params$x1, function(seurat_obj) {
+# sample_names <- lapply(params$x1, function(seurat_obj) {
 #     unique(seurat_obj$Tissue)
 # })
-# tissue_names<- unlist(tissue_names)
+# sample_names<- unlist(sample_names)
 # 
-# tissue_names <- sapply(1:length(params$x1), function(i) {
+# sample_names <- sapply(1:length(params$x1), function(i) {
 #         return(params$x1[[i]][[1]][[1]])
 # })
-# tissue_names
+# sample_names
 process_input<- function(input_seurat) {
   input<- input_seurat@meta.data |>
   tibble::rownames_to_column(var = '.cell')
@@ -107,10 +108,10 @@ process_input<- function(input_seurat) {
 processed_input_list <- map(params$x1, process_input)
   
 # Defining Tissue names
-tissue_names <- lapply(params$x1, function(seurat_obj) {
-    seurat_obj$Tissue
+sample_names <- lapply(params$x1, function(seurat_obj) {
+    seurat_obj$params$x5
 })
-# tissue_names<- unlist(tissue_names)
+# sample_names<- unlist(sample_names)
 ```
 
 ## Barcode rank plot
@@ -292,7 +293,7 @@ plot_mito_data <- function(input_seurat, tissue_name, annotation_labels){
 }
 
 all_data <- lapply(seq_along(params$x1), function(i) {
-  plot_mito_data(params$x1[[i]], tissue_names[[i]], params$x3[[i]])
+  plot_mito_data(params$x1[[i]], sample_names[[i]], params$x3[[i]])
 })
 
 # Combine all data into a single tibble
@@ -329,9 +330,9 @@ plot_each_sample(combined_plot_mito_data)
 <!-- This plot is useful for examining the relationship between the "True empty" and "Ambiguous" cells across different samples and can be used to identify patterns between mitochondrial/ ribosomal content, and the quality of the samples. -->
 
 <!-- ```{r echo=FALSE, message=FALSE, warning=FALSE} -->
-<!-- tissue_names<- unlist(tissue_names) -->
+<!-- sample_names<- unlist(sample_names) -->
 <!-- plot_data <- dplyr::tibble( -->
-<!--   tissue_name = unique(tissue_names), -->
+<!--   tissue_name = unique(sample_names), -->
 <!--   input_files = params$x1, -->
 <!--   empty_droplets = params$x2 -->
 <!-- ) %>% -->
@@ -355,7 +356,7 @@ plot_each_sample(combined_plot_mito_data)
 
 <!--       extra <- joined_data |> dplyr::filter(FDR < 0.001) |> pull(.cell) -->
 <!--       amb  <- joined_data |> dplyr::filter(is.na(FDR)) |> pull(.cell) -->
-<!--       # tissue_names <- joined_data$Tissue -->
+<!--       # sample_names <- joined_data$Tissue -->
 
 <!--       # Sum of RNA-seq counts for each cell (or droplet) that is considered likely to be empty based on the FDR threshold -->
 <!--       extra.mu <- input_seurat |> dplyr::filter(.cell %in% extra) |> GetAssayData(assay,slot = "counts") |> rowSums() -->

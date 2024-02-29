@@ -216,28 +216,38 @@ preprocessing_output_S_list = mapply(FUN = HPCell:::preprocessing_output,
                                      annotation_label_transfer_tbl_list,
                                      doublet_identification_tbl_list)
 
-create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk, 
-                                       preprocessing_output_S_list, 
-                                       assays = assay, 
-                                       x = c(Tissue, Cell_type_in_each_tissue))
- 
-create_pseudobulk_sample_heart<- create_pseudobulk(preprocessing_output_S_list[[1]], assays = assay, x = c(Tissue, Cell_type_in_each_tissue))
-create_pseudobulk_sample_trachea <- create_pseudobulk(preprocessing_output_S_list[[2]], assays = assay, x = c(Tissue, Cell_type_in_each_tissue))
+# create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk,
+#                                        preprocessing_output_S_list,
+#                                        assays = assay,
+#                                        x = c(Tissue, Cell_type_in_each_tissue))
 
-create_pseudobulk_sample_list<- list(create_pseudobulk_sample_heart, create_pseudobulk_sample_trachea)
+## Fibrosis 
+create_pseudobulk_sample_list <- lapply(preprocessing_output_S_list, function(obj) {
+  create_pseudobulk(obj, assays = "RNA", x = c(sampleName, cellAnno))
+})
+pseudobulk_merge_all_samples = pseudobulk_merge(create_pseudobulk_sample_list, assays = "RNA", x = c(Tissue))
+# create_pseudobulk_sample_list = mapply(FUN = create_pseudobulk,
+#                                        preprocessing_output_S_list,
+#                                        assays = assay,
+#                                        x = c(sampleName, Cell_type_in_each_tissue))
+ 
+# create_pseudobulk_sample_heart<- create_pseudobulk(preprocessing_output_S_list[[1]], assays = assay, x = c(Tissue, Cell_type_in_each_tissue))
+# create_pseudobulk_sample_trachea <- create_pseudobulk(preprocessing_output_S_list[[2]], assays = assay, x = c(Tissue, Cell_type_in_each_tissue))
+# 
+# create_pseudobulk_sample_list<- list(create_pseudobulk_sample_heart, create_pseudobulk_sample_trachea)
 
 # create_pseudobulk_sample_list <- lapply(preprocessing_output_S_list, function(obj) {
 #   create_pseudobulk(obj, assays = NULL, x = c(Tissue, Cell_type_in_each_tissue))
 # })
-
-pseudobulk_merged_results <- pseudobulk_merge(create_pseudobulk_sample_list, assays, x)
+# 
+# pseudobulk_merged_results <- pseudobulk_merge(create_pseudobulk_sample_list, assays, x)
 
 # Test calc_UMAP_dbl_report
-calc_UMAP_result<- calc_UMAP(input_seurat)
+# calc_UMAP_result<- calc_UMAP(input_seurat)
 
 calc_UMAP_result_list<- lapply(input_seurat_list, function(df) {
   #HPCell:::calc_UMAP(df)
-  calc_UMAP(df)
+  calc_UMAP(df, assay = NULL)
 })
 
 # Unit test 
@@ -250,7 +260,11 @@ test_that("R Markdown render empty droplet works", {
   rmarkdown::render(
     input = input_path,
     output_file = output_path,
-    params = list(x1 = input_seurat_list, x2 = empty_droplets_tissue_list, x3 = annotation_label_transfer_tbl_list, x4 = unique_idents)
+    params = list(x1 = input_seurat_list, 
+                  x2 = empty_droplets_tissue_list, 
+                  x3 = annotation_label_transfer_tbl_list, 
+                  x4 = unique_idents, 
+                  x5 = sample_column)
   )
   
   # Assertions
@@ -272,11 +286,13 @@ test_that("R Markdown render doublet identification works", {
   
   rmarkdown::render(
     input = input_path,
-    output_file = "~/Documents/HPCell/Doublet_identification_report.html",
+    output_file = output_path,
     params = list(x1 = input_seurat_list,
-                  x2 =  calc_UMAP_result_list,
-                  x3 =  doublet_identification_tbl_list,
-                  x4 = annotation_label_transfer_tbl_list)
+                  x2 = calc_UMAP_result_list,
+                  x3 = doublet_identification_tbl_list,
+                  x4 = annotation_label_transfer_tbl_list, 
+                  x5 = sample_column |> enquo(), 
+                  x6 = cell_type_annotation_column |> enquo())
     )
   expect_true(file.exists(output_path), info = "Output file should exist")
 })
@@ -313,7 +329,8 @@ rmarkdown::render(
   params = list(x1 = tar_read(input_read, store = store), 
                 x2 = tar_read(empty_droplets_tbl, store = store),
                 x3 = tar_read(annotation_label_transfer_tbl, store = store),
-                x4 = tar_read(unique_tissues, store = store))
+                x4 = tar_read(unique_tissues, store = store)|> quo_name(), 
+                x5 = tar_read(sample_column, store = store))
 )
 
 ## Doublet identification 
@@ -324,7 +341,8 @@ rmarkdown::render(
                 x2 = tar_read(calc_UMAP_dbl_report, store = store),
                 x3 = tar_read(doublet_identification_tbl, store = store),
                 x4 = tar_read(annotation_label_transfer_tbl, store = store), 
-                x5 = tar_read(sample_column, store = store) |> quo_name()
+                x5 = tar_read(sample_column, store = store) |> quo_name(), 
+                x6 = tar_read(cell_type_annotation_column, store = store) |> quo_name()
 ))
 
 ## Technical variation 
@@ -355,3 +373,31 @@ rmarkdown::render(
 # }
 # seurat_objects[["Heart"]]
 # seurat_objects[["Trachea"]]
+
+
+## Testing fibrosis dataset 
+input_a<- readRDS("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds")
+input_b <- readRDS("~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds")
+input_seurat_list<- c(input_a, input_b)
+sample_column<- "sampleName"
+cell_type_annotation_column <- "cellAnno"
+filter_empty_droplets <- "TRUE"
+tissue <- "pbmc"
+reference_label_fine = HPCell:::reference_label_fine_id(tissue)
+
+if(is.null(assay)) assay = input_a@assays |> names() |> extract2(1)
+#reference_azimuth<- NULL
+process_seurat_object <- function(input_a, assay = NULL) {
+  if(is.null(assay)) {
+    assay <- input_a@assays |> names() |> extract2(1)
+  }
+  # Return the updated assay (or the original one if it was not NULL)
+  return(assay)
+}
+
+assay<- process_seurat_object(input_seurat_list[[1]])
+
+
+
+
+
