@@ -132,7 +132,7 @@ library(Seurat)
 library(scRNAseq)
 input_data_path =  tempfile(tmpdir = ".") |> paste0(".rds")
 HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
-  as.Seurat(data = NULL) |>
+  Seurat::as.Seurat(data = NULL) |>
   saveRDS(input_data_path)
 ```
 
