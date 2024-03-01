@@ -355,3 +355,24 @@ rmarkdown::render(
 # }
 # seurat_objects[["Heart"]]
 # seurat_objects[["Trachea"]]
+
+
+input_a<- readRDS("~/Documents/HPCell/fibrosis_data/GSE122960___GSM3489182.rds")
+input_b <- readRDS("~/Documents/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds")
+input_seurat_list<- c(input_a, input_b)
+sample_column<- "sampleName"
+filter_empty_droplets <- "TRUE"
+tissue <- "pbmc"
+reference_label_fine = HPCell:::reference_label_fine_id(tissue)
+
+if(is.null(assay)) assay = input_a@assays |> names() |> extract2(1)
+#reference_azimuth<- NULL
+process_seurat_object <- function(input_a, assay = NULL) {
+  if(is.null(assay)) {
+    assay <- input_a@assays |> names() |> extract2(1)
+  }
+  # Return the updated assay (or the original one if it was not NULL)
+  return(assay)
+}
+
+assay<- process_seurat_object(input_seurat_list[[1]])

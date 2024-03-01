@@ -288,15 +288,6 @@ run_targets_pipeline <- function(
       #   path = paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
       #   params = list(x1= input_read, x2= empty_droplets_tbl, x3 = annotation_label_transfer_tbl, x4 = unique_tissues)
       # ), 
-      tar_render(
-        name = doublet_identification_report, 
-        path = paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"), 
-        params = list(x1 = tar_read(input_read, store = store),
-                      x2 = tar_read(calc_UMAP_dbl_report, store = store),
-                      x3 = tar_read(doublet_identification_tbl, store = store),
-                      x4 = tar_read(annotation_label_transfer_tbl, store = store), 
-                      x5 = tar_read(sample_column, store = store) |> quo_name())
-        ), 
       # tar_render(
       #   name = Technical_variation_report,
       #   path =  paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),

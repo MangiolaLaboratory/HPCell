@@ -58,6 +58,14 @@ get_labels_clusters = function(.data, label_column, dim1, dim2){
 - This allows for an exploration of similarities and differences in gene expression profiles between cells from different tissues. 
 
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
+## Adjusting plot size according to the number of samples 
+# num_samples <- length(x1$Tissue)
+# 
+# # Calculate the grid layout based on the number of samples
+# num_columns <- ceiling(sqrt(num_samples))
+# num_rows <- ceiling(num_samples / num_columns)
+
+
 # Joining info and returning a list opf tibbles
 merged_combined_annotation_doublets <- list(
   #params$x1,
