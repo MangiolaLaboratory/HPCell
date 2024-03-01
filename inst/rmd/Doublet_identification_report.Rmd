@@ -9,6 +9,7 @@ params:
   x3: "NA"
   x4: "NA"
   x5: "NA"
+  x6: "NA"
 ---
 
 ```{r setup, include=FALSE}
@@ -132,18 +133,18 @@ merged_combined_annotation_doublets <- list(
       unnest(doublet_class)
       
       merged_combined_annotation_doublets |> 
-      ggplot(aes(umap_1, umap_2, color = Cell_type_in_each_tissue)) +
+      ggplot(aes(umap_1, umap_2, color = all_of(params$x6))) +
       geom_point(shape=".") +
         theme_bw() +
         labs(title = .y, color = "Cell Type") +
         ggrepel::geom_text_repel(
           data= get_labels_clusters(
             .x, 
-      			Cell_type_in_each_tissue,
+      			all_of(params$x5),
       			umap_1, 
       			umap_2
       			) ,
-		aes(umap_1, umap_2, label = Cell_type_in_each_tissue), size = 2) +
+		aes(umap_1, umap_2, label = all_of(params$x5)), size = 2) +
         guides(color = "none") + 
         labs(title = .y)
     })) |> 
@@ -211,8 +212,8 @@ doublet_composition<- merged_combined_annotation_doublets %>%
       ~ .x |> 
       #browser() |> 
   # create frquency column
-  dplyr::count(Tissue, Cell_type_in_each_tissue, scDblFinder.class, name= "count_class") |> 
-    group_by(Tissue, Cell_type_in_each_tissue) |> 
+  dplyr::count(Tissue, all_of(params$x5), scDblFinder.class, name= "count_class") |> 
+    group_by(Tissue, all_of(params$x5)) |> 
     mutate(proportion = count_class/sum(count_class)) |>
     ungroup() |>
     
@@ -224,7 +225,7 @@ doublet_composition<- merged_combined_annotation_doublets %>%
   # mutate(proportion = (frequency * 1)/tot_sample_proportion) |>
   
   #plot proportion
-  ggplot(aes(x = Cell_type_in_each_tissue , y = proportion, fill = scDblFinder.class)) +
+  ggplot(aes(x = all_of(params$x5) , y = proportion, fill = scDblFinder.class)) +
   geom_bar(stat = "identity") +
   theme_bw() +
   facet_wrap(~Tissue) +
