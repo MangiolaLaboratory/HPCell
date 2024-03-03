@@ -7,7 +7,7 @@
 find_variable_genes(input_seurat, empty_droplet)
 }
 \arguments{
-\item{input_seurat}{Singl Seurat object (Input data)}
+\item{input_seurat}{Single Seurat object (Input data)}
 
 \item{empty_droplet}{Single dataframe containing empty droplet filtering information}
 }
