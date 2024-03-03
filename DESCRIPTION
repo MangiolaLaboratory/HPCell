@@ -56,7 +56,6 @@ Imports:
   BiocGenerics, 
   AnnotationDbi, 
   broom,
-  SeuratDisk,
   lifecycle,
   SingleCellExperiment,
   knitr,
@@ -84,4 +83,5 @@ Config/testthat/edition: 3
 Suggests: 
     testthat (>= 3.0.0), 
     knitr, 
-    scRNAseq
+    scRNAseq, 
+    SeuratDisk
