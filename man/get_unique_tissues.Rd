@@ -4,7 +4,7 @@
 \alias{get_unique_tissues}
 \title{Subsetting input dataset into a list of seurat objects by sample/ tissue}
 \usage{
-get_unique_tissues(seurat_object)
+get_unique_tissues(seurat_object, sample_column)
 }
 \description{
 Function to subset Seurat object by tissue

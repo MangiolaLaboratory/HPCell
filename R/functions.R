@@ -1249,7 +1249,7 @@ annotation_consensus = function(single_cell_data, .sample_column, .cell_type, .a
   #   ) |> 
   #   as_tibble() |> 
   #   mutate(cell_type_clean = cell_type |> clean_cell_types()) |> 
-  #   clean_cell_types_deeper() |> 
+  #   HPCell::clean_cell_types_deeper() |> 
   #   select(-cell_type) |> 
   #   
   #   count(cell_type_harmonised, cell_annotation_azimuth_l2, cell_annotation_blueprint_singler, cell_annotation_monaco_singler, confidence_class, cell_type_clean) |>
@@ -1277,7 +1277,7 @@ annotation_consensus = function(single_cell_data, .sample_column, .cell_type, .a
     # Clen cell types
     mutate(cell_type_clean = cell_type |> clean_cell_types()) |> 
     left_join(read_csv("~/PostDoc/CuratedAtlasQueryR/dev/metadata_cell_type.csv"),  by = "cell_type") |> 
-    clean_cell_types_deeper() |>
+    HPCell::clean_cell_types_deeper() |>
     
     # Reference annotation link
     left_join(reference_annotation ) 
