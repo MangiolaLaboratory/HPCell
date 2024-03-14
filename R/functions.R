@@ -712,7 +712,7 @@ preprocessing_output <- function(tissue,
 
 # Create pseudobulk for each sample 
 create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
-  
+  #browser()
   x = enquo(x)
   
   # Aggregate cells
@@ -748,11 +748,12 @@ create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
 #' @export
 #' 
 pseudobulk_merge <- function(create_pseudobulk_sample, assays, x , ...) {
-  
+  #browser()
+  x = enquo(x)
     # Select only common columns
     common_columns =
       create_pseudobulk_sample |>
-      map(~ .x |> as_tibble() |> colnames()) |>
+      purrr::map(~ .x |> as_tibble() |> colnames()) |>
       unlist() |>
       table() %>%
       .[.==max(.)] |>
@@ -761,15 +762,15 @@ pseudobulk_merge <- function(create_pseudobulk_sample, assays, x , ...) {
     # All genes 
     all_genes =
       create_pseudobulk_sample |>
-      map(~ .x |> rownames()) |>
+      purrr::map(~ .x |> rownames()) |>
       unlist() |>
       unique() |>
       as.character()
     
     output_path_sample <- create_pseudobulk_sample |>
       # Add missing genes
-      map(~{
-
+      purrr::map(~{
+        #browser()
         missing_genes = all_genes |> setdiff(rownames(.x))
 
         missing_matrix = matrix(rep(0, length(missing_genes) * ncol(.x)), ncol = ncol(.x))
@@ -787,7 +788,7 @@ pseudobulk_merge <- function(create_pseudobulk_sample, assays, x , ...) {
 
       }) |>
 
-      map(~ .x |> dplyr::select(any_of(common_columns)))   %>%
+      purrr::map(~ .x |> dplyr::select(any_of(common_columns)))   %>%
 
       do.call(S4Vectors::cbind, .)
 
@@ -1170,5 +1171,20 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
     unnest(!!.col) |>
     mutate(sce_md5 = map_chr(!!.col, digest))
 }
+
+# Doublet identification report tible construction 
+calc_UMAP <- function(input_seurat){
+  find_var_genes <- FindVariableFeatures(input_seurat)
+  var_genes<- find_var_genes@assays$originalexp@var.features
+    
+  ScaleData(input_seurat) |>
+    # Calculate UMAP of clusters
+    RunPCA(features = var_genes) |>
+    FindNeighbors(dims = 1:30) |>
+    FindClusters(resolution = 0.5) |>
+    RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
+    as_tibble()
+}
+
 
 
