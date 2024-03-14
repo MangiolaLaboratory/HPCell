@@ -277,7 +277,30 @@ run_targets_pipeline <- function(
       
       tar_target(calc_UMAP_dbl_report, calc_UMAP(input_read), 
                  pattern = map(input_read), 
-                 iteration = "list"),
+                 iteration = "list"), 
+      # tar_render(
+      #   name = Technical_variation_report, # The name of the target
+      #   path = path_to_technical_variation_report,
+      #   params = list(x1= input_read, x2= empty_droplets_tbl, x3 = annotation_label_transfer_tbl, x4 = unique_tissues)
+      # ), 
+      # 
+      # tar_render(
+      #   name = empty_droplets_report, # The name of the target
+      #   path = path,
+      #   params = list(x1= input_read, x2= empty_droplets_tbl, x3 = annotation_label_transfer_tbl, x4 = unique_tissues)
+      # ), 
+      # tar_render(
+      #   name = empty_droplets_report, # The name of the target
+      #   path = paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
+      #   params = list(x1= input_read, x2= empty_droplets_tbl, x3 = annotation_label_transfer_tbl, x4 = unique_tissues)
+      # ), 
+      # tar_render(
+      #   name = Technical_variation_report,
+      #   path =  paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
+      #   params = list(x1 = tar_read(input_read, store = store),
+      #                 x2 = tar_read(empty_droplets_tbl, store = store)
+      #   )
+      # ),
       tar_target(variable_gene_list, find_variable_genes(input_read, 
                                                          empty_droplets_tbl), 
                  pattern = map(input_read, empty_droplets_tbl), 

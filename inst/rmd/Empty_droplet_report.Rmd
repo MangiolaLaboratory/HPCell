@@ -1,5 +1,5 @@
 ---
-title: "Empty_droplet_report"
+title: "Empty droplet report"
 author: "SS"
 date: "2023-12-07"
 output: html_document
@@ -220,6 +220,9 @@ empty_count_results
 
 
 ## Histogram of p-values: (only if empty droplets have been identified)
+
+- Shows the distribution of p-values for droplets in the lower 10 percentile of total within each tissue 
+- A low p-value signifies significance therefore we would reject those droplets as empty
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 hist_p_val <- function(df) {
   if(df |> dplyr::filter(empty) |> nrow() != 0){
@@ -247,6 +250,7 @@ plot_hist
 Scatter plot comparing mitochondrial content percentage to total count of RNA sequencing reads across different samples (in this case tissues)
 
 The X-axis is on a logarithmic scale and represents the total count of RNA sequencing reads per cell, while the Y-axis shows the percentage of those reads that are mitochondrial. Each point on the plot represents a single cell.
+
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 plot_mito_data <- function(input_seurat, tissue_name, annotation_labels){
   #browser()
@@ -325,9 +329,6 @@ plot_each_sample(combined_plot_mito_data)
 
 ```
 
-<!-- ## MA plot -->
-
-<!-- This plot is useful for examining the relationship between the "True empty" and "Ambiguous" cells across different samples and can be used to identify patterns between mitochondrial/ ribosomal content, and the quality of the samples. -->
 
 <!-- ```{r echo=FALSE, message=FALSE, warning=FALSE} -->
 <!-- sample_names<- unlist(sample_names) -->

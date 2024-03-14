@@ -6,10 +6,7 @@ output: html_document
 params: 
   x1: "NA"
   x2: "NA"
-  x3: "NA"
-  x4: "NA"
 ---
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -169,6 +166,5 @@ plot_tissue_color =
 #   theme_multipanel
 print(plot_tissue_color)
 ```
-
 
 

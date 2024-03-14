@@ -1181,9 +1181,40 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
     mutate(sce_md5 = map_chr(!!.col, digest))
 }
 
+
+#' Calculate UMAP
+#' Scales the input data, performing PCA, clustering the cells and running UMAP and constructs a tibble in preparation for plotting in 
+#' the doublet identification report 
+#' 
+#' @param input_seurat Single Seurat object (Input data)
+#' 
+#' @export
+calc_UMAP <- function(input_seurat){
+  find_var_genes <- FindVariableFeatures(input_seurat)
+  var_genes<- find_var_genes@assays$originalexp@var.features
+  
+  x<- ScaleData(input_seurat) |>
+    # Calculate UMAP of clusters
+    RunPCA(features = var_genes) |>
+    FindNeighbors(dims = 1:30) |>
+    FindClusters(resolution = 0.5) |>
+    RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
+    as_tibble()
+  return(x)
+}
+
+#' Get unique tissues 
+#' Obtain unique tissues/ samples from input dataset 
+#' 
+#' @export
+get_unique_tissues <- function(seurat_object) {
+  unique(seurat_object@meta.data$Tissue)
+}
+
+
 #' Find variable genes 
 #' 
-#' @param input_seurat Singl Seurat object (Input data)
+#' @param input_seurat Single Seurat object (Input data)
 #' @param empty_droplet Single dataframe containing empty droplet filtering information 
 #' @return A vector of variable gene names
 #' @export

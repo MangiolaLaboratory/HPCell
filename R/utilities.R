@@ -532,7 +532,7 @@ calc_UMAP <- function(input_seurat){
   return(x)
 }
 #' Subsetting input dataset into a list of seurat objects by sample/ tissue 
-#' 
+#'  @description
 #' Function to subset Seurat object by tissue
 get_unique_tissues <- function(seurat_object, sample_column) {
   sample_column<- quo_name(sample_column)

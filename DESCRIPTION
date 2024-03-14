@@ -56,7 +56,6 @@ Imports:
   BiocGenerics, 
   AnnotationDbi, 
   broom,
-  SeuratDisk,
   lifecycle,
   SingleCellExperiment,
   knitr,
