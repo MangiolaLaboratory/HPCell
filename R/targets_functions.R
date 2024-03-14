@@ -35,7 +35,8 @@ map2_test_differential_abundance_hpc = function(
     computing_resources = crew_controller_local(workers = 1) , 
     cpus_per_task = 1,
     debug_job_id = NULL,
-    append = FALSE
+    append = FALSE,
+    ...
   ){
   
   .abundance = enquo(.abundance)
@@ -125,7 +126,7 @@ map2_test_differential_abundance_hpc = function(
       # Dispersion
       tar_target(
         pseudobulk_df_tissue_dispersion, 
-        pseudobulk_df_tissue |> map_add_dispersion_to_se(data, abundance), 
+        pseudobulk_df_tissue |> map_add_dispersion_to_se(data, formula, abundance), 
         pattern = map(pseudobulk_df_tissue),
         iteration = "group"
       ),
@@ -259,7 +260,8 @@ test_differential_abundance_hpc = function(
     store =  tempfile(tmpdir = "."),  
     computing_resources = crew_controller_local(workers = 1) , 
     debug_job_id = NULL, 
-    append = FALSE
+    append = FALSE,
+    ...
   ){
   
   # Create input dataframe
@@ -275,7 +277,8 @@ test_differential_abundance_hpc = function(
       store = store, 
       computing_resources = computing_resources,
       debug_job_id = debug_job_id, 
-      append = append
+      append = append,
+      ...
     )) |> 
     pull(data) |> 
     extract2(1)

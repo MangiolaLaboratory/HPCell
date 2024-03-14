@@ -63,11 +63,7 @@ Imports:
   digest
 Encoding: UTF-8
 LazyData: true
-<<<<<<< HEAD
-RoxygenNote: 7.3.0
-=======
 RoxygenNote: 7.3.1
->>>>>>> eac2e6a53547b3578bd57b933f5e940ce5a18e6f
 SystemRequirements: GNU make
 VignetteBuilder: 
     knitr
