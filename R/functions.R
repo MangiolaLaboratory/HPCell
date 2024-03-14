@@ -979,6 +979,7 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 #' @param .col A symbol indicating the column in `se_df` that contains SingleCellExperiment objects.
 #' @param abundance (Optional) A character vector specifying the name of the assay to be used 
 #'                  for dispersion estimation. If NULL or not provided, the first assay is used.
+#' @param se_list A list of SingleCellExperiment objects
 #'
 #' @return The input data frame or list (`se_df`) with the specified `.col` modified to include 
 #'         dispersion estimates in each SingleCellExperiment object.
@@ -1199,7 +1200,7 @@ get_unique_tissues <- function(seurat_object) {
 
 #' Find variable genes 
 #' 
-#' @param input_seurat Singl Seurat object (Input data)
+#' @param input_seurat Single Seurat object (Input data)
 #' @param empty_droplet Single dataframe containing empty droplet filtering information 
 #' @return A vector of variable gene names
 #' @export
@@ -1207,7 +1208,7 @@ get_unique_tissues <- function(seurat_object) {
 find_variable_genes <- function(input_seurat, empty_droplet){
   
   # Set the assay of choice
-  assay_of_choice = "originalexp"
+  assay_of_choice = input_seurat@assays |> names() |> extract2(1)
   
   # Ensure "HTO" and "ADT" assays are removed if present
   if("HTO" %in% names(input_seurat@assays)) input_seurat[["HTO"]] = NULL
@@ -1230,4 +1231,211 @@ find_variable_genes <- function(input_seurat, empty_droplet){
   return(my_variable_genes)
 }
 
+#' @title Create a controller with the custom launcher.
+#' @export
+#' @description Create an `R6` object to submit tasks and
+#'   launch workers.
+#' @inheritParams crew::crew_controller_local
+crew_controller_custom <- function(
+    name = "custom controller name",
+    workers = 1L,
+    host = NULL,
+    port = NULL,
+    tls = crew::crew_tls(),
+    seconds_interval = 0.5,
+    seconds_timeout = 30,
+    seconds_launch = 30,
+    seconds_idle = Inf,
+    seconds_wall = Inf,
+    tasks_max = Inf,
+    tasks_timers = 0L,
+    reset_globals = TRUE,
+    reset_packages = FALSE,
+    reset_options = FALSE,
+    garbage_collection = FALSE,
+    launch_max = 5L
+) {
+  client <- crew::crew_client(
+    name = name,
+    workers = workers,
+    host = host,
+    port = port,
+    tls = tls,
+    seconds_interval = seconds_interval,
+    seconds_timeout = seconds_timeout
+  )
+  launcher <- custom_launcher_class$new(
+    name = name,
+    seconds_interval = seconds_interval,
+    seconds_timeout = seconds_timeout,
+    seconds_launch = seconds_launch,
+    seconds_idle = seconds_idle,
+    seconds_wall = seconds_wall,
+    tasks_max = tasks_max,
+    tasks_timers = tasks_timers,
+    reset_globals = reset_globals,
+    reset_packages = reset_packages,
+    reset_options = reset_options,
+    garbage_collection = garbage_collection,
+    launch_max = launch_max,
+    tls = tls
+  )
+  controller <- crew::crew_controller(client = client, launcher = launcher)
+  controller$validate()
+  controller
+}
 
+#' Create custom launcher 
+#' @description
+#' Function to create a custom launcher class that outputs the resource usage using /usr/bin/time
+#' @name custom_launcher_class
+#' @export
+#' @field name The unique name for the launcher. Set via `initialize()`.
+#' @field seconds_interval Time interval for checks. Set via `initialize()`.
+#' @field seconds_timeout Timeout for operations. Set via `initialize()`.
+#' @field seconds_launch Time interval between launching workers. Set via `initialize()`.
+#' @field seconds_idle Time interval for considering a worker idle. Set via `initialize()`.
+#' @field seconds_wall Maximum allowed time for operations. Set via `initialize()`.
+#'
+#' @method initialize initialize
+#' @param name (character) Unique name for the launcher.
+#' @param seconds_interval (numeric) Time interval for checks.
+#' @param seconds_timeout (numeric) Timeout for operations.
+#' @param seconds_launch (numeric) Time interval between launching workers.
+#' @param seconds_idle (numeric) Time interval for considering a worker idle.
+#' @param seconds_wall (numeric) Maximum allowed time for operations.
+#'
+#' @method launch_worker launch_worker
+#' @param call The command to run in the worker.
+#' @param name Unique name for the worker.
+#' @param launcher The launcher object.
+#' @param worker Worker ID.
+#' @param instance Specifications of the worker instance.
+#'
+#' @method terminate_worker terminate_worker
+#' @param handle Handle to the worker process to be terminated.
+#' @export
+#' 
+#' 
+
+custom_launcher_class<- R6::R6Class(
+  classname = "custom_launcher_class",
+  inherit = crew::crew_class_launcher,
+  public = list(
+    initialize = function(name = "default_custom_launcher", 
+                          seconds_interval = 10,
+                          seconds_timeout = 300,
+                          seconds_launch = 5,
+                          seconds_idle = 60,
+                          seconds_wall = 3600,
+                          tasks_max = 20,
+                          tasks_timers = 45,
+                          launch_max = 25,
+                          reset_globals = FALSE,
+                          reset_packages = FALSE,
+                          reset_options = FALSE,
+                          garbage_collection = TRUE) {
+      super$initialize(name = name, 
+                       seconds_interval = seconds_interval,
+                       seconds_timeout = seconds_timeout,
+                       seconds_launch = seconds_launch,
+                       seconds_idle = seconds_idle,
+                       seconds_wall = seconds_wall,
+                       tasks_max = tasks_max,
+                       tasks_timers = tasks_timers,
+                       launch_max = launch_max,
+                       reset_globals = reset_globals,
+                       reset_packages, reset_packages,
+                       reset_options = reset_options,
+                       garbage_collection = garbage_collection)
+    },
+    launch_worker = function(call, name, launcher, worker, instance){
+      bin <- file.path(R.home("bin"), "R")
+      process <- processx::process$new(
+        command = "/usr/bin/time",
+        args = c(
+          "--format",
+          'Max RAM: %M\nCPU:%P',
+          "R",
+          "-e",
+          call
+        ),
+        cleanup = FALSE
+      )
+      tmp <- tempfile(tmpdir = "/vast/scratch.users/.../large_sample")
+      call |> writeLines(tmp)
+      process$read_error() |> readLines(tmp)
+    },
+    terminate_worker = function(handle) {
+      handle$signal(crew::crew_terminate_signal())
+    }
+  )
+)
+
+
+# 
+# 
+# custom_launcher_class <- R6::R6Class(
+#   classname = "custom_launcher_class",
+#   inherit = crew::crew_class_launcher,
+#   public = list(
+#     launch_worker = function(name = NULL,
+#                           seconds_interval = 10,
+#                           seconds_timeout = 300,
+#                           seconds_launch = 5,
+#                           seconds_idle = 60,
+#                           seconds_wall = 3600,
+#                           tasks_max = 20,
+#                           tasks_timers = 45,
+#                           launch_max = 25,
+#                           reset_globals = FALSE,
+#                           reset_packages = FALSE,
+#                           reset_options = FALSE,
+#                           garbage_collection = TRUE,
+#                           tls = crew::crew_tls(),
+#                           processes = NULL
+#                           ){
+#       if(is.null(name) || !nzchar(name)) {
+#         name <- "default_launcher_name"
+#       }
+#       super$initialize(name = name, seconds_interval = seconds_interval,
+#                        seconds_timeout = seconds_timeout,
+#                        seconds_launch = seconds_launch,
+#                        seconds_idle = seconds_idle,
+#                        seconds_wall = seconds_wall,
+#                        tasks_max = tasks_max,
+#                        tasks_timers = tasks_timers,
+#                        launch_max = launch_max,
+#                        reset_globals = reset_globals,
+#                        reset_packages, reset_packages,
+#                        reset_options = reset_options,
+#                        garbage_collection = garbage_collection,
+#                        tls = tls,
+#                        processes = processes
+#                        )
+#     },
+#     launch_worker = function(call, name, launcher , worker, instance) {
+#       bin <- file.path(R.home("bin"), "R")
+#       process <- processx::process$new(
+#         command = "/usr/bin/time",
+#         args = c(
+#           "--format",
+#           "Max RAM: %M\nCPU: %P",
+#           "R",
+#           "-e",
+#           call
+#         ),
+#         cleanup = FALSE
+#       )
+# 
+#       tmp <- tempfile(tmpdir = "/stornext/General/scratch/GP_Transfer/si.j/fibrosis_benchmark_2")
+#       call |> writeLines(tmp)
+#       process$read_error() |> writeLines(tmp)
+#     },
+#     terminate_worker = function(handle) {
+#       handle$signal(crew::crew_terminate_signal())
+#     }
+#   )
+# )
+# 
+# 

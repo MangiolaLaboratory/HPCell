@@ -140,19 +140,13 @@ HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
 
 ```{r}
 # input_data_path<- "~/HPCell/file4df43b24e7cf.rds"
-store<- "/vast/scratch/users/si.j/store8s"
+store<- "/stornext/General/scratch/GP_Transfer/si.j/fibrosis_benchmark_2"
 
 # Running the pipeline
-preprocessed_seurat = run_targets_pipeline(
-    input_data = c("~/HPCell/input_HEorgandata/input_bladder.rds",
-                   "~/HPCell/input_HEorgandata/input_Blood.rds",
-                   "~/HPCell/input_HEorgandata/input_Common.bile.duct.rds",
-                   "~/HPCell/input_HEorgandata/input_Esophagus.rds",
-                   "~/HPCell/input_HEorgandata/input_heart.rds",
-                   "~/HPCell/input_HEorgandata/input_Liver.rds", 
-                   "~/HPCell/input_HEorgandata/input_Lymph.node .rds",
-                   "~/HPCell/input_HEorgandata/input_Marrow.rds"),
+prepreprocessed_seurat = run_targets_pipeline(
+    input_data = c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds"),
     tissue = "pbmc",
+    computing_resources = custom_launcher_class$new(),
     filter_empty_droplets = TRUE,
     sample_column = "Tissue", 
     store = store

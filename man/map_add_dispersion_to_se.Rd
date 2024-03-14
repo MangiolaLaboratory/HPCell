@@ -13,6 +13,8 @@ map_add_dispersion_to_se(se_df, .col, abundance = NULL)
 
 \item{abundance}{(Optional) A character vector specifying the name of the assay to be used
 for dispersion estimation. If NULL or not provided, the first assay is used.}
+
+\item{se_list}{A list of SingleCellExperiment objects}
 }
 \value{
 The input data frame or list (\code{se_df}) with the specified \code{.col} modified to include

@@ -534,3 +534,41 @@ calc_UMAP <- function(input_seurat){
 get_unique_tissues <- function(seurat_object) {
   unique(seurat_object@meta.data$Tissue)
 }
+
+#' Create custom launcher 
+#' @description
+#' Function to create a custom launcher class that outputs the resource usage using /usr/bin/time
+#' 
+#' @noRd
+#' 
+custom_launcher_class <- R6::R6Class(
+  classname = "custom_launcher_class",
+  inherit = crew::crew_class_launcher,
+  public = list(
+    launch_worker = function(call, name, launcher , worker, instance) {
+      bin <- file.path(R.home("bin"), "R")
+      process <- processx::process$new(
+        command = "/usr/bin/time",
+        args = c(
+          "--format",
+          "Max RAM: %M\nCPU: %P",
+          "R",
+          "-e",
+          call
+        ),
+        cleanup = FALSE
+      )
+    
+      tmp <- tempfile(tmpdir = "/stornext/General/scratch/GP_Transfer/si.j/fibrosis_benchmark")
+      call |> writeLines(tmp)
+      process$read_error() |> writeLines(tmp)
+    },
+    terminate_worker = function(handle) {
+      handle$signal(crew::crew_terminate_signal())
+    }
+  )
+)
+
+
+
+
