@@ -1274,7 +1274,7 @@ annotation_consensus = function(single_cell_data, .sample_column, .cell_type, .a
     
     is_strong_evidence(cell_annotation_azimuth_l2, cell_annotation_blueprint_singler) |> 
     
-    # Clen cell types
+    # Clean cell types
     mutate(cell_type_clean = cell_type |> clean_cell_types()) |> 
     left_join(read_csv("~/PostDoc/CuratedAtlasQueryR/dev/metadata_cell_type.csv"),  by = "cell_type") |> 
     HPCell::clean_cell_types_deeper() |>
