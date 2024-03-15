@@ -80,6 +80,8 @@ HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
 ### Execute Targets workflow and load results
 
 ```{r}
+input_data_path<- c("~/Documents/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/Documents/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds")
+store <- "~/Desktop/HPCell/store_fibrosis"
 # Running the pipeline
 preprocessed_seurat = run_targets_pipeline(
     input_data = input_data_path,
