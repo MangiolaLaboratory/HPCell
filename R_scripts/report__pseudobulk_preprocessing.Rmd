@@ -132,7 +132,6 @@ Here we see for the distribution of samples coloured by severity along the top p
 
 ```{r, fig.dim = c(15, 15), message=FALSE, warning=FALSE}
 
-
 my_pca$rotated |> 
   cbind(my_pca$metadata) |> 
   as_tibble(rownames = ".sample_") |> 

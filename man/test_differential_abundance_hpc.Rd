@@ -10,7 +10,8 @@ test_differential_abundance_hpc(
   store = tempfile(tmpdir = "."),
   computing_resources = crew_controller_local(workers = 1),
   debug_job_id = NULL,
-  append = FALSE
+  append = FALSE,
+  ...
 )
 }
 \arguments{
