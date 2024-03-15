@@ -5,7 +5,7 @@
 \title{Get unique tissues
 Obtain unique tissues/ samples from input dataset}
 \usage{
-get_unique_tissues(seurat_object)
+get_unique_tissues(seurat_object, sample_column)
 }
 \description{
 Get unique tissues

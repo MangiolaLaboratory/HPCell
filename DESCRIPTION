@@ -61,7 +61,7 @@ Imports:
   knitr,
   digest, 
   SummarizedExperiment,
-  lme4, 
+  lme4,
   edgeR
 Encoding: UTF-8
 LazyData: true

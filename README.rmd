@@ -132,7 +132,7 @@ library(Seurat)
 library(scRNAseq)
 input_data_path =  tempfile(tmpdir = ".") |> paste0(".rds")
 HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
-  Seurat::as.Seurat(data = NULL) |>
+  as.Seurat(data = NULL) |>
   saveRDS(input_data_path)
 ```
 
@@ -140,10 +140,9 @@ HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
 
 ```{r}
 # input_data_path<- "~/HPCell/file4df43b24e7cf.rds"
-store<- "/vast/scratch/users/si.j/store8s"
 input_data_path_list <- c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds")
-store<- "/vast/scratch/users/si.j/storefibrosis4"
-
+store<- "/vast/scratch/users/si.j/storefibrosis6"
+RNA_assay_name<- "RNA"
 # Running the pipeline
 # preprocessed_seurat = run_targets_pipeline(
 #     input_data = c("~/HPCell/input_HEorgandata/input_bladder.rds",
@@ -166,11 +165,11 @@ preprocessed_seurat = HPCell::run_targets_pipeline(
     input_data = input_data_path_list,
     tissue = "pbmc",
     filter_empty_droplets = TRUE,
-    RNA_assay_name = "RNA",
+    RNA_assay_name = RNA_assay_name,
     sample_column = "sampleName", 
     store = store, 
-    cell_type_annotation_column = "cellAnno",
-    debug_step = "create_pseudobulk_sample"
+    cell_type_annotation_column = "cellAnno"
+    # debug_step = "create_pseudobulk_sample"
 )
 
 
