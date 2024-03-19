@@ -13,12 +13,7 @@ run_targets_pipeline(
   debug_step = NULL,
   filter_empty_droplets = TRUE,
   RNA_assay_name = "RNA",
-  sample_column = "sample",
-  my_launcher = custom_launcher_class$new(name = "my_custom_launcher", seconds_interval =
-    10, seconds_timeout = 300, seconds_launch = 5, seconds_idle = 60, seconds_wall =
-    3600, tasks_max = 20, tasks_timers = 45, launch_max = 25, reset_globals = FALSE,
-    reset_packages = FALSE, reset_options = FALSE, garbage_collection = TRUE, tls =
-    crew_tls())
+  sample_column = "sample"
 )
 }
 \arguments{

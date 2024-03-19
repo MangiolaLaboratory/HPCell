@@ -140,19 +140,60 @@ HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
 
 ```{r}
 # input_data_path<- "~/HPCell/file4df43b24e7cf.rds"
-store<- "/stornext/General/scratch/GP_Transfer/si.j/fibrosis_benchmark_2"
-
+store<- "/stornext/General/scratch/GP_Transfer/si.j/store_fibrosis_benchmark_2"
+computing_resources = crew::crew_controller(
+        client = crew::crew_client(
+          seconds_interval = 10,
+          seconds_timeout = 300
+          # seconds_launch = 5
+          # seconds_idle = 60,
+          # seconds_wall = 3600,
+          # tasks_max = 20,
+          # tasks_timers = 45,
+          # launch_max = 25,
+          # reset_globals = FALSE,
+          # reset_packages = FALSE,
+          # reset_options = FALSE,
+          # garbage_collection = TRUE,
+          # tls = crew::crew_tls(),
+          # processes = NULL
+          ),
+        launcher = custom_launcher_class$new(
+          seconds_interval = 10,
+          seconds_timeout = 300,
+          seconds_launch = 5,
+          seconds_idle = 60,
+          seconds_wall = 3600,
+          tasks_max = 20,
+          tasks_timers = 45, 
+          launch_max = 25,
+          reset_globals = FALSE,
+          reset_packages = FALSE,
+          reset_options = FALSE,
+          garbage_collection = TRUE,
+          tls = crew::crew_tls(),
+          processes = NULL
+        )
+      )
 # Running the pipeline
 prepreprocessed_seurat = run_targets_pipeline(
     input_data = c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds"),
     tissue = "pbmc",
-    computing_resources = custom_launcher_class$new(),
-    filter_empty_droplets = TRUE,
-    sample_column = "Tissue", 
+    computing_resources = computing_resources,
+    sample_column = "sampleName", 
     store = store
-    # debug_step = "variable_gene_list"
+    # debug_step = "calc_UMAP_dbl_report"
 )
 
+
+# custom_controller <- crew_controller_custom(
+#   name = "custom_controller_name", # and other parameters as needed
+#   # Specify other parameters if the defaults aren't appropriate
+# )
+# crew::crew_controller(
+#         client = crew::crew_client(), 
+#         launcher = custom_launcher_class$new()
+#       )
 # Load results
 preprocessed_seurat
 

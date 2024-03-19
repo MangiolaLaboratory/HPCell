@@ -30,10 +30,11 @@ run_targets_pipeline <- function(
     filter_empty_droplets = TRUE, 
     RNA_assay_name = "RNA", 
     sample_column = "sample"
+    # custom_controller = crew_controller_custom()
 ){
   
   sample_column = enquo(sample_column)
-  
+  RNA_assay_name = enquo(RNA_assay_name)
   # Save inputs for passing to targets pipeline 
   # input_data |> CHANGE_ASSAY |> saveRDS("input_file.rds")
   input_data |> saveRDS("input_file.rds")
@@ -42,6 +43,8 @@ run_targets_pipeline <- function(
   computing_resources |> saveRDS("temp_computing_resources.rds")
   filter_empty_droplets |> saveRDS("filter_empty_droplets.rds")
   sample_column |> saveRDS("sample_column.rds")
+  RNA_assay_name |> saveRDS("RNA_assay_name.rds")
+  # custom_controller |> saveRDS("custom_controller.rds")
   # Write pipeline to a file
   tar_script({
     
@@ -51,6 +54,8 @@ run_targets_pipeline <- function(
     library(crew.cluster)
     
     computing_resources = readRDS("temp_computing_resources.rds")
+    sample_column = readRDS("sample_column.rds")
+    # custom_controller = readRDS("custom_controller.rds")
     #-----------------------#
     # Packages
     #-----------------------#
@@ -98,6 +103,7 @@ run_targets_pipeline <- function(
       debug = debug_step, # Set the target you want to debug.
       # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
       controller = computing_resources
+      # resources = list(controller = custom_controller)
     )
     
     #-----------------------#
@@ -154,7 +160,8 @@ run_targets_pipeline <- function(
       tar_target(reference_file, readRDS("input_reference.rds")), 
       tar_target(tissue_file, readRDS("tissue.rds")), 
       tar_target(filtered_file, readRDS("filter_empty_droplets.rds")), 
-      tar_target(sample_column_file, readRDS("sample_column.rds")))
+      tar_target(sample_column_file, readRDS("sample_column.rds")), 
+      tar_target(RNA_assay_name_file, readRDS("RNA_assay_name.rds")))
     
     #-----------------------#
     # Pipeline
@@ -171,6 +178,7 @@ run_targets_pipeline <- function(
       tar_target(filter_empty_droplets, filtered_file, deployment = "main"),
       tar_target(tissue, tissue_file, deployment = "main"),
       tar_target(sample_column, sample_column_file, deployment = "main"),
+      tar_target(RNA_assay_name, RNA_assay_name_file, deployment = "main"),
       tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
       tar_target(reference_label_fine, reference_label_fine_id(tissue), deployment = "main"), 
       # Reading input files
@@ -273,16 +281,17 @@ run_targets_pipeline <- function(
       # pseudobulk preprocessing for each sample 
       tar_target(create_pseudobulk_sample, create_pseudobulk(preprocessing_output_S, 
                                                                    assays = "SCT", 
-                                                                   x = c(Tissue, Cell_type_in_each_tissue)), 
+                                                                   x = c(sampleName, cellAnno)), 
                  pattern = map(preprocessing_output_S), 
                  iteration = "list"),
       
       tar_target(pseudobulk_merge_all_samples, pseudobulk_merge(create_pseudobulk_sample, 
                                                                 assays = "RNA", 
-                                                                x = c(Tissue)), 
+                                                                x = c(sampleName)), 
                  iteration = "list"),
       
-      tar_target(calc_UMAP_dbl_report, calc_UMAP(input_read), 
+      tar_target(calc_UMAP_dbl_report, calc_UMAP(input_read, 
+                                                 RNA_assay_name), 
                  pattern = map(input_read), 
                  iteration = "list"),
       tar_target(variable_gene_list, find_variable_genes(input_read, 
