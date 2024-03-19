@@ -610,9 +610,9 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 #'
 #' @examples
 #' cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
-#' cleaned_cell_types <- HPCell::clean_cell_types_deeper(cell_types)
+#' cleaned_cell_types <- clean_cell_types_deeper(cell_types)
 #'
-HPCell::clean_cell_types_deeper = function(x){
+clean_cell_types_deeper = function(x){
   x |> 
     # Annotate
     mutate(cell_type_clean = cell_type_clean |> tolower()) |>
@@ -676,7 +676,7 @@ HPCell::clean_cell_types_deeper = function(x){
 #'
 #' @examples
 #' cell_types <- c("CD4+ T-cells", "NK cells", "Blast-cells")
-#' cleaned_cell_types <- HPCell::clean_cell_types(cell_types)
+#' cleaned_cell_types <- clean_cell_types(cell_types)
 #'
 clean_cell_types = function(.x){
   .x |>
@@ -1002,7 +1002,7 @@ get_manually_curated_immune_cell_types = function(){
     left_join(annotation_harmonised, by = c(".cell", ".sample")) |>
     
     # Clen cell types
-    mutate(cell_type_clean = cell_type |> HPCell::clean_cell_types())
+    mutate(cell_type_clean = cell_type |> clean_cell_types())
   
   # annotation |>
   # 	filter(lineage_1=="immune") |>
@@ -1045,7 +1045,7 @@ get_manually_curated_immune_cell_types = function(){
     
     filter(is.na(azhimut_confirmed) | (azhimut_confirmed + blueprint_confirmed) == 0) |>
     
-    HPCell::clean_cell_types_deeper() |> 
+    clean_cell_types_deeper() |> 
     
     mutate(cell_type_harmonised = "") |>
     
@@ -1314,7 +1314,7 @@ get_manually_curated_immune_cell_types = function(){
   
   annotation_all =
     annotation_crated_confirmed |>
-    HPCell::clean_cell_types_deeper() |> 
+    clean_cell_types_deeper() |> 
     bind_rows(
       annotation_crated_UNconfirmed
     ) |>
@@ -1345,7 +1345,7 @@ get_manually_curated_immune_cell_types = function(){
   
   curated_annotation =
     annotation |>
-    HPCell::clean_cell_types_deeper() |> 
+    clean_cell_types_deeper() |> 
     filter(lineage_1=="immune") |>
     dplyr::select(
       .cell, .sample, cell_type, cell_type_clean, predicted.celltype.l2, blueprint_singler, monaco_singler) |>
