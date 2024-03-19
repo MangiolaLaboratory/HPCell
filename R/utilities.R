@@ -612,7 +612,7 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 #' cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
 #' cleaned_cell_types <- HPCell::clean_cell_types_deeper(cell_types)
 #'
-clean_cell_types_deeper = function(x){
+HPCell::clean_cell_types_deeper = function(x){
   x |> 
     # Annotate
     mutate(cell_type_clean = cell_type_clean |> tolower()) |>
@@ -676,7 +676,7 @@ clean_cell_types_deeper = function(x){
 #'
 #' @examples
 #' cell_types <- c("CD4+ T-cells", "NK cells", "Blast-cells")
-#' cleaned_cell_types <- clean_cell_types(cell_types)
+#' cleaned_cell_types <- HPCell::clean_cell_types(cell_types)
 #'
 clean_cell_types = function(.x){
   .x |>
