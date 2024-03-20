@@ -12,7 +12,8 @@ map2_test_differential_abundance_hpc(
   computing_resources = crew_controller_local(workers = 1),
   cpus_per_task = 1,
   debug_job_id = NULL,
-  append = FALSE
+  append = FALSE,
+  ...
 )
 }
 \arguments{

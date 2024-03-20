@@ -392,3 +392,166 @@ se =
       computing_resources = slurm
     )
 
+
+  
+  # Test of multilevel models
+  
+  # Load necessary libraries
+  library(CuratedAtlasQueryR)  # For accessing curated atlas data
+  library(tidyverse)          # For data manipulation and visualization
+  
+  counts = 
+  # Retrieve and process the metadata
+  get_metadata() |> 
+    # Filter for specific conditions
+    filter(
+      tissue_harmonised == "blood",          # Select only 'blood' tissue
+      cell_type_harmonised == "b memory",    # Select only 'b memory' cell type
+      disease %in% c("normal", "COVID-19")   # Filter for 'normal' and 'COVID-19' diseases
+    ) |> 
+    # Convert the data frame to a tibble for better handling
+    as_tibble() |> 
+    # Nest data excluding sample and disease columns
+    nest(data_cells = -c(sample_, disease)) |> 
+    # Add a new column 'n' that contains the row count of each nested dataframe
+    mutate(n = map_int(data_cells, nrow)) |> 
+    # Filter out groups with less than 10 rows
+    filter(n > 9) |> 
+    # Nest the data again, this time excluding the disease column
+    nest(data_samples = -disease) |> 
+    # Add columns for lower and upper count thresholds
+    mutate(count_low = c(30, 30), count_high = c(500, 30)) |> 
+    # Apply function to each row using parallel mapping
+    mutate(data_samples = pmap(
+      list(data_samples, count_low, count_high),
+      ~ bind_rows(
+        # Select nine samples closest to the lower count threshold
+        ..1 |> 
+          arrange(abs(n-..2)) |> 
+          head(9),
+        
+        # Select one sample closest to the higher count threshold
+        ..1 |> 
+          arrange(abs(n-..3)) |> 
+          head(1)
+      ) |> 
+        distinct()
+    )) |> 
+    # Unnest the nested 'data_samples' dataframe
+    unnest(data_samples) |> 
+    # Finally, unnest the 'data_cells' to expand the nested data
+    unnest(data_cells) |> 
+    get_single_cell_experiment()
+  
+  assay(counts) = assay(counts) |> as.matrix()
+  
+  
+ de_results = 
+   counts |> 
+   mutate(disease = if_else(disease == "normal", "a_normal", "b_COVID-19")) |> 
+   tidybulk::keep_abundant(factor_of_interest = disease) |> 
+    tidybulk::test_differential_abundance(
+      ~disease, 
+      scaling_method = "TMMwsp"
+    ) 
+ 
+ de_results |> 
+   as("SummarizedExperiment") |> 
+   tidybulk::scale_abundance(method = "TMMwsp") |> 
+   _[rowData(de_results)$FDR<0.05,] |> 
+   _[7, , drop=FALSE] |> 
+   # _[
+   #   de_results |> 
+   #     rowData() |> 
+   #     as_tibble(rownames = "feature") |> 
+   #     arrange(desc(abs(logFC))) |> 
+   #     head(10) |> 
+   #     pull(feature)
+   #  ,] |> 
+   
+   ggplot(aes(sample_, counts_scaled)) +
+   geom_boxplot(aes(fill = disease), varwidth = TRUE, outlier.shape = NA) + 
+   geom_jitter(shape = ".") +
+   facet_wrap(~.feature) +
+   scale_y_log10()
+ 
+ de_results_lme4 = 
+   counts |> 
+   mutate(disease = if_else(disease == "normal", "a_normal", "b_COVID-19")) |> 
+   tidybulk::keep_abundant(factor_of_interest = disease) |> 
+   HPCell::test_differential_abundance_hpc(
+     ~disease + (1|sample_), 
+     scaling_method = "TMMwsp", 
+     computing_resources = 
+       crew.cluster::crew_controller_slurm(
+         name = "slurm",
+         slurm_memory_gigabytes_per_cpu = 5,
+         slurm_cpus_per_task = 1,
+         workers = 200,
+         verbose = T
+       )
+   ) 
+ 
+   as("SummarizedExperiment") |> 
+   as_tibble()
+    filter(FDR<0.05) |> 
+    nest(data = .feature)
+    tidybulk::pivot_transcript(feature)
+  
+  counts = 
+    tibble(
+    sample = letters[1:10],
+    condition  = rep(c("a_untreated", "b_treated"), each = 5), 
+    number_of_cells = 10,
+    mrna_abundance = rep(c(100, 10), each =5)
+  ) |> 
+    mutate(
+      number_of_cells = if_else(sample==max(sample), 500, number_of_cells),
+      mrna_abundance = if_else(sample==max(sample), 500, mrna_abundance),
+    ) |> 
+    mutate(counts = map2(
+      mrna_abundance,
+      number_of_cells,
+      ~ rnbinom(mu = .x,n = .y, size = 5) |> 
+        enframe(value = "counts", name = "cell")
+    )) |> 
+    unnest(counts) |> 
+    unite("cell_name", cell, sample, remove = FALSE)  
+  
+  counts |> 
+    ggplot(aes(fct_reorder(sample, condition), counts)) + 
+    geom_boxplot(aes(fill = condition), varwidth = TRUE, outlier.shape = NA) + 
+    geom_jitter(shape = ".") +
+    scale_y_log10()
+  
+  
+  # single cell with fixed effect models
+  counts |> 
+    mutate(log_counts = log1p(counts)) |> 
+    lm(log_counts~condition, data = _) |> 
+    summary()
+  
+  counts |> 
+    mutate(log_counts = log1p(counts)) |> 
+    with_groups(c(sample, condition, number_of_cells), ~ .x |> summarise(log_counts = mean(log_counts))) |> 
+    lm(log_counts~condition + number_of_cells, data = _, ) |> 
+    summary()
+  
+  counts |> 
+    mutate(log_counts = log1p(counts)) |> 
+    lmerTest::lmer(log_counts~condition + (1|sample), data = _) |> 
+    summary()
+    
+  counts |> 
+    mutate(feature = "gene_x") |> 
+    filter(counts>0) |> 
+    tidybulk::test_differential_abundance(
+      ~condition, 
+      cell_name, feature, counts, 
+      scaling_method = "none" 
+    ) |> 
+    pivot_transcript(feature)
+  
+  
+    lmerTest::lmer(log_counts~condition + (1|sample), data = _) |> 
+    summary()

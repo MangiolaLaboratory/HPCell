@@ -684,7 +684,7 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
                            targets.use, sep = " -> ")
     source.target.isolate <- setdiff(source.target, unique(df.net$source.target))
     if (length(source.target.isolate) > 0) {
-      df.net.isolate <- as.data.frame(matrix(NA, nrow = length(source.target.isolate),
+      df.net.isolate <- BiocGenerics::as.data.frame(matrix(NA, nrow = length(source.target.isolate),
                                              ncol = ncol(df.net)))
       colnames(df.net.isolate) <- colnames(df.net)
       df.net.isolate$source.target <- source.target.isolate
@@ -751,7 +751,7 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
       source.target.isolate <- setdiff(source.target,
                                        unique(df.net$source.target))
       if (length(source.target.isolate) > 0) {
-        df.net.isolate <- as.data.frame(matrix(NA, nrow = length(source.target.isolate),
+        df.net.isolate <- BiocGenerics::as.data.frame(matrix(NA, nrow = length(source.target.isolate),
                                                ncol = ncol(df.net)))
         colnames(df.net.isolate) <- colnames(df.net)
         df.net.isolate$source.target <- source.target.isolate
@@ -783,7 +783,7 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
         df.net$prob <- -1/log(df.net$prob)
       }
       else {
-        df.net <- as.data.frame(matrix(NA, nrow = length(group.names),
+        df.net <- BiocGenerics::as.data.frame(matrix(NA, nrow = length(group.names),
                                        ncol = 5))
         colnames(df.net) <- c("interaction_name_2",
                               "source.target", "prob", "pval", "prob.original")

@@ -5,8 +5,9 @@ date: "2024-01-24"
 output: html_document
 params:
   x1: "NA"
+  x2: "NA"
+  x3: "NA"
 ---
-
 
 ```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
 library(ggplot2)
@@ -84,7 +85,7 @@ knitr::opts_chunk$set(echo = TRUE)
 metadata =
   data_for_pca |>
   pivot_sample() |>
-  dplyr::select(Tissue, .sample, alive, Cell_type_in_each_tissue, .aggregated_cells)
+  dplyr::select(any_of(params$x2), .sample, alive, any_of(params$x3), .aggregated_cells)
 
 metadata = as.data.frame(metadata)
 rownames(metadata) = metadata$`.sample`
@@ -154,7 +155,7 @@ The distance of the points from the origin (where PC1 and PC2 both equal zero) i
 #      asp = 1)
 # x
 
-x<- ggplot(my_pca$metadata, aes(x = my_pca$rotated[, "PC1"], y = my_pca$rotated[, "PC2"], color = my_pca$metadata$Tissue))  +
+x<- ggplot(my_pca$metadata, aes(x = my_pca$rotated[, "PC1"], y = my_pca$rotated[, "PC2"], color = my_pca$metadata[[params$x2]]))  +
   geom_point() +
   theme_minimal() +
   labs(title = "PCA Plot Colored by Tissue Type",
@@ -172,7 +173,7 @@ x
 data_for_pca |>
 tidybulk::reduce_dimensions(method="PCA") |>
 tidybulk::pivot_sample() |>
-ggplot(aes(PC1, PC2, color=Cell_type_in_each_tissue)) +
+ggplot(aes(PC1, PC2, color=data_for_pca[[params$x3]])) +
 geom_point() +
   theme_bw() +
   theme(

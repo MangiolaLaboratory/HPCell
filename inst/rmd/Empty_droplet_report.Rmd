@@ -1,5 +1,5 @@
 ---
-title: "Empty_droplet_report"
+title: "Empty droplet report"
 author: "SS"
 date: "2023-12-07"
 output: html_document
@@ -8,6 +8,7 @@ params:
   x2: "NA"
   x3: "NA"
   x4: "NA"
+  x5: "NA"
 ---
 
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
@@ -73,7 +74,7 @@ assay = params$x1[[1]]@assays |> names() |> extract2(1)
 #   col[rownames(input_seurat) %in% ribo_genes] <-'red'
 #   col[rownames(input_seurat) %in% NA] <-'grey'
 #   sample_numbers = 1:length(list(input_seurat))
-#   #tissue_names <- unique(input$Tissue)
+#   #sample_names <- unique(input$Tissue)
 # }
 # processed_input_list <- map(params$x1, process_input)
 
@@ -84,21 +85,21 @@ assay = params$x1[[1]]@assays |> names() |> extract2(1)
 #     left_join(input |> dplyr::select(.cell, Tissue), by = '.cell')
   
 # Defining Tissue names
-# tissue_names <- sapply(1:length(params$x1), function(i) {
+# sample_names <- sapply(1:length(params$x1), function(i) {
 #   #browser()
 #         return(params$x1[[i]][[i]])
 # })
 # 
 
-# tissue_names <- lapply(params$x1, function(seurat_obj) {
+# sample_names <- lapply(params$x1, function(seurat_obj) {
 #     unique(seurat_obj$Tissue)
 # })
-# tissue_names<- unlist(tissue_names)
+# sample_names<- unlist(sample_names)
 # 
-# tissue_names <- sapply(1:length(params$x1), function(i) {
+# sample_names <- sapply(1:length(params$x1), function(i) {
 #         return(params$x1[[i]][[1]][[1]])
 # })
-# tissue_names
+# sample_names
 process_input<- function(input_seurat) {
   input<- input_seurat@meta.data |>
   tibble::rownames_to_column(var = '.cell')
@@ -107,10 +108,11 @@ process_input<- function(input_seurat) {
 processed_input_list <- map(params$x1, process_input)
   
 # Defining Tissue names
-tissue_names <- lapply(params$x1, function(seurat_obj) {
-    seurat_obj$Tissue
-})
-# tissue_names<- unlist(tissue_names)
+# sample_names <- lapply(params$x1, function(seurat_obj) {
+#     seurat_obj |> pull(params$x5)
+# })
+sample_names<- params$x4
+# sample_names<- unlist(sample_names)
 ```
 
 ## Barcode rank plot
@@ -122,7 +124,7 @@ empty_df <- function(input_seurat, empty_droplets_tbl) {
     tibble::rownames_to_column(var = '.cell')
   
   joined_data <- empty_droplets_tbl |> 
-    left_join(input |> dplyr::select(.cell, Tissue), by = '.cell')
+    left_join(input |> dplyr::select(.cell, params$x5), by = '.cell')
 
   # Create a data frame with plotting information
   plot_data <- data.frame(
@@ -219,6 +221,9 @@ empty_count_results
 
 
 ## Histogram of p-values: (only if empty droplets have been identified)
+
+- Shows the distribution of p-values for droplets in the lower 10 percentile of total within each tissue 
+- A low p-value signifies significance therefore we would reject those droplets as empty
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 hist_p_val <- function(df) {
   if(df |> dplyr::filter(empty) |> nrow() != 0){
@@ -246,6 +251,7 @@ plot_hist
 Scatter plot comparing mitochondrial content percentage to total count of RNA sequencing reads across different samples (in this case tissues)
 
 The X-axis is on a logarithmic scale and represents the total count of RNA sequencing reads per cell, while the Y-axis shows the percentage of those reads that are mitochondrial. Each point on the plot represents a single cell.
+
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 plot_mito_data <- function(input_seurat, tissue_name, annotation_labels){
   #browser()
@@ -292,7 +298,7 @@ plot_mito_data <- function(input_seurat, tissue_name, annotation_labels){
 }
 
 all_data <- lapply(seq_along(params$x1), function(i) {
-  plot_mito_data(params$x1[[i]], tissue_names[[i]], params$x3[[i]])
+  plot_mito_data(params$x1[[i]], sample_names[[i]], params$x3[[i]])
 })
 
 # Combine all data into a single tibble
@@ -324,14 +330,11 @@ plot_each_sample(combined_plot_mito_data)
 
 ```
 
-<!-- ## MA plot -->
-
-<!-- This plot is useful for examining the relationship between the "True empty" and "Ambiguous" cells across different samples and can be used to identify patterns between mitochondrial/ ribosomal content, and the quality of the samples. -->
 
 <!-- ```{r echo=FALSE, message=FALSE, warning=FALSE} -->
-<!-- tissue_names<- unlist(tissue_names) -->
+<!-- sample_names<- unlist(sample_names) -->
 <!-- plot_data <- dplyr::tibble( -->
-<!--   tissue_name = unique(tissue_names), -->
+<!--   tissue_name = unique(sample_names), -->
 <!--   input_files = params$x1, -->
 <!--   empty_droplets = params$x2 -->
 <!-- ) %>% -->
@@ -355,7 +358,7 @@ plot_each_sample(combined_plot_mito_data)
 
 <!--       extra <- joined_data |> dplyr::filter(FDR < 0.001) |> pull(.cell) -->
 <!--       amb  <- joined_data |> dplyr::filter(is.na(FDR)) |> pull(.cell) -->
-<!--       # tissue_names <- joined_data$Tissue -->
+<!--       # sample_names <- joined_data$Tissue -->
 
 <!--       # Sum of RNA-seq counts for each cell (or droplet) that is considered likely to be empty based on the FDR threshold -->
 <!--       extra.mu <- input_seurat |> dplyr::filter(.cell %in% extra) |> GetAssayData(assay,slot = "counts") |> rowSums() -->
