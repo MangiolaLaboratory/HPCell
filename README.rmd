@@ -140,41 +140,45 @@ HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
 
 ```{r}
 # input_data_path<- "~/HPCell/file4df43b24e7cf.rds"
-store<- "/stornext/General/scratch/GP_Transfer/si.j/store_fibrosis_benchmark_2"
-computing_resources = crew::crew_controller(
-        client = crew::crew_client(
-          seconds_interval = 10,
-          seconds_timeout = 300
-          # seconds_launch = 5
-          # seconds_idle = 60,
-          # seconds_wall = 3600,
-          # tasks_max = 20,
-          # tasks_timers = 45,
-          # launch_max = 25,
-          # reset_globals = FALSE,
-          # reset_packages = FALSE,
-          # reset_options = FALSE,
-          # garbage_collection = TRUE,
-          # tls = crew::crew_tls(),
-          # processes = NULL
-          ),
-        launcher = custom_launcher_class$new(
-          seconds_interval = 10,
-          seconds_timeout = 300,
-          seconds_launch = 5,
-          seconds_idle = 60,
-          seconds_wall = 3600,
-          tasks_max = 20,
-          tasks_timers = 45, 
-          launch_max = 25,
-          reset_globals = FALSE,
-          reset_packages = FALSE,
-          reset_options = FALSE,
-          garbage_collection = TRUE,
-          tls = crew::crew_tls(),
-          processes = NULL
-        )
-      )
+store<- "/stornext/General/scratch/GP_Transfer/si.j/store_fibrosis_benchmark_4_workers"
+# computing_resources = crew::crew_controller(
+#         client = crew::crew_client(
+#           seconds_interval = 10,
+#           seconds_timeout = 300
+#           # seconds_launch = 5
+#           # seconds_idle = 60,
+#           # seconds_wall = 3600,
+#           # tasks_max = 20,
+#           # tasks_timers = 45,
+#           # launch_max = 25,
+#           # reset_globals = FALSE,
+#           # reset_packages = FALSE,
+#           # reset_options = FALSE,
+#           # garbage_collection = TRUE,
+#           # tls = crew::crew_tls(),
+#           # processes = NULL
+#           ),
+#         launcher = custom_launcher_class$new(
+#           seconds_interval = 10,
+#           seconds_timeout = 300,
+#           seconds_launch = 5,
+#           seconds_idle = 60,
+#           seconds_wall = 3600,
+#           tasks_max = 20,
+#           tasks_timers = 45, 
+#           launch_max = 25,
+#           reset_globals = FALSE,
+#           reset_packages = FALSE,
+#           reset_options = FALSE,
+#           garbage_collection = TRUE,
+#           tls = crew::crew_tls(),
+#           processes = NULL
+#         )
+#       )
+
+computing_resources = crew_controller_local(
+  name = "my_controller",
+  workers = 4)
 # Running the pipeline
 prepreprocessed_seurat = run_targets_pipeline(
     input_data = c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds"),
