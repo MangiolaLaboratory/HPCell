@@ -60,7 +60,7 @@ get_labels_clusters = function(.data, label_column, dim1, dim2){
 
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
 ## Adjusting plot size according to the number of samples 
-# num_samples <- length(x1$Tissue)
+# num_samples <- length(params$x1$Tissue)
 # 
 # # Calculate the grid layout based on the number of samples
 # num_columns <- ceiling(sqrt(num_samples))
@@ -82,7 +82,7 @@ merged_combined_annotation_doublets <- list(
     ) |> 
   enframe(name = "sample_id", value = "annotated_metadata")|> 
   mutate(
-    sample_name = map(annotated_metadata,  ~ .x$Tissue[1])) |> 
+    sample_name = map(annotated_metadata,  ~ .x |> pull(params$x5[[1]]))) |> 
   mutate(plot_by_doublet = map2(
     annotated_metadata,
     sample_name,
@@ -190,7 +190,7 @@ From this plot, we can infer:
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
 # 2a) Create the composition of the doublets
 
-doublet_composition<- merged_combined_annotation_doublets %>% 
+doublet_composition<- merged_combined_annotation_doublets |>
   mutate(doublet_composition = map2(
     annotated_metadata,
     sample_name,
@@ -198,22 +198,30 @@ doublet_composition<- merged_combined_annotation_doublets %>%
       #browser() 
       .x|> 
       dplyr::select(all_of(params$x5), scDblFinder.class)}
-      )) |> 
-      #table()|> 
-  dplyr::select(sample_name, doublet_composition) |> 
+      )) |>
+      # table()|>
+  dplyr::select(sample_name, doublet_composition) |>
   deframe()
-  
 
+  # merged_combined_annotation_doublets <-
+  #   merged_combined_annotation_doublets |>
+  # mutate(doublet_composition_plot = doublet_composition |> 
+  #          group_by(params$x5, all_of(params$x5)) |>
+  #          mutate(proportion = count_class/sum(count_class)) |>
+  #          ungroup()
+  #        )
+  
+# calculate proportion and plot
 #calculate proportion and plot
   merged_combined_annotation_doublets <- 
     merged_combined_annotation_doublets |>
   mutate(doublet_composition_plot = map(
     annotated_metadata,
       ~ .x |> 
-      #browser() |> 
-  # create frquency column
-  dplyr::count(Tissue, all_of(params$x5), scDblFinder.class, name= "count_class") |> 
-    group_by(Tissue, all_of(params$x5)) |> 
+      # browser() |> 
+  # create frequency column
+  dplyr::count(.data[[params$x5]], .data[[params$x6]], scDblFinder.class, name= "count_class") |> 
+    group_by(.data[[params$x5]], .data[[params$x6]]) |> 
     mutate(proportion = count_class/sum(count_class)) |>
     ungroup() |>
     
@@ -225,10 +233,10 @@ doublet_composition<- merged_combined_annotation_doublets %>%
   # mutate(proportion = (frequency * 1)/tot_sample_proportion) |>
   
   #plot proportion
-  ggplot(aes(x = all_of(params$x5) , y = proportion, fill = scDblFinder.class)) +
+  ggplot(aes(x = .data[[params$x6]] , y = proportion, fill = scDblFinder.class)) +
   geom_bar(stat = "identity") +
   theme_bw() +
-  facet_wrap(~Tissue) +
+  facet_wrap(~sampleName) +
   theme(axis.text.x=element_text(angle=70, hjust=1))
   )) 
   

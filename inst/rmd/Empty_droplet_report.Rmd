@@ -108,9 +108,10 @@ process_input<- function(input_seurat) {
 processed_input_list <- map(params$x1, process_input)
   
 # Defining Tissue names
-sample_names <- lapply(params$x1, function(seurat_obj) {
-    seurat_obj$params$x5
-})
+# sample_names <- lapply(params$x1, function(seurat_obj) {
+#     seurat_obj |> pull(params$x5)
+# })
+sample_names<- params$x4
 # sample_names<- unlist(sample_names)
 ```
 
@@ -123,7 +124,7 @@ empty_df <- function(input_seurat, empty_droplets_tbl) {
     tibble::rownames_to_column(var = '.cell')
   
   joined_data <- empty_droplets_tbl |> 
-    left_join(input |> dplyr::select(.cell, Tissue), by = '.cell')
+    left_join(input |> dplyr::select(.cell, params$x5), by = '.cell')
 
   # Create a data frame with plotting information
   plot_data <- data.frame(

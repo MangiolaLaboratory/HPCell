@@ -536,7 +536,9 @@ calc_UMAP <- function(input_seurat){
 #' Function to subset Seurat object by tissue
 get_unique_tissues <- function(seurat_object, sample_column) {
   sample_column<- quo_name(sample_column)
-  return(seurat_object@meta.data$sample_column[[1]])
+  unique_sample <- seurat_object@meta.data |> pull(sample_column) |> unique()
+  
+  return(unique_sample)
 }
 
 #' Check for Strong Evidence

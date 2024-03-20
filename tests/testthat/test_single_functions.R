@@ -13,7 +13,7 @@ input_seurat_list =
   subset(subset = Tissue %in% c("Heart", "Trachea")) |>
   group_split()
 
-sample_column<- "Tissue"
+# sample_column<- "Tissue"
 ## Defining functions 
 # 
 reference_label_fine = HPCell:::reference_label_fine_id(tissue)
@@ -369,8 +369,8 @@ rmarkdown::render(
   params = list(x1 = tar_read(input_read, store = store), 
                 x2 = tar_read(empty_droplets_tbl, store = store),
                 x3 = tar_read(annotation_label_transfer_tbl, store = store),
-                x4 = tar_read(unique_tissues, store = store)|> quo_name(), 
-                x5 = tar_read(sample_column, store = store))
+                x4 = tar_read(unique_tissues, store = store), 
+                x5 = tar_read(sample_column, store = store)|> quo_name())
 )
 
 ## Doublet identification 
@@ -392,7 +392,8 @@ rmarkdown::render(
   params = list(x1 = tar_read(input_read, store = store),
                 x2 = tar_read(empty_droplets_tbl, store = store), 
                 x3 = tar_read(variable_gene_list, store = store), 
-                x4 = tar_read(calc_UMAP_dbl_report, store = store)
+                x4 = tar_read(calc_UMAP_dbl_report, store = store), 
+                x5 = tar_read(sample_column, store = store) |> quo_name()
   )
 )
 
@@ -401,8 +402,11 @@ rmarkdown::render(
 rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/pseudobulk_analysis_report.html"),
-  params = list(x1 = tar_read(pseudobulk_merge_all_samples, store = store))
+  params = list(x1 = tar_read(pseudobulk_merge_all_samples, store = store), 
+                x2 = tar_read(sample_column, store = store) |> quo_name(), 
+                x3 = tar_read(cell_type_annotation_column, store = store) |> quo_name())
 )
+
 
 # 
 # tissues <- unique(input_seurat$Tissue)
