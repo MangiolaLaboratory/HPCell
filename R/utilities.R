@@ -531,6 +531,7 @@ calc_UMAP <- function(input_seurat){
     as_tibble()
   return(x)
 }
+
 #' Subsetting input dataset into a list of seurat objects by sample/ tissue 
 #'  @description
 #' Function to subset Seurat object by tissue

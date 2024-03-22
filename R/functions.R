@@ -1190,13 +1190,13 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
 #' @param input_seurat Single Seurat object (Input data)
 #' 
 #' @export
-calc_UMAP <- function(input_seurat){
-  find_var_genes <- FindVariableFeatures(input_seurat)
-  var_genes<- find_var_genes@assays$originalexp@var.features
+calc_UMAP <- function(input_seurat, variable_gene_list){
+  # find_var_genes <- FindVariableFeatures(input_seurat)
+  # var_genes<- find_var_genes@assays$originalexp@var.features
   
   x<- ScaleData(input_seurat) |>
     # Calculate UMAP of clusters
-    RunPCA(features = var_genes) |>
+    RunPCA(features = variable_gene_list) |>
     FindNeighbors(dims = 1:30) |>
     FindClusters(resolution = 0.5) |>
     RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
@@ -1246,7 +1246,7 @@ find_variable_genes <- function(input_seurat, empty_droplet){
   return(my_variable_genes)
 }
 
-<<<<<<< HEAD
+
 #' Create custom launcher 
 #' @description
 #' Function to create a custom launcher class that outputs the resource usage using /usr/bin/time
@@ -1366,7 +1366,7 @@ crew_controller_custom <- function(
   controller
 }
 
-=======
+
 #' Harmonize cell type annotations based on consensus
 #'
 #' This function harmonizes cell type annotations by matching them with a reference annotation
@@ -1462,73 +1462,164 @@ annotation_consensus = function(single_cell_data, .sample_column, .cell_type, .a
     )
   
 }
-
-
->>>>>>> master
-
-# 
-# 
-# custom_launcher_class <- R6::R6Class(
-#   classname = "custom_launcher_class",
-#   inherit = crew::crew_class_launcher,
-#   public = list(
-#     launch_worker = function(name = NULL,
-#                           seconds_interval = 10,
-#                           seconds_timeout = 300,
-#                           seconds_launch = 5,
-#                           seconds_idle = 60,
-#                           seconds_wall = 3600,
-#                           tasks_max = 20,
-#                           tasks_timers = 45,
-#                           launch_max = 25,
-#                           reset_globals = FALSE,
-#                           reset_packages = FALSE,
-#                           reset_options = FALSE,
-#                           garbage_collection = TRUE,
-#                           tls = crew::crew_tls(),
-#                           processes = NULL
-#                           ){
-#       if(is.null(name) || !nzchar(name)) {
-#         name <- "default_launcher_name"
-#       }
-#       super$initialize(name = name, seconds_interval = seconds_interval,
-#                        seconds_timeout = seconds_timeout,
-#                        seconds_launch = seconds_launch,
-#                        seconds_idle = seconds_idle,
-#                        seconds_wall = seconds_wall,
-#                        tasks_max = tasks_max,
-#                        tasks_timers = tasks_timers,
-#                        launch_max = launch_max,
-#                        reset_globals = reset_globals,
-#                        reset_packages, reset_packages,
-#                        reset_options = reset_options,
-#                        garbage_collection = garbage_collection,
-#                        tls = tls,
-#                        processes = processes
-#                        )
-#     },
-#     launch_worker = function(call, name, launcher , worker, instance) {
-#       bin <- file.path(R.home("bin"), "R")
-#       process <- processx::process$new(
-#         command = "/usr/bin/time",
-#         args = c(
-#           "--format",
-#           "Max RAM: %M\nCPU: %P",
-#           "R",
-#           "-e",
-#           call
-#         ),
-#         cleanup = FALSE
-#       )
-# 
-#       tmp <- tempfile(tmpdir = "/stornext/General/scratch/GP_Transfer/si.j/fibrosis_benchmark_2")
-#       call |> writeLines(tmp)
-#       process$read_error() |> writeLines(tmp)
-#     },
-#     terminate_worker = function(handle) {
-#       handle$signal(crew::crew_terminate_signal())
-#     }
-#   )
-# )
-# 
-# 
+#' 
+#' #' Create custom launcher 
+#' #' @description
+#' #' Function to create a custom launcher class that outputs the resource usage using /usr/bin/time
+#' #' @name custom_launcher_class
+#' #' @inheritParams crew::crew_controller_local
+#' #' @export
+#' #' 
+#' custom_launcher_class <- R6::R6Class(
+#'   classname = "custom_launcher_class",
+#'   inherit = crew::crew_class_launcher,
+#'   public = list(
+#'     launch_worker = function(call, name, launcher, worker, instance){
+#'       bin <- file.path(R.home("bin"), "R")
+#'       # Create a process object instance
+#'       process <- processx::process$new(
+#'         command = "/usr/bin/time",
+#'         args = c(
+#'           "--format",
+#'           'Max RAM: %M\nCPU:%P',
+#'           bin,  # Use the R executable path variable
+#'           "-e",
+#'           call),
+#'         cleanup = FALSE
+#'         # stderr = "|" 
+#'       )
+#'       # Generate a temporary file path
+#'       # tmp <- tempfile(tmpdir = "/stornext/General/scratch/GP_Transfer/si.j/store_fibrosis_benchmark_2")
+#'       # Write the command to a temporary file
+#'       # writeLines(call, tmp)
+#'       # readLines(process$read_error_lines()) |> writeLines(tmp)
+#'     },
+#'     terminate_worker = function(handle) {
+#'       handle$signal(crew::crew_terminate_signal())
+#'     }
+#'   )
+#' )
+#' 
+#' ## TEsting 
+#' 
+#' custom_launcher_class <- R6::R6Class(
+#'   classname = "custom_launcher_class",
+#'   inherit = crew::crew_class_launcher,
+#'   public = list(
+#'     launch_worker = function(call, name, launcher, worker, instance) {
+#'       bin <- file.path(R.home("bin"), "R")
+#'       processx::process$new(
+#'         command = bin,
+#'         args = c("-e", call),
+#'         cleanup = FALSE
+#'       )
+#'     },
+#'     terminate_worker = function(handle) {
+#'       handle$signal(crew::crew_terminate_signal())
+#'     }
+#'   )
+#' )
+#' 
+#' controller$push(
+#'   name = "get worker IP address and process ID",
+#'   command = paste(getip::getip(type = "local"), ps::ps_pid())
+#' )
+#' controller$wait()
+#' result <- controller$pop()
+#' result$result[[1]]
+#' 
+#' 
+#' ##TEST 
+#' custom_launcher <- R6::R6Class(
+#'   "custom_launcher",
+#'   inherit = crew::crew_class_launcher,
+#'   public = list(
+#'     launch_worker = function(call, name, launcher, worker, instance){
+#'       # The command to run R with '/usr/bin/time'
+#'       cmd <- c("/usr/bin/time", "-f", "'Max RAM: %M\nCPU: %P'", R.home("bin/R"), "-e", call)
+#'       
+#'       # Launch the process with the custom command
+#'       process <- processx::process$new(
+#'         cmd = cmd[1],
+#'         args = cmd[-1],
+#'         stdout = "|", stderr = "|", cleanup = TRUE
+#'       )
+#'       return(list(process = process, ...))
+#'       },
+#'     terminate_worker = function(handle) {
+#'       handle$signal(crew::crew_terminate_signal())
+#'     }
+#'       
+#'       # Save the PID to a file or database for tracking
+#'       # ...
+#'       
+#'       # Return the process handle or necessary tracking information
+#'   )
+#' )
+#' 
+#' # 
+#' # # 
+#' # custom_launcher_class <- R6::R6Class(
+#' #   classname = "custom_launcher_class",
+#' #   inherit = crew::crew_class_launcher,
+#' #   public = list(
+#' #     launch_worker = function(name = NULL,
+#' #                           seconds_interval = 10,
+#' #                           seconds_timeout = 300,
+#' #                           seconds_launch = 5,
+#' #                           seconds_idle = 60,
+#' #                           seconds_wall = 3600,
+#' #                           tasks_max = 20,
+#' #                           tasks_timers = 45,
+#' #                           launch_max = 25,
+#' #                           reset_globals = FALSE,
+#' #                           reset_packages = FALSE,
+#' #                           reset_options = FALSE,
+#' #                           garbage_collection = TRUE,
+#' #                           tls = crew::crew_tls(),
+#' #                           processes = NULL
+#' #                           ){
+#' #       if(is.null(name) || !nzchar(name)) {
+#' #         name <- "default_launcher_name"
+#' #       }
+#' #       super$initialize(name = name, seconds_interval = seconds_interval,
+#' #                        seconds_timeout = seconds_timeout,
+#' #                        seconds_launch = seconds_launch,
+#' #                        seconds_idle = seconds_idle,
+#' #                        seconds_wall = seconds_wall,
+#' #                        tasks_max = tasks_max,
+#' #                        tasks_timers = tasks_timers,
+#' #                        launch_max = launch_max,
+#' #                        reset_globals = reset_globals,
+#' #                        reset_packages, reset_packages,
+#' #                        reset_options = reset_options,
+#' #                        garbage_collection = garbage_collection,
+#' #                        tls = tls,
+#' #                        processes = processes
+#' #                        )
+#' #     },
+#' #     launch_worker = function(call, name, launcher , worker, instance) {
+#' #       bin <- file.path(R.home("bin"), "R")
+#' #       process <- processx::process$new(
+#' #         command = "/usr/bin/time",
+#' #         args = c(
+#' #           "--format",
+#' #           "Max RAM: %M\nCPU: %P",
+#' #           "R",
+#' #           "-e",
+#' #           call
+#' #         ),
+#' #         cleanup = FALSE
+#' #       )
+#' # 
+#' #       tmp <- tempfile(tmpdir = "/stornext/General/scratch/GP_Transfer/si.j/fibrosis_benchmark_2")
+#' #       call |> writeLines(tmp)
+#' #       process$read_error() |> writeLines(tmp)
+#' #     },
+#' #     terminate_worker = function(handle) {
+#' #       handle$signal(crew::crew_terminate_signal())
+#' #     }
+#' #   )
+#' # )
+#' # 
+#' # 

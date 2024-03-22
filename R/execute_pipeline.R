@@ -29,22 +29,11 @@ run_targets_pipeline <- function(
     debug_step = NULL,
     filter_empty_droplets = TRUE, 
     RNA_assay_name = "RNA", 
-<<<<<<< HEAD
-    sample_column = "sample"
-    # custom_controller = crew_controller_custom()
-){
-  
-  sample_column = enquo(sample_column)
-  RNA_assay_name = enquo(RNA_assay_name)
-=======
     sample_column = "sample", 
     cell_type_annotation_column = "Cell_type_in_each_tissue"
 ){
-  
   sample_column = enquo(sample_column)
   # cell_type_annotation_column = enquo(cell_type_annotation_column)
-  
->>>>>>> master
   # Save inputs for passing to targets pipeline 
   # input_data |> CHANGE_ASSAY |> saveRDS("input_file.rds")
   input_data |> saveRDS("input_file.rds")
@@ -53,12 +42,7 @@ run_targets_pipeline <- function(
   computing_resources |> saveRDS("temp_computing_resources.rds")
   filter_empty_droplets |> saveRDS("filter_empty_droplets.rds")
   sample_column |> saveRDS("sample_column.rds")
-<<<<<<< HEAD
-  RNA_assay_name |> saveRDS("RNA_assay_name.rds")
-  # custom_controller |> saveRDS("custom_controller.rds")
-=======
   cell_type_annotation_column |> saveRDS("cell_type_annotation_column.rds")
->>>>>>> master
   # Write pipeline to a file
   tar_script({
     
@@ -307,8 +291,7 @@ run_targets_pipeline <- function(
                                                                 x = c(sampleName)), 
                  iteration = "list"),
       
-      tar_target(calc_UMAP_dbl_report, calc_UMAP(input_read, 
-                                                 RNA_assay_name), 
+      tar_target(calc_UMAP_dbl_report, HPCell::calc_UMAP(input_read), 
                  pattern = map(input_read), 
                  iteration = "list"), 
       tar_target(variable_gene_list, find_variable_genes(input_read, 
