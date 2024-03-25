@@ -145,17 +145,24 @@ custom_launcher_class <- R6::R6Class(
   public = list(
     launch_worker = function(call, name, launcher, worker, instance) {
       bin <- file.path(R.home("bin"), "R")
-      processx::process$new(
-        command = bin,
+      process = processx::process$new(
+        command = "/usr/bin/time",
         args = c(
           "--format",
           'Max RAM: %M\nCPU:%P',
-          bin,  # Use the R executable path variable
-          "-e",
+          "R",
+          "-e", 
           call),
-        cleanup = FALSE
+        cleanup = FALSE, 
+        stdin = "|",
+        stderr = "|"
       )
+      
+      tmp <- tempfile(tmpdir = store)
+      call |> writeLines(tmp)
+      process$read_error() |> writeLines(tmp)
     },
+    
     terminate_worker = function(handle) {
       handle$signal(crew::crew_terminate_signal())
     }
@@ -213,11 +220,19 @@ crew_controller_custom <- function(
 }
 
 controller<- crew_controller_custom()
+
+#Test 
+controller$start()
+controller$push(name = "task", command = sqrt(4))
+controller$wait()
+
+controller$pop()
+controller$terminate()
 ```
 
 ```{r}
 # input_data_path<- "~/HPCell/file4df43b24e7cf.rds"
-store<- "/stornext/General/scratch/GP_Transfer/si.j/store_fibrosis_benchmark_custom_launcher_1"
+store<- "/stornext/General/scratch/GP_Transfer/si.j/store_fibrosis_benchmark_custom_launcher_4"
 
 # computing_resources = crew_controller_local(
 #   name = "my_controller",
@@ -228,7 +243,8 @@ prepreprocessed_seurat = run_targets_pipeline(
     tissue = "pbmc",
     computing_resources = controller,
     sample_column = "sampleName", 
-    store = store
+    store = store, 
+    input_reference = NULL
     # debug_step = "calc_UMAP_dbl_report"
 )
 
