@@ -407,6 +407,13 @@ rmarkdown::render(
                 x3 = tar_read(cell_type_annotation_column, store = store) |> quo_name())
 )
 
+# General plots report 
+rmarkdown::render(
+  input = paste0(system.file(package = "HPCell"), "/rmd/reports_graphs.Rmd"),
+  output_file = paste0(system.file(package = "HPCell"), "/reports_graphs.html"),
+  params = list(x1 = tar_read(input_read, store = store), 
+                x2 = tar_read(sample_column, store = store) |> quo_name()
+))
 
 # 
 # tissues <- unique(input_seurat$Tissue)

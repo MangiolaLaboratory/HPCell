@@ -232,12 +232,12 @@ controller$terminate()
 
 ```{r}
 # input_data_path<- "~/HPCell/file4df43b24e7cf.rds"
-store<- "/stornext/General/scratch/GP_Transfer/si.j/store_fibrosis_benchmark_custom_launcher_4"
+store<- "/stornext/General/scratch/GP_Transfer/si.j/store_fibrosis_benchmark_custom_launcher__2"
 
-# computing_resources = crew_controller_local(
-#   name = "my_controller",
-#   workers = 4)
-# Running the pipeline
+computing_resources = crew_controller_local(
+  name = "my_controller",
+  workers = 4)
+#Running the pipeline
 prepreprocessed_seurat = run_targets_pipeline(
     input_data = c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds"),
     tissue = "pbmc",
