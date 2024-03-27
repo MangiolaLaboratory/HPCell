@@ -536,7 +536,9 @@ calc_UMAP <- function(input_seurat){
 #' Function to subset Seurat object by tissue
 get_unique_tissues <- function(seurat_object, sample_column) {
   sample_column<- quo_name(sample_column)
-  return(seurat_object@meta.data$sample_column[[1]])
+  unique_sample <- seurat_object@meta.data |> pull(sample_column) |> unique()
+  
+  return(unique_sample)
 }
 
 #' Check for Strong Evidence
@@ -608,9 +610,15 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 #'
 #' @return A cleaned and standardized vector of cell types.
 #'
+<<<<<<< HEAD
 ##' @examples
 ##' cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
 # cleaned_cell_types <- clean_cell_types_deeper(cell_types)
+=======
+#' @examples
+#' cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
+#' cleaned_cell_types <- clean_cell_types_deeper(cell_types)
+>>>>>>> af792d54cd2005a93e8c0ac94aba6d8ce577323b
 #'
 clean_cell_types_deeper = function(x){
   x |> 
@@ -676,7 +684,11 @@ clean_cell_types_deeper = function(x){
 #'
 #' @examples
 #' cell_types <- c("CD4+ T-cells", "NK cells", "Blast-cells")
+<<<<<<< HEAD
 # cleaned_cell_types <- clean_cell_types(cell_types)
+=======
+#' cleaned_cell_types <- clean_cell_types(cell_types)
+>>>>>>> af792d54cd2005a93e8c0ac94aba6d8ce577323b
 #'
 clean_cell_types = function(.x){
   .x |>

@@ -6,11 +6,14 @@ output: html_document
 params: 
   x1: "NA"
   x2: "NA"
+  x3: "NA" 
+  x4: "NA"
+  x5: "NA"
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-assay_of_choice = "originalexp"
+# assay_of_choice = "originalexp"
 metadata_list <- lapply(params$x1, function(seurat_obj) {
   return(seurat_obj@meta.data)
 })
@@ -139,11 +142,11 @@ data_umap<- params$x4 %>% bind_rows()
 plot_tissue_color =
     data_umap |>
     dplyr::mutate(batch = 1) |>
-    ggplot(aes(umap_1, umap_2, color = Tissue)) +  # Ensure 'Tissue' is a column in 'data_umap'
+    ggplot(aes(umap_1, umap_2, color = data_umap[[x5]])) +  # Ensure 'Tissue' is a column in 'data_umap'
     geom_point(size = 0.2) +
-    facet_wrap(~Tissue) +
+    facet_wrap(~data_umap[[x5]]) +
     theme_minimal() +
-    labs(title = "UMAP colored by Tissue", color = "Tissue")
+    labs(title = "UMAP colored by Tissue", color = "data_umap[[x5]]")
 
 # plot_severity_color =
 #   data_umap |>

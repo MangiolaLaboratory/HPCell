@@ -139,10 +139,10 @@ HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
 ### Execute Targets workflow and load results
 
 ```{r}
-# input_data_path<- "~/HPCell/file4df43b24e7cf.rds"
-input_data_path_list <- c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds")
-store<- "/vast/scratch/users/si.j/storefibrosis6"
-RNA_assay_name<- "RNA"
+RNA_assay_name = "RNA"
+input_data_path_list<- c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds")
+store <- "/vast/scratch/users/si.j/store_fibrosis8"
+
 # Running the pipeline
 # preprocessed_seurat = run_targets_pipeline(
 #     input_data = c("~/HPCell/input_HEorgandata/input_bladder.rds",

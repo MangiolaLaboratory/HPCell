@@ -13,10 +13,46 @@ input_seurat_list =
   subset(subset = Tissue %in% c("Heart", "Trachea")) |>
   group_split()
 
-sample_column<- "Tissue"
+# sample_column<- "Tissue"
 ## Defining functions 
 # 
 reference_label_fine = HPCell:::reference_label_fine_id(tissue)
+
+empty_droplets_tbl = HPCell:::empty_droplet_id(input_seurat_abc, filter_empty_droplets = TRUE)
+
+# Define output from annotation_label_transfer 
+annotation_label_transfer_tbl = HPCell:::annotation_label_transfer(input_seurat_abc,
+                                                          empty_droplets_tbl)
+
+# Define output from alive_identification
+alive_identification_tbl = HPCell:::alive_identification(input_seurat_abc,
+                                                empty_droplets_tbl,
+                                                annotation_label_transfer_tbl)
+
+
+# Define output from doublet_identification
+doublet_identification_tbl = HPCell:::doublet_identification(input_seurat_abc,
+                                                    empty_droplets_tbl,
+                                                    alive_identification_tbl,
+                                                    annotation_label_transfer_tbl,
+                                                    reference_label_fine)
+
+# Define output from cell_cycle_scoring
+cell_cycle_score_tbl = HPCell:::cell_cycle_scoring(input_seurat_abc, empty_droplets_tbl)
+
+# Define output from non_batch_variation_removal
+non_batch_variation_removal_S = HPCell:::non_batch_variation_removal(input_seurat_abc,
+                                                            empty_droplets_tbl,
+                                                            alive_identification_tbl,
+                                                            cell_cycle_score_tbl, 
+                                                            assay = NULL)
+# Define output from preprocessing_output
+preprocessing_output_S = HPCell:::preprocessing_output(tissue,
+                                              non_batch_variation_removal_S,
+                                              alive_identification_tbl,
+                                              cell_cycle_score_tbl,
+                                              annotation_label_transfer_tbl,
+                                              doublet_identification_tbl)
 # empty_droplets_tbl = HPCell:::empty_droplet_id(input_seurat_list[[1]], filter_empty_droplets = TRUE)
 # 
 # # Define output from annotation_label_transfer 
@@ -333,8 +369,8 @@ rmarkdown::render(
   params = list(x1 = tar_read(input_read, store = store), 
                 x2 = tar_read(empty_droplets_tbl, store = store),
                 x3 = tar_read(annotation_label_transfer_tbl, store = store),
-                x4 = tar_read(unique_tissues, store = store)|> quo_name(), 
-                x5 = tar_read(sample_column, store = store))
+                x4 = tar_read(unique_tissues, store = store), 
+                x5 = tar_read(sample_column, store = store)|> quo_name())
 )
 
 ## Doublet identification 
@@ -356,7 +392,8 @@ rmarkdown::render(
   params = list(x1 = tar_read(input_read, store = store),
                 x2 = tar_read(empty_droplets_tbl, store = store), 
                 x3 = tar_read(variable_gene_list, store = store), 
-                x4 = tar_read(calc_UMAP_dbl_report, store = store)
+                x4 = tar_read(calc_UMAP_dbl_report, store = store), 
+                x5 = tar_read(sample_column, store = store) |> quo_name()
   )
 )
 
@@ -365,8 +402,11 @@ rmarkdown::render(
 rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/pseudobulk_analysis_report.html"),
-  params = list(x1 = tar_read(pseudobulk_merge_all_samples, store = store))
+  params = list(x1 = tar_read(pseudobulk_merge_all_samples, store = store), 
+                x2 = tar_read(sample_column, store = store) |> quo_name(), 
+                x3 = tar_read(cell_type_annotation_column, store = store) |> quo_name())
 )
+
 
 # 
 # tissues <- unique(input_seurat$Tissue)
