@@ -281,6 +281,10 @@ alive_identification <- function(input_read_RNA_assay,
                                  annotation_label_transfer_tbl,
                                  assay = NULL) {
   
+  # Fix CGHECK notes
+  empty_droplet = NULL
+  detected = NULL
+  
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
@@ -990,8 +994,8 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 #' the function defaults to the first assay in each SingleCellExperiment object.
 #'
 #' @examples
-#' # Assuming `se_list` is a list of SingleCellExperiment objects
-#' result <- map_add_dispersion_to_se(se_list, .col = se_objects, abundance = "counts")
+# # Assuming `se_list` is a list of SingleCellExperiment objects
+# result <- map_add_dispersion_to_se(se_list, .col = se_objects, abundance = "counts")
 #'
 #' @importFrom magrittr extract2
 #' @importFrom edgeR estimateDisp
