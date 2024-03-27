@@ -22,6 +22,8 @@ Imports:
   tidybulk,
   tidySummarizedExperiment,
   tidySingleCellExperiment,
+  SummarizedExperiment, 
+  edgeR,
   sctransform (>= 0.3.3),
   Seurat (>= 5.0.0),
   Matrix (>= 1.6),
