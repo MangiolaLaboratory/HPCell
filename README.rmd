@@ -158,7 +158,7 @@ custom_launcher_class <- R6::R6Class(
         stderr = "|"
       )
       
-      tmp <- tempfile(tmpdir = store)
+      tmp <- tempfile(tmpdir = "~/HPCell/store_usr_bin_time_output")
       call |> writeLines(tmp)
       process$read_error() |> writeLines(tmp)
     },
