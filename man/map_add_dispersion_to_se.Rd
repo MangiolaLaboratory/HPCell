@@ -28,8 +28,3 @@ or list. It calculates dispersion estimates for the features (genes) based on th
 The results are joined back to each SingleCellExperiment object. If no abundance assay is specified,
 the function defaults to the first assay in each SingleCellExperiment object.
 }
-\examples{
-# Assuming `se_list` is a list of SingleCellExperiment objects
-result <- map_add_dispersion_to_se(se_list, .col = se_objects, abundance = "counts")
-
-}

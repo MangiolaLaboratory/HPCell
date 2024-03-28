@@ -555,11 +555,11 @@ get_unique_tissues <- function(seurat_object, sample_column) {
 #' @return A data frame with a column indicating strong evidence.
 #'
 #' @examples
-#' single_cell_data <- data.frame(
-#'   cell_annotation_azimuth_l2 = c("cd14 mono", "b naive"),
-#'   cell_annotation_blueprint_singler = c("monocytes", "naive b")
-#' )
-#' strong_evidence_data <- is_strong_evidence(single_cell_data, cell_annotation_azimuth_l2, cell_annotation_blueprint_singler)
+# single_cell_data <- data.frame(
+#   cell_annotation_azimuth_l2 = c("cd14 mono", "b naive"),
+#   cell_annotation_blueprint_singler = c("monocytes", "naive b")
+#' 
+# strong_evidence_data <- is_strong_evidence(single_cell_data, cell_annotation_azimuth_l2, cell_annotation_blueprint_singler)
 #'
 is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell_annotation_blueprint_singler){
   
@@ -610,9 +610,15 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 #'
 #' @return A cleaned and standardized vector of cell types.
 #'
+<<<<<<< HEAD
+##' @examples
+##' cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
+# cleaned_cell_types <- clean_cell_types_deeper(cell_types)
+=======
 #' @examples
 #' cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
 #' cleaned_cell_types <- clean_cell_types_deeper(cell_types)
+>>>>>>> af792d54cd2005a93e8c0ac94aba6d8ce577323b
 #'
 clean_cell_types_deeper = function(x){
   x |> 
@@ -678,7 +684,11 @@ clean_cell_types_deeper = function(x){
 #'
 #' @examples
 #' cell_types <- c("CD4+ T-cells", "NK cells", "Blast-cells")
+<<<<<<< HEAD
+# cleaned_cell_types <- clean_cell_types(cell_types)
+=======
 #' cleaned_cell_types <- clean_cell_types(cell_types)
+>>>>>>> af792d54cd2005a93e8c0ac94aba6d8ce577323b
 #'
 clean_cell_types = function(.x){
   .x |>
@@ -702,7 +712,7 @@ clean_cell_types = function(.x){
 #'
 #' @examples
 #' metadata <- data.frame(cell_type = c("Myofibroblast", "Fibroblast", "Other Fibroblast"))
-#' harmonized_metadata <- harmonise_names_non_immune(metadata)
+# harmonized_metadata <- harmonise_names_non_immune(metadata)
 #'
 harmonise_names_non_immune = function(metadata){
   
