@@ -1066,7 +1066,7 @@ map_test_differential_abundance = function(
       if(ncol(.x) > 2000) method = "glmmseq_glmmTMB"
       else method = "glmmSeq_lme4"
       
-
+      
       # Test
       test_differential_abundance(
         .x,
@@ -1078,7 +1078,7 @@ map_test_differential_abundance = function(
         .dispersion = dispersion,
         ...
       )
-      },
+    },
     ...
     
   ))
@@ -1290,6 +1290,5 @@ calc_UMAP <- function(input_seurat){
     RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
     as_tibble()
 }
-
 
 
