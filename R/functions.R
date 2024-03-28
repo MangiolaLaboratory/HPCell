@@ -958,7 +958,7 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 #' The results are joined back to each SingleCellExperiment object. If no abundance assay is specified, 
 #' the function defaults to the first assay in each SingleCellExperiment object.
 #'
-#' @examples
+# @examples
 # # Assuming `se_list` is a list of SingleCellExperiment objects
 # result <- map_add_dispersion_to_se(se_list, .col = se_objects, abundance = "counts")
 #'
