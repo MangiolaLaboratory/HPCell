@@ -554,7 +554,7 @@ get_unique_tissues <- function(seurat_object, sample_column) {
 #'
 #' @return A data frame with a column indicating strong evidence.
 #'
-#' @examples
+# @examples
 # single_cell_data <- data.frame(
 #   cell_annotation_azimuth_l2 = c("cd14 mono", "b naive"),
 #   cell_annotation_blueprint_singler = c("monocytes", "naive b")
@@ -610,7 +610,7 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 #'
 #' @return A cleaned and standardized vector of cell types.
 #'
-##' @examples
+# @examples
 # cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
 # cleaned_cell_types <- clean_cell_types_deeper(cell_types)
 
