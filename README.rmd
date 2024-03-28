@@ -232,21 +232,23 @@ controller$terminate()
 
 ```{r}
 # input_data_path<- "~/HPCell/file4df43b24e7cf.rds"
-store<- "/stornext/General/scratch/GP_Transfer/si.j/store_fibrosis_benchmark_custom_launcher__2"
+store<- "/stornext/General/scratch/GP_Transfer/si.j/store_fibrosis_benchmark_slurm_launcher_2"
 
-computing_resources = crew_controller_local(
+computing_resources = crew_controller_slurm(
   name = "my_controller",
   workers = 4)
+
 #Running the pipeline
 prepreprocessed_seurat = run_targets_pipeline(
     input_data = c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds"),
     tissue = "pbmc",
-    computing_resources = controller,
+    computing_resources = computing_resources,
     sample_column = "sampleName", 
     store = store, 
     input_reference = NULL
     # debug_step = "calc_UMAP_dbl_report"
 )
+
 
 
 # custom_controller <- crew_controller_custom(
