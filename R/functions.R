@@ -284,7 +284,7 @@ alive_identification <- function(input_read_RNA_assay,
                                  annotation_label_transfer_tbl,
                                  assay = NULL) {
   
-  # Fix CGHECK notes
+  # Fix GCHECK notes
   empty_droplet = NULL
   detected = NULL
   
@@ -491,7 +491,12 @@ doublet_identification <- function(input_read_RNA_assay,
 cell_cycle_scoring <- function(input_read_RNA_assay, 
                                empty_droplets_tbl,
                                assay = NULL){
-  
+  #Fix GCHECK
+  empty_droplet = NULL 
+  .cell = NULL 
+  S.Score = NULL 
+  G2M.Score = NULL 
+  Phase = NULL 
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   

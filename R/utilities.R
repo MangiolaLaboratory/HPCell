@@ -43,6 +43,11 @@ empty_droplet_id <- function(input_read_RNA_assay,
                              filter_empty_droplets,
                              assay = NULL){
   
+  #Fix GCHECKS 
+  FDR = NULL 
+  . = NULL 
+  .cell = NULL 
+  
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
@@ -990,6 +995,36 @@ get_manually_curated_immune_cell_types = function(){
   #   annotation_harmonised |>  saveRDS("~/PostDoc/CuratedAtlasQueryR/dev/annotated_data_0.2_temp_table.rds")
   # })
   # 
+  
+  #Fix GCHECKS 
+  metadata_file = NULL 
+  .cell = NULL 
+  cell_type = NULL 
+  file_id = NULL 
+  .sample = NULL 
+  read_csv = NULL 
+  azhimut_confirmed = NULL 
+  blueprint_confirmed = NULL 
+  arrange = NULL 
+  cell_type_clean = NULL 
+  blueprint_singler = NULL 
+  predicted.celltype.l2 = NULL 
+  strong_evidence = NULL 
+  cell_type_harmonised = NULL 
+  distinct = NULL 
+  bind_rows = NULL 
+  confidence_class = NULL 
+  lineage_1 = NULL 
+  monaco_singler = NULL 
+  cell_annotation_monaco_singler = NULL 
+  cell_annotation_azimuth_l2 = NULL 
+  cell_annotation_blueprint_singler = NULL 
+  confidence_class_manually_curated = NULL 
+  cell_type_harmonised_manually_curated = NULL 
+  file_curated_annotation_merged = NULL 
+  # _cell = NULL 
+  # _sample = NULL 
+  cell_type_harmonised_non_immune = NULL 
 
   annotation_harmonised = readRDS("~/PostDoc/CuratedAtlasQueryR/dev/annotated_data_0.2_temp_table.rds")
   

@@ -12,6 +12,9 @@ cellchat_matrix_for_circle = function (object, signaling, signaling.name = NULL,
                                        scale = FALSE, reduce = -1, show.legend = FALSE, legend.pos.x = 20,
                                        legend.pos.y = 20, ...) {
 
+  # Fix GCHECK 
+  pathway_name = NULL 
+  
   if(object@LR$LRsig %>% filter(pathway_name == signaling) %>% nrow %>% magrittr::equals(0)) return(NULL)
 
   layout <- match.arg(layout)
@@ -68,6 +71,11 @@ cellchat_process_sample_signal = function (object, signaling = NULL, pattern = c
                                            font.size = 8, font.size.title = 10, cluster.rows = FALSE,
                                            cluster.cols = FALSE)
 {
+  # Fix GCHECK 
+  cell_type = NULL 
+  value = NULL 
+  gene = NULL 
+  
   pattern <- match.arg(pattern)
   if (length(slot(object, slot.name)$centr) == 0) {
     stop("Please run `netAnalysis_computeCentrality` to compute the network centrality scores! ")
@@ -164,6 +172,8 @@ computeCommunProb = function (object, type = c("triMean", "truncatedMean", "thre
                               distance.use = TRUE, interaction.length = 200, scale.distance = 0.01,
                               k.min = 10, nboot = 100, seed.use = 1L, Kh = 0.5, n = 1)
 {
+  
+  
   type <- match.arg(type)
   cat(type, "is used for calculating the average gene expression per cell group.",
       "\n")
@@ -295,7 +305,7 @@ computeCommunProb = function (object, type = c("triMean", "truncatedMean", "thre
         P2 <- matrix(1, nrow = numCluster, ncol = numCluster)
       }
       if (is.element(i, index.antagonist)) {
-        data.antagonist <- computeExpr_antagonist(data.use = data.use.avg,
+        data.antagonist <- CellChat::computeExpr_antagonist(data.use = data.use.avg,
                                                   pairLRsig, cofactor_input, index.antagonist = i,
                                                   Kh = Kh, n = n)
         P3 <- Matrix::crossprod(matrix(data.antagonist,
@@ -340,7 +350,7 @@ computeCommunProb = function (object, type = c("triMean", "truncatedMean", "thre
           P2.boot <- matrix(1, nrow = numCluster, ncol = numCluster)
         }
         if (is.element(i, index.antagonist)) {
-          data.antagonist <- computeExpr_antagonist(data.use = data.use.avgB,
+          data.antagonist <- CellChat::computeExpr_antagonist(data.use = data.use.avgB,
                                                     pairLRsig, cofactor_input, index.antagonist = i,
                                                     Kh = Kh, n = n)
           P3.boot <- Matrix::crossprod(matrix(data.antagonist,
@@ -445,6 +455,10 @@ cellchat_circle_plot = function(pathway, x, y, DB, joint){
 
 #' @importFrom purrr when
 cellchat_diff_for_circle = function(pathway, x, y){
+  
+  # Fix GCHECK 
+  . = NULL
+  
   zero_matrix =
     pathway %>%
     when(
@@ -468,6 +482,11 @@ cellchat_diff_for_circle = function(pathway, x, y){
   m2 - m1
 }
 
+#' @importFrom igraph graph_from_adjacency_matrix layout_
+#' @importFrom CellChat scPalette
+#' @importFrom patchwork wrap_elements
+#' @importFrom cowplot as_grob
+#' 
 draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, sources.use = NULL,
                                       targets.use = NULL, remove.isolate = FALSE, top = 1, top_absolute = NULL, weight.scale = T,
                                       vertex.weight = 20, vertex.weight.max = NULL, vertex.size.max = 15,
@@ -477,6 +496,9 @@ draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, 
                                       shape = "circle", layout = in_circle(), margin = 0.2, vertex.size = NULL,
                                       arrow.width = 1, arrow.size = 0.2)
 {
+  # Pass GCHECKS 
+  target = NULL 
+  
   if (!is.null(vertex.size)) {
     warning("'vertex.size' is deprecated. Use `vertex.weight`")
   }
@@ -528,10 +550,10 @@ draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, 
       net <- net[, -idx, drop=FALSE]
     }
   }
-  g <- graph_from_adjacency_matrix(net, mode = "directed",
+  g <- igraph::graph_from_adjacency_matrix(net, mode = "directed",
                                    weighted = T)
   edge.start <- igraph::ends(g, es = igraph::E(g), names = FALSE)
-  coords <- layout_(g, layout)
+  coords <- igraph::layout_(g, layout)
   if (nrow(coords) != 1) {
     coords_scale = scale(coords)
   }
@@ -539,7 +561,7 @@ draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, 
     coords_scale <- coords
   }
   if (is.null(color.use)) {
-    color.use = scPalette(length(igraph::V(g)))
+    color.use = CellChat::scPalette(length(igraph::V(g)))
   }
   if (is.null(vertex.weight.max)) {
     vertex.weight.max <- max(vertex.weight)
@@ -598,7 +620,7 @@ draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, 
     text(0, 1.5, title.name, cex = 0.8)
   }
 
-  grab_grob() |> as_grob() |> wrap_elements()
+  grab_grob() |> cowplot::as_grob() |> patchwork::wrap_elements()
 
 }
 
