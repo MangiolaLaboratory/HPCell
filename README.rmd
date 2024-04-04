@@ -166,7 +166,44 @@ custom_launcher_class <- R6::R6Class(
     terminate_worker = function(handle) {
       handle$signal(crew::crew_terminate_signal())
     }
-  )
+  ))
+
+
+RNA_assay_name = "RNA"
+
+input_data_path_list<- c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds")
+
+store <- "/vast/scratch/users/si.j/store_fibrosis8"
+
+# Running the pipeline
+# preprocessed_seurat = run_targets_pipeline(
+#     input_data = c("~/HPCell/input_HEorgandata/input_bladder.rds",
+#                    "~/HPCell/input_HEorgandata/input_Blood.rds",
+#                    "~/HPCell/input_HEorgandata/input_Common.bile.duct.rds",
+#                    "~/HPCell/input_HEorgandata/input_Esophagus.rds",
+#                    "~/HPCell/input_HEorgandata/input_heart.rds",
+#                    "~/HPCell/input_HEorgandata/input_Liver.rds", 
+#                    "~/HPCell/input_HEorgandata/input_Lymph.node .rds",
+#                    "~/HPCell/input_HEorgandata/input_Marrow.rds"),
+#     tissue = "pbmc",
+#     filter_empty_droplets = TRUE,
+#     sample_column = "Tissue", 
+#     store = store, 
+#     cell_type_annotation_column = "cellAnno"
+#     # debug_step = "variable_gene_list"
+# )
+
+input_data_path_list = "~/HPCell/input_HEorgandata/input_Blood.rds"
+
+preprocessed_seurat = HPCell::run_targets_pipeline(
+    input_data = input_data_path_list,
+    tissue = "pbmc",
+    filter_empty_droplets = TRUE,
+    RNA_assay_name = RNA_assay_name,
+    sample_column = "Tissue", 
+    store = store, 
+    cell_type_annotation_column = "Cell_type_in_each_tissue"
+    # debug_step = "create_pseudobulk_sample"
 )
 
 

@@ -10,7 +10,7 @@ RNA_assay_name<- "originalexp"
 input_seurat_list = 
   HeOrganAtlasData(ensembl=FALSE,location=FALSE)|> 
   as.Seurat(data = NULL) |>
-  subset(subset = Tissue %in% c("Heart", "Trachea")) |>
+  subset(subset = Tissue %in% c("Blood")) |>
   group_split()
 
 # sample_column<- "Tissue"

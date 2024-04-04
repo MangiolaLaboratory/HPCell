@@ -187,9 +187,10 @@ reference_label_coarse_id <- function(tissue) {
 #' @noRd
 add_RNA_assay <- function(input_read, RNA_assay_name){
   
+  
   if (RNA_assay_name != "RNA"){
     input_read[["RNA"]] = input_read[[RNA_assay_name]]
-    DefaultAssay(object = input_read) <- "RNA"
+    Seurat::DefaultAssay(object = input_read) <- "RNA"
     input_read[[RNA_assay_name]] = NULL
   }
   

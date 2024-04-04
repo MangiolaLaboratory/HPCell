@@ -25,6 +25,8 @@
 #' @import targets
 #' @importFrom rlang quo_is_symbolic
 #' @importFrom SummarizedExperiment assays
+#' @importFrom tidyseurat quo_names
+#' @importFrom tibble rowid_to_column
 #' 
 #' @export
 map2_test_differential_abundance_hpc = function(
@@ -38,6 +40,22 @@ map2_test_differential_abundance_hpc = function(
     append = FALSE,
     ...
   ){
+  
+  #Fix GChecks 
+  file_data = NULL 
+  file_formula = NULL
+  abundance = NULL
+  number_of_workers = NULL
+  number_of_datasets = NULL
+  pseudobulk_df_tissue = NULL
+  name = NULL 
+  pseudobulk_df_tissue_dispersion = NULL 
+  pseudobulk_df_tissue_split_by_gene = NULL
+  pseudobulk_df_tissue_split_by_gene_grouped = NULL
+  se_md5 = NULL
+  estimates_chunk = NULL
+  my_group = NULL
+  assay_name = NULL 
   
   .abundance = enquo(.abundance)
 
