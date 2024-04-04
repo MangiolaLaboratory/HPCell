@@ -17,12 +17,12 @@
 #' @importFrom SingleR SingleR
 #' @importFrom tibble as_tibble
 #' @importFrom tibble tibble
-#' @importFrom dplyr select
+#' @importFrom dplyr select, join_by 
 #' @importFrom dplyr rename
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
-#' @importFrom Seurat CreateSeuratObject
-#' @importFrom Seurat CreateAssayObject
+#' @importFrom Seurat CreateSeuratObject, SCTransform, VariableFeatures, FindTransferAnchors
+#' @importFrom Seurat MapQuery
 #' @importFrom Seurat as.SingleCellExperiment
 #' @importFrom magrittr extract2
 #' 
@@ -32,6 +32,12 @@ annotation_label_transfer <- function(input_read_RNA_assay,
                                       reference_azimuth = NULL,
                                       assay = NULL
 ){
+  # Fix github checks 
+  empty_droplet = NULL 
+  pruned.labels = NULL 
+  delta.next = NULL 
+  .cell = NULL 
+  
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
@@ -184,7 +190,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
       RunPCA(assay = "SCT")
     
     if("ADT" %in% names(input_read_RNA_assay@assays) ){
-      VariableFeatures(input_read_RNA_assay, assay="ADT") <- rownames(input_read_RNA_assay[["ADT"]])
+      Seurat::VariableFeatures(input_read_RNA_assay, assay="ADT") <- rownames(input_read_RNA_assay[["ADT"]])
       input_read_RNA_assay =
         input_read_RNA_assay |>
         NormalizeData(normalization.method = 'CLR', margin = 2, assay="ADT") |>
@@ -220,7 +226,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     azimuth_annotation =
       tryCatch(
         expr = {
-          MapQuery(
+          Seurat::MapQuery(
             anchorset = anchors,
             query = input_read_RNA_assay,
             reference = reference_azimuth ,
@@ -244,7 +250,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     # Save
     modified_data <- data_annotated  |>
-      left_join(azimuth_annotation, by = join_by(.cell)	) 
+      left_join(azimuth_annotation, by = dplyr::join_by(.cell)	) 
     
     return(modified_data)
   }
@@ -281,9 +287,12 @@ alive_identification <- function(input_read_RNA_assay,
                                  annotation_label_transfer_tbl,
                                  assay = NULL) {
   
-  # Fix CGHECK notes
+  # Fix GITCHECK notes
   empty_droplet = NULL
   detected = NULL
+  blueprint_first.labels.fine = NULL 
+  .cell = NULL 
+  high_mitochondrion = NULL 
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
@@ -531,7 +540,7 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
 #'
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
-#' @importFrom Seurat NormalizeData
+#' @importFrom Seurat NormalizeData, VariableFeatures
 #' @import sctransform
 #' @export
 non_batch_variation_removal <- function(input_read_RNA_assay, 
@@ -569,7 +578,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   # VariableFeatures(counts) = variable_features
   
   # Normalise RNA
-  normalized_rna <- SCTransform(
+  normalized_rna <- Seurat::SCTransform(
     counts, 
     assay=assay,
     return.only.var.genes=FALSE,
@@ -1186,6 +1195,10 @@ get_unique_tissues <- function(seurat_object) {
 #' @param input_seurat Single Seurat object (Input data)
 #' @param empty_droplet Single dataframe containing empty droplet filtering information 
 #' @return A vector of variable gene names
+#' 
+#' @importFrom Seurat VariableFeatures, FindVariableFeatures
+#' 
+#' 
 #' @export
 # Find set of variable genes 
 find_variable_genes <- function(input_seurat, empty_droplet){
@@ -1208,8 +1221,8 @@ find_variable_genes <- function(input_seurat, empty_droplet){
   input_seurat <- ScaleData(seu, assay=assay_of_choice, return.only.var.genes=FALSE)
   
   # Find and retrieve variable features
-  input_seurat <- FindVariableFeatures(input_seurat, assay=assay_of_choice, nfeatures = 500)
-  my_variable_genes <- VariableFeatures(input_seurat, assay=assay_of_choice)
+  input_seurat <- Seurat::FindVariableFeatures(input_seurat, assay=assay_of_choice, nfeatures = 500)
+  my_variable_genes <- Seurat::VariableFeatures(input_seurat, assay=assay_of_choice)
   
   return(my_variable_genes)
 }
@@ -1228,8 +1241,27 @@ find_variable_genes <- function(input_seurat, empty_droplet){
 #'
 #' @return A data frame with harmonized cell type annotations.
 #'
+#'
+#' @importFrom dplyr across
+#' @importFrom readr read_csv
+#' @importFrom dplyr bind_rows, join_by 
+#' @importFrom 
+#' @importFrom 
+#' @importFrom 
+#'
+#'
 #' @export
 annotation_consensus = function(single_cell_data, .sample_column, .cell_type, .azimuth, .blueprint, .monaco){
+  # Fix GITCHECK notes
+  .sample = NULL 
+  cell_type = NULL 
+  cell_annotation_azimuth_l2 = NULL 
+  cell_annotation_blueprint_singler = NULL 
+  cell_annotation_monaco_singler = NULL 
+  .cell = NULL 
+  cell_type_harmonised = NULL 
+  confidence_class = NULL
+  
   
   .sample_column = enquo(.sample_column)
   .azimuth = enquo(.azimuth)
