@@ -624,7 +624,17 @@ draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, 
 
 }
 
+#' @importFrom dplyr distinct
+#' 
 select_genes_for_circle_plot = function(x, pathway){
+  # Fix GChecks 
+  CellChatDB.human <- NULL
+  pathway_name <- NULL
+  ligand <- NULL
+  . <- NULL
+  receptor <- NULL
+  
+
   paste(
     c(
       x@data.signaling[rownames(x@data.signaling) %in% (CellChatDB.human$interaction %>% filter(pathway_name == pathway) %>% distinct(ligand) %>% pull(1)),, drop=F] %>% rowSums() %>% .[(.)>100] %>% names(),
@@ -635,6 +645,8 @@ select_genes_for_circle_plot = function(x, pathway){
 
 }
 
+#' @importFrom CellChat subsetCommunication
+#' 
 get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, targets.use = NULL, signaling = NULL,
                                                    pairLR.use = NULL, color.heatmap = c("Spectral", "viridis"),
                                                    n.colors = 10, direction = -1, thresh = 0.05, comparison = NULL,
@@ -645,6 +657,9 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
                                                    show.legend = TRUE, grid.on = TRUE, color.grid = "grey90",
                                                    angle.x = 90, vjust.x = NULL, hjust.x = NULL, return.data = FALSE)
 {
+  
+  # Fix GChecks 
+  prob.original = NULL 
 
   # cells.level <- levels(object@idents)
   # source.use.numerical = which(cells.level == source.use)
@@ -688,7 +703,7 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
     # TRY CATCH
     df.net <- 	tryCatch(
       expr = {
-        subsetCommunication(object, slot.name = "net",
+        CellChat::subsetCommunication(object, slot.name = "net",
                             sources.use = sources.use, targets.use = targets.use,
                             signaling = signaling, pairLR.use = pairLR.use,
                             thresh = thresh)
@@ -751,7 +766,7 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
   }
   else {
     dataset.name <- names(object@net)
-    df.net.all <- subsetCommunication(object, slot.name = "net",
+    df.net.all <- CellChat::subsetCommunication(object, slot.name = "net",
                                       sources.use = sources.use, targets.use = targets.use,
                                       signaling = signaling, pairLR.use = pairLR.use,
                                       thresh = thresh)
@@ -900,6 +915,9 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
   df
 }
 
+#' @importFrom gridGraphics grid.echo
+#' @importFrom grid grid.grab
+#' 
 grab_grob <- function(){
   grid.echo()
   grid.grab()

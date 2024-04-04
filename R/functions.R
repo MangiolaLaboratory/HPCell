@@ -182,7 +182,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
       input_read_RNA_assay |>
       
       # Normalise RNA - not informed by smartly selected variable genes
-      SCTransform(assay=assay) |>
+      Seurat::SCTransform(assay=assay) |>
       ScaleData(assay = "SCT") |>
       RunPCA(assay = "SCT")
     
@@ -539,14 +539,22 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
 #'
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
-#' @importFrom Seurat NormalizeData
-#' @import sctransform
+#' @importFrom Seurat NormalizeData SCTransform
 #' @export
 non_batch_variation_removal <- function(input_read_RNA_assay, 
                                         empty_droplets_tbl, 
                                         alive_identification_tbl, 
                                         cell_cycle_score_tbl,
                                         assay = NULL){
+  #Fix GChecks 
+  empty_droplet = NULL 
+  .cell <- NULL 
+  subsets_Ribo_percent <- NULL  
+  subsets_Mito_percent <- NULL  
+  G2M.Score = NULL 
+  
+  # Your code for non_batch_variation_removal function here
+  
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
@@ -626,6 +634,16 @@ preprocessing_output <- function(tissue,
                                  cell_cycle_score_tbl, 
                                  annotation_label_transfer_tbl, 
                                  doublet_identification_tbl){
+  #Fix GCHECKS 
+  .cell <- NULL
+  alive <- NULL
+  subsets_Mito_percent <- NULL
+  subsets_Ribo_percent <- NULL
+  high_mitochondrion <- NULL
+  high_ribosome <- NULL
+  scDblFinder.class <- NULL
+  predicted.celltype.l2 <- NULL
+  
   processed_data <- non_batch_variation_removal_S |>
     # Filter dead cells
     left_join(
@@ -728,6 +746,8 @@ create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
 #' @export
 #' 
 pseudobulk_merge <- function(create_pseudobulk_sample, assays, x , ...) {
+  # Fix GCHECKS 
+  . = NULL 
   #browser()
   x = enquo(x)
   # Select only common columns
@@ -803,8 +823,19 @@ pseudobulk_merge <- function(create_pseudobulk_sample, assays, x , ...) {
 #' @importFrom purrr map2
 #' @importFrom purrr map
 #' @importFrom purrr map2_dbl
+#' @importFrom dplyr distinct add_count
 #' @export
 seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_for_plotting = ""){
+  
+  #Fix GChecks 
+  cell_type_harmonised <- NULL
+  n_cells <- NULL
+  DB <- NULL
+  cell_vs_all_cells_per_pathway <- NULL
+  gene <- NULL
+  
+  # Your code for seurat_to_ligand_receptor_count function here
+  
   
   .cell_group = enquo(.cell_group)
   
@@ -1135,6 +1166,7 @@ map_split_se_by_number_of_genes = function(se_df, .col, chunk_size = 100){
 
 #' @importFrom digest digest
 #' @importFrom rlang enquo
+#' @importFrom purrr map_chr
 #'
 #' @export
 map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_cells_before_split = 4763){
@@ -1155,30 +1187,9 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
       }
     )) |>
     unnest(!!.col) |>
-    mutate(sce_md5 = map_chr(!!.col, digest))
+    mutate(sce_md5 = purrr::map_chr(!!.col, digest))
 }
 
-
-#' Calculate UMAP
-#' Scales the input data, performing PCA, clustering the cells and running UMAP and constructs a tibble in preparation for plotting in 
-#' the doublet identification report 
-#' 
-#' @param input_seurat Single Seurat object (Input data)
-#' 
-#' @export
-calc_UMAP <- function(input_seurat){
-  find_var_genes <- FindVariableFeatures(input_seurat)
-  var_genes<- find_var_genes@assays$originalexp@var.features
-  
-  x<- ScaleData(input_seurat) |>
-    # Calculate UMAP of clusters
-    RunPCA(features = var_genes) |>
-    FindNeighbors(dims = 1:30) |>
-    FindClusters(resolution = 0.5) |>
-    RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
-    as_tibble()
-  return(x)
-}
 
 #' Get unique tissues 
 #' Obtain unique tissues/ samples from input dataset 

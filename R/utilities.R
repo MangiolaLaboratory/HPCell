@@ -225,11 +225,20 @@ add_RNA_assay <- function(input_read, RNA_assay_name){
 #' @importFrom Seurat FindNeighbors
 #' @importFrom Seurat FindClusters
 #' @importFrom Seurat VariableFeatures
-#' @importFrom dplyr mutate
+#' @importFrom dplyr mutate distinct bind_rows
 #' @importFrom glue glue
+#' @importFrom purrr map_int
 #' @noRd
 seurat_to_variable_features_by_cell_type = function(counts, assay, .cell_group = NULL, features_number_per_cell_group = 300){
   
+  # Fix GChecks 
+  upper_quantile <- NULL
+  number_features_overall <- NULL
+  feature <- NULL
+  group <- NULL
+  
+
+
   .cell_group = enquo(.cell_group)
   
   # Nest
@@ -399,6 +408,8 @@ seurat_to_variable_features = function(
 #' @importFrom dplyr count
 #' @importFrom dplyr with_groups
 #' @importFrom dplyr pull
+#' @importFrom dplyr bind_rows
+#' @importFrom purrr map_int
 #' @noRd
 subset_top_rank_variable_genes_across_batches = function(
     table_across_cell_groups,
@@ -408,6 +419,8 @@ subset_top_rank_variable_genes_across_batches = function(
     features_number_independent_of_cell_groups = 2000,
     features_number_per_cell_group = 300
 ){
+  # Fix GChecks 
+  feature = NULL 
   
   .cell_group = enquo(.cell_group)
   .batch = enquo(.batch)
@@ -938,8 +951,16 @@ harmonise_names_non_immune = function(metadata){
   metadata
 }
 
-
+#' @importFrom readr read_csv
+#' 
 get_manually_curated_immune_cell_types = function(){
+  #Fix GCHECKS 
+  metadata_file = NULL 
+  .cell = NULL 
+  cell_type = NULL
+  file_id = NULL 
+  .sample = NULL 
+  
   
   library(zellkonverter)
   library(Seurat)
@@ -1002,7 +1023,6 @@ get_manually_curated_immune_cell_types = function(){
   cell_type = NULL 
   file_id = NULL 
   .sample = NULL 
-  read_csv = NULL 
   azhimut_confirmed = NULL 
   blueprint_confirmed = NULL 
   arrange = NULL 

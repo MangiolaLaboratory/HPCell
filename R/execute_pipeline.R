@@ -33,6 +33,37 @@ run_targets_pipeline <- function(
     cell_type_annotation_column = "Cell_type_in_each_tissue"
 ){
   
+  # Fix GCHECKS 
+  read_file <- NULL
+  reference_file <- NULL
+  tissue_file <- NULL
+  filtered_file <- NULL
+  sample_column_file <- NULL
+  cell_type_annotation_column_file <- NULL
+  reference_label_coarse <- NULL
+  reference_label_fine <- NULL
+  input_read <- NULL
+  unique_tissues <- NULL
+  reference_read <- NULL
+  empty_droplets_tbl <- NULL
+  cell_cycle_score_tbl <- NULL
+  annotation_label_transfer_tbl <- NULL
+  alive_identification_tbl <- NULL
+  doublet_identification_tbl <- NULL
+  non_batch_variation_removal_S <- NULL
+  preprocessing_output_S <- NULL
+  create_pseudobulk_sample <- NULL
+  sampleName <- NULL
+  cellAnno <- NULL
+  pseudobulk_merge_all_samples <- NULL
+  calc_UMAP_dbl_report <- NULL
+  variable_gene_list <- NULL
+  tar_render <- NULL
+  empty_droplets_report <- NULL
+  doublet_identification_report <- NULL
+  Technical_variation_report <- NULL
+  pseudobulk_processing_report <- NULL
+  
   sample_column = enquo(sample_column)
   # cell_type_annotation_column = enquo(cell_type_annotation_column)
   
