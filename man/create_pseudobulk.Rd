@@ -2,37 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{create_pseudobulk}
 \alias{create_pseudobulk}
-\title{#' Pseudobulk Preprocessing
-#'
-#' @description
-#' Aggregates cells based on sample and cell type annotations, creating pseudobulk samples
-#' for each combination. Handles RNA and ADT assays, ensuring that missing genes are accounted
-#' for and aligns data across multiple samples.
-#'
-#' @param reference_label_fine Reference label for fine categorization.
-#' @param preprocessing_output_S Processed dataset from preprocessing.
-#' @param sample_column Column name indicating sample identifiers.
-#'
-#' @return List containing pseudobulk data aggregated by sample and by both sample and cell type.
-#'
-#' @import tidySingleCellExperiment
-#' @import tidySummarizedExperiment
-#' @importFrom dplyr left_join
-#' @importFrom dplyr filter
-#' @importFrom dplyr mutate
-#' @importFrom dplyr rename
-#' @importFrom dplyr select
-#' @importFrom stringr str_remove
-#' @importFrom tidyr unite
-#' @importFrom tidyr pivot_longer
-#' @importFrom tidyseurat aggregate_cells
-#' @importFrom tidybulk as_SummarizedExperiment
-#' @importFrom S4Vectors cbind
-#' @importFrom purrr map
-#' @importFrom scater isOutlier
-#' @importFrom SummarizedExperiment rowData
-#' @export
-#'}
+\title{Create pseudobulk}
 \usage{
 create_pseudobulk(preprocessing_output_S, assays, x, ...)
 }
@@ -47,8 +17,4 @@ List containing pseudobulk data aggregated by sample and by both sample and cell
 \description{
 Aggregates cells based on sample and cell type annotations, creating pseudobulk samples
 for each combination. Handles RNA and ADT assays
-}
-\details{
-#c(!!as.symbol(sample_column), !!as.symbol(reference_label_fine))
-Create pseudobulk
 }

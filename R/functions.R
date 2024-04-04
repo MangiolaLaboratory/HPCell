@@ -651,41 +651,6 @@ preprocessing_output <- function(tissue,
 }
 
 
-#' #' Pseudobulk Preprocessing
-#' #'
-#' #' @description
-#' #' Aggregates cells based on sample and cell type annotations, creating pseudobulk samples 
-#' #' for each combination. Handles RNA and ADT assays, ensuring that missing genes are accounted 
-#' #' for and aligns data across multiple samples.
-#' #'
-#' #' @param reference_label_fine Reference label for fine categorization.
-#' #' @param preprocessing_output_S Processed dataset from preprocessing.
-#' #' @param sample_column Column name indicating sample identifiers.
-#' #'
-#' #' @return List containing pseudobulk data aggregated by sample and by both sample and cell type.
-#' #'
-#' #' @import tidySingleCellExperiment
-#' #' @import tidySummarizedExperiment
-#' #' @importFrom dplyr left_join
-#' #' @importFrom dplyr filter
-#' #' @importFrom dplyr mutate
-#' #' @importFrom dplyr rename
-#' #' @importFrom dplyr select
-#' #' @importFrom stringr str_remove
-#' #' @importFrom tidyr unite
-#' #' @importFrom tidyr pivot_longer
-#' #' @importFrom tidyseurat aggregate_cells
-#' #' @importFrom tidybulk as_SummarizedExperiment
-#' #' @importFrom S4Vectors cbind
-#' #' @importFrom purrr map
-#' #' @importFrom scater isOutlier
-#' #' @importFrom SummarizedExperiment rowData
-#' #' @export
-#' #' 
-#' 
-#' #c(!!as.symbol(sample_column), !!as.symbol(reference_label_fine))
-
-
 #' Create pseudobulk
 #'
 #' @description
@@ -993,7 +958,7 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 #' The results are joined back to each SingleCellExperiment object. If no abundance assay is specified, 
 #' the function defaults to the first assay in each SingleCellExperiment object.
 #'
-#' @examples
+# @examples
 # # Assuming `se_list` is a list of SingleCellExperiment objects
 # result <- map_add_dispersion_to_se(se_list, .col = se_objects, abundance = "counts")
 #'
