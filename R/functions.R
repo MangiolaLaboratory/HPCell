@@ -491,12 +491,10 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
-  
-  counts =
+  counts = 
     input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by = ".cell") |>
     filter(!empty_droplet) |>
-    
     # Normalise needed
     NormalizeData() |>
     # Assign cell cycle scores of each cell 
@@ -687,13 +685,14 @@ create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
   
   # Aggregate cells
   preprocessing_output_S |> 
-    aggregate_cells(!!x, slot = "data", assays=assays) |>
+    aggregate_cells(!!x, slot = "data") |>
+    #aggregate_cells(!!x, slot = "data", assays=assays) |>
     as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
     pivot_longer(cols = assays, names_to = "data_source", values_to = "count") |>
     filter(!count |> is.na()) |>
     
     # Some manipulation to get unique feature because RNA and ADT
-    # both can have sma name genes
+    # both can have same name genes
     rename(symbol = .feature) |>
     mutate(data_source = stringr::str_remove(data_source, "abundance_")) |>
     unite(".feature", c(symbol, data_source), remove = FALSE) |>
@@ -1186,7 +1185,6 @@ get_unique_tissues <- function(seurat_object) {
 #' @param input_seurat Single Seurat object (Input data)
 #' @param empty_droplet Single dataframe containing empty droplet filtering information 
 #' @return A vector of variable gene names
-#' @export
 # Find set of variable genes 
 find_variable_genes <- function(input_seurat, empty_droplet){
   
