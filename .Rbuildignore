@@ -1,0 +1,9 @@
+^renv$
+^renv\.lock$
+^.*\.Rproj$
+^\.Rproj\.user$
+^R_scripts$
+README.md
+HPCell.Rproj
+pipeline_stores
+^.*\.rds$
