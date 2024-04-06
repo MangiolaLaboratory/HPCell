@@ -1,0 +1,202 @@
+---
+title: "pseudobulk analysis"
+date: '2022-08-09'
+params:
+  file1: 
+  metadata_path:
+output: md_document
+---
+
+```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
+library(ggplot2)
+library(stringr)
+library(tidyverse)
+library(tidybulk)
+library(tidyseurat)
+library(tidysc)
+library(tidyHeatmap)
+library(purrr)
+library(patchwork)
+library(grid)
+library(ComplexHeatmap)
+library(ggrepel)
+library(PCAtools)
+library(tidySummarizedExperiment)
+library(glue)
+library(purrr)
+library(plotly)
+library(tidybulk)
+#library(naniar) #NA 
+library(magrittr)
+library(here)
+```
+
+```{r}
+# Load data
+pseudobulk = 
+  here(params$file1) |> 
+  readRDS()
+
+metadata_clinical_sample <- readRDS(params$metadata_path)
+```
+
+# Analysis for RNA
+
+```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
+#pbmc_pseudobulk from sce:
+pbmc_pseudobulk <- 
+  pseudobulk %>% 
+  filter(data_source == "RNA") |> 
+  #separate( .sample, c("single_cell_rna_id", "batch1"), "__" , remove=FALSE) |> 
+  left_join(metadata_clinical_sample |> tidybulk::pivot_sample(sample)) |> 
+  tidybulk::identify_abundant() %>%
+  tidybulk::scale_abundance(method = "TMMwsp") 
+
+data_for_pca = 
+  pbmc_pseudobulk |> 
+  keep_abundant() |> 
+  keep_variable(.abundance = "count_scaled", top=500) |> 
+  select(-TMM, -multiplier, -count_scaled) |> 
+  tidybulk::scale_abundance(method = "TMMwsp") 
+
+```
+
+Here to check that the input counts have not global sequencing-depth effect
+
+```{r}
+data_for_pca |> 
+  ggplot(aes(count_scaled + 1, color=.sample)) + geom_density(alpha=0.3) + scale_x_log10() + guides(color="none")
+```
+
+Calculate PCA of pseudobulk
+
+```{r}
+metadata = 
+  data_for_pca |> 
+  pivot_sample() |>
+  select(.sample, single_cell_rna_id, days_sympt_onset, severity, TMM, multiplier, bmi, smoker, req_oxygen, req_icu, days_total_in_hos, days_sympt_to_hos, site) 
+
+metadata = as.data.frame(metadata) 
+rownames(metadata) = metadata$`.sample`
+metadata = metadata[,-1]
+
+my_pca = 
+  data_for_pca@assays@data$count_scaled |> 
+  log1p() |> 
+  scale() |> 
+  pca(metadata = metadata) 
+
+```
+
+Calculate explained variance of principal components. This gives an idea of how many principal components we need to represent the data faithfully. In this case we see a gradual decrease of variance explained, indicating that we might need up to principal component 20 for explaining 90% of the variance.
+
+```{r}
+my_pca |> screeplot()
+```
+
+Here we see which variable is associated with which principal component. We hope the biological variable are associated with the top principal components.
+
+= indeed we see COVID and severity associated with the first principal component, COVID and days since symptom onset associated with the second principal component, and TMM associated with the third principal component together with simple time points. These gifts as hope that the biological effects have large magnitude.
+
+
+```{r, fig.dim = c(15, 15)}
+my_pca |> 
+  eigencorplot(metavars = colnames(metadata))
+```
+
+Site clustering
+
+```{r}
+data_for_pca |>
+tidybulk::reduce_dimensions(method="PCA") |>
+tidybulk::pivot_sample() |>
+ggplot(aes(PC1, PC2, color=site)) +
+geom_point() +
+stat_ellipse() +
+  theme_bw()
+```
+
+Batch clustering
+
+```{r}
+data_for_pca |>
+tidybulk::reduce_dimensions(method="PCA") |>
+tidybulk::pivot_sample() |>
+ggplot(aes(PC1, PC2, color=factor(batch))) +
+geom_point() +
+stat_ellipse() +
+  theme_bw()
+```
+
+Here we see for the distribution of samples coloured by severity along the top principal components.
+
+```{r, fig.dim = c(15, 15), message=FALSE, warning=FALSE}
+
+my_pca$rotated |> 
+  cbind(my_pca$metadata) |> 
+  as_tibble(rownames = ".sample_") |> 
+  GGally::ggpairs(columns = 2:7, ggplot2::aes(colour=`severity`))
+
+my_pca$rotated |> 
+  cbind(my_pca$metadata) |> 
+  as_tibble(rownames = ".sample_") |> 
+  mutate(days_sympt_onset = if_else(days_sympt_onset > median(days_sympt_onset, na.rm=T), "high_days_sympt_onset", "low_days_sympt_onset")) |> 
+  GGally::ggpairs(columns = 2:7, ggplot2::aes(colour=`days_sympt_onset`))
+
+my_pca$rotated |> 
+  cbind(my_pca$metadata) |> 
+  as_tibble(rownames = ".sample_") |> 
+    mutate(TMM = if_else(TMM > median(TMM, na.rm=T), "high_TMM", "low_TMM")) |> 
+
+  GGally::ggpairs(columns = 2:7, ggplot2::aes(colour=`TMM`))
+
+my_pca$rotated |> 
+  cbind(my_pca$metadata) |> 
+  as_tibble(rownames = ".sample_") |> 
+      mutate(multiplier = if_else(multiplier > median(multiplier, na.rm=T), "high_multiplier", "low_multiplier")) |> 
+
+  GGally::ggpairs(columns = 2:7, ggplot2::aes(colour=`multiplier`))
+
+my_pca$rotated |> 
+  cbind(my_pca$metadata) |> 
+  as_tibble(rownames = ".sample_") |> 
+      mutate(bmi = if_else(bmi > median(bmi, na.rm=T), "high_bmi", "low_bmi")) |> 
+  GGally::ggpairs(columns = 2:7, ggplot2::aes(colour=`bmi`))
+
+my_pca$rotated |> 
+  cbind(my_pca$metadata) |> 
+  as_tibble(rownames = ".sample_") |> 
+  GGally::ggpairs(columns = 2:7, ggplot2::aes(colour=`smoker`))
+
+my_pca$rotated |> 
+  cbind(my_pca$metadata) |> 
+  as_tibble(rownames = ".sample_") |> 
+        mutate(req_oxygen = if_else(req_oxygen > median(req_oxygen, na.rm=T), "high_req_oxygen", "low_req_oxygen")) |> 
+  GGally::ggpairs(columns = 2:7, ggplot2::aes(colour=`req_oxygen`))
+
+my_pca$rotated |> 
+  cbind(my_pca$metadata) |> 
+  as_tibble(rownames = ".sample_") |> 
+  GGally::ggpairs(columns = 2:7, ggplot2::aes(colour=`req_icu`))
+
+my_pca$rotated |> 
+  cbind(my_pca$metadata) |> 
+  as_tibble(rownames = ".sample_") |> 
+          mutate(days_total_in_hos = if_else(days_total_in_hos > median(days_total_in_hos, na.rm=T), "high_days_total_in_hos", "low_days_total_in_hos")) |> 
+
+  GGally::ggpairs(columns = 2:7, ggplot2::aes(colour=`days_total_in_hos`))
+
+my_pca$rotated |> 
+  cbind(my_pca$metadata) |> 
+  as_tibble(rownames = ".sample_") |> 
+            mutate(days_sympt_to_hos = if_else(days_sympt_to_hos > median(days_sympt_to_hos, na.rm=T), "high_days_sympt_to_hos", "low_days_sympt_to_hos")) |> 
+  GGally::ggpairs(columns = 2:7, ggplot2::aes(colour=`days_sympt_to_hos`))
+
+my_pca$rotated |> 
+  cbind(my_pca$metadata) |> 
+  as_tibble(rownames = ".sample_") |> 
+  GGally::ggpairs(columns = 2:7, ggplot2::aes(colour=`site`))
+
+
+```
+
