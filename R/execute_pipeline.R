@@ -11,7 +11,6 @@
 #' @param computing_resources Configuration for computing resources.
 #' @param debug_step Optional step for debugging.
 #' @param filter_empty_droplets Flag to indicate if input filtering is needed.
-#' @param RNA_assay_name Name of the RNA assay.
 #' @param sample_column Column name for sample identification.
 #'
 #' @return The output of the `targets` pipeline, typically a preprocessed dataset.
@@ -28,7 +27,6 @@ run_targets_pipeline <- function(
     computing_resources = crew_controller_local(workers = 1), 
     debug_step = NULL,
     filter_empty_droplets = TRUE, 
-    RNA_assay_name = "RNA", 
     sample_column = "sample", 
     cell_type_annotation_column = "Cell_type_in_each_tissue"
 ){
@@ -159,7 +157,6 @@ run_targets_pipeline <- function(
       tar_target(tissue_file, readRDS("tissue.rds")), 
       tar_target(filtered_file, readRDS("filter_empty_droplets.rds")), 
       tar_target(sample_column_file, readRDS("sample_column.rds")), 
-      tar_target(RNA_assay_name_file, readRDS("RNA_assay_name.rds")),
       tar_target(cell_type_annotation_column_file, readRDS("cell_type_annotation_column.rds")))
     
     #-----------------------#
@@ -177,7 +174,6 @@ run_targets_pipeline <- function(
       tar_target(filter_empty_droplets, filtered_file, deployment = "main"),
       tar_target(tissue, tissue_file, deployment = "main", ),
       tar_target(sample_column, sample_column_file, deployment = "main"),
-      tar_target(RNA_assay_name, RNA_assay_name_file, deployment = "main"),
       tar_target(cell_type_annotation_column, cell_type_annotation_column_file, deployment = "main"),
       tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
       tar_target(reference_label_fine, reference_label_fine_id(tissue), deployment = "main"), 
