@@ -17,6 +17,8 @@ annotation_label_transfer(
 \item{empty_droplets_tbl}{A tibble identifying empty droplets.}
 
 \item{reference_azimuth}{Optional reference data for Azimuth.}
+
+\item{assay}{The assay to be used for analysis, specified as a character string.}
 }
 \value{
 A tibble with cell type annotation data.

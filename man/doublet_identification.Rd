@@ -23,6 +23,8 @@ doublet_identification(
 \item{annotation_label_transfer_tbl}{A tibble with annotation label transfer data.}
 
 \item{reference_label_fine}{Optional reference label for fine-tuning.}
+
+\item{assay}{The assay to be used for analysis, specified as a character string.}
 }
 \value{
 A tibble containing cells with their scDblFinder scores.

@@ -8,6 +8,7 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(c("."))
 #' (Blueprint and Monaco Immune data). It can also perform cell type labeling using Azimuth when a reference
 #' is provided.
 #'
+#' @param assay The assay to be used for analysis, specified as a character string.
 #' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
 #' @param empty_droplets_tbl A tibble identifying empty droplets.
 #' @param reference_azimuth Optional reference data for Azimuth.
@@ -258,6 +259,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' @description
 #' `alive_identification` filters out dead cells by analyzing mitochondrial and ribosomal gene expression percentages.
 #'
+#' @param assay The assay to be used for analysis, specified as a character string. 
 #' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
 #' @param empty_droplets_tbl A tibble identifying empty droplets.
 #' @param annotation_label_transfer_tbl A tibble with annotation label transfer data.
@@ -426,6 +428,7 @@ alive_identification <- function(input_read_RNA_assay,
 #' `doublet_identification` applies the scDblFinder algorithm to the filter_empty_droplets dataset. It supports integrating with
 #' SingleR annotations if provided and outputs a tibble containing cells with their associated scDblFinder scores.
 #'
+#' @param assay The assay to be used for analysis, specified as a character string.
 #' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
 #' @param empty_droplets_tbl A tibble identifying empty droplets.
 #' @param alive_identification_tbl A tibble identifying alive cells.
@@ -479,6 +482,7 @@ doublet_identification <- function(input_read_RNA_assay,
 #' Returns a tibble containing cell identifiers with their predicted classification 
 #' into cell cycle phases: G2M, S, or G1 phase.
 #'
+#' @param assay The assay to be used for analysis, specified as a character string.
 #' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
 #' @param empty_droplets_tbl A tibble identifying empty droplets.
 #'
@@ -684,7 +688,15 @@ preprocessing_output <- function(tissue,
 #' for each combination. Handles RNA and ADT assays
 #'
 #' @param preprocessing_output_S Processed dataset from preprocessing.
-#' @param assays assay used, default = "RNA" 
+#' @param assays A character vector specifying the assays to be included in the 
+#' pseudobulk creation process, such as c("RNA", "ADT").
+#' @param x A grouping variable used to aggregate cells into pseudobulk samples.
+#' This variable should be present in the `preprocessing_output_S` object and 
+#' typically represents a factor such as sample ID or condition.
+#' @param ... Additional arguments passed to internal functions used within 
+#' `create_pseudobulk`. This includes parameters for customization of 
+#' aggregation, data transformation, or any other process involved in the 
+#' creation of pseudobulk samples.
 #' 
 #' @return List containing pseudobulk data aggregated by sample and by both sample and cell type.
 #' 
@@ -1113,6 +1125,7 @@ map_test_differential_abundance = function(
 #' @importFrom purrr map2
 #' @importFrom tidyr nest
 #' @importFrom rlang enquo
+#' @importFrom ids random_id
 #' @export
 map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
   
@@ -1167,7 +1180,10 @@ map_split_se_by_number_of_genes = function(se_df, .col, chunk_size = 100){
 #' @importFrom digest digest
 #' @importFrom rlang enquo
 #' @importFrom purrr map_chr
-#'
+#' 
+#' @param sce_df A dataframe (or tibble) where one of the columns contains
+#' SingleCellExperiment objects 
+#' 
 #' @export
 map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_cells_before_split = 4763){
   
@@ -1188,15 +1204,6 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
     )) |>
     unnest(!!.col) |>
     mutate(sce_md5 = purrr::map_chr(!!.col, digest))
-}
-
-
-#' Get unique tissues 
-#' Obtain unique tissues/ samples from input dataset 
-#' 
-#' @export
-get_unique_tissues <- function(seurat_object) {
-  unique(seurat_object@meta.data$Tissue)
 }
 
 

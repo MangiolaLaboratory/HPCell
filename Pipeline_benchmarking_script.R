@@ -1,11 +1,17 @@
 install.packages("lobstr")
 library(lobstr)
-setwd("/vast/scratch/users/si.j")
+setwd("/vast/scratch/users/si.j/susan_fibrosis")
 initial_file_count <- 2
-files <- list.files(pattern = "\\.txt$")
+files <- list.files(path = "/vast/scratch/users/si.j/susan_fibrosis")
 for (i in initial_file_count:length(files)) {
+  tar_invalidate(names = everything(), store = store)
   # Memory usage before pipeline execution
-  mem_before <- obj_size(get("preprocessed_seurat", envir = globalenv()))
+  if(exists("preprocessed_seurat", envir = globalenv())) {
+    mem_before <- obj_size(get("preprocessed_seurat", envir = globalenv()))
+  } else {
+    # Initialize mem_before as 0 bytes if preprocessed_seurat doesn't exist
+    mem_before <- obj_size(0)
+  }
   
   # Select the subset of files to process in this iteration
   file_subset <- files[1:i] 

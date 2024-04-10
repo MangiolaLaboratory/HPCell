@@ -25,8 +25,8 @@
 #' @import targets
 #' @importFrom rlang quo_is_symbolic
 #' @importFrom SummarizedExperiment assays
-#' @importFrom tidyseurat quo_names
 #' @importFrom tibble rowid_to_column
+#' @importFrom callr r
 #' 
 #' @export
 map2_test_differential_abundance_hpc = function(
@@ -59,7 +59,7 @@ map2_test_differential_abundance_hpc = function(
   
   .abundance = enquo(.abundance)
 
-  if(quo_is_symbolic(.abundance)) .abundance = quo_names(.abundance)
+  if(quo_is_symbolic(.abundance)) .abundance = rlang::quo_names(.abundance)
   else .abundance =  
     data_list[[1]] |> 
     assays() |> 

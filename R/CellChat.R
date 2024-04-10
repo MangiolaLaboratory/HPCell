@@ -404,6 +404,10 @@ computeCommunProb = function (object, type = c("triMean", "truncatedMean", "thre
   return(object)
 }
 
+#' @importFrom future nbrOfWorkers
+#' @importFrom methods slot
+#' @importFrom pbapply pbsapply
+#' @import future.apply
 netAnalysis_computeCentrality = function (object = NULL, slot.name = "netP", net = NULL, net.name = NULL,
                                           thresh = 0.05)
 {
@@ -486,6 +490,9 @@ cellchat_diff_for_circle = function(pathway, x, y){
 #' @importFrom CellChat scPalette
 #' @importFrom patchwork wrap_elements
 #' @importFrom cowplot as_grob
+#' @importFrom circlize colorRamp2
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom scales rescale
 #' 
 draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, sources.use = NULL,
                                       targets.use = NULL, remove.isolate = FALSE, top = 1, top_absolute = NULL, weight.scale = T,
@@ -646,6 +653,8 @@ select_genes_for_circle_plot = function(x, pathway){
 }
 
 #' @importFrom CellChat subsetCommunication
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom scales viridis_pal
 #' 
 get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, targets.use = NULL, signaling = NULL,
                                                    pairLR.use = NULL, color.heatmap = c("Spectral", "viridis"),

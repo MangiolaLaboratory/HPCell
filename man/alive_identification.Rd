@@ -17,6 +17,8 @@ alive_identification(
 \item{empty_droplets_tbl}{A tibble identifying empty droplets.}
 
 \item{annotation_label_transfer_tbl}{A tibble with annotation label transfer data.}
+
+\item{assay}{The assay to be used for analysis, specified as a character string.}
 }
 \value{
 A tibble identifying alive cells.

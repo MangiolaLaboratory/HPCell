@@ -19,6 +19,7 @@
 #' @importFrom glue glue
 #' @importFrom targets tar_script
 #' @import targets
+#' @importFrom future tweak
 #' @export
 run_targets_pipeline <- function(
     input_data, 
@@ -110,10 +111,8 @@ run_targets_pipeline <- function(
         "scDblFinder",
         "ggupset",
         "tidySummarizedExperiment",
-        "broom",
         "tarchetypes",
         "SeuratObject",
-        "SingleCellExperiment", 
         "SingleR", 
         "celldex", 
         "tidySingleCellExperiment", 
@@ -363,7 +362,7 @@ run_targets_pipeline <- function(
   # run_targets(input_files)
   tar_make(
     script = glue("{store}.R"),
-    store = store, 
+    store = store,
     callr_function = NULL
   )
   # tar_make_future(
@@ -374,8 +373,10 @@ run_targets_pipeline <- function(
   # )
   
   message(glue("HPCell says: you can read your output executing tar_read(preprocessing_output_S, store = \"{store}\") "))
-  
-  tar_read(preprocessing_output_S, store = store)
+  tar_meta_download(store = store)
+  metadata<- tar_meta(names = everything(), store = store)
+  return(metadata)
+  #tar_read(preprocessing_output_S, store = store)
   
 }
 

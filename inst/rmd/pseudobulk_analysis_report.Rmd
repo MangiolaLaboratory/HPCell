@@ -39,7 +39,6 @@ knitr::opts_chunk$set(echo = TRUE)
 # pseudobulk <- do.call(cbind, params$x1)
 pseudobulk <-  params$x1
 #metadata_clinical_sample <- readRDS(params$metadata_path)
-library(ggplot2)
 # pseudobulk <-  params$x1
 # Extract the proportion of variance explained by each principal component
 # var_explained <- my_pca$sdev^2
@@ -123,7 +122,6 @@ Graphical representation to show the proportion of variance explained by each pr
 This gives an idea of how many principal components we need to keep to represent the data faithfully. In this case we see a gradual decrease of variance explained, indicating that we might need up to principal component `num_components` for explaining 90% of the variance.
 
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
-library(ggplot2)
 
 # # Extract the proportion of variance explained by each principal component
 # var_explained <- my_pca$sdev^2

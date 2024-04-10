@@ -141,7 +141,14 @@ plot_overall_counts =
   theme( plot.margin = margin(0, 0, 0, 0, "pt"),  legend.key.size = unit(0.2, 'cm'), legend.position="bottom")
 
 
-
+#' @importFrom circlize colorRamp2
+#' @importFrom future nbrOfWorkers
+#' @import future.apply
+#' @importFrom methods slot 
+#' @importFrom pbapply pbsapply
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom reshape2 melt
+#' 
 netAnalysis_computeCentrality =
   function (object = NULL, slot.name = "netP", net = NULL, net.name = NULL,  thresh = 0.05){
   if (is.null(net)) {

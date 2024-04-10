@@ -191,7 +191,6 @@ reference_label_coarse_id <- function(tissue) {
 #' @return Modified Seurat object with the default assay set to RNA.
 #'
 #' @importFrom Seurat DefaultAssay
-#' @export
 #' @noRd
 add_RNA_assay <- function(input_read, RNA_assay_name){
   
@@ -553,6 +552,10 @@ calc_UMAP <- function(input_seurat){
   return(x)
 }
 #' Subsetting input dataset into a list of seurat objects by sample/ tissue 
+#' @param seurat_object A Seurat object containing input single-cell data
+#' @param .sample_column The column name specifying sample information
+#' 
+#' 
 #'  @description
 #' Function to subset Seurat object by tissue
 get_unique_tissues <- function(seurat_object, sample_column) {
