@@ -27,7 +27,7 @@ run_targets_pipeline <- function(
     tissue,
     computing_resources = crew_controller_local(workers = 1), 
     debug_step = NULL,
-    filter_empty_droplets = TRUE, 
+    filter_empty_droplets = NULL, 
     RNA_assay_name = "RNA", 
     sample_column = "sample", 
     cell_type_annotation_column = "Cell_type_in_each_tissue"
