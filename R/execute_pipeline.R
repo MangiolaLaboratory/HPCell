@@ -11,6 +11,7 @@
 #' @param computing_resources Configuration for computing resources.
 #' @param debug_step Optional step for debugging.
 #' @param filter_empty_droplets Flag to indicate if input filtering is needed.
+#' @param RNA_assay_name Name of the RNA assay.
 #' @param sample_column Column name for sample identification.
 #'
 #' @return The output of the `targets` pipeline, typically a preprocessed dataset.
@@ -18,6 +19,7 @@
 #' @importFrom glue glue
 #' @importFrom targets tar_script
 #' @import targets
+#' @importFrom future tweak
 #' @export
 run_targets_pipeline <- function(
     input_data, 
@@ -27,11 +29,45 @@ run_targets_pipeline <- function(
     computing_resources = crew_controller_local(workers = 1), 
     debug_step = NULL,
     filter_empty_droplets = TRUE, 
+    RNA_assay_name = "RNA", 
     sample_column = "sample", 
     cell_type_annotation_column = "Cell_type_in_each_tissue"
 ){
+  
+  # Fix GCHECKS 
+  read_file <- NULL
+  reference_file <- NULL
+  tissue_file <- NULL
+  filtered_file <- NULL
+  sample_column_file <- NULL
+  cell_type_annotation_column_file <- NULL
+  reference_label_coarse <- NULL
+  reference_label_fine <- NULL
+  input_read <- NULL
+  unique_tissues <- NULL
+  reference_read <- NULL
+  empty_droplets_tbl <- NULL
+  cell_cycle_score_tbl <- NULL
+  annotation_label_transfer_tbl <- NULL
+  alive_identification_tbl <- NULL
+  doublet_identification_tbl <- NULL
+  non_batch_variation_removal_S <- NULL
+  preprocessing_output_S <- NULL
+  create_pseudobulk_sample <- NULL
+  sampleName <- NULL
+  cellAnno <- NULL
+  pseudobulk_merge_all_samples <- NULL
+  calc_UMAP_dbl_report <- NULL
+  variable_gene_list <- NULL
+  tar_render <- NULL
+  empty_droplets_report <- NULL
+  doublet_identification_report <- NULL
+  Technical_variation_report <- NULL
+  pseudobulk_processing_report <- NULL
+  
   sample_column = enquo(sample_column)
   # cell_type_annotation_column = enquo(cell_type_annotation_column)
+  
   # Save inputs for passing to targets pipeline 
   # input_data |> CHANGE_ASSAY |> saveRDS("input_file.rds")
   input_data |> saveRDS("input_file.rds")
@@ -50,8 +86,6 @@ run_targets_pipeline <- function(
     library(crew.cluster)
     
     computing_resources = readRDS("temp_computing_resources.rds")
-    sample_column = readRDS("sample_column.rds")
-    # custom_controller = readRDS("custom_controller.rds")
     #-----------------------#
     # Packages
     #-----------------------#
@@ -77,10 +111,8 @@ run_targets_pipeline <- function(
         "scDblFinder",
         "ggupset",
         "tidySummarizedExperiment",
-        "broom",
         "tarchetypes",
         "SeuratObject",
-        "SingleCellExperiment", 
         "SingleR", 
         "celldex", 
         "tidySingleCellExperiment", 
@@ -99,7 +131,6 @@ run_targets_pipeline <- function(
       debug = debug_step, # Set the target you want to debug.
       # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
       controller = computing_resources
-      # resources = list(controller = custom_controller)
     )
     
     #-----------------------#
@@ -195,22 +226,9 @@ run_targets_pipeline <- function(
       
       # Identifying empty droplets
       tar_target(empty_droplets_tbl,
-                 empty_droplet_id(input_read, 
-                                  filter_empty_droplets), 
+                 empty_droplet_id(input_read, filter_empty_droplets),
                  pattern = map(input_read),
                  iteration = "list"),
-                 # command = {
-                 #   my_launcher$launch_worker(
-                 #     call = store,
-                 #     name = "worker_1",
-                 #     launcher = my_launcher,
-                 #     worker = 2, 
-                 #     instance = list(cpu = 2, memory = "4G") 
-                 #   )
-                 #   empty_droplet_id(input_read, filter_empty_droplets)
-                 #   },
-                 # pattern = map(input_read),
-                 # iteration = "list"),
       
       # Cell cycle scoring
       tar_target(cell_cycle_score_tbl, cell_cycle_scoring(input_read,
@@ -287,50 +305,49 @@ run_targets_pipeline <- function(
                                                                 x = c(sampleName)), 
                  iteration = "list"),
       
-      tar_target(calc_UMAP_dbl_report, HPCell::calc_UMAP(input_read), 
+      tar_target(calc_UMAP_dbl_report, calc_UMAP(input_read), 
                  pattern = map(input_read), 
                  iteration = "list"), 
       tar_target(variable_gene_list, find_variable_genes(input_read, 
                                                          empty_droplets_tbl), 
                  pattern = map(input_read, empty_droplets_tbl), 
+                 iteration = "list"),
 
-                 iteration = "list")
-
-      # tar_render(
-      #   name = empty_droplets_report, # The name of the target
-      #   path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
-      #   params = list(x1 = tar_read(input_read, store = store),
-      #                 x2 = tar_read(empty_droplets_tbl, store = store),
-      #                 x3 = tar_read(annotation_label_transfer_tbl, store = store),
-      #                 x4 = tar_read(unique_tissues, store = store),
-      #                 x5 = sample_column |> quo_name())
-      # ),
-      # tar_render(
-      #   name = doublet_identification_report,
-      #   path = paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
-      #   params = list(x1 = input_read,
-      #                 x2 = calc_UMAP_dbl_report,
-      #                 x3 = doublet_identification_tbl,
-      #                 x4 = annotation_label_transfer_tbl,
-      #                 x5 = sample_column |> quo_name(),
-      #                 x6 = cell_type_annotation_column |> quo_name())
-      # ),
-      # tar_render(
-      #   name = Technical_variation_report,
-      #   path =  paste0(system.file(package = "HPCell"), "/rmd/Technical_variation_report.Rmd"),
-      #   params = list(x1= input_read,
-      #                 x2= empty_droplets_tbl,
-      #                 x3 = variable_gene_list,
-      #                 x4 = calc_UMAP_dbl_report, 
-      #                 x5 = sample_column |> quo_name())
-      # ),
-      # tar_render(
-      #   name = pseudobulk_processing_report,
-      #   path = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
-      #   params = list(x1 = pseudobulk_merge_all_samples, 
-      #                 x2 = sample_column |> quo_name(), 
-      #                 x3 = cell_type_annotation_column |> quo_name())
-      # )
+      tar_render(
+        name = empty_droplets_report, # The name of the target
+        path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
+        params = list(x1 = tar_read(input_read, store = store),
+                      x2 = tar_read(empty_droplets_tbl, store = store),
+                      x3 = tar_read(annotation_label_transfer_tbl, store = store),
+                      x4 = tar_read(unique_tissues, store = store),
+                      x5 = sample_column |> quo_name())
+      ),
+      tar_render(
+        name = doublet_identification_report,
+        path = paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
+        params = list(x1 = input_read,
+                      x2 = calc_UMAP_dbl_report,
+                      x3 = doublet_identification_tbl,
+                      x4 = annotation_label_transfer_tbl,
+                      x5 = sample_column |> quo_name(),
+                      x6 = cell_type_annotation_column |> quo_name())
+      ),
+      tar_render(
+        name = Technical_variation_report,
+        path =  paste0(system.file(package = "HPCell"), "/rmd/Technical_variation_report.Rmd"),
+        params = list(x1= input_read,
+                      x2= empty_droplets_tbl,
+                      x3 = variable_gene_list,
+                      x4 = calc_UMAP_dbl_report, 
+                      x5 = sample_column |> quo_name())
+      ),
+      tar_render(
+        name = pseudobulk_processing_report,
+        path = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
+        params = list(x1 = pseudobulk_merge_all_samples, 
+                      x2 = sample_column |> quo_name(), 
+                      x3 = cell_type_annotation_column |> quo_name())
+      )
       ))
   }, script = glue("{store}.R"), ask = FALSE)
 
@@ -345,7 +362,7 @@ run_targets_pipeline <- function(
   # run_targets(input_files)
   tar_make(
     script = glue("{store}.R"),
-    store = store, 
+    store = store,
     callr_function = NULL
   )
   # tar_make_future(
@@ -355,9 +372,11 @@ run_targets_pipeline <- function(
   #   garbage_collection = TRUE
   # )
   
-  message(glue("HPCell says: you can read your output executing tar_read(preprocessing_output_S, store = \"{store}\") "))
-  
-  tar_read(preprocessing_output_S, store = store)
+  #message(glue("HPCell says: you can read your output executing tar_read(preprocessing_output_S, store = \"{store}\") "))
+  #tar_meta_download(store = store)
+  #metadata<- tar_meta(names = everything(), store = store)
+  #return(metadata)
+  #tar_read(preprocessing_output_S, store = store)
   
 }
 

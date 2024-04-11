@@ -1,26 +1,44 @@
 install.packages("lobstr")
 library(lobstr)
+
+# Defining resources
+Cores <- c(1, 2, 3, 5 ,10, 20, 50, 100, 200)
+Sample_size <- c(1, 2, 3, 5, 10, 20, 50, 100)
+
+
+
 setwd("/vast/scratch/users/si.j/susan_fibrosis")
-initial_file_count <- 2
+#initial_file_count <- 2
 files <- list.files()
-mem_before <- 0
-store <- "/stornext/General/scratch/GP_Transfer/si.j/store_pipeline_benchmark_fibrosis_all_data_2"
-for (i in initial_file_count:length(files)) {
-  tar_invalidate(names = everything(), store = store)
-  # Memory usage before pipeline execution
-  if(exists("preprocessed_seurat", envir = globalenv())) {
-    mem_before <- obj_size(get("preprocessed_seurat", envir = globalenv()))
-  } else {
-    # If not exists, reset to 0 or NA for the first iteration
-    mem_before <- 0
-  }
+store <- "/stornext/General/scratch/GP_Transfer/si.j/store_pipeline_benchmark_fibrosis_all_data_3"
+# for (i in initial_file_count:length(files)) {
+#   
+#   tar_invalidate(names = everything(), store = store)
+#   
+#   # Memory usage before pipeline execution
+#   if(exists("preprocessed_seurat", envir = globalenv())) {
+#     mem_before <- obj_size(get("preprocessed_seurat", envir = globalenv()))
+#   } else {
+#     mem_before <- 0
+#   }
+
+for(core in Cores) {
+  for(sample_size in Sample_size) {
+    if(length(files) < sample_size) {
+      break # Break if the sample_size exceeds the available files
+    }
+    setwd("~/HPCell")
+  #tar_invalidate(names = everything(), store = store)
+  
   # Select the subset of files to process in this iteration
-  file_subset <- files[1:i] 
+  #file_subset <- files[1:i] 
+  file_subset <- files[1:sample_size]
   max_workers <- 100  
   workers_per_sample <- 4
   number_of_samples <- length(file_subset)
-  total_workers <- min(number_of_samples * workers_per_sample, max_workers)
-  # Initialize computing resources for all files, assuming this is intended once per loop
+  #total_workers <- min(number_of_samples * workers_per_sample, max_workers)
+  total_workers <- min(core * sample_size, length(file_subset))
+  # Initialize computing resources for all files
   computing_resources = crew_controller_slurm(
     name = "my_controller",
     slurm_memory_gigabytes_per_cpu = 20,
@@ -40,15 +58,19 @@ for (i in initial_file_count:length(files)) {
       cell_type_annotation_column = "cellAnno"
     )
   })
+  
   # Memory usage after pipeline execution
   mem_after <- obj_size(get("preprocessed_seurat", envir = globalenv()))
   mem_used_this_run <- mem_after - mem_before
+  
   # Output the time and memory used for this run
+  cat("Running with", core, "cores for", sample_size, "samples, using", total_workers, "workers\n")
   cat("Sample size:", length(file_subset), "\n",
       "Time taken: User time =", time_taken["user.self"], 
       "System time =", time_taken["sys.self"], 
       "Elapsed time =", time_taken["elapsed"], "seconds\n",
       "Memory used:", format(mem_used_this_run, units = "Mb"), "\n\n")
+  }
 }
 
 
