@@ -12,7 +12,10 @@
 #' @param cpus_per_task Number of CPUs allocated per task.
 #' @param debug_job_id Optional job ID for debugging.
 #' @param append Flag to append to existing script.
-#'
+#' @param data_list A list of datasets to be processed
+#' @param formula_list A list of formulae corresponding to each dataset in `data_list`
+#' @param abundance Optional; a symbol indicating the column that specifies the abundance measure. If NULL, the first assay name is used.
+#' @param ... Additional arguments 
 #' @return A `targets` pipeline output, typically a nested tibble with differential abundance estimates.
 #'
 #' @importFrom targets tar_script
@@ -266,6 +269,7 @@ map2_test_differential_abundance_hpc = function(
 #' @param debug_job_id Optional job ID for debugging.
 #' @param append Flag to append to existing script.
 #' @param magrittr extract2
+#' @param ... additional arguments 
 #'
 #' @return A `targets` pipeline output, typically a nested tibble with differential abundance estimates.
 #'

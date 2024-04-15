@@ -10,6 +10,10 @@ create_pseudobulk(preprocessing_output_S, assays, x, ...)
 \item{preprocessing_output_S}{Processed dataset from preprocessing.}
 
 \item{assays}{assay used, default = "RNA"}
+
+\item{x}{A variable to aggregate by, typically a batch or sample identifier.}
+
+\item{...}{Additional arguments passed to lower level functions.}
 }
 \value{
 List containing pseudobulk data aggregated by sample and by both sample and cell type.

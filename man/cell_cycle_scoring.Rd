@@ -10,6 +10,8 @@ cell_cycle_scoring(input_read_RNA_assay, empty_droplets_tbl, assay = NULL)
 \item{input_read_RNA_assay}{SingleCellExperiment object containing RNA assay data.}
 
 \item{empty_droplets_tbl}{A tibble identifying empty droplets.}
+
+\item{assay}{Name of the assay to use.}
 }
 \value{
 A tibble with cell identifiers and their cell cycle phase classifications.

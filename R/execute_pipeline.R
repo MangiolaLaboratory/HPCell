@@ -13,8 +13,10 @@
 #' @param filter_empty_droplets Flag to indicate if input filtering is needed.
 #' @param RNA_assay_name Name of the RNA assay.
 #' @param sample_column Column name for sample identification.
+#' @param cell_type_annotation_column Column name for cell type annotation 
+#' 
 #'
-#' @return The output of the `targets` pipeline, typically a preprocessed dataset.
+#' @return The output of the `targets` pipeline, typically a pre-processed data set.
 #'
 #' @importFrom glue glue
 #' @importFrom targets tar_script

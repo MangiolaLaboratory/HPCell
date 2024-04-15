@@ -17,6 +17,10 @@ map2_test_differential_abundance_hpc(
 )
 }
 \arguments{
+\item{data_list}{A list of datasets to be processed}
+
+\item{formula_list}{A list of formulae corresponding to each dataset in \code{data_list}}
+
 \item{store}{File path for temporary storage.}
 
 \item{computing_resources}{Computing resources configuration.}
@@ -27,11 +31,15 @@ map2_test_differential_abundance_hpc(
 
 \item{append}{Flag to append to existing script.}
 
+\item{...}{Additional arguments}
+
 \item{data_df}{Data frame to be processed.}
 
 \item{formula}{Formula for the differential abundance test.}
 
 \item{.data_column}{Column in the data frame containing the data.}
+
+\item{abundance}{Optional; a symbol indicating the column that specifies the abundance measure. If NULL, the first assay name is used.}
 }
 \value{
 A \code{targets} pipeline output, typically a nested tibble with differential abundance estimates.

@@ -518,6 +518,7 @@ addition = function(a, b){
 #'
 #' @noRd
 #' 
+#' @importFrom Seurat RunUMAP
 calc_UMAP <- function(input_seurat){
   assay_name = input_seurat@assays |> names() |> extract2(1)
   find_var_genes <- FindVariableFeatures(input_seurat)
@@ -533,6 +534,10 @@ calc_UMAP <- function(input_seurat){
   return(x)
 }
 #' Subsetting input dataset into a list of seurat objects by sample/ tissue 
+#' 
+#' @param seurat_object A single seurat object (input data)
+#' @param sample_column A symbol or string that specifies the column in the metadata from which to extract unique values
+#' 
 #'  @description
 #' Function to subset Seurat object by tissue
 get_unique_tissues <- function(seurat_object, sample_column) {
@@ -946,8 +951,6 @@ get_manually_curated_immune_cell_types = function(){
   library(stringr)
   library(scMerge)
   library(glue)
-  library(DelayedArray)
-  library(HDF5Array)
   library(tidyseurat)
   library(celldex)
   library(SingleR)

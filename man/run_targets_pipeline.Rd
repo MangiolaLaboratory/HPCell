@@ -35,9 +35,11 @@ run_targets_pipeline(
 \item{RNA_assay_name}{Name of the RNA assay.}
 
 \item{sample_column}{Column name for sample identification.}
+
+\item{cell_type_annotation_column}{Column name for cell type annotation}
 }
 \value{
-The output of the \code{targets} pipeline, typically a preprocessed dataset.
+The output of the \code{targets} pipeline, typically a pre-processed data set.
 }
 \description{
 This function sets up and executes a \code{targets} pipeline for HPCell. It saves input data and configurations,
