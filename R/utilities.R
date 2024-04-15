@@ -702,6 +702,7 @@ clean_cell_types_deeper = function(x){
 #'
 #' @examples
 #' cell_types <- c("CD4+ T-cells", "NK cells", "Blast-cells")
+#' 
 # cleaned_cell_types <- clean_cell_types(cell_types)
 clean_cell_types = function(.x){
   .x |>
