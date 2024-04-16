@@ -73,7 +73,7 @@ Imports:
   methods, 
   pbapply, 
   scales, 
-  RColorBrewer
+  RColorBrewer,
   knitr,
   digest, 
   cowplot, 

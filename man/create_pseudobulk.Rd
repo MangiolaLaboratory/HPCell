@@ -8,6 +8,7 @@ create_pseudobulk(preprocessing_output_S, assays, x, ...)
 }
 \arguments{
 \item{preprocessing_output_S}{Processed dataset from preprocessing.}
+
 \item{assays}{A character vector specifying the assays to be included in the
 pseudobulk creation process, such as c("RNA", "ADT").}
 
