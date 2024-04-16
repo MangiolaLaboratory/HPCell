@@ -2,8 +2,8 @@ install.packages("lobstr")
 library(lobstr)
 
 # Defining resources
-Cores <- c(1, 2, 3, 5 ,10, 20, 50, 100, 200)
-Sample_size <- c(1, 2, 3, 5, 10, 20, 50, 100)
+Cores <- c(2, 3, 5 ,10, 20, 50, 100, 200)
+Sample_size <- c(10, 20, 50, 100)
 
 
 
@@ -27,8 +27,8 @@ for(core in Cores) {
     if(length(files) < sample_size) {
       break # Break if the sample_size exceeds the available files
     }
-    setwd("~/HPCell")
-  #tar_invalidate(names = everything(), store = store)
+    #setwd("~/HPCell")
+  tar_invalidate(names = everything(), store = store)
   
   # Select the subset of files to process in this iteration
   #file_subset <- files[1:i] 
@@ -60,16 +60,16 @@ for(core in Cores) {
   })
   
   # Memory usage after pipeline execution
-  mem_after <- obj_size(get("preprocessed_seurat", envir = globalenv()))
-  mem_used_this_run <- mem_after - mem_before
+  #mem_after <- obj_size(get("preprocessed_seurat", envir = globalenv()))
+  #mem_used_this_run <- mem_after - mem_before
   
   # Output the time and memory used for this run
   cat("Running with", core, "cores for", sample_size, "samples, using", total_workers, "workers\n")
   cat("Sample size:", length(file_subset), "\n",
       "Time taken: User time =", time_taken["user.self"], 
       "System time =", time_taken["sys.self"], 
-      "Elapsed time =", time_taken["elapsed"], "seconds\n",
-      "Memory used:", format(mem_used_this_run, units = "Mb"), "\n\n")
+      "Elapsed time =", time_taken["elapsed"], "seconds\n")
+      #"Memory used:", format(mem_used_this_run, units = "Mb"), "\n\n")
   }
 }
 
