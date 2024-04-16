@@ -13,6 +13,7 @@
 #' @param filter_empty_droplets Flag to indicate if input filtering is needed.
 #' @param RNA_assay_name Name of the RNA assay.
 #' @param sample_column Column name for sample identification.
+#' @param cell_type_annotation_column Column name for cell type annotation in input data
 #'
 #' @return The output of the `targets` pipeline, typically a preprocessed dataset.
 #'
@@ -211,11 +212,11 @@ run_targets_pipeline <- function(
       # Reading input files
       tar_target(input_read, readRDS(read_file),
                  pattern = map(read_file),
-                 iteration = "list", deployment = "main"),
+                 iteration = "list"),
       tar_target(unique_tissues,
                  get_unique_tissues(input_read, sample_column |> quo_name()),
                  pattern = map(input_read),
-                 iteration = "list", deployment = "main"),
+                 iteration = "list"),
       # tar_target(
       #   tissue_subsets,
       #   input_read, split.by = "Tissue"), 
@@ -373,8 +374,8 @@ run_targets_pipeline <- function(
   # )
   
   message(glue("HPCell says: you can read your output executing tar_read(preprocessing_output_S, store = \"{store}\") "))
-  tar_meta_download(store = store)
-  metadata<- tar_meta(names = everything(), store = store)
+  #tar_meta_download(store = store)
+  metadata<- tar_meta(store = store)
   return(metadata)
   #tar_read(preprocessing_output_S, store = store)
   

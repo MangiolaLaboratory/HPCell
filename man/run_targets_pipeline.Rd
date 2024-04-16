@@ -35,6 +35,8 @@ run_targets_pipeline(
 \item{RNA_assay_name}{Name of the RNA assay.}
 
 \item{sample_column}{Column name for sample identification.}
+
+\item{cell_type_annotation_column}{Column name for cell type annotation in input data}
 }
 \value{
 The output of the \code{targets} pipeline, typically a preprocessed dataset.

@@ -20,6 +20,8 @@ non_batch_variation_removal(
 \item{alive_identification_tbl}{A tibble from alive cell identification.}
 
 \item{cell_cycle_score_tbl}{A tibble from cell cycle scoring.}
+
+\item{assay}{The assay to be used for analysis, specified as a character string.}
 }
 \value{
 Normalized and adjusted data.

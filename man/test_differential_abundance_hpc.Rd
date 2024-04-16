@@ -27,9 +27,7 @@ test_differential_abundance_hpc(
 
 \item{append}{Flag to append to existing script.}
 
-\item{cpus_per_task}{Number of CPUs allocated per task.}
-
-\item{magrittr}{extract2}
+\item{...}{Additional arguments}
 }
 \value{
 A \code{targets} pipeline output, typically a nested tibble with differential abundance estimates.

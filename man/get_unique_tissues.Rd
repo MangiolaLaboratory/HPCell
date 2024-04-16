@@ -9,10 +9,13 @@ get_unique_tissues(seurat_object, sample_column)
 \arguments{
 \item{seurat_object}{A Seurat object containing input single-cell data}
 
-\item{.sample_column}{The column name specifying sample information
+\item{sample_column}{The column name specifying sample information}
+}
+\value{
+The unique sample types in the sample column
 
 @description
-Function to subset Seurat object by tissue}
+Function to subset Seurat object by tissue
 }
 \description{
 Subsetting input dataset into a list of seurat objects by sample/ tissue

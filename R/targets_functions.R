@@ -85,8 +85,8 @@ map2_test_differential_abundance_hpc = function(
     #-----------------------#
     # Input
     #-----------------------#
-    library(targets)
-    library(tarchetypes)
+    # library(targets)
+    # library(tarchetypes)
     
     computing_resources = readRDS("temp_computing_resources.rds")
     debug_job_id = readRDS("temp_debug_job_id.rds")
@@ -257,15 +257,15 @@ map2_test_differential_abundance_hpc = function(
 #'
 #' @description
 #' A wrapper function that formats data into a tibble and calls `map2_test_differential_abundance_hpc` for differential abundance testing.
-#'
+#' @importFrom magrittr extract2
 #' @param .data Data frame or similar object for analysis.
 #' @param formula Formula for the differential abundance test.
 #' @param store File path for temporary storage.
 #' @param computing_resources Computing resources configuration.
-#' @param cpus_per_task Number of CPUs allocated per task.
+# cpus_per_task Number of CPUs allocated per task.
 #' @param debug_job_id Optional job ID for debugging.
 #' @param append Flag to append to existing script.
-#' @param magrittr extract2
+#' @param ... Additional arguments
 #'
 #' @return A `targets` pipeline output, typically a nested tibble with differential abundance estimates.
 #'
