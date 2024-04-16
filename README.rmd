@@ -268,6 +268,14 @@ controller$terminate()
 ```
 
 ```{r}
+file_paths <- list.files(path = "~/Documents/HPCell/fibrosis_data/", pattern = "\\.rds$", full.names = TRUE)
+file_paths |> run_targets_pipeline( input_data = ".",
+                                    tissue = "pbmc",
+                                    computing_resources = computing_resources,
+                                    sample_column = "sampleName", 
+                                    store = store, 
+                                    input_reference = NULL)
+
 # input_data_path<- "~/HPCell/file4df43b24e7cf.rds"
 store<- "/stornext/General/scratch/GP_Transfer/si.j/store_fibrosis_benchmark_slurm_launcher_2"
 
