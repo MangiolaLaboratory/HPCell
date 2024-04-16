@@ -141,6 +141,7 @@ plot_overall_counts =
   theme( plot.margin = margin(0, 0, 0, 0, "pt"),  legend.key.size = unit(0.2, 'cm'), legend.position="bottom")
 
 
+<<<<<<< HEAD
 #' @importFrom circlize colorRamp2
 #' @importFrom future nbrOfWorkers
 #' @import future.apply
@@ -149,6 +150,9 @@ plot_overall_counts =
 #' @importFrom RColorBrewer brewer.pal
 #' @importFrom reshape2 melt
 #' 
+=======
+
+>>>>>>> 7d4d87366996b9da235320e735f9434295a82dfd
 netAnalysis_computeCentrality =
   function (object = NULL, slot.name = "netP", net = NULL, net.name = NULL,  thresh = 0.05){
   if (is.null(net)) {

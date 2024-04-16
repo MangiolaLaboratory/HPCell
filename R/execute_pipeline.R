@@ -29,7 +29,7 @@ run_targets_pipeline <- function(
     tissue,
     computing_resources = crew_controller_local(workers = 1), 
     debug_step = NULL,
-    filter_empty_droplets = TRUE, 
+    filter_empty_droplets = NULL, 
     RNA_assay_name = "RNA", 
     sample_column = "sample", 
     cell_type_annotation_column = "Cell_type_in_each_tissue"
@@ -112,8 +112,10 @@ run_targets_pipeline <- function(
         "scDblFinder",
         "ggupset",
         "tidySummarizedExperiment",
+        "broom",
         "tarchetypes",
         "SeuratObject",
+        "SingleCellExperiment", 
         "SingleR", 
         "celldex", 
         "tidySingleCellExperiment", 
@@ -217,6 +219,11 @@ run_targets_pipeline <- function(
                  get_unique_tissues(input_read, sample_column |> quo_name()),
                  pattern = map(input_read),
                  iteration = "list"),
+                 iteration = "list", deployment = "main"),
+      tar_target(unique_tissues,
+                 get_unique_tissues(input_read, sample_column |> quo_name()),
+                 pattern = map(input_read),
+                 iteration = "list", deployment = "main"),
       # tar_target(
       #   tissue_subsets,
       #   input_read, split.by = "Tissue"), 
@@ -349,7 +356,7 @@ run_targets_pipeline <- function(
                       x2 = sample_column |> quo_name(), 
                       x3 = cell_type_annotation_column |> quo_name())
       )
-      ))
+      )
   }, script = glue("{store}.R"), ask = FALSE)
 
   #Running targets 

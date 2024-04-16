@@ -27,6 +27,8 @@
 #' @importFrom SummarizedExperiment assays
 #' @importFrom tibble rowid_to_column
 #' @importFrom callr r
+#' @importFrom tidyseurat quo_names
+#' @importFrom tibble rowid_to_column
 #' 
 #' @export
 map2_test_differential_abundance_hpc = function(
@@ -258,6 +260,7 @@ map2_test_differential_abundance_hpc = function(
 #' @description
 #' A wrapper function that formats data into a tibble and calls `map2_test_differential_abundance_hpc` for differential abundance testing.
 #' @importFrom magrittr extract2
+
 #' @param .data Data frame or similar object for analysis.
 #' @param formula Formula for the differential abundance test.
 #' @param store File path for temporary storage.

@@ -51,6 +51,15 @@ empty_droplet_id <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
+  # Check if empty droplets have been identified
+  if (is.null(filter_empty_droplets) ){
+    if (any(input_read_RNA_assay$nFeature_RNA < 200)) {
+      filter_empty_droplets <- "TRUE"
+    }
+    else {
+      filter_empty_droplets <- "FALSE"
+    }
+  }
   
   significance_threshold = 0.001
   # Genes to exclude
@@ -980,7 +989,7 @@ get_manually_curated_immune_cell_types = function(){
   file_id = NULL 
   .sample = NULL 
   
-  
+
   # library(zellkonverter)
   # library(Seurat)
   # library(SingleCellExperiment) # load early to avoid masking dplyr::count()

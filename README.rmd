@@ -172,7 +172,6 @@ preprocessed_seurat = HPCell::run_targets_pipeline(
     # debug_step = "create_pseudobulk_sample"
 ) 
 
-
 # Load results
 preprocessed_seurat
 
