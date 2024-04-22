@@ -28,7 +28,9 @@ library(tidySingleCellExperiment)
 library(patchwork)
 library(tibble)
 library(scran)
-
+x1 <- lapply( params$x1, function(file) {
+  return(readRDS(file))
+})
 get_labels_clusters = function(.data, label_column, dim1, dim2){
 
     tidy_dist = function(x1, x2, y1, y2){

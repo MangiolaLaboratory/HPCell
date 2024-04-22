@@ -12,9 +12,9 @@ params:
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-
+x1 <- params$x1
 # assay_of_choice = "originalexp"
-metadata_list <- lapply(params$x1, function(seurat_obj) {
+metadata_list <- lapply(x1, function(seurat_obj) {
   return(seurat_obj@meta.data)
 })
 # variable_genes_per_sample =

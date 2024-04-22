@@ -45,8 +45,11 @@ library(S4Vectors)
 
 # Subsetting tissues in input data 
 # unique_tissues <- unique(input_seurat_abc@meta.data$Tissue)
+x1 <- lapply( params$x1, function(file) {
+  return(readRDS(file))
+})
 
-assay = params$x1[[1]]@assays |> names() |> extract2(1)
+assay = x1[[1]]@assays |> names() |> extract2(1)
 # Subset 2 tissues (sample types)
 # heart <- subset(input_seurat, subset = Tissue == "Heart")
 # trachea <- subset(input_seurat, subset = Tissue == "Trachea")
@@ -104,7 +107,7 @@ process_input<- function(input_seurat) {
   tibble::rownames_to_column(var = '.cell')
   return(input)
 }
-processed_input_list <- map(params$x1, process_input)
+processed_input_list <- map(x1, process_input)
   
 # Defining Tissue names
 # sample_names <- lapply(params$x1, function(seurat_obj) {
@@ -142,7 +145,7 @@ empty_df <- function(input_seurat, empty_droplets_tbl) {
 }
 
 
-process_empty_droplet_list <- purrr::map2(params$x1, params$x2, empty_df)
+process_empty_droplet_list <- purrr::map2(x1, params$x2, empty_df)
 
 # Combined tibble with an identifier for each tissue/sample
 combined_df <- bind_rows(process_empty_droplet_list, .id = "tissue_id") %>%
@@ -296,8 +299,8 @@ plot_mito_data <- function(input_seurat, tissue_name, annotation_labels){
   return(plot_mito)
 }
 
-all_data <- lapply(seq_along(params$x1), function(i) {
-  plot_mito_data(params$x1[[i]], sample_names[[i]], params$x3[[i]])
+all_data <- lapply(seq_along(x1), function(i) {
+  plot_mito_data(x1[[i]], sample_names[[i]], params$x3[[i]])
 })
 
 # Combine all data into a single tibble

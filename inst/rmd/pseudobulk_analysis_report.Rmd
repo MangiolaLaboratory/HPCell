@@ -10,6 +10,7 @@ params:
 ---
 
 ```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
 library(stringr)
 library(tidyverse)
@@ -37,7 +38,9 @@ library(here)
 knitr::opts_chunk$set(echo = TRUE)
 # Load data
 # pseudobulk <- do.call(cbind, params$x1)
-pseudobulk <-  params$x1
+pseudobulk <-  lapply( params$x1, function(file) {
+  return(readRDS(file))
+})
 #metadata_clinical_sample <- readRDS(params$metadata_path)
 # pseudobulk <-  params$x1
 # Extract the proportion of variance explained by each principal component

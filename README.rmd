@@ -140,10 +140,11 @@ HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
 
 ```{r}
 RNA_assay_name = "RNA"
-file_paths <- list.files(path = "/vast/scratch/users/si.j/susan_fibrosis/", pattern = "\\.rds$", full.names = TRUE)
-
-preprocessed_seurat = HPCell::run_targets_pipeline(
-    input_data = "/vast/scratch/users/si.j/susan_fibrosis/GSE122960___GSM3489182.rds",
+# file_paths <- list.files(path = "/vast/scratch/users/si.j/susan_fibrosis/", pattern = "\\.rds$", full.names = TRUE)
+store<- "/vast/scratch/users/si.j/store_fibrosis"
+tar_invalidate(everything(), store = store)
+preprocessed_seurat = run_targets_pipeline(
+    input_data = c("/vast/scratch/users/si.j/susan_fibrosis/GSE136831___001C.rds", "/vast/scratch/users/si.j/susan_fibrosis/GSE136831___002C.rds"),
     tissue = "pbmc",
     filter_empty_droplets = TRUE,
     RNA_assay_name = RNA_assay_name,
