@@ -2,8 +2,8 @@ install.packages("lobstr")
 library(lobstr)
 
 # Defining resources
-Cores <- c(2, 3, 5 ,10, 20, 50, 100, 200)
-Sample_size <- c(10, 20, 50, 100)
+Cores <- c(2, 3, 5 ,10, 20, 50)
+Sample_size <- c(2, 5, 10, 20)
 
 
 
@@ -21,13 +21,11 @@ store <- "/stornext/General/scratch/GP_Transfer/si.j/store_pipeline_benchmark_fi
 #   } else {
 #     mem_before <- 0
 #   }
-
 for(core in Cores) {
   for(sample_size in Sample_size) {
     if(length(files) < sample_size) {
       break # Break if the sample_size exceeds the available files
     }
-    #setwd("~/HPCell")
   tar_invalidate(names = everything(), store = store)
   
   # Select the subset of files to process in this iteration
@@ -35,9 +33,7 @@ for(core in Cores) {
   file_subset <- files[1:sample_size]
   max_workers <- 100  
   workers_per_sample <- 4
-  number_of_samples <- length(file_subset)
-  #total_workers <- min(number_of_samples * workers_per_sample, max_workers)
-  total_workers <- min(core * sample_size, length(file_subset))
+  total_workers <- min(core, length(file_subset))
   # Initialize computing resources for all files
   computing_resources = crew_controller_slurm(
     name = "my_controller",
@@ -47,6 +43,7 @@ for(core in Cores) {
     verbose = FALSE
   )
   # Time and run your pipeline function
+  #setwd("~/HPCell")
   time_taken <- system.time({
     preprocessed_seurat <- run_targets_pipeline(
       input_data = file_subset,
