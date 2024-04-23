@@ -181,11 +181,17 @@ run_targets_pipeline <- function(
       # Reading input files
       tar_target(input_read, read_file,
                  pattern = map(read_file),
-                 iteration = "list", deployment = "main"),
+                 iteration = "list"),
+      tar_target(assay, get_assay(readRDS(input_read)),
+                 pattern = map(input_read), 
+                 iteration = list),
+      tar_target(meta_data, extract_metadata(readRDS(input_read)),
+                 pattern = map(input_read),
+                 iteration = "list"),
       tar_target(unique_tissues,
                  get_unique_tissues(readRDS(input_read), sample_column |> quo_name()),
                  pattern = map(input_read),
-                 iteration = "list", deployment = "main"),
+                 iteration = "list"),
       # tar_target(
       #   tissue_subsets,
       #   input_read, split.by = "Tissue"), 
@@ -219,7 +225,8 @@ run_targets_pipeline <- function(
       # Alive identification
       tar_target(alive_identification_tbl, alive_identification(readRDS(input_read),
                                                                 empty_droplets_tbl,
-                                                                annotation_label_transfer_tbl),
+                                                                annotation_label_transfer_tbl, 
+                                                                tissue_name = unique_tissues),
                  pattern = map(input_read,
                                empty_droplets_tbl,
                                annotation_label_transfer_tbl),
@@ -286,39 +293,40 @@ run_targets_pipeline <- function(
       tar_render(
         name = empty_droplets_report, # The name of the target
         path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
-        params = list(x1 = input_read,
+        params = list(x1 = meta_data,
                       x2 = empty_droplets_tbl,
                       x3 = annotation_label_transfer_tbl,
                       x4 = unique_tissues,
-                      x5 = sample_column |> quo_name())
-      ),
-      tar_render(
-        name = doublet_identification_report,
-        path = paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
-        params = list(x1 = input_read,
-                      x2 = calc_UMAP_dbl_report,
-                      x3 = doublet_identification_tbl,
-                      x4 = annotation_label_transfer_tbl,
-                      x5 = sample_column |> quo_name(),
-                      x6 = cell_type_annotation_column |> quo_name())
-      ),
-      tar_render(
-        name = Technical_variation_report,
-        path =  paste0(system.file(package = "HPCell"), "/rmd/Technical_variation_report.Rmd"),
-        params = list(x1= lapply( input_read, function(file) {
-                          return(readRDS(file))}),
-                      x2= empty_droplets_tbl,
-                      x3 = variable_gene_list,
-                      x4 = calc_UMAP_dbl_report,
-                      x5 = sample_column |> quo_name())
-      ),
-      tar_render(
-        name = pseudobulk_processing_report,
-        path = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
-        params = list(x1 = pseudobulk_merge_all_samples, 
-                      x2 = sample_column |> quo_name(), 
-                      x3 = cell_type_annotation_column |> quo_name())
+                      x5 = sample_column |> quo_name(), 
+                      x6 = assay)
       )
+      # tar_render(
+      #   name = doublet_identification_report,
+      #   path = paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
+      #   params = list(x1 = input_read,
+      #                 x2 = calc_UMAP_dbl_report,
+      #                 x3 = doublet_identification_tbl,
+      #                 x4 = annotation_label_transfer_tbl,
+      #                 x5 = sample_column |> quo_name(),
+      #                 x6 = cell_type_annotation_column |> quo_name())
+      # ),
+      # tar_render(
+      #   name = Technical_variation_report,
+      #   path =  paste0(system.file(package = "HPCell"), "/rmd/Technical_variation_report.Rmd"),
+      #   params = list(x1= lapply( input_read, function(file) {
+      #                     return(readRDS(file))}),
+      #                 x2= empty_droplets_tbl,
+      #                 x3 = variable_gene_list,
+      #                 x4 = calc_UMAP_dbl_report,
+      #                 x5 = sample_column |> quo_name())
+      # ),
+      # tar_render(
+      #   name = pseudobulk_processing_report,
+      #   path = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
+      #   params = list(x1 = pseudobulk_merge_all_samples, 
+      #                 x2 = sample_column |> quo_name(), 
+      #                 x3 = cell_type_annotation_column |> quo_name())
+      # )
     ))
   }, script = glue("{store}.R"), ask = FALSE)
   

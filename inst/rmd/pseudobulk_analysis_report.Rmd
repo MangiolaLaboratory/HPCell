@@ -75,7 +75,6 @@ data_for_pca =
 ## Checking that the input counts don't have global sequencing-depth effect
 
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
-
 data_for_pca |> 
   ggplot(aes(count_scaled + 1, color=.sample)) + geom_density(alpha=0.3) + scale_x_log10() + guides(color="none")
 ```

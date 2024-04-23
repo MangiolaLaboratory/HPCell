@@ -8,7 +8,8 @@ alive_identification(
   input_read_RNA_assay,
   empty_droplets_tbl,
   annotation_label_transfer_tbl,
-  assay = NULL
+  assay = NULL,
+  tissue_name
 )
 }
 \arguments{

@@ -189,10 +189,9 @@ test_that("pseudobulk_preprocessing_works", {
 })
 
 
-unique_idents <- 
-  c(
-    get_unique_tissues(input_seurat_list[[1]]),
-    get_unique_tissues(input_seurat_list[[2]])
+unique_idents <- c(
+    get_unique_tissues(input_seurat_list[[1]], sample_column = "sampleName"),
+    get_unique_tissues(input_seurat_list[[2]], sa)
   )
 
 
@@ -221,6 +220,7 @@ annotation_label_transfer_tbl_list <- mapply(FUN = HPCell:::annotation_label_tra
 alive_identification_tbl_list <- mapply(FUN = HPCell:::alive_identification, 
                                         input_seurat_list, 
                                         empty_droplets_tissue_list, annotation_label_transfer_tbl_list,
+                                        tissue_name = unique_tissues,
                                         SIMPLIFY = FALSE)
 
 doublet_identification_tbl_list <- mapply(FUN = HPCell:::doublet_identification, 

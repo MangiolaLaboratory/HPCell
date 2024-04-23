@@ -1590,3 +1590,23 @@ get_manually_curated_immune_cell_types = function(){
   
   
 }
+
+
+#' @param input_read Input data
+#'
+#' @return The extracted metadata from the input data 
+extract_metadata<- function(input_read) {
+  meta_data <- input_read[[]]
+  return(meta_data)
+}
+
+#' @param input_read Input data
+#' 
+#' @return The assay used by the input data
+get_assay<- function(input_read) {
+  assay = input_read@assays |> names() |> extract2(1)
+  return(assay)
+}
+
+
+

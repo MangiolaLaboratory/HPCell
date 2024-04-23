@@ -284,8 +284,9 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 alive_identification <- function(input_read_RNA_assay,
                                  empty_droplets_tbl,
                                  annotation_label_transfer_tbl,
-                                 assay = NULL) {
-  
+                                 assay = NULL, 
+                                 tissue_name) {
+  #browser()
   # Fix GCHECK notes
   empty_droplet = NULL
   detected = NULL
@@ -348,76 +349,126 @@ alive_identification <- function(input_read_RNA_assay,
     as_tibble(rownames = ".cell") %>%
     dplyr::select(-sum, -detected)
   
+  mitochondrion <- qc_metrics %>%
+    left_join(annotation_label_transfer_tbl, by = ".cell") %>%
+    nest(data = -blueprint_first.labels.fine) %>%
+    mutate(data = map(data, ~ .x %>%
+                        mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
+                               high_mitochondrion = as.logical(high_mitochondrion)))) %>%
+    unnest(cols = data)
+  
+  ribosome =
+    input_read_RNA_assay |>
+    select(.cell) |>
+    #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
+    
+    # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
+    mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)) |>
+    left_join(annotation_label_transfer_tbl, by = ".cell") |>
+    nest(data = -blueprint_first.labels.fine) |>
+    mutate(data = map(
+      data,
+      ~ .x |>
+        mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
+        mutate(high_ribosome = as.logical(high_ribosome)) |>
+        as_tibble() |>
+        select(.cell, subsets_Ribo_percent, high_ribosome)
+    )) |>
+    unnest(data)
+  
   # Add cell type labels and determine high mitochondrion content, if annotation_label_transfer_tbl is provided
-  if (inherits(annotation_label_transfer_tbl, "tbl_df")) {
-    mitochondrion <- qc_metrics %>%
-      left_join(annotation_label_transfer_tbl, by = ".cell") %>%
-      nest(data = -blueprint_first.labels.fine) %>%
-      mutate(data = map(data, ~ .x %>%
-                          mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
-                                 high_mitochondrion = as.logical(high_mitochondrion)))) %>%
-      unnest(cols = data)
-  } else {
-    # Determing high mitochondrion content 
-    mitochondrion <- qc_metrics %>%
-      nest(data = everything()) %>%
-      mutate(data = map(data, ~ .x %>%
-                          mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
-                                 high_mitochondrion = as.logical(high_mitochondrion)))) %>%
-      unnest(cols = data)
-  }
+  # if (inherits(annotation_label_transfer_tbl, "tbl_df")) {
+  #   mitochondrion <- qc_metrics %>%
+  #     left_join(annotation_label_transfer_tbl, by = ".cell") %>%
+  #     nest(data = -blueprint_first.labels.fine) %>%
+  #     mutate(data = map(data, ~ .x %>%
+  #                         mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
+  #                                high_mitochondrion = as.logical(high_mitochondrion)))) %>%
+  #     unnest(cols = data)
+  # } else {
+  #   # Determing high mitochondrion content 
+  #   mitochondrion <- qc_metrics %>%
+  #     nest(data = everything()) %>%
+  #     mutate(data = map(data, ~ .x %>%
+  #                         mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
+  #                                high_mitochondrion = as.logical(high_mitochondrion)))) %>%
+  #     unnest(cols = data)
+  # }
   
   
-  if (inherits(annotation_label_transfer_tbl, "tbl_df")) {
-    
-    ribosome =
-      input_read_RNA_assay |>
-      select(.cell) |>
-      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
-      
-      # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)) |>
-      left_join(annotation_label_transfer_tbl, by = ".cell") |>
-      nest(data = -blueprint_first.labels.fine) |>
-      mutate(data = map(
-        data,
-        ~ .x |>
-          mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
-          mutate(high_ribosome = as.logical(high_ribosome)) |>
-          as_tibble() |>
-          select(.cell, subsets_Ribo_percent, high_ribosome)
-      )) |>
-      unnest(data)
-    
-  } else {
-    
-    # ribosome =
-    #   input_read_RNA_assay |>
-    #   select(.cell) |>
-    #   mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1])
-    ribosome =
-      input_read_RNA_assay |>
-      dplyr::select(.cell) |>
-      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay))|>
-      nest(data = everything()) |>
-      mutate(data = map(
-        data,
-        ~ .x |>
-          mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
-          mutate(high_ribosome = as.logical(high_ribosome)) |>
-          as_tibble() |>
-          dplyr::select(.cell, subsets_Ribo_percent, high_ribosome)
-      )) |>
-      unnest(data)
-  }
+  # if (inherits(annotation_label_transfer_tbl, "tbl_df")) {
+  #   
+  #   ribosome =
+  #     input_read_RNA_assay |>
+  #     select(.cell) |>
+  #     #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
+  #     
+  #     # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
+  #     mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)) |>
+  #     left_join(annotation_label_transfer_tbl, by = ".cell") |>
+  #     nest(data = -blueprint_first.labels.fine) |>
+  #     mutate(data = map(
+  #       data,
+  #       ~ .x |>
+  #         mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
+  #         mutate(high_ribosome = as.logical(high_ribosome)) |>
+  #         as_tibble() |>
+  #         select(.cell, subsets_Ribo_percent, high_ribosome)
+  #     )) |>
+  #     unnest(data)
+  #   
+  # } else {
+  #   
+  #   # ribosome =
+  #   #   input_read_RNA_assay |>
+  #   #   select(.cell) |>
+  #   #   mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1])
+  #   ribosome =
+  #     input_read_RNA_assay |>
+  #     dplyr::select(.cell) |>
+  #     #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
+  #     mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay))|>
+  #     nest(data = everything()) |>
+  #     mutate(data = map(
+  #       data,
+  #       ~ .x |>
+  #         mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
+  #         mutate(high_ribosome = as.logical(high_ribosome)) |>
+  #         as_tibble() |>
+  #         dplyr::select(.cell, subsets_Ribo_percent, high_ribosome)
+  #     )) |>
+  #     unnest(data)
+  # }
+  # 
+  plot_data <- mitochondrion %>%
+    mutate(discard = isOutlier(subsets_Mito_percent, type = "higher"),
+           threshold = attr(discard, "threshold")["higher"])
+  
+  # ggplot(plot_data, aes(x = subsets_Mito_percent, fill = high_mitochondrion)) +
+  #   geom_histogram(bins = 30, alpha = 0.6) +
+  #   labs(title = paste("Mitochondrial Content in", tissue_name),
+  #        x = "Percentage of Mitochondrial Genes",
+  #        y = "Cell Count") +
+  #   geom_vline(aes(xintercept = threshold), color = "red", linetype = "dashed") +
+  #   theme_minimal()
+  
   #ribosome_meta <- as.data.frame(ribosome@meta.data)
   
   modified_data <- mitochondrion |>
     left_join(ribosome, by=".cell") |>
     mutate(alive = !high_mitochondrion) # & !high_ribosome ) |>
   
-  modified_data
+  # plot_mito <- data.frame(
+  #   tissue_name = tissue_name,
+  #   # qc_metrics = qc_metrics,
+  #   # mitochondrion = mitochondrion,
+  #   discard = as.logical(mitochondrion$discard),
+  #   threshold = mitochondrion$threshold,
+  #   high_mitochondrion = mitochondrion$high_mitochondrion,
+  #   subsets_Mito_sum = mitochondrion$subsets_Mito_sum,
+  #   subsets_Mito_percent = mitochondrion$subsets_Mito_percent
+  # )
+  return(list(plot_data = plot_data, modified_data = modified_data))
   
 }
 
