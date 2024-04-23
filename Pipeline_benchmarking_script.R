@@ -2,15 +2,20 @@ install.packages("lobstr")
 library(lobstr)
 
 # Defining resources
-Cores <- c(2, 3, 5 ,10, 20, 50)
+Cores <- c(50)
 Sample_size <- c(2, 5, 10, 20)
 
 
 
 setwd("/vast/scratch/users/si.j/susan_fibrosis")
+setwd("/stornext/General/scratch/GP_Transfer/susan_fibrosis")
 #initial_file_count <- 2
 files <- list.files()
+length(files)
 store <- "/stornext/General/scratch/GP_Transfer/si.j/store_pipeline_benchmark_fibrosis_all_data_3"
+
+store_contents <- list.files(store)
+#need_invalidate <- length(store_contents) > 0
 # for (i in initial_file_count:length(files)) {
 #   
 #   tar_invalidate(names = everything(), store = store)
@@ -26,8 +31,10 @@ for(core in Cores) {
     if(length(files) < sample_size) {
       break # Break if the sample_size exceeds the available files
     }
+    # if (need_invalidate) {
+    #   tar_invalidate(names = everything(), store = store) # Reset flag after invalidation to prevent repeated invalidation in the loop
+    # }
   tar_invalidate(names = everything(), store = store)
-  
   # Select the subset of files to process in this iteration
   #file_subset <- files[1:i] 
   file_subset <- files[1:sample_size]
