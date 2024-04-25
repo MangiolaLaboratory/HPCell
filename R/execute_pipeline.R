@@ -184,7 +184,7 @@ run_targets_pipeline <- function(
                  iteration = "list"),
       tar_target(assay, get_assay(readRDS(input_read)),
                  pattern = map(input_read), 
-                 iteration = list),
+                 iteration = "list"),
       tar_target(meta_data, extract_metadata(readRDS(input_read)),
                  pattern = map(input_read),
                  iteration = "list"),
@@ -288,18 +288,19 @@ run_targets_pipeline <- function(
       tar_target(variable_gene_list, find_variable_genes(readRDS(input_read), 
                                                          empty_droplets_tbl), 
                  pattern = map(input_read, empty_droplets_tbl), 
-                 iteration = "list"),
-      
-      tar_render(
-        name = empty_droplets_report, # The name of the target
-        path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
-        params = list(x1 = meta_data,
-                      x2 = empty_droplets_tbl,
-                      x3 = annotation_label_transfer_tbl,
-                      x4 = unique_tissues,
-                      x5 = sample_column |> quo_name(), 
-                      x6 = assay)
-      )
+                 iteration = "list")
+      # 
+      # tar_render(
+      #   name = empty_droplets_report, # The name of the target
+      #   path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
+      #   params = list(x1 = meta_data,
+      #                 x2 = empty_droplets_tbl,
+      #                 x3 = annotation_label_transfer_tbl,
+      #                 x4 = unique_tissues,
+      #                 x5 = sample_column |> quo_name(), 
+      #                 x6 = assay, 
+      #                 x7 = alive_id_tbl)
+      # )
       # tar_render(
       #   name = doublet_identification_report,
       #   path = paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
