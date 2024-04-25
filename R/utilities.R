@@ -963,7 +963,6 @@ harmonise_names_non_immune = function(metadata){
 
 
 get_manually_curated_immune_cell_types = function(){
-<<<<<<< HEAD
   
   library(zellkonverter)
   library(Seurat)
@@ -982,7 +981,6 @@ get_manually_curated_immune_cell_types = function(){
   library(glmGamPoi)
   library(stringr)
   library(purrr)
-=======
   #Fix GCHECKS 
   metadata_file = NULL 
   .cell = NULL 

@@ -204,7 +204,6 @@ preprocessed_seurat = HPCell::run_targets_pipeline(
     store = store, 
     cell_type_annotation_column = "cellAnno"
     # debug_step = "create_pseudobulk_sample"
-<<<<<<< HEAD
 )
 
 
