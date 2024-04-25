@@ -196,14 +196,15 @@ store <- "/vast/scratch/users/si.j/store_fibrosis8"
 input_data_path_list = "~/HPCell/input_HEorgandata/input_Blood.rds"
 
 preprocessed_seurat = HPCell::run_targets_pipeline(
-    input_data = input_data_path_list,
+    input_data = "/vast/scratch/users/si.j/susan_fibrosis/GSE122960___GSM3489182.rds",
     tissue = "pbmc",
     filter_empty_droplets = TRUE,
     RNA_assay_name = RNA_assay_name,
-    sample_column = "Tissue", 
+    sample_column = "sampleName", 
     store = store, 
-    cell_type_annotation_column = "Cell_type_in_each_tissue"
+    cell_type_annotation_column = "cellAnno"
     # debug_step = "create_pseudobulk_sample"
+<<<<<<< HEAD
 )
 
 

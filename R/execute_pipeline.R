@@ -13,14 +13,14 @@
 #' @param filter_empty_droplets Flag to indicate if input filtering is needed.
 #' @param RNA_assay_name Name of the RNA assay.
 #' @param sample_column Column name for sample identification.
-#' @param cell_type_annotation_column Column name for cell type annotation 
-#' 
+#' @param cell_type_annotation_column Column name for cell type annotation in input data
 #'
 #' @return The output of the `targets` pipeline, typically a pre-processed data set.
 #'
 #' @importFrom glue glue
 #' @importFrom targets tar_script
 #' @import targets
+#' @importFrom future tweak
 #' @export
 run_targets_pipeline <- function(
     input_data, 
@@ -29,7 +29,7 @@ run_targets_pipeline <- function(
     tissue,
     computing_resources = crew_controller_local(workers = 1), 
     debug_step = NULL,
-    filter_empty_droplets = TRUE, 
+    filter_empty_droplets = NULL, 
     RNA_assay_name = "RNA", 
     sample_column = "sample", 
     cell_type_annotation_column = "Cell_type_in_each_tissue"
@@ -214,6 +214,11 @@ run_targets_pipeline <- function(
       # Reading input files
       tar_target(input_read, readRDS(read_file),
                  pattern = map(read_file),
+                 iteration = "list"),
+      tar_target(unique_tissues,
+                 get_unique_tissues(input_read, sample_column |> quo_name()),
+                 pattern = map(input_read),
+                 iteration = "list"),
                  iteration = "list", deployment = "main"),
       tar_target(unique_tissues,
                  get_unique_tissues(input_read, sample_column |> quo_name()),
@@ -351,7 +356,7 @@ run_targets_pipeline <- function(
                       x2 = sample_column |> quo_name(), 
                       x3 = cell_type_annotation_column |> quo_name())
       )
-      ))
+      )
   }, script = glue("{store}.R"), ask = FALSE)
 
   #Running targets 
@@ -365,7 +370,7 @@ run_targets_pipeline <- function(
   # run_targets(input_files)
   tar_make(
     script = glue("{store}.R"),
-    store = store, 
+    store = store,
     callr_function = NULL
   )
   # tar_make_future(
@@ -376,8 +381,10 @@ run_targets_pipeline <- function(
   # )
   
   message(glue("HPCell says: you can read your output executing tar_read(preprocessing_output_S, store = \"{store}\") "))
-  
-  tar_read(preprocessing_output_S, store = store)
+  #tar_meta_download(store = store)
+  metadata<- tar_meta(store = store)
+  return(metadata)
+  #tar_read(preprocessing_output_S, store = store)
   
 }
 

@@ -43,6 +43,15 @@ empty_droplet_id <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
+  # Check if empty droplets have been identified
+  if (is.null(filter_empty_droplets) ){
+    if (any(input_read_RNA_assay$nFeature_RNA < 200)) {
+      filter_empty_droplets <- "TRUE"
+    }
+    else {
+      filter_empty_droplets <- "FALSE"
+    }
+  }
   
   significance_threshold = 0.001
   # Genes to exclude
@@ -144,7 +153,6 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' @param tissue Type of tissue.
 #'
 #' @return Appropriate reference label for fine categorization.
-#' @export
 #' @noRd
 reference_label_fine_id <- function(tissue) {
   return(
@@ -174,6 +182,7 @@ reference_label_coarse_id <- function(tissue) {
 
 #' Change Default Assay to RNA
 #'
+#' @importFrom Seurat DefaultAssay
 #' @description
 #' `add_RNA_assay` changes the default assay in a Seurat object to RNA.
 #'
@@ -183,7 +192,6 @@ reference_label_coarse_id <- function(tissue) {
 #' @return Modified Seurat object with the default assay set to RNA.
 #'
 #' @importFrom Seurat DefaultAssay
-#' @export
 #' @noRd
 add_RNA_assay <- function(input_read, RNA_assay_name){
   
@@ -511,6 +519,17 @@ addition = function(a, b){
 
 #' Calculate UMAP Embeddings for Seurat Object
 #' 
+#' @importFrom Seurat FindVariableFeatures
+#' @importFrom Seurat ScaleData
+#' @importFrom Seurat RunPCA
+#' @importFrom Seurat FindNeighbors
+#' @importFrom Seurat FindClusters
+#' @importFrom Seurat RunUMAP
+#' @importFrom dplyr as_tibble
+#' 
+#' @param input_seurat Input data 
+#' @return  A tibble containing UMAP coordinates and cluster assignments, to be used for plotting and further analysis 
+#'
 #' @description
 #' Identify variable features, scale the data, run Principal Component Analysis (PCA), find neighbors, identify clusters,
 #' and compute UMAP (Uniform Manifold Approximation and Projection) embeddings for 
@@ -535,8 +554,13 @@ calc_UMAP <- function(input_seurat){
 }
 #' Subsetting input dataset into a list of seurat objects by sample/ tissue 
 #' 
-#' @param seurat_object A single seurat object (input data)
-#' @param sample_column A symbol or string that specifies the column in the metadata from which to extract unique values
+#' @importFrom dplyr quo_name
+#' 
+#' @param seurat_object A Seurat object containing input single-cell data
+#' @param sample_column The column name specifying sample information
+#' 
+#' @return The unique sample types in the sample column
+#' 
 #' 
 #'  @description
 #' Function to subset Seurat object by tissue
@@ -939,6 +963,7 @@ harmonise_names_non_immune = function(metadata){
 
 
 get_manually_curated_immune_cell_types = function(){
+<<<<<<< HEAD
   
   library(zellkonverter)
   library(Seurat)
@@ -957,6 +982,34 @@ get_manually_curated_immune_cell_types = function(){
   library(glmGamPoi)
   library(stringr)
   library(purrr)
+=======
+  #Fix GCHECKS 
+  metadata_file = NULL 
+  .cell = NULL 
+  cell_type = NULL
+  file_id = NULL 
+  .sample = NULL 
+  
+
+  # library(zellkonverter)
+  # library(Seurat)
+  # library(SingleCellExperiment) # load early to avoid masking dplyr::count()
+  # library(tidySingleCellExperiment)
+  # library(dplyr)
+  # library(cellxgenedp)
+  # library(tidyverse)
+  # #library(tidySingleCellExperiment)
+  # library(stringr)
+  # library(scMerge)
+  # library(glue)
+  # library(DelayedArray)
+  # library(HDF5Array)
+  # library(tidyseurat)
+  # library(celldex)
+  # library(SingleR)
+  # library(glmGamPoi)
+  # library(stringr)
+  # library(purrr)
   
   # # source("utility.R")
   # 

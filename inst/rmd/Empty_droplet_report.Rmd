@@ -32,7 +32,10 @@ library(scuttle)
 library(scDblFinder)
 library(ggupset)
 library(tidySummarizedExperiment)
+<<<<<<< HEAD
+=======
 library(broom)
+>>>>>>> 7d4d87366996b9da235320e735f9434295a82dfd
 library(tarchetypes)
 library(SeuratObject)
 library(SingleCellExperiment)
