@@ -218,7 +218,7 @@ Flowchart
 
     ## $preprocessing_output_S_a0ced377
     ## # A Seurat-tibble abstraction: 290 × 46
-    ## # [90mFeatures=9552 | Cells=290 | Active assay=SCT | Assays=originalexp, SCT[0m
+    ## # [90mFeatures=9552 | Cells=290 | Active assay=SCT | Assays=originalexp, SCT[0m
     ##    .cell           orig.ident nCount_originalexp nFeature_originalexp Tissue nCount_RNA nFeature_RNA percent.mito RNA_snn_res.orig
     ##    <chr>           <fct>                   <dbl>                <int> <chr>       <int>        <int>        <dbl>            <int>
     ##  1 Bladder_cDNA_A… Bladder                  1133                  592 Bladd…       1152          610       0.0790                7
