@@ -2,19 +2,21 @@ install.packages("lobstr")
 library(lobstr)
 
 # Defining resources
-Cores <- c(50)
-Sample_size <- c(2, 5, 10, 20)
+Cores <- c(3)
+Sample_size <- c(1,2, 5, 10, 20, 50, 100, 137)
+#Sample_size <- c(2, 5, 10, 20, 50)
+#Sample_size <- c(2, 5, 10, 20, 50, 100, 138)
 
 
 
 setwd("/vast/scratch/users/si.j/susan_fibrosis")
-setwd("/stornext/General/scratch/GP_Transfer/susan_fibrosis")
+#setwd("/stornext/General/scratch/GP_Transfer/susan_fibrosis")
 #initial_file_count <- 2
 files <- list.files()
 length(files)
 store <- "/stornext/General/scratch/GP_Transfer/si.j/store_pipeline_benchmark_fibrosis_all_data_3"
 
-store_contents <- list.files(store)
+#store_contents <- list.files(store)
 #need_invalidate <- length(store_contents) > 0
 # for (i in initial_file_count:length(files)) {
 #   
