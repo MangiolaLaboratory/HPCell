@@ -407,6 +407,7 @@ computeCommunProb = function (object, type = c("triMean", "truncatedMean", "thre
 #' @importFrom future nbrOfWorkers
 #' @importFrom methods slot
 #' @importFrom pbapply pbsapply
+#' @importFrom CellChat computeCentralityLocal
 #' @import future.apply
 netAnalysis_computeCentrality = function (object = NULL, slot.name = "netP", net = NULL, net.name = NULL,
                                           thresh = 0.05)
@@ -431,11 +432,11 @@ netAnalysis_computeCentrality = function (object = NULL, slot.name = "netP", net
       # ADDED BY STEFANO
       net0[net0<0] = 0
 
-      return(CellChat:::computeCentralityLocal(net0))
+      return(computeCentralityLocal(net0))
     }, simplify = FALSE)
   }
   else {
-    centr.all <- as.list(CellChat:::computeCentralityLocal(net))
+    centr.all <- as.list(computeCentralityLocal(net))
   }
   names(centr.all) <- net.name
   if (is.null(object)) {
@@ -493,6 +494,7 @@ cellchat_diff_for_circle = function(pathway, x, y){
 #' @importFrom circlize colorRamp2
 #' @importFrom RColorBrewer brewer.pal
 #' @importFrom scales rescale
+#' @importFrom igraph in_circle 
 draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, sources.use = NULL,
                                       targets.use = NULL, remove.isolate = FALSE, top = 1, top_absolute = NULL, weight.scale = T,
                                       vertex.weight = 20, vertex.weight.max = NULL, vertex.size.max = 15,

@@ -19,8 +19,11 @@
 #'
 #' @importFrom glue glue
 #' @importFrom targets tar_script
+#' @import tarchetypes
 #' @import targets
 #' @importFrom future tweak
+#' @import crew 
+#' @import crew.cluster
 #' @export
 run_targets_pipeline <- function(
     input_data, 
@@ -81,10 +84,10 @@ run_targets_pipeline <- function(
   # Write pipeline to a file
   tar_script({
     
-    library(targets)
-    library(tarchetypes)
-    library(crew)
-    library(crew.cluster)
+    # library(targets)
+    # library(tarchetypes)
+    # library(crew)
+    # library(crew.cluster)
     
     computing_resources = readRDS("temp_computing_resources.rds")
     #-----------------------#

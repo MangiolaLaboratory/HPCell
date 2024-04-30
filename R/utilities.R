@@ -39,6 +39,9 @@ eq = function(a,b){	a==b }
 empty_droplet_id <- function(input_read_RNA_assay,
                              filter_empty_droplets,
                              assay = NULL){
+  #Fix GChecks 
+  FDR = NULL 
+  .cell = NULL 
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
@@ -227,9 +230,16 @@ add_RNA_assay <- function(input_read, RNA_assay_name){
 #' @importFrom Seurat FindClusters
 #' @importFrom Seurat VariableFeatures
 #' @importFrom dplyr mutate
+#' @importFrom data.table :=
+#' @import dplyr
 #' @importFrom glue glue
+#' @importFrom purrr map_int
 #' @noRd
 seurat_to_variable_features_by_cell_type = function(counts, assay, .cell_group = NULL, features_number_per_cell_group = 300){
+  
+  #Fix GitChecks 
+  feature = NULL 
+  group = NULL 
   
   .cell_group = enquo(.cell_group)
   
@@ -314,6 +324,7 @@ seurat_to_variable_features_overall = function(counts, assay, features_number = 
 #' @import tidyseurat
 #' @importFrom Seurat NormalizeData
 #' @importFrom stringr str_subset
+#' @importFrom purrr map_int
 #' @noRd
 seurat_to_variable_features = function(
     counts,
@@ -323,6 +334,10 @@ seurat_to_variable_features = function(
     features_number_independent_of_cell_groups = 300,
     features_number_per_cell_group = 300
 ){
+  
+  #Fix GitChecks 
+  upper_quantile = NULL 
+  number_features_overall = NULL 
   
   .sample = enquo(.sample)
   .cell_group = enquo(.cell_group)
@@ -400,6 +415,7 @@ seurat_to_variable_features = function(
 #' @importFrom dplyr count
 #' @importFrom dplyr with_groups
 #' @importFrom dplyr pull
+#' @importFrom purrr map_int
 #' @noRd
 subset_top_rank_variable_genes_across_batches = function(
     table_across_cell_groups,
@@ -409,6 +425,8 @@ subset_top_rank_variable_genes_across_batches = function(
     features_number_independent_of_cell_groups = 2000,
     features_number_per_cell_group = 300
 ){
+  #Fix GitChecks 
+  feature = NULL
   
   .cell_group = enquo(.cell_group)
   .batch = enquo(.batch)
@@ -643,8 +661,10 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 # @examples
 # cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
 # cleaned_cell_types <- clean_cell_types_deeper(cell_types)
-
 clean_cell_types_deeper = function(x){
+  #Fix GChecks 
+  cell_type_clean = NULL 
+  
   x |> 
     # Annotate
     mutate(cell_type_clean = cell_type_clean |> tolower()) |>
@@ -961,33 +981,52 @@ harmonise_names_non_immune = function(metadata){
   metadata
 }
 
-
 get_manually_curated_immune_cell_types = function(){
   
-  library(zellkonverter)
-  library(Seurat)
-  library(SingleCellExperiment) # load early to avoid masking dplyr::count()
-  library(tidySingleCellExperiment)
-  library(dplyr)
-  library(cellxgenedp)
-  library(tidyverse)
+  # library(zellkonverter)
+  # library(Seurat)
+  # library(SingleCellExperiment) # load early to avoid masking dplyr::count()
+  # library(tidySingleCellExperiment)
+  # library(dplyr)
+  # library(cellxgenedp)
+  # library(tidyverse)
   #library(tidySingleCellExperiment)
-  library(stringr)
-  library(scMerge)
-  library(glue)
-  library(tidyseurat)
-  library(celldex)
-  library(SingleR)
-  library(glmGamPoi)
-  library(stringr)
-  library(purrr)
+  # library(stringr)
+  # library(scMerge)
+  # library(glue)
+  # library(tidyseurat)
+  # library(celldex)
+  # library(SingleR)
+  # library(glmGamPoi)
+  # library(stringr)
+  # library(purrr)
+  
+  
   #Fix GCHECKS 
   metadata_file = NULL 
   .cell = NULL 
   cell_type = NULL
   file_id = NULL 
   .sample = NULL 
-  
+  azhimut_confirmed = NULL 
+  blueprint_confirmed <- NULL
+  arrange <- NULL # This one is actually a function from dplyr, so you should use it with dplyr::arrange or import it
+  cell_type_clean <- NULL
+  blueprint_singler <- NULL
+  predicted.celltype.l2 <- NULL
+  strong_evidence <- NULL
+  cell_type_harmonised <- NULL
+  confidence_class <- NULL
+  lineage_1 <- NULL
+  monaco_singler <- NULL
+  cell_annotation_monaco_singler <- NULL
+  cell_annotation_azimuth_l2 <- NULL
+  cell_annotation_blueprint_singler <- NULL
+  confidence_class_manually_curated <- NULL
+  cell_type_harmonised_manually_curated <- NULL
+  file_curated_annotation_merged <- NULL
+  .sample <- NULL
+  cell_type_harmonised_non_immune <- NULL
 
   # library(zellkonverter)
   # library(Seurat)
