@@ -1,6 +1,3 @@
-## quiets concerns of R CMD check re: the .'s that appear in pipelines
-if(getRversion() >= "2.15.1")  utils::globalVariables(c("."))
-
 # Greater than
 gt = function(a, b){	a > b }
 
@@ -42,10 +39,8 @@ eq = function(a,b){	a==b }
 empty_droplet_id <- function(input_read_RNA_assay,
                              filter_empty_droplets,
                              assay = NULL){
-  
-  #Fix GCHECKS 
+  #Fix GChecks 
   FDR = NULL 
-  . = NULL 
   .cell = NULL 
   
   # Get assay
@@ -203,9 +198,10 @@ reference_label_coarse_id <- function(tissue) {
 #' @noRd
 add_RNA_assay <- function(input_read, RNA_assay_name){
   
+  
   if (RNA_assay_name != "RNA"){
     input_read[["RNA"]] = input_read[[RNA_assay_name]]
-    DefaultAssay(object = input_read) <- "RNA"
+    Seurat::DefaultAssay(object = input_read) <- "RNA"
     input_read[[RNA_assay_name]] = NULL
   }
   
@@ -233,20 +229,18 @@ add_RNA_assay <- function(input_read, RNA_assay_name){
 #' @importFrom Seurat FindNeighbors
 #' @importFrom Seurat FindClusters
 #' @importFrom Seurat VariableFeatures
-#' @importFrom dplyr mutate distinct bind_rows
+#' @importFrom dplyr mutate
+#' @importFrom data.table :=
+#' @import dplyr
 #' @importFrom glue glue
 #' @importFrom purrr map_int
 #' @noRd
 seurat_to_variable_features_by_cell_type = function(counts, assay, .cell_group = NULL, features_number_per_cell_group = 300){
   
-  # Fix GChecks 
-  upper_quantile <- NULL
-  number_features_overall <- NULL
-  feature <- NULL
-  group <- NULL
+  #Fix GitChecks 
+  feature = NULL 
+  group = NULL 
   
-
-
   .cell_group = enquo(.cell_group)
   
   # Nest
@@ -330,6 +324,7 @@ seurat_to_variable_features_overall = function(counts, assay, features_number = 
 #' @import tidyseurat
 #' @importFrom Seurat NormalizeData
 #' @importFrom stringr str_subset
+#' @importFrom purrr map_int
 #' @noRd
 seurat_to_variable_features = function(
     counts,
@@ -339,6 +334,10 @@ seurat_to_variable_features = function(
     features_number_independent_of_cell_groups = 300,
     features_number_per_cell_group = 300
 ){
+  
+  #Fix GitChecks 
+  upper_quantile = NULL 
+  number_features_overall = NULL 
   
   .sample = enquo(.sample)
   .cell_group = enquo(.cell_group)
@@ -416,7 +415,6 @@ seurat_to_variable_features = function(
 #' @importFrom dplyr count
 #' @importFrom dplyr with_groups
 #' @importFrom dplyr pull
-#' @importFrom dplyr bind_rows
 #' @importFrom purrr map_int
 #' @noRd
 subset_top_rank_variable_genes_across_batches = function(
@@ -427,8 +425,8 @@ subset_top_rank_variable_genes_across_batches = function(
     features_number_independent_of_cell_groups = 2000,
     features_number_per_cell_group = 300
 ){
-  # Fix GChecks 
-  feature = NULL 
+  #Fix GitChecks 
+  feature = NULL
   
   .cell_group = enquo(.cell_group)
   .batch = enquo(.batch)
@@ -557,6 +555,7 @@ addition = function(a, b){
 #'
 #' @noRd
 #' 
+#' @importFrom Seurat RunUMAP
 calc_UMAP <- function(input_seurat){
   assay_name = input_seurat@assays |> names() |> extract2(1)
   find_var_genes <- FindVariableFeatures(input_seurat)
@@ -663,6 +662,9 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 # cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
 # cleaned_cell_types <- clean_cell_types_deeper(cell_types)
 clean_cell_types_deeper = function(x){
+  #Fix GChecks 
+  cell_type_clean = NULL 
+  
   x |> 
     # Annotate
     mutate(cell_type_clean = cell_type_clean |> tolower()) |>
@@ -727,6 +729,7 @@ clean_cell_types_deeper = function(x){
 #' @examples
 #' cell_types <- c("CD4+ T-cells", "NK cells", "Blast-cells")
 # cleaned_cell_types <- clean_cell_types(cell_types)
+
 clean_cell_types = function(.x){
   .x |>
     str_remove_all("\\+") |>
@@ -978,16 +981,52 @@ harmonise_names_non_immune = function(metadata){
   metadata
 }
 
-#' @importFrom readr read_csv
-#' 
 get_manually_curated_immune_cell_types = function(){
+  
+  # library(zellkonverter)
+  # library(Seurat)
+  # library(SingleCellExperiment) # load early to avoid masking dplyr::count()
+  # library(tidySingleCellExperiment)
+  # library(dplyr)
+  # library(cellxgenedp)
+  # library(tidyverse)
+  #library(tidySingleCellExperiment)
+  # library(stringr)
+  # library(scMerge)
+  # library(glue)
+  # library(tidyseurat)
+  # library(celldex)
+  # library(SingleR)
+  # library(glmGamPoi)
+  # library(stringr)
+  # library(purrr)
+  
+  
   #Fix GCHECKS 
   metadata_file = NULL 
   .cell = NULL 
   cell_type = NULL
   file_id = NULL 
   .sample = NULL 
-  
+  azhimut_confirmed = NULL 
+  blueprint_confirmed <- NULL
+  arrange <- NULL # This one is actually a function from dplyr, so you should use it with dplyr::arrange or import it
+  cell_type_clean <- NULL
+  blueprint_singler <- NULL
+  predicted.celltype.l2 <- NULL
+  strong_evidence <- NULL
+  cell_type_harmonised <- NULL
+  confidence_class <- NULL
+  lineage_1 <- NULL
+  monaco_singler <- NULL
+  cell_annotation_monaco_singler <- NULL
+  cell_annotation_azimuth_l2 <- NULL
+  cell_annotation_blueprint_singler <- NULL
+  confidence_class_manually_curated <- NULL
+  cell_type_harmonised_manually_curated <- NULL
+  file_curated_annotation_merged <- NULL
+  .sample <- NULL
+  cell_type_harmonised_non_immune <- NULL
 
   # library(zellkonverter)
   # library(Seurat)
@@ -1043,35 +1082,6 @@ get_manually_curated_immune_cell_types = function(){
   #   annotation_harmonised |>  saveRDS("~/PostDoc/CuratedAtlasQueryR/dev/annotated_data_0.2_temp_table.rds")
   # })
   # 
-  
-  #Fix GCHECKS 
-  metadata_file = NULL 
-  .cell = NULL 
-  cell_type = NULL 
-  file_id = NULL 
-  .sample = NULL 
-  azhimut_confirmed = NULL 
-  blueprint_confirmed = NULL 
-  arrange = NULL 
-  cell_type_clean = NULL 
-  blueprint_singler = NULL 
-  predicted.celltype.l2 = NULL 
-  strong_evidence = NULL 
-  cell_type_harmonised = NULL 
-  distinct = NULL 
-  bind_rows = NULL 
-  confidence_class = NULL 
-  lineage_1 = NULL 
-  monaco_singler = NULL 
-  cell_annotation_monaco_singler = NULL 
-  cell_annotation_azimuth_l2 = NULL 
-  cell_annotation_blueprint_singler = NULL 
-  confidence_class_manually_curated = NULL 
-  cell_type_harmonised_manually_curated = NULL 
-  file_curated_annotation_merged = NULL 
-  # _cell = NULL 
-  # _sample = NULL 
-  cell_type_harmonised_non_immune = NULL 
 
   annotation_harmonised = readRDS("~/PostDoc/CuratedAtlasQueryR/dev/annotated_data_0.2_temp_table.rds")
   

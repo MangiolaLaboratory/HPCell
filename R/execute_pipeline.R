@@ -15,20 +15,22 @@
 #' @param sample_column Column name for sample identification.
 #' @param cell_type_annotation_column Column name for cell type annotation in input data
 #'
-#' @return The output of the `targets` pipeline, typically a preprocessed dataset.
+#' @return The output of the `targets` pipeline, typically a pre-processed data set.
 #'
 #' @importFrom glue glue
 #' @importFrom targets tar_script
 #' @import crew.cluster
+#' @import tarchetypes
 #' @import targets
 #' @import broom
 #' @import ggplot2
 #' @import ggupset
 #' @import here
 #' @import qs
-#' @import tarchetypes
 #' @import crew
 #' @importFrom future tweak
+#' @import crew 
+#' @import crew.cluster
 #' @export
 run_targets_pipeline <- function(
     input_data, 
@@ -88,7 +90,6 @@ run_targets_pipeline <- function(
   cell_type_annotation_column |> saveRDS("cell_type_annotation_column.rds")
   # Write pipeline to a file
   tar_script({
-    # 
     # library(targets)
     # library(tarchetypes)
     # library(crew)

@@ -18,7 +18,6 @@ Imports:
   tarchetypes,
   crew,
   crew.cluster,
-  qs,
   tidybulk,
   tidySummarizedExperiment,
   tidySingleCellExperiment,
@@ -28,9 +27,7 @@ Imports:
   Matrix (>= 1.6),
   dplyr, 
   tidyr, 
-  ggplot2,
   glue,
-  here,
   stringr,
   tidyseurat,
   purrr,
@@ -46,7 +43,6 @@ Imports:
   CellChat,
   gridGraphics,
   scDblFinder,
-  ggupset,
   magrittr,
   rlang, 
   S4Vectors, 
@@ -58,17 +54,24 @@ Imports:
   igraph, 
   callr, 
   circlize, 
-  future, 
   future.apply, 
   ids, 
-  methods, 
-  pbapply, 
-  scales, 
   RColorBrewer,
   digest, 
   cowplot, 
   igraph, 
-  reshape2
+  reshape2,
+  callr,
+  future,
+  methods,
+  pbapply,
+  reshape2,
+  scales,
+  data.table, 
+  ggplot2, 
+  ggupset, 
+  here, 
+  qs
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.1
@@ -86,5 +89,7 @@ biocViews:
 LazyDataCompression: xz
 Config/testthat/edition: 3
 Suggests: 
-    testthat (>= 3.0.0), 
-    scRNAseq
+    testthat(>= 3.0.0), 
+    scRNAseq,
+    irlba
+

@@ -12,10 +12,12 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(c("."))
 #' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
 #' @param empty_droplets_tbl A tibble identifying empty droplets.
 #' @param reference_azimuth Optional reference data for Azimuth.
+#' @param assay assay used, default = "RNA" 
 #'
 #' @return A tibble with cell type annotation data.
 #'
 #' @importFrom celldex BlueprintEncodeData
+#' @importFrom Seurat CreateAssayObject
 #' @importFrom celldex MonacoImmuneData
 #' @importFrom scuttle logNormCounts
 #' @importFrom Seurat SCTransform
@@ -23,11 +25,15 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(c("."))
 #' @importFrom tibble as_tibble
 #' @importFrom tibble tibble
 #' @importFrom dplyr select
+#' @importFrom dplyr join_by 
 #' @importFrom dplyr rename
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
 #' @importFrom Seurat CreateSeuratObject
-#' @importFrom Seurat CreateAssayObject
+#' @importFrom Seurat SCTransform
+#' @importFrom Seurat VariableFeatures
+#' @importFrom Seurat FindTransferAnchors
+#' @importFrom Seurat MapQuery
 #' @importFrom Seurat as.SingleCellExperiment
 #' @importFrom magrittr extract2
 #' 
@@ -37,6 +43,12 @@ annotation_label_transfer <- function(input_read_RNA_assay,
                                       reference_azimuth = NULL,
                                       assay = NULL
 ){
+  # Fix github checks 
+  empty_droplet = NULL 
+  pruned.labels = NULL 
+  delta.next = NULL 
+  .cell = NULL 
+  
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
@@ -189,7 +201,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
       RunPCA(assay = "SCT")
     
     if("ADT" %in% names(input_read_RNA_assay@assays) ){
-      VariableFeatures(input_read_RNA_assay, assay="ADT") <- rownames(input_read_RNA_assay[["ADT"]])
+      Seurat::VariableFeatures(input_read_RNA_assay, assay="ADT") <- rownames(input_read_RNA_assay[["ADT"]])
       input_read_RNA_assay =
         input_read_RNA_assay |>
         NormalizeData(normalization.method = 'CLR', margin = 2, assay="ADT") |>
@@ -212,7 +224,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     #   )
     
     # Define common anchors
-    anchors <- FindTransferAnchors(
+    anchors <- Seurat::FindTransferAnchors(
       reference = reference_azimuth,
       query = input_read_RNA_assay,
       normalization.method = "SCT",
@@ -225,7 +237,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     azimuth_annotation =
       tryCatch(
         expr = {
-          MapQuery(
+          Seurat::MapQuery(
             anchorset = anchors,
             query = input_read_RNA_assay,
             reference = reference_azimuth ,
@@ -249,7 +261,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     # Save
     modified_data <- data_annotated  |>
-      left_join(azimuth_annotation, by = join_by(.cell)	) 
+      left_join(azimuth_annotation, by = dplyr::join_by(.cell)	) 
     
     return(modified_data)
   }
@@ -264,6 +276,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
 #' @param empty_droplets_tbl A tibble identifying empty droplets.
 #' @param annotation_label_transfer_tbl A tibble with annotation label transfer data.
+#' @param assay assay used, default = "RNA" 
 #'
 #' @return A tibble identifying alive cells.
 #'
@@ -438,12 +451,14 @@ alive_identification <- function(input_read_RNA_assay,
 #' @param alive_identification_tbl A tibble identifying alive cells.
 #' @param annotation_label_transfer_tbl A tibble with annotation label transfer data.
 #' @param reference_label_fine Optional reference label for fine-tuning.
+#' @param assay Name of the assay to use.
 #'
 #' @return A tibble containing cells with their scDblFinder scores.
 #'
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
 #' @importFrom Matrix Matrix 
+#' @importFrom SummarizedExperiment colData
 #' @importFrom Seurat as.SingleCellExperiment
 #' @import scDblFinder
 #' @export
@@ -453,6 +468,12 @@ doublet_identification <- function(input_read_RNA_assay,
                                    annotation_label_transfer_tbl, 
                                    reference_label_fine,
                                    assay = NULL){
+  
+  # Fix GChecks 
+  .cell = NULL 
+  empty_droplet = NULL 
+  high_mitochondrion = NULL 
+  high_ribosome = NULL 
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
@@ -489,6 +510,7 @@ doublet_identification <- function(input_read_RNA_assay,
 #' @param assay The assay to be used for analysis, specified as a character string.
 #' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
 #' @param empty_droplets_tbl A tibble identifying empty droplets.
+#' @param assay Name of the assay to use.
 #'
 #' @return A tibble with cell identifiers and their cell cycle phase classifications.
 #'
@@ -542,13 +564,15 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
 #' @param empty_droplets_tbl Path to empty droplets data.
 #' @param alive_identification_tbl A tibble from alive cell identification.
 #' @param cell_cycle_score_tbl A tibble from cell cycle scoring.
-#' @param assay The assay to be used for analysis, specified as a character string.
+#' @param assay assay used, default = "RNA" 
 #'
 #' @return Normalized and adjusted data.
 #'
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
-#' @importFrom Seurat NormalizeData SCTransform
+#' @importFrom Seurat NormalizeData
+#' @importFrom Seurat VariableFeatures
+#' @importFrom Seurat SCTransform
 #' @export
 non_batch_variation_removal <- function(input_read_RNA_assay, 
                                         empty_droplets_tbl, 
@@ -594,7 +618,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   # VariableFeatures(counts) = variable_features
   
   # Normalise RNA
-  normalized_rna <- SCTransform(
+  normalized_rna <- Seurat::SCTransform(
     counts, 
     assay=assay,
     return.only.var.genes=FALSE,
@@ -725,6 +749,12 @@ preprocessing_output <- function(tissue,
 
 # Create pseudobulk for each sample 
 create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
+  #Fix GChecks 
+  .sample = NULL 
+  .feature = NULL 
+  data_source = NULL 
+  symbol = NULL 
+  
   #browser()
   x = enquo(x)
   
@@ -1026,8 +1056,14 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
 #' @importFrom dplyr left_join
 #' @importFrom tibble enframe
 #' @importFrom purrr map2
+#' @import dplyr 
+#' @importFrom data.table :=
 #' @export
 map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
+  
+  # Fix GitChecks 
+  assay_name = NULL 
+  
   
   .col = enquo(.col)
   
@@ -1068,7 +1104,7 @@ map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
 #' @param se Data frame containing SummarizedExperiment objects.
 #' @param .col Column in the data frame containing the SummarizedExperiment objects.
 #' @param .formula Formula for the differential abundance test.
-#' @param .abundance Name of the variable within the dataset that contains the abundance data 
+#' @param .abundance Optional; a symbol indicating the column of the datasets that specifies the abundance measure. If NULL, a default is used.
 #' @param max_rows_for_matrix_multiplication Maximum number of rows for matrix multiplication.
 #' @param cores Number of cores to use for computation.
 #' @param ... Additional parameters.
@@ -1076,6 +1112,7 @@ map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
 #' @return Data frame with test results.
 #'
 #' @importFrom rlang enquo
+#' @import dplyr 
 #' @export
 map_test_differential_abundance = function(
     
@@ -1127,6 +1164,7 @@ map_test_differential_abundance = function(
 #' @return Data frame with SummarizedExperiment objects split into chunks.
 #'
 #' @importFrom dplyr n
+#' @import dplyr 
 #' @importFrom dplyr mutate
 #' @importFrom tidyr unnest
 #' @importFrom dplyr select
@@ -1169,7 +1207,6 @@ map_split_se_by_gene = function(se_df, .col, .number_of_chunks){
 #' @importFrom purrr map
 #' @importFrom tibble tibble
 #' @importFrom ids random_id
-#' 
 #' @param se_df A `SingleCellExperiment` DataFrame that contains gene expression or other related data.
 #' @param .col A symbol or string indicating the column in `se_df` which should be dynamically split into multiple chunks based on gene count.
 #' @param chunk_size The maximum number of genes each chunk should contain; defaults to 100.
@@ -1201,6 +1238,7 @@ map_split_se_by_number_of_genes = function(se_df, .col, chunk_size = 100){
     unnest(!!.col) |>
     mutate(se_md5 = ids::random_id(n()))
 }
+
 
 
 #' map_split_sce_by_gene Split SingleCellExperiment by Gene 
@@ -1249,6 +1287,10 @@ map_split_sce_by_gene = function(sce_df, .col, how_many_chunks_base = 10, max_ce
 #' @param input_seurat Single Seurat object (Input data)
 #' @param empty_droplet Single dataframe containing empty droplet filtering information 
 #' @return A vector of variable gene names
+#' 
+#' @importFrom Seurat VariableFeatures
+#' @importFrom Seurat FindVariableFeatures
+#' 
 #' @export
 # Find set of variable genes 
 find_variable_genes <- function(input_seurat, empty_droplet){
@@ -1271,8 +1313,8 @@ find_variable_genes <- function(input_seurat, empty_droplet){
   input_seurat <- ScaleData(seu, assay=assay_of_choice, return.only.var.genes=FALSE)
   
   # Find and retrieve variable features
-  input_seurat <- FindVariableFeatures(input_seurat, assay=assay_of_choice, nfeatures = 500)
-  my_variable_genes <- VariableFeatures(input_seurat, assay=assay_of_choice)
+  input_seurat <- Seurat::FindVariableFeatures(input_seurat, assay=assay_of_choice, nfeatures = 500)
+  my_variable_genes <- Seurat::VariableFeatures(input_seurat, assay=assay_of_choice)
   
   return(my_variable_genes)
 }
@@ -1291,8 +1333,26 @@ find_variable_genes <- function(input_seurat, empty_droplet){
 #'
 #' @return A data frame with harmonized cell type annotations.
 #'
+#'
+#' @importFrom dplyr across
+#' @importFrom readr read_csv
+#' @importFrom dplyr bind_rows
+#' @importFrom dplyr join_by
+#' @importFrom data.table :=
+#'
+#'
 #' @export
 annotation_consensus = function(single_cell_data, .sample_column, .cell_type, .azimuth, .blueprint, .monaco){
+  # Fix GITCHECK notes
+  .sample = NULL 
+  cell_type = NULL 
+  cell_annotation_azimuth_l2 = NULL 
+  cell_annotation_blueprint_singler = NULL 
+  cell_annotation_monaco_singler = NULL 
+  .cell = NULL 
+  cell_type_harmonised = NULL 
+  confidence_class = NULL
+  
   
   # Fix GCHECK notes
   .cell = NULL

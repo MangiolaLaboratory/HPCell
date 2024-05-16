@@ -18,7 +18,7 @@ annotation_label_transfer(
 
 \item{reference_azimuth}{Optional reference data for Azimuth.}
 
-\item{assay}{The assay to be used for analysis, specified as a character string.}
+\item{assay}{assay used, default = "RNA"}
 }
 \value{
 A tibble with cell type annotation data.

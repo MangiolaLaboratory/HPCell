@@ -494,6 +494,7 @@ cellchat_diff_for_circle = function(pathway, x, y){
 #' @importFrom circlize colorRamp2
 #' @importFrom RColorBrewer brewer.pal
 #' @importFrom scales rescale
+#' @importFrom igraph in_circle 
 draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, sources.use = NULL,
                                       targets.use = NULL, remove.isolate = FALSE, top = 1, top_absolute = NULL, weight.scale = T,
                                       vertex.weight = 20, vertex.weight.max = NULL, vertex.size.max = 15,

@@ -140,19 +140,11 @@ data_umap<- params$x4 %>% bind_rows()
 plot_tissue_color =
     data_umap |>
     dplyr::mutate(batch = 1) |>
-<<<<<<< HEAD
     ggplot(aes(umap_1, umap_2, color = data_umap[[params$x5]])) +  # Ensure 'Tissue' is a column in 'data_umap'
     geom_point(size = 0.2) +
     facet_wrap(~data_umap[[params$x5]]) +
     theme_minimal() +
     labs(title = "UMAP colored by Tissue", color = "data_umap[[params$x5]]")
-=======
-    ggplot(aes(umap_1, umap_2, color = data_umap[[x5]])) +  # Ensure 'Tissue' is a column in 'data_umap'
-    geom_point(size = 0.2) +
-    facet_wrap(~data_umap[[x5]]) +
-    theme_minimal() +
-    labs(title = "UMAP colored by Tissue", color = "data_umap[[x5]]")
->>>>>>> 7d4d87366996b9da235320e735f9434295a82dfd
 
 # plot_severity_color =
 #   data_umap |>

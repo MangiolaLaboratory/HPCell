@@ -44,9 +44,10 @@ map2_test_differential_abundance_hpc = function(
   ){
   
   #Fix GChecks 
+  abundance = NULL 
   file_data = NULL 
   file_formula = NULL
-  abundance = NULL
+  .abundance = NULL
   number_of_workers = NULL
   number_of_datasets = NULL
   pseudobulk_df_tissue = NULL
@@ -146,7 +147,7 @@ map2_test_differential_abundance_hpc = function(
       # Dispersion
       tar_target(
         pseudobulk_df_tissue_dispersion, 
-        pseudobulk_df_tissue |> map_add_dispersion_to_se(data, formula, abundance), 
+        # pseudobulk_df_tissue |> map_add_dispersion_to_se(data, formula, abundance), 
         pattern = map(pseudobulk_df_tissue),
         iteration = "group"
       ),
@@ -268,7 +269,7 @@ map2_test_differential_abundance_hpc = function(
 # cpus_per_task Number of CPUs allocated per task.
 #' @param debug_job_id Optional job ID for debugging.
 #' @param append Flag to append to existing script.
-#' @param ... Additional arguments
+#' @param ... additional arguments 
 #'
 #' @return A `targets` pipeline output, typically a nested tibble with differential abundance estimates.
 #'

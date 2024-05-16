@@ -18,7 +18,7 @@ alive_identification(
 
 \item{annotation_label_transfer_tbl}{A tibble with annotation label transfer data.}
 
-\item{assay}{The assay to be used for analysis, specified as a character string.}
+\item{assay}{assay used, default = "RNA"}
 }
 \value{
 A tibble identifying alive cells.
