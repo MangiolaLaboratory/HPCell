@@ -1,17 +1,18 @@
 ---
-title: "Doublet_identification_report"
+title: "Doublet identification report"
 author: "SS"
 date: "2023-12-05"
 output: html_document
 params: 
-  x1: "input_seurat_list"
-  x2: "calc_UMAP_result_list"
-  x3: "doublet_identification_tbl_list"
-  x4: "annotation_label_transfer_tbl_list"
+  x1: "NA"
+  x2: "NA"
+  x3: "NA"
+  x4: "NA"
+  x5: "NA"
+  x6: "NA"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(tidyr)
 library(purrr)
@@ -52,14 +53,25 @@ get_labels_clusters = function(.data, label_column, dim1, dim2){
 }
 ```
 
+## Comprehensive UMAP Visualization of Cell Typing and Doublet Detection Across Tissue Samples
+- This visualization highlights the clustering of cell types and identifies singlets and doublets in the population. 
+- This allows for an exploration of similarities and differences in gene expression profiles between cells from different tissues. 
 
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
+## Adjusting plot size according to the number of samples 
+# num_samples <- length(params$x1$Tissue)
+# 
+# # Calculate the grid layout based on the number of samples
+# num_columns <- ceiling(sqrt(num_samples))
+# num_rows <- ceiling(num_samples / num_columns)
+
+
 # Joining info and returning a list opf tibbles
 merged_combined_annotation_doublets <- list(
-  #input_seurat_list,
-  calc_UMAP_result_list,
-  doublet_identification_tbl_list,
-  annotation_label_transfer_tbl_list
+  #params$x1,
+  params$x2,
+  params$x3,
+  params$x4
 ) |>
     pmap(
         ~ ..1 |>
@@ -69,7 +81,7 @@ merged_combined_annotation_doublets <- list(
     ) |> 
   enframe(name = "sample_id", value = "annotated_metadata")|> 
   mutate(
-    sample_name = map(annotated_metadata,  ~ .x$Tissue[1])) |> 
+    sample_name = map(annotated_metadata,  ~ .x |> pull(params$x5[[1]]))) |> 
   mutate(plot_by_doublet = map2(
     annotated_metadata,
     sample_name,
@@ -120,18 +132,18 @@ merged_combined_annotation_doublets <- list(
       unnest(doublet_class)
       
       merged_combined_annotation_doublets |> 
-      ggplot(aes(umap_1, umap_2, color = Cell_type_in_each_tissue)) +
+      ggplot(aes(umap_1, umap_2, color = all_of(params$x6))) +
       geom_point(shape=".") +
         theme_bw() +
         labs(title = .y, color = "Cell Type") +
         ggrepel::geom_text_repel(
           data= get_labels_clusters(
             .x, 
-      			Cell_type_in_each_tissue,
+      			all_of(params$x5),
       			umap_1, 
       			umap_2
       			) ,
-		aes(umap_1, umap_2, label = Cell_type_in_each_tissue), size = 2) +
+		aes(umap_1, umap_2, label = all_of(params$x5)), size = 2) +
         guides(color = "none") + 
         labs(title = .y)
     })) |> 
@@ -152,47 +164,63 @@ plot_merged_combined_annotation_doublets
   # patchwork::wrap_elements() |> 
   # map(~ .x |>
   #        left_join(
-  #       annotation_label_transfer_tbl_list |>
+  #       params$x4 |>
   #       purrr::reduce(bind_rows), by=".cell"
   #     ) |>
   # 
   #     #join doublets identified
   #     left_join(
-  #         doublet_identification_tbl_list |>
+  #         params$x3 |>
   #         purrr::reduce(bind_rows), by = c(".cell")
   #       )
   # )
 
 ```
 
+## Singlet and Doublet Cell Distributions Across Tissues 
+
+Each bar in the plot corresponds to a specific cell type within each tissue.
+
+From this plot, we can infer: 
+
+1. The overall quality of the cell separation process in the sequencing data, indicated by the proportion of singlets to doublets.
+2. Potential differences in the rate of doublet formation between cell types, which might be related to cell size and tissue type
 
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
 # 2a) Create the composition of the doublets
 
-doublet_composition<- merged_combined_annotation_doublets %>% 
+doublet_composition<- merged_combined_annotation_doublets |>
   mutate(doublet_composition = map2(
     annotated_metadata,
     sample_name,
     ~ {
       #browser() 
       .x|> 
-      dplyr::select(sample_column, scDblFinder.class)}
-      )) |> 
-      #table()|> 
-  dplyr::select(sample_name, doublet_composition) |> 
+      dplyr::select(all_of(params$x5), scDblFinder.class)}
+      )) |>
+      # table()|>
+  dplyr::select(sample_name, doublet_composition) |>
   deframe()
-  
 
+  # merged_combined_annotation_doublets <-
+  #   merged_combined_annotation_doublets |>
+  # mutate(doublet_composition_plot = doublet_composition |> 
+  #          group_by(params$x5, all_of(params$x5)) |>
+  #          mutate(proportion = count_class/sum(count_class)) |>
+  #          ungroup()
+  #        )
+  
+# calculate proportion and plot
 #calculate proportion and plot
-  merged_combined_annotation_doublets<- merged_combined_annotation_doublets |>
+  merged_combined_annotation_doublets <- 
+    merged_combined_annotation_doublets |>
   mutate(doublet_composition_plot = map(
     annotated_metadata,
-    ~ .x |> 
-
-  # create frquency column
-    
-  count(Tissue, Cell_type_in_each_tissue, scDblFinder.class, name= "count_class") |> 
-    group_by(Tissue, Cell_type_in_each_tissue) |> 
+      ~ .x |> 
+      # browser() |> 
+  # create frequency column
+  dplyr::count(.data[[params$x5]], .data[[params$x6]], scDblFinder.class, name= "count_class") |> 
+    group_by(.data[[params$x5]], .data[[params$x6]]) |> 
     mutate(proportion = count_class/sum(count_class)) |>
     ungroup() |>
     
@@ -204,10 +232,10 @@ doublet_composition<- merged_combined_annotation_doublets %>%
   # mutate(proportion = (frequency * 1)/tot_sample_proportion) |>
   
   #plot proportion
-  ggplot(aes(x = Cell_type_in_each_tissue , y = proportion, fill = scDblFinder.class)) +
+  ggplot(aes(x = .data[[params$x6]] , y = proportion, fill = scDblFinder.class)) +
   geom_bar(stat = "identity") +
   theme_bw() +
-  facet_wrap(~Tissue) +
+  facet_wrap(~sampleName) +
   theme(axis.text.x=element_text(angle=70, hjust=1))
   )) 
   

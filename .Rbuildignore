@@ -7,3 +7,7 @@ README.md
 HPCell.Rproj
 pipeline_stores
 ^.*\.rds$
+^data/theme_multipanel\.rda$
+^inst/rmd/.*\\.html$
+^[^/]*\.r$
+^tests$

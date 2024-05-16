@@ -98,7 +98,7 @@ merged_combined_annotation_doublets =
       RunPCA(features = variable_genes) |>
       FindNeighbors(dims = 1:30) |>
       FindClusters(resolution = 0.5) |>
-      RunUMAP(dims = 1:30, spread = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
+      Seurat::RunUMAP(dims = 1:30, spread = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
       as_tibble() |> 
       
       # Join annotation
