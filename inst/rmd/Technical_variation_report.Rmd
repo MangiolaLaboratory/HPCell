@@ -11,8 +11,6 @@ params:
   x5: "NA"
 ---
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-
 # assay_of_choice = "originalexp"
 metadata_list <- lapply(params$x1, function(seurat_obj) {
   return(seurat_obj@meta.data)

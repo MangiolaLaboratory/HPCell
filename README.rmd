@@ -140,8 +140,8 @@ HeOrganAtlasData(ensembl=FALSE,location=FALSE)|>
 
 ```{r}
 RNA_assay_name = "RNA"
-input_data_path_list<- c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds")
-store <- "/vast/scratch/users/si.j/store_fibrosis8"
+# input_data_path_list<- c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds")
+store <- "/vast/scratch/users/si.j/store_fibrosis10"
 
 # Running the pipeline
 # preprocessed_seurat = run_targets_pipeline(
@@ -160,9 +160,10 @@ store <- "/vast/scratch/users/si.j/store_fibrosis8"
 #     cell_type_annotation_column = "cellAnno"
 #     # debug_step = "variable_gene_list"
 # )
-input_data_path_list = "~/HPCell/input_HEorgandata/input_Blood.rds"
+input_data_path_list = c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds")
+tar_invalidate(names = everything(), store = store)
 preprocessed_seurat = HPCell::run_targets_pipeline(
-    input_data = "/vast/scratch/users/si.j/susan_fibrosis/GSE122960___GSM3489182.rds",
+    input_data = input_data_path_list,
     tissue = "pbmc",
     filter_empty_droplets = TRUE,
     RNA_assay_name = RNA_assay_name,

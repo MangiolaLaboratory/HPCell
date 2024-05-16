@@ -34,15 +34,11 @@ library(here)
 ```
 
 ```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 # Load data
 # pseudobulk <- do.call(cbind, params$x1)
 pseudobulk <-  params$x1
 #metadata_clinical_sample <- readRDS(params$metadata_path)
-<<<<<<< HEAD
-=======
 library(ggplot2)
->>>>>>> 7d4d87366996b9da235320e735f9434295a82dfd
 # pseudobulk <-  params$x1
 # Extract the proportion of variance explained by each principal component
 # var_explained <- my_pca$sdev^2
@@ -55,7 +51,6 @@ library(ggplot2)
 
 
 ```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 #pbmc_pseudobulk from sce:
 pbmc_pseudobulk <- 
   pseudobulk %>% 
@@ -84,7 +79,6 @@ data_for_pca |>
 ## Calculate PCA of pseudobulk
 
 ```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 metadata =
   data_for_pca |>
   pivot_sample() |>
@@ -126,10 +120,7 @@ Graphical representation to show the proportion of variance explained by each pr
 This gives an idea of how many principal components we need to keep to represent the data faithfully. In this case we see a gradual decrease of variance explained, indicating that we might need up to principal component `num_components` for explaining 90% of the variance.
 
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
-<<<<<<< HEAD
-=======
 library(ggplot2)
->>>>>>> 7d4d87366996b9da235320e735f9434295a82dfd
 
 # # Extract the proportion of variance explained by each principal component
 # var_explained <- my_pca$sdev^2

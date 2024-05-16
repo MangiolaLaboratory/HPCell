@@ -17,6 +17,12 @@ map2_test_differential_abundance_hpc(
 )
 }
 \arguments{
+\item{data_list}{list of dataframes to be processed}
+
+\item{formula_list}{List of formula for the differential abundance test.}
+
+\item{.abundance}{(optional) A symbol or string indicating the column name in the \code{SingleCellExperiment} object to be used for abundance measures. If not explicitly provided, the function attempts to automatically detect an appropriate column by examining the first object in \code{data_list}.}
+
 \item{store}{File path for temporary storage.}
 
 \item{computing_resources}{Computing resources configuration.}
@@ -27,11 +33,7 @@ map2_test_differential_abundance_hpc(
 
 \item{append}{Flag to append to existing script.}
 
-\item{data_df}{Data frame to be processed.}
-
-\item{formula}{Formula for the differential abundance test.}
-
-\item{.data_column}{Column in the data frame containing the data.}
+\item{...}{additional arguments}
 }
 \value{
 A \code{targets} pipeline output, typically a nested tibble with differential abundance estimates.

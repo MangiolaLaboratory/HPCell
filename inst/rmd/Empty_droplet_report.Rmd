@@ -12,7 +12,6 @@ params:
 ---
 
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 library(HPCell)
 library(readr)
 library(dplyr)
@@ -117,7 +116,6 @@ sample_names<- params$x4
 
 ## Barcode rank plot
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 # Process empty droplets data 
 empty_df <- function(input_seurat, empty_droplets_tbl) {
   input <- input_seurat@meta.data |> 

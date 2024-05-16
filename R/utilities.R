@@ -662,7 +662,6 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 # @examples
 # cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
 # cleaned_cell_types <- clean_cell_types_deeper(cell_types)
-
 clean_cell_types_deeper = function(x){
   x |> 
     # Annotate

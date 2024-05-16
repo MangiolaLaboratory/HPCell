@@ -431,11 +431,11 @@ netAnalysis_computeCentrality = function (object = NULL, slot.name = "netP", net
       # ADDED BY STEFANO
       net0[net0<0] = 0
 
-      return(CellChat:::computeCentralityLocal(net0))
+      return(computeCentralityLocal(net0))
     }, simplify = FALSE)
   }
   else {
-    centr.all <- as.list(CellChat:::computeCentralityLocal(net))
+    centr.all <- as.list(computeCentralityLocal(net))
   }
   names(centr.all) <- net.name
   if (is.null(object)) {
@@ -488,6 +488,7 @@ cellchat_diff_for_circle = function(pathway, x, y){
 
 #' @importFrom igraph graph_from_adjacency_matrix layout_
 #' @importFrom CellChat scPalette
+#' @importFrom reshape2 melt
 #' @importFrom patchwork wrap_elements
 #' @importFrom cowplot as_grob
 #' @importFrom circlize colorRamp2

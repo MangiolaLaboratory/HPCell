@@ -4,14 +4,15 @@
 #' @description
 #' This function prepares and runs a differential abundance test pipeline using the 'targets' package. It sets up necessary files, appends scripts, and executes the pipeline.
 #'
-#' @param data_df Data frame to be processed.
-#' @param formula Formula for the differential abundance test.
-#' @param .data_column Column in the data frame containing the data.
+#' @param formula_list List of formula for the differential abundance test.
 #' @param store File path for temporary storage.
 #' @param computing_resources Computing resources configuration.
 #' @param cpus_per_task Number of CPUs allocated per task.
 #' @param debug_job_id Optional job ID for debugging.
 #' @param append Flag to append to existing script.
+#' @param data_list list of dataframes to be processed
+#' @param .abundance (optional) A symbol or string indicating the column name in the `SingleCellExperiment` object to be used for abundance measures. If not explicitly provided, the function attempts to automatically detect an appropriate column by examining the first object in `data_list`.
+#' @param ... additional arguments 
 #'
 #' @return A `targets` pipeline output, typically a nested tibble with differential abundance estimates.
 #'
@@ -27,7 +28,6 @@
 #' @importFrom SummarizedExperiment assays
 #' @importFrom tibble rowid_to_column
 #' @importFrom callr r
-#' @importFrom tidyseurat quo_names
 #' @importFrom tibble rowid_to_column
 #' 
 #' @export
@@ -61,7 +61,7 @@ map2_test_differential_abundance_hpc = function(
   
   .abundance = enquo(.abundance)
 
-  if(quo_is_symbolic(.abundance)) .abundance = rlang::quo_names(.abundance)
+  if(quo_is_symbolic(.abundance)) .abundance = quo_names(.abundance)
   else .abundance =  
     data_list[[1]] |> 
     assays() |> 
