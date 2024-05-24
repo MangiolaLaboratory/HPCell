@@ -315,6 +315,17 @@ alive_identification <- function(input_read_RNA_assay,
     left_join(empty_droplets_tbl, by=".cell") |>
     filter(!empty_droplet)
   
+  # Calculate nFeature_RNA and nCount_RNA if not exist in the data
+  if (!any(str_which(colnames(input_read_RNA_assay[[]]), "nFeature_RNA")) ||
+      !any(str_which(colnames(input_read_RNA_assay[[]]), "nCount_RNA"))) {
+    input_read_RNA_assay[["nFeature_RNA"]] <-
+      colSums(GetAssayData(seurat_obj, assay = assay, slot = "counts") > 0)
+    input_read_RNA_assay[["nCount_RNA"]] <-
+      colSums(GetAssayData(seurat_obj, assay = assay, slot = "counts"))
+  } else {
+    input_read_RNA_assay
+  }
+  
   # Returns a named vector of IDs
   # Matches the gene id’s row by row and inserts NA when it can’t find gene names
   location <- mapIds(
