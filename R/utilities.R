@@ -35,7 +35,7 @@ eq = function(a,b){	a==b }
 #' @importFrom DropletUtils barcodeRanks
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
-#' @noRd
+#' @export
 empty_droplet_id <- function(input_read_RNA_assay,
                              filter_empty_droplets,
                              assay = NULL){
@@ -174,7 +174,7 @@ reference_label_fine_id <- function(tissue) {
 #' @param tissue Type of tissue.
 #'
 #' @return Appropriate reference label for coarse categorization.
-#' @noRd
+#' @export
 reference_label_coarse_id <- function(tissue) {
   return(
     ifelse(tissue == "pbmc", "monaco_first.labels.coarse",
