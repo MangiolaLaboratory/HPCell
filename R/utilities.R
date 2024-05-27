@@ -13,6 +13,24 @@ pow = function(a,b){	a^b }
 # Equals
 eq = function(a,b){	a==b }
 
+#' Read various types of single-cell data
+#' @param file A vector of file path
+#' @param container_type A character vector of length one specifies the input data type.
+#' @return A `Seurat` object
+#' @importFrom zellkonverter readH5AD
+#' @importFrom HDF5Array loadHDF5SummarizedExperiment
+#' @export
+read_data_container <- function(file,
+                                container_type = "anndata"){
+  switch(container_type,
+         "anndata" = readH5AD(file, reader = "R") |> as.Seurat(counts = "counts", data = "counts"),
+         "sce_rds" =  readRDS(file) |> as.Seurat(counts = "counts", data = "counts"),
+         "seurat_rds" = readRDS(file),
+         "sce_hdf5" = loadHDF5SummarizedExperiment(file) |> as.Seurat(counts = "counts", data = "counts"),
+         "seurat_hdf5" = loadHDF5SummarizedExperiment(file)
+         )
+}
+
 #' Identify Empty Droplets in Single-Cell RNA-seq Data
 #'
 #' @description

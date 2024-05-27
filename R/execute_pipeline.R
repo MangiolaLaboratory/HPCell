@@ -42,7 +42,8 @@ run_targets_pipeline <- function(
     filter_empty_droplets = NULL, 
     RNA_assay_name = "RNA", 
     sample_column = "sample", 
-    cell_type_annotation_column = "Cell_type_in_each_tissue"
+    cell_type_annotation_column = "Cell_type_in_each_tissue",
+    data_container_type = "anndata"
 ){
   
   # Fix GCHECKS 
@@ -161,7 +162,7 @@ run_targets_pipeline <- function(
     #                                  )
     #     )
     # plan(slurm)
-
+    
     # small_slurm =
     #   tar_resources(
     #     future = tar_resources_future(
@@ -221,7 +222,7 @@ run_targets_pipeline <- function(
       tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
       tar_target(reference_label_fine, reference_label_fine_id(tissue), deployment = "main"), 
       # Reading input files
-      tar_target(input_read, readRDS(read_file),
+      tar_target(input_read, read_data_container(read_file, container_type = data_container_type),
                  pattern = map(read_file),
                  iteration = "list"),
       tar_target(unique_tissues,
@@ -324,7 +325,7 @@ run_targets_pipeline <- function(
                                                          empty_droplets_tbl), 
                  pattern = map(input_read, empty_droplets_tbl), 
                  iteration = "list")
-
+      
       # tar_render(
       #   name = empty_droplets_report, # The name of the target
       #   path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
@@ -359,10 +360,10 @@ run_targets_pipeline <- function(
       #   params = list(x1 = pseudobulk_merge_all_samples, 
       #                 x2 = sample_column |> quo_name(), 
       #                 x3 = cell_type_annotation_column |> quo_name())
-      )
-      )
+    )
+    )
   }, script = glue("{store}.R"), ask = FALSE)
-
+  
   #Running targets 
   # input_files<- c("CB150T04X__batch14.rds","CB291T01X__batch8.rds")
   # run_targets <- function(input_files){

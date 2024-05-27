@@ -71,7 +71,8 @@ Imports:
   ggplot2, 
   ggupset, 
   here, 
-  qs
+  qs,
+  zellkonverter
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.1
@@ -92,4 +93,5 @@ Suggests:
     testthat(>= 3.0.0), 
     scRNAseq,
     irlba
+    
 

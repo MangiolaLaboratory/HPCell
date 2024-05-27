@@ -14,7 +14,8 @@ run_targets_pipeline(
   filter_empty_droplets = NULL,
   RNA_assay_name = "RNA",
   sample_column = "sample",
-  cell_type_annotation_column = "Cell_type_in_each_tissue"
+  cell_type_annotation_column = "Cell_type_in_each_tissue",
+  data_container_type = "anndata"
 )
 }
 \arguments{
