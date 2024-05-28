@@ -7,12 +7,12 @@
 read_data_container(file, container_type = "anndata")
 }
 \arguments{
-\item{file}{A vector of file path}
+\item{file}{A vector of file path for anndata and rds, or file directory for hdf5.}
 
 \item{container_type}{A character vector of length one specifies the input data type.}
 }
 \value{
-A \code{Seurat} object
+A \verb{[Seurat::Seurat-class]} object
 }
 \description{
 Read various types of single-cell data

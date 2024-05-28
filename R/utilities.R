@@ -14,9 +14,9 @@ pow = function(a,b){	a^b }
 eq = function(a,b){	a==b }
 
 #' Read various types of single-cell data
-#' @param file A vector of file path
+#' @param file A vector of file path for anndata and rds, or file directory for hdf5.
 #' @param container_type A character vector of length one specifies the input data type.
-#' @return A `Seurat` object
+#' @return A `[Seurat::Seurat-class]` object
 #' @importFrom zellkonverter readH5AD
 #' @importFrom HDF5Array loadHDF5SummarizedExperiment
 #' @export
@@ -174,7 +174,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' @param tissue Type of tissue.
 #'
 #' @return Appropriate reference label for fine categorization.
-#' @noRd
+#' @export
 reference_label_fine_id <- function(tissue) {
   return(
     ifelse(tissue == "pbmc", "monaco_first.labels.fine",
@@ -600,6 +600,7 @@ calc_UMAP <- function(input_seurat){
 #' 
 #'  @description
 #' Function to subset Seurat object by tissue
+#' @export
 get_unique_tissues <- function(seurat_object, sample_column) {
   sample_column<- quo_name(sample_column)
   unique_sample <- seurat_object@meta.data |> pull(sample_column) |> unique()
