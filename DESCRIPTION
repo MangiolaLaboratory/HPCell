@@ -1,6 +1,6 @@
 Package: HPCell
 Title: Massively-parallel R native pipeline for single-cell analysis
-Version: 0.1.0
+Version: 0.2.2
 Authors@R: c(person("Stefano", "Mangiola", email = "mangiolastefano@gmail.com",
                   role = c("aut", "cre")),
                   person("Jiayi", "Si", email = "si.j@wehi.edu.au",
@@ -72,7 +72,7 @@ Imports:
   ggupset, 
   here, 
   qs,
-  zellkonverter
+  HDF5Array
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.1
@@ -92,6 +92,8 @@ Config/testthat/edition: 3
 Suggests: 
     testthat(>= 3.0.0), 
     scRNAseq,
-    irlba
+    irlba,
+    cellxgene.census,
+    zellkonverter
     
 
