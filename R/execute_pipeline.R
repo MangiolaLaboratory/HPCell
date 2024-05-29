@@ -14,6 +14,12 @@
 #' @param RNA_assay_name Name of the RNA assay.
 #' @param sample_column Column name for sample identification.
 #' @param cell_type_annotation_column Column name for cell type annotation in input data
+#' @param data_container_type A character vector of length one specifies the input data type.
+#' data type can be one of the following: anndata for annotated data mainly used in python.
+#' sce_rds and seurat_rds for `SingleCellExperiment` and `Seurat` RDS format representively
+#' seurat_rds for `Seurat` RDS format.
+#' sce_hdf5 for `SingleCellExperiment` HDF5 format 
+#' seurat_hdf5 for `Seurat` HDF5 format 
 #'
 #' @return The output of the `targets` pipeline, typically a pre-processed data set.
 #'
@@ -42,7 +48,8 @@ run_targets_pipeline <- function(
     filter_empty_droplets = NULL, 
     RNA_assay_name = "RNA", 
     sample_column = "sample", 
-    cell_type_annotation_column = "Cell_type_in_each_tissue"
+    cell_type_annotation_column = "Cell_type_in_each_tissue",
+    data_container_type
 ){
   
   # Fix GCHECKS 
@@ -88,6 +95,7 @@ run_targets_pipeline <- function(
   filter_empty_droplets |> saveRDS("filter_empty_droplets.rds")
   sample_column |> saveRDS("sample_column.rds")
   cell_type_annotation_column |> saveRDS("cell_type_annotation_column.rds")
+  data_container_type |> saveRDS("data_container_type.rds")
   # Write pipeline to a file
   tar_script({
     # library(targets)
@@ -131,7 +139,9 @@ run_targets_pipeline <- function(
         "tibble", 
         "magrittr",
         "qs", 
-        "S4Vectors"
+        "S4Vectors",
+        "tarprof",
+        "zellkonverter"
       ),
       memory = "transient",
       garbage_collection = TRUE,
@@ -161,7 +171,7 @@ run_targets_pipeline <- function(
     #                                  )
     #     )
     # plan(slurm)
-
+    
     # small_slurm =
     #   tar_resources(
     #     future = tar_resources_future(
@@ -200,7 +210,8 @@ run_targets_pipeline <- function(
       tar_target(tissue_file, readRDS("tissue.rds")), 
       tar_target(filtered_file, readRDS("filter_empty_droplets.rds")), 
       tar_target(sample_column_file, readRDS("sample_column.rds")), 
-      tar_target(cell_type_annotation_column_file, readRDS("cell_type_annotation_column.rds")))
+      tar_target(cell_type_annotation_column_file, readRDS("cell_type_annotation_column.rds")),
+      tar_target(data_container_type_file, readRDS("data_container_type.rds")))
     
     #-----------------------#
     # Pipeline
@@ -221,7 +232,7 @@ run_targets_pipeline <- function(
       tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
       tar_target(reference_label_fine, reference_label_fine_id(tissue), deployment = "main"), 
       # Reading input files
-      tar_target(input_read, readRDS(read_file),
+      tar_target(input_read, read_data_container(read_file, container_type = data_container_type_file |> quo_name()),
                  pattern = map(read_file),
                  iteration = "list"),
       tar_target(unique_tissues,
@@ -302,29 +313,29 @@ run_targets_pipeline <- function(
                                cell_cycle_score_tbl,
                                annotation_label_transfer_tbl,
                                doublet_identification_tbl),
-                 iteration = "list"),
+                 iteration = "list")
       
       # pseudobulk preprocessing for each sample 
-      tar_target(create_pseudobulk_sample, create_pseudobulk(preprocessing_output_S, 
-                                                             assays = "SCT", 
-                                                             cell_type_annotation_column, 
-                                                             x = c(sampleName, cellAnno)), 
-                 pattern = map(preprocessing_output_S), 
-                 iteration = "list"),
+      # tar_target(create_pseudobulk_sample, create_pseudobulk(preprocessing_output_S,
+      #                                                        assays = "SCT",
+      #                                                        cell_type_annotation_column,
+      #                                                        x = c(sampleName, cellAnno)),
+      #            pattern = map(preprocessing_output_S),
+      #            iteration = "list"),
+      # 
+      # tar_target(pseudobulk_merge_all_samples, pseudobulk_merge(create_pseudobulk_sample,
+      #                                                           assays = "RNA",
+      #                                                           x = c(sampleName)),
+      #            iteration = "list"),
+      # 
+      # tar_target(calc_UMAP_dbl_report, calc_UMAP(input_read),
+      #            pattern = map(input_read),
+      #            iteration = "list"),
+      # tar_target(variable_gene_list, find_variable_genes(input_read,
+      #                                                    empty_droplets_tbl),
+      #            pattern = map(input_read, empty_droplets_tbl),
+      #            iteration = "list")
       
-      tar_target(pseudobulk_merge_all_samples, pseudobulk_merge(create_pseudobulk_sample, 
-                                                                assays = "RNA", 
-                                                                x = c(sampleName)), 
-                 iteration = "list"),
-      
-      tar_target(calc_UMAP_dbl_report, calc_UMAP(input_read), 
-                 pattern = map(input_read), 
-                 iteration = "list"), 
-      tar_target(variable_gene_list, find_variable_genes(input_read, 
-                                                         empty_droplets_tbl), 
-                 pattern = map(input_read, empty_droplets_tbl), 
-                 iteration = "list")
-
       # tar_render(
       #   name = empty_droplets_report, # The name of the target
       #   path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
@@ -359,10 +370,10 @@ run_targets_pipeline <- function(
       #   params = list(x1 = pseudobulk_merge_all_samples, 
       #                 x2 = sample_column |> quo_name(), 
       #                 x3 = cell_type_annotation_column |> quo_name())
-      )
-      )
+    )
+    )
   }, script = glue("{store}.R"), ask = FALSE)
-
+  
   #Running targets 
   # input_files<- c("CB150T04X__batch14.rds","CB291T01X__batch8.rds")
   # run_targets <- function(input_files){
@@ -376,6 +387,10 @@ run_targets_pipeline <- function(
     script = glue("{store}.R"),
     store = store,
     callr_function = NULL
+    # callr_function = tarprof::callr_profile,
+    # callr_arguments = list(
+    #   monitor_path = file.path(store, "profile_results")
+    # )
   )
   # tar_make_future(
   #   script = glue("{store}.R"),

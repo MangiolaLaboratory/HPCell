@@ -316,12 +316,14 @@ alive_identification <- function(input_read_RNA_assay,
     filter(!empty_droplet)
   
   # Calculate nFeature_RNA and nCount_RNA if not exist in the data
-  if (!any(str_which(colnames(input_read_RNA_assay[[]]), "nFeature_RNA")) ||
-      !any(str_which(colnames(input_read_RNA_assay[[]]), "nCount_RNA"))) {
-    input_read_RNA_assay[["nFeature_RNA"]] <-
-      colSums(GetAssayData(seurat_obj, assay = assay, slot = "counts") > 0)
-    input_read_RNA_assay[["nCount_RNA"]] <-
-      colSums(GetAssayData(seurat_obj, assay = assay, slot = "counts"))
+  nFeature_name <- paste0("nFeature_", assay)
+  nCount_name <- paste0("nCount_", assay)
+  if (!any(str_which(colnames(input_read_RNA_assay[[]]), nFeature_name)) ||
+      !any(str_which(colnames(input_read_RNA_assay[[]]), nCount_name))) {
+    input_read_RNA_assay[[nFeature_name]] <-
+      colSums(GetAssayData(input_read_RNA_assay, assay = assay, slot = "counts") > 0)
+    input_read_RNA_assay[[nCount_name]] <-
+      colSums(GetAssayData(input_read_RNA_assay, assay = assay, slot = "counts"))
   } else {
     input_read_RNA_assay
   }
