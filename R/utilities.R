@@ -14,7 +14,9 @@ pow = function(a,b){	a^b }
 eq = function(a,b){	a==b }
 
 #' Read various types of single-cell data
-#' @param file A vector of file path for anndata and rds, or file directory for hdf5.
+#' @param file A character vector of length one specifies the file path, or directory path.
+#'   For data format anndata and rds, use file path.
+#'   For data format hdf5, use directory path.
 #' @param container_type A character vector of length one specifies the input data type.
 #' @return A `[Seurat::Seurat-class]` object
 #' @importFrom zellkonverter readH5AD

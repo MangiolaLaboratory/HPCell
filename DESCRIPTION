@@ -72,7 +72,8 @@ Imports:
   ggupset, 
   here, 
   qs,
-  HDF5Array
+  HDF5Array,
+  zellkonverter
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.1
@@ -92,8 +93,5 @@ Config/testthat/edition: 3
 Suggests: 
     testthat(>= 3.0.0), 
     scRNAseq,
-    irlba,
-    cellxgene.census,
-    zellkonverter
-    
+    irlba
 
