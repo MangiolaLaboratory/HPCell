@@ -25,10 +25,11 @@ eq = function(a,b){	a==b }
 read_data_container <- function(file,
                                 container_type = "anndata"){
   switch(container_type,
-         "anndata" = readH5AD(file, reader = "R") |> as.Seurat(counts = "counts", data = "counts"),
-         "sce_rds" =  readRDS(file) |> as.Seurat(counts = "counts", data = "counts"),
+         "anndata" = readH5AD(file, reader = "R", use_hdf5 = TRUE, obs = FALSE, raw = FALSE, layers = FALSE),
+         "sce_rds" = readRDS(file),
+         #"sce_rds" =  readRDS(file) |> as.Seurat(counts = "counts", data = NULL),
          "seurat_rds" = readRDS(file),
-         "sce_hdf5" = loadHDF5SummarizedExperiment(file) |> as.Seurat(counts = "counts", data = "counts"),
+         "sce_hdf5" = loadHDF5SummarizedExperiment(file) |> as.Seurat(counts = "counts", data = NULL),
          "seurat_hdf5" = loadHDF5SummarizedExperiment(file)
          )
 }
@@ -41,18 +42,16 @@ read_data_container <- function(file,
 #' based on these criteria. The function returns a tibble containing log probabilities, FDR, and a classification
 #' indicating whether cells are empty droplets.
 #'
-#' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
+#' @param input_read_RNA_assay SingleCellExperiment or Seurat object containing RNA assay data.
 #' @param filter_empty_droplets Logical value indicating whether to filter the input data.
 #'
-#' @return A tibble with columns: logprob, FDR, empty_droplet (classification of droplets).
+#' @return A tibble with columns: logProb, FDR, empty_droplet (classification of droplets).
 #'
 #' @importFrom AnnotationDbi mapIds
 #' @importFrom stringr str_subset
-#' @importFrom dplyr left_join
-#' @importFrom dplyr mutate
+#' @importFrom dplyr left_join mutate
 #' @importFrom tidyr replace_na
-#' @importFrom DropletUtils emptyDrops
-#' @importFrom DropletUtils barcodeRanks
+#' @importFrom DropletUtils emptyDrops barcodeRanks
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' @export
@@ -93,8 +92,15 @@ empty_droplet_id <- function(input_read_RNA_assay,
   #   barcode_ranks <- barcodeRanks(input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
   # }
   
+  # Get counts
+  if (inherits(input_read_RNA_assay, "Seurat")) {
+    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+  } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    counts <- assay(input_read_RNA_assay, assay)
+  }
+  filtered_counts <- counts[!(rownames(counts) %in% c(mitochondrial_genes, ribosome_genes)),, drop=FALSE ]
   # Calculate bar-codes ranks
-  barcode_ranks = barcodeRanks(GetAssayData(input_read_RNA_assay, assay, slot = "counts")[!rownames(GetAssayData(input_read_RNA_assay, assay, slot = "counts")) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
+  barcode_ranks <- barcodeRanks(filtered_counts)
   
   # Set the minimum total RNA per cell for ambient RNA
   if(min(barcode_ranks$total) < 100) { lower = 100 } else {
@@ -111,7 +117,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
   if (
     # If filter_empty_droplets
     filter_empty_droplets == "TRUE") {
-    barcode_table <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")[!rownames(GetAssayData(input_read_RNA_assay, assay, slot = "counts")) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
+    barcode_table <- filtered_counts |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>
       mutate(empty_droplet = FDR >= significance_threshold) |>
@@ -590,24 +596,31 @@ calc_UMAP <- function(input_seurat){
     as_tibble()
   return(x)
 }
-#' Subsetting input dataset into a list of seurat objects by sample/ tissue 
+#' Subsetting input dataset into a list of SingleCellExperiment or Seurat objects by pre-specified sample column tissue 
 #' 
-#' @importFrom dplyr quo_name
+#' @importFrom dplyr quo_name pull
+#' @importFrom SummarizedExperiment colData
 #' 
-#' @param seurat_object A Seurat object containing input single-cell data
+#' @param sce_obj A `SingleCellExperiment` or `Seurat` object containing input single-cell data
 #' @param sample_column The column name specifying sample information
 #' 
 #' @return The unique sample types in the sample column
 #' 
-#' 
 #'  @description
-#' Function to subset Seurat object by tissue
+#' Function to subset `SingleCellExperiment` or `Seurat` object by tissue
 #' @export
-get_unique_tissues <- function(seurat_object, sample_column) {
-  sample_column<- quo_name(sample_column)
-  unique_sample <- seurat_object@meta.data |> pull(sample_column) |> unique()
+get_unique_tissues <- function(sce_obj, sample_column) {
+  sample_column <- quo_name(sample_column)
   
-  return(unique_sample)
+  if (inherits(sce_obj, "Seurat")) {
+    unique_sample <-
+      sce_obj@meta.data |> pull(sample_column) |> unique()
+  } else if (inherits(sce_obj, "SingleCellExperiment")) {
+    unique_sample <-
+      colData(sce_obj) |> as.data.frame() |> pull(sample_column) |> unique()
+  }
+  
+  unique_sample
 }
 
 #' Check for Strong Evidence

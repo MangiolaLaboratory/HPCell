@@ -9,32 +9,20 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(c("."))
 #' is provided.
 #'
 #' @param assay The assay to be used for analysis, specified as a character string.
-#' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
 #' @param empty_droplets_tbl A tibble identifying empty droplets.
 #' @param reference_azimuth Optional reference data for Azimuth.
 #' @param assay assay used, default = "RNA" 
 #'
 #' @return A tibble with cell type annotation data.
 #'
-#' @importFrom celldex BlueprintEncodeData
-#' @importFrom Seurat CreateAssayObject
-#' @importFrom celldex MonacoImmuneData
+#' @importFrom celldex BlueprintEncodeData MonacoImmuneData
+#' @importFrom Seurat CreateAssayObject SCTransform CreateSeuratObject SCTransform
+#' @importFrom Seurat VariableFeatures FindTransferAnchors MapQuery as.SingleCellExperiment
 #' @importFrom scuttle logNormCounts
-#' @importFrom Seurat SCTransform
 #' @importFrom SingleR SingleR
-#' @importFrom tibble as_tibble
-#' @importFrom tibble tibble
-#' @importFrom dplyr select
-#' @importFrom dplyr join_by 
-#' @importFrom dplyr rename
-#' @importFrom dplyr left_join
-#' @importFrom dplyr filter
-#' @importFrom Seurat CreateSeuratObject
-#' @importFrom Seurat SCTransform
-#' @importFrom Seurat VariableFeatures
-#' @importFrom Seurat FindTransferAnchors
-#' @importFrom Seurat MapQuery
-#' @importFrom Seurat as.SingleCellExperiment
+#' @importFrom tibble as_tibble tibble
+#' @importFrom dplyr select join_by rename left_join filter
 #' @importFrom magrittr extract2
 #' 
 #' @export
@@ -54,14 +42,23 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
   # SingleR
-  sce =
-    input_read_RNA_assay |>
-    
-    # Filter empty
-    left_join(empty_droplets_tbl, by = ".cell") |>
-    dplyr::filter(!empty_droplet) |>
-    as.SingleCellExperiment() |>
-    logNormCounts()
+  if (inherits(input_read_RNA_assay, "Seurat")) {
+    sce =
+      input_read_RNA_assay |>
+      # Filter empty
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      dplyr::filter(!empty_droplet) |>
+      as.SingleCellExperiment() |>
+      logNormCounts()
+  } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")){
+    sce =
+      input_read_RNA_assay |>
+      # Filter empty
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      dplyr::filter(!empty_droplet) |>
+      logNormCounts()
+  }
+
   
   if(ncol(sce)==1){
     sce = S4Vectors::cbind(sce, sce)
@@ -136,11 +133,14 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   
   rm(MonacoImmuneData)
   gc()
-  
-  
-  
+
   rm(sce)
   gc()
+  
+  # Convert SCE to SE to calculate SCT
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL)
+  }
   
   # If not immune cells
   if(nrow(data_annotated) == 0){
@@ -160,7 +160,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
   } else if (!is.null(reference_azimuth)) {
     
-    print("Start Seurat")
+    #print("Start Seurat")
     
     # Load reference PBMC
     # reference_azimuth <- LoadH5Seurat("data//pbmc_multimodal.h5seurat")
@@ -171,9 +171,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     # Reading input
     input_read_RNA_assay =
-      
       input_read_RNA_assay |>
-      
       # Filter empty
       left_join(empty_droplets_tbl, by = ".cell") |>
       filter(!empty_droplet)
@@ -273,7 +271,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' `alive_identification` filters out dead cells by analyzing mitochondrial and ribosomal gene expression percentages.
 #'
 #' @param assay The assay to be used for analysis, specified as a character string. 
-#' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
 #' @param empty_droplets_tbl A tibble identifying empty droplets.
 #' @param annotation_label_transfer_tbl A tibble with annotation label transfer data.
 #' @param assay assay used, default = "RNA" 
@@ -282,17 +280,16 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #'
 #' @importFrom scuttle perCellQCMetrics
 #' @importFrom AnnotationDbi mapIds
-#' @importFrom dplyr left_join
-#' @importFrom dplyr filter
-#' @importFrom dplyr mutate
-#' @importFrom dplyr select
+#' @importFrom dplyr left_join filter mutate select
 #' @importFrom tidyr unnest
 #' @importFrom stringr str_which
-#' @importFrom Seurat GetAssayData
-#' @importFrom Seurat PercentageFeatureSet
+#' @importFrom Seurat GetAssayData PercentageFeatureSet
 #' @importFrom scater isOutlier
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' @importFrom purrr map
+#' @importFrom Matrix colSums
+#' @importFrom magrittr extract2
+#' @importFrom SummarizedExperiment assay colData
 #' 
 #' @export
 alive_identification <- function(input_read_RNA_assay,
@@ -318,15 +315,29 @@ alive_identification <- function(input_read_RNA_assay,
   # Calculate nFeature_RNA and nCount_RNA if not exist in the data
   nFeature_name <- paste0("nFeature_", assay)
   nCount_name <- paste0("nCount_", assay)
-  if (!any(str_which(colnames(input_read_RNA_assay[[]]), nFeature_name)) ||
-      !any(str_which(colnames(input_read_RNA_assay[[]]), nCount_name))) {
-    input_read_RNA_assay[[nFeature_name]] <-
-      colSums(GetAssayData(input_read_RNA_assay, assay = assay, slot = "counts") > 0)
-    input_read_RNA_assay[[nCount_name]] <-
-      colSums(GetAssayData(input_read_RNA_assay, assay = assay, slot = "counts"))
-  } else {
-    input_read_RNA_assay
+  
+  
+  if (inherits(input_read_RNA_assay, "Seurat")) {
+    counts <- GetAssayData(input_read_RNA_assay, assay = assay, slot = "counts")
+    if (!any(str_which(colnames(input_read_RNA_assay[[]]), nFeature_name)) ||
+        !any(str_which(colnames(input_read_RNA_assay[[]]), nCount_name))) {
+      input_read_RNA_assay[[nFeature_name]] <-
+        Matrix::colSums(counts > 0)
+      input_read_RNA_assay[[nCount_name]] <-
+        Matrix::colSums(counts)
+    } else {
+      input_read_RNA_assay
+    }
+  } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    counts <- assay(input_read_RNA_assay, assay = assay)
+    if (!any(str_which(colnames(colData(input_read_RNA_assay)), nFeature_name)) ||
+        !any(str_which(colnames(colData(input_read_RNA_assay)), nCount_name))) {
+      colData(input_read_RNA_assay)[[nFeature_name]] <- Matrix::colSums(counts > 0)
+      colData(input_read_RNA_assay)[[nCount_name]] <- Matrix::colSums(counts)
+    }
   }
+  
+  
   
   # Returns a named vector of IDs
   # Matches the gene id’s row by row and inserts NA when it can’t find gene names
@@ -371,7 +382,11 @@ alive_identification <- function(input_read_RNA_assay,
   #   }()
   
   #Extract counts for RNA assay
-  rna_counts <- GetAssayData(input_read_RNA_assay, layer = "counts", assay=assay)
+  if (inherits(input_read_RNA_assay, "Seurat")){
+    rna_counts <- GetAssayData(input_read_RNA_assay, layer = "counts", assay=assay)
+  } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    rna_counts <- assay(input_read_RNA_assay, assay=assay)
+  }
   
   # Compute per-cell QC metrics
   qc_metrics <- perCellQCMetrics(rna_counts, subsets=list(Mito=which_mito)) %>%
@@ -397,6 +412,12 @@ alive_identification <- function(input_read_RNA_assay,
       unnest(cols = data)
   }
   
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL) |>
+      
+      # avoid auto renaming assay name to originalexp after converting
+      RenameAssays(originalexp = assay)
+  }
   
   if (inherits(annotation_label_transfer_tbl, "tbl_df")) {
     
@@ -521,15 +542,15 @@ doublet_identification <- function(input_read_RNA_assay,
 #' into cell cycle phases: G2M, S, or G1 phase.
 #'
 #' @param assay The assay to be used for analysis, specified as a character string.
-#' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
 #' @param empty_droplets_tbl A tibble identifying empty droplets.
 #' @param assay Name of the assay to use.
 #'
 #' @return A tibble with cell identifiers and their cell cycle phase classifications.
 #'
-#' @importFrom dplyr left_join
-#' @importFrom dplyr filter
-#' @importFrom Seurat CellCycleScoring
+#' @importFrom dplyr left_join filter select
+#' @importFrom tibble as_tibble
+#' @importFrom Seurat CellCycleScoring as.Seurat NormalizeData
 #' @export
 cell_cycle_scoring <- function(input_read_RNA_assay, 
                                empty_droplets_tbl,
@@ -543,7 +564,12 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
-  counts =
+  # Convert to Seurat in order to perform cell cycle scoring
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL)
+  }
+  
+  counts <-
     input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by = ".cell") |>
     filter(!empty_droplet) |>
@@ -562,7 +588,7 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
     as_tibble() |>
     select(.cell,  S.Score, G2M.Score, Phase) 
   
-  return(counts)
+  counts
   
 }
 
@@ -581,11 +607,8 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
 #'
 #' @return Normalized and adjusted data.
 #'
-#' @importFrom dplyr left_join
-#' @importFrom dplyr filter
-#' @importFrom Seurat NormalizeData
-#' @importFrom Seurat VariableFeatures
-#' @importFrom Seurat SCTransform
+#' @importFrom dplyr left_join filter
+#' @importFrom Seurat NormalizeData VariableFeatures SCTransform
 #' @export
 non_batch_variation_removal <- function(input_read_RNA_assay, 
                                         empty_droplets_tbl, 
