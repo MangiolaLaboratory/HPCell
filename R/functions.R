@@ -138,8 +138,11 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   gc()
   
   # Convert SCE to SE to calculate SCT
-  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
-    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL)
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment") &&
+      inherits(input_read_RNA_assay |> assay(), "DelayedMatrix")) {
+    assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL) |> 
+      RenameAssays(originalexp = assay)
   }
   
   # If not immune cells
@@ -412,11 +415,15 @@ alive_identification <- function(input_read_RNA_assay,
       unnest(cols = data)
   }
   
-  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment") &&
+      inherits(input_read_RNA_assay |> assay(), "DelayedMatrix")) {
+    
+    assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
+    
     input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL) |>
-      
       # avoid auto renaming assay name to originalexp after converting
       RenameAssays(originalexp = assay)
+    
   }
   
   if (inherits(annotation_label_transfer_tbl, "tbl_df")) {
@@ -575,8 +582,11 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
   # Convert to Seurat in order to perform cell cycle scoring
-  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
-    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL)
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment") && 
+      inherits(input_read_RNA_assay |> assay(), "DelayedMatrix")) {
+    assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL) |>
+      RenameAssays(originalexp = assay)
   }
   
   counts <-
@@ -638,7 +648,10 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
-  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment") &&
+      inherits(input_read_RNA_assay |> assay(), "DelayedMatrix")) {
+    
+    assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
     input_read_RNA_assay_seurat <- input_read_RNA_assay |> as.Seurat(data = NULL) |>
       RenameAssays(originalexp = assay)
   }
