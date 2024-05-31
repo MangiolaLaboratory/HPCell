@@ -480,7 +480,7 @@ alive_identification <- function(input_read_RNA_assay,
 #' SingleR annotations if provided and outputs a tibble containing cells with their associated scDblFinder scores.
 #' 
 #' @param assay The assay to be used for analysis, specified as a character string.
-#' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
 #' @param empty_droplets_tbl A tibble identifying empty droplets.
 #' @param alive_identification_tbl A tibble identifying alive cells.
 #' @param annotation_label_transfer_tbl A tibble with annotation label transfer data.
@@ -489,8 +489,7 @@ alive_identification <- function(input_read_RNA_assay,
 #'
 #' @return A tibble containing cells with their scDblFinder scores.
 #'
-#' @importFrom dplyr left_join
-#' @importFrom dplyr filter
+#' @importFrom dplyr left_join filter
 #' @importFrom Matrix Matrix 
 #' @importFrom SummarizedExperiment colData
 #' @importFrom Seurat as.SingleCellExperiment
@@ -512,16 +511,27 @@ doublet_identification <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
-  
-  filter_empty_droplets <- input_read_RNA_assay |>
-    # Filtering empty
-    Seurat::as.SingleCellExperiment() |>
-    left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
-    filter(!empty_droplet) |>
-    
-    # Filter dead
-    left_join(alive_identification_tbl |> select(.cell, high_mitochondrion, high_ribosome), by = ".cell") |>
-    filter(!high_mitochondrion & !high_ribosome) 
+  if (inherits(input_read_RNA_assay, "Seurat")) {
+    filter_empty_droplets <- input_read_RNA_assay |>
+      # Filtering empty
+      Seurat::as.SingleCellExperiment() |>
+      left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
+      filter(!empty_droplet) |>
+      
+      # Filter dead
+      left_join(alive_identification_tbl |> select(.cell, high_mitochondrion, high_ribosome), by = ".cell") |>
+      filter(!high_mitochondrion & !high_ribosome) 
+  } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    filter_empty_droplets <- input_read_RNA_assay |>
+      # Filtering empty
+      left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
+      filter(!empty_droplet) |>
+      
+      # Filter dead
+      left_join(alive_identification_tbl |> select(.cell, high_mitochondrion, high_ribosome), by = ".cell") |>
+      filter(!high_mitochondrion & !high_ribosome) 
+  }
+
   
   # Annotate
   filter_empty_droplets <- filter_empty_droplets |> 
@@ -599,8 +609,8 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
 #' Regresses out variations due to mitochondrial content, ribosomal content, and 
 #' cell cycle effects.
 #'
-#' @param input_read_RNA_assay Path to demultiplexed data.
-#' @param empty_droplets_tbl Path to empty droplets data.
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
+#' @param empty_droplets_tbl A tibble identifying empty droplets.
 #' @param alive_identification_tbl A tibble from alive cell identification.
 #' @param cell_cycle_score_tbl A tibble from cell cycle scoring.
 #' @param assay assay used, default = "RNA" 
@@ -628,9 +638,13 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    input_read_RNA_assay_seurat <- input_read_RNA_assay |> as.Seurat(data = NULL) |>
+      RenameAssays(originalexp = assay)
+  }
   
   counts =
-    input_read_RNA_assay |>
+    input_read_RNA_assay_seurat |>
     left_join(empty_droplets_tbl, by = ".cell") |>
     filter(!empty_droplet) |>
     
@@ -663,6 +677,12 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
     vst.flavor = "v2",
     scale_factor=2186
   )
+  
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    normalized_rna <- normalized_rna |> as.SingleCellExperiment(assay = assay)
+  } else if (inherits(input_read_RNA_assay, "Seurat")) {
+    normalized_rna
+  }
   
   # Normalise antibodies
   if ( "ADT" %in% names(normalized_rna@assays)) {
