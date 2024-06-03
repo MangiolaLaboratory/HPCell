@@ -12,6 +12,9 @@ cellchat_matrix_for_circle = function (object, signaling, signaling.name = NULL,
                                        scale = FALSE, reduce = -1, show.legend = FALSE, legend.pos.x = 20,
                                        legend.pos.y = 20, ...) {
 
+  # Fix GCHECK 
+  pathway_name = NULL 
+  
   if(object@LR$LRsig %>% filter(pathway_name == signaling) %>% nrow %>% magrittr::equals(0)) return(NULL)
 
   layout <- match.arg(layout)
@@ -68,6 +71,11 @@ cellchat_process_sample_signal = function (object, signaling = NULL, pattern = c
                                            font.size = 8, font.size.title = 10, cluster.rows = FALSE,
                                            cluster.cols = FALSE)
 {
+  # Fix GCHECK 
+  cell_type = NULL 
+  value = NULL 
+  gene = NULL 
+  
   pattern <- match.arg(pattern)
   if (length(slot(object, slot.name)$centr) == 0) {
     stop("Please run `netAnalysis_computeCentrality` to compute the network centrality scores! ")
@@ -164,6 +172,8 @@ computeCommunProb = function (object, type = c("triMean", "truncatedMean", "thre
                               distance.use = TRUE, interaction.length = 200, scale.distance = 0.01,
                               k.min = 10, nboot = 100, seed.use = 1L, Kh = 0.5, n = 1)
 {
+  
+  
   type <- match.arg(type)
   cat(type, "is used for calculating the average gene expression per cell group.",
       "\n")
@@ -295,7 +305,7 @@ computeCommunProb = function (object, type = c("triMean", "truncatedMean", "thre
         P2 <- matrix(1, nrow = numCluster, ncol = numCluster)
       }
       if (is.element(i, index.antagonist)) {
-        data.antagonist <- computeExpr_antagonist(data.use = data.use.avg,
+        data.antagonist <- CellChat::computeExpr_antagonist(data.use = data.use.avg,
                                                   pairLRsig, cofactor_input, index.antagonist = i,
                                                   Kh = Kh, n = n)
         P3 <- Matrix::crossprod(matrix(data.antagonist,
@@ -340,7 +350,7 @@ computeCommunProb = function (object, type = c("triMean", "truncatedMean", "thre
           P2.boot <- matrix(1, nrow = numCluster, ncol = numCluster)
         }
         if (is.element(i, index.antagonist)) {
-          data.antagonist <- computeExpr_antagonist(data.use = data.use.avgB,
+          data.antagonist <- CellChat::computeExpr_antagonist(data.use = data.use.avgB,
                                                     pairLRsig, cofactor_input, index.antagonist = i,
                                                     Kh = Kh, n = n)
           P3.boot <- Matrix::crossprod(matrix(data.antagonist,
@@ -394,6 +404,10 @@ computeCommunProb = function (object, type = c("triMean", "truncatedMean", "thre
   return(object)
 }
 
+#' @importFrom future nbrOfWorkers
+#' @importFrom methods slot
+#' @importFrom pbapply pbsapply
+#' @import future.apply
 netAnalysis_computeCentrality = function (object = NULL, slot.name = "netP", net = NULL, net.name = NULL,
                                           thresh = 0.05)
 {
@@ -417,11 +431,11 @@ netAnalysis_computeCentrality = function (object = NULL, slot.name = "netP", net
       # ADDED BY STEFANO
       net0[net0<0] = 0
 
-      return(CellChat:::computeCentralityLocal(net0))
+      return(computeCentralityLocal(net0))
     }, simplify = FALSE)
   }
   else {
-    centr.all <- as.list(CellChat:::computeCentralityLocal(net))
+    centr.all <- as.list(computeCentralityLocal(net))
   }
   names(centr.all) <- net.name
   if (is.null(object)) {
@@ -445,6 +459,10 @@ cellchat_circle_plot = function(pathway, x, y, DB, joint){
 
 #' @importFrom purrr when
 cellchat_diff_for_circle = function(pathway, x, y){
+  
+  # Fix GCHECK 
+  . = NULL
+  
   zero_matrix =
     pathway %>%
     when(
@@ -468,6 +486,15 @@ cellchat_diff_for_circle = function(pathway, x, y){
   m2 - m1
 }
 
+#' @importFrom igraph graph_from_adjacency_matrix layout_
+#' @importFrom CellChat scPalette
+#' @importFrom reshape2 melt
+#' @importFrom patchwork wrap_elements
+#' @importFrom cowplot as_grob
+#' @importFrom circlize colorRamp2
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom scales rescale
+#' @importFrom igraph in_circle 
 draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, sources.use = NULL,
                                       targets.use = NULL, remove.isolate = FALSE, top = 1, top_absolute = NULL, weight.scale = T,
                                       vertex.weight = 20, vertex.weight.max = NULL, vertex.size.max = 15,
@@ -477,6 +504,9 @@ draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, 
                                       shape = "circle", layout = in_circle(), margin = 0.2, vertex.size = NULL,
                                       arrow.width = 1, arrow.size = 0.2)
 {
+  # Pass GCHECKS 
+  target = NULL 
+  
   if (!is.null(vertex.size)) {
     warning("'vertex.size' is deprecated. Use `vertex.weight`")
   }
@@ -528,10 +558,10 @@ draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, 
       net <- net[, -idx, drop=FALSE]
     }
   }
-  g <- graph_from_adjacency_matrix(net, mode = "directed",
+  g <- igraph::graph_from_adjacency_matrix(net, mode = "directed",
                                    weighted = T)
   edge.start <- igraph::ends(g, es = igraph::E(g), names = FALSE)
-  coords <- layout_(g, layout)
+  coords <- igraph::layout_(g, layout)
   if (nrow(coords) != 1) {
     coords_scale = scale(coords)
   }
@@ -539,7 +569,7 @@ draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, 
     coords_scale <- coords
   }
   if (is.null(color.use)) {
-    color.use = scPalette(length(igraph::V(g)))
+    color.use = CellChat::scPalette(length(igraph::V(g)))
   }
   if (is.null(vertex.weight.max)) {
     vertex.weight.max <- max(vertex.weight)
@@ -598,11 +628,21 @@ draw_cellchat_circle_plot = function (net, color.use = NULL, title.name = NULL, 
     text(0, 1.5, title.name, cex = 0.8)
   }
 
-  grab_grob() |> as_grob() |> wrap_elements()
+  grab_grob() |> cowplot::as_grob() |> patchwork::wrap_elements()
 
 }
 
+#' @importFrom dplyr distinct
+#' 
 select_genes_for_circle_plot = function(x, pathway){
+  # Fix GChecks 
+  CellChatDB.human <- NULL
+  pathway_name <- NULL
+  ligand <- NULL
+  . <- NULL
+  receptor <- NULL
+  
+
   paste(
     c(
       x@data.signaling[rownames(x@data.signaling) %in% (CellChatDB.human$interaction %>% filter(pathway_name == pathway) %>% distinct(ligand) %>% pull(1)),, drop=F] %>% rowSums() %>% .[(.)>100] %>% names(),
@@ -613,6 +653,10 @@ select_genes_for_circle_plot = function(x, pathway){
 
 }
 
+#' @importFrom CellChat subsetCommunication
+#' @importFrom RColorBrewer brewer.pal
+#' @importFrom scales viridis_pal
+#' 
 get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, targets.use = NULL, signaling = NULL,
                                                    pairLR.use = NULL, color.heatmap = c("Spectral", "viridis"),
                                                    n.colors = 10, direction = -1, thresh = 0.05, comparison = NULL,
@@ -623,6 +667,9 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
                                                    show.legend = TRUE, grid.on = TRUE, color.grid = "grey90",
                                                    angle.x = 90, vjust.x = NULL, hjust.x = NULL, return.data = FALSE)
 {
+  
+  # Fix GChecks 
+  prob.original = NULL 
 
   # cells.level <- levels(object@idents)
   # source.use.numerical = which(cells.level == source.use)
@@ -666,7 +713,7 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
     # TRY CATCH
     df.net <- 	tryCatch(
       expr = {
-        subsetCommunication(object, slot.name = "net",
+        CellChat::subsetCommunication(object, slot.name = "net",
                             sources.use = sources.use, targets.use = targets.use,
                             signaling = signaling, pairLR.use = pairLR.use,
                             thresh = thresh)
@@ -684,7 +731,7 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
                            targets.use, sep = " -> ")
     source.target.isolate <- setdiff(source.target, unique(df.net$source.target))
     if (length(source.target.isolate) > 0) {
-      df.net.isolate <- as.data.frame(matrix(NA, nrow = length(source.target.isolate),
+      df.net.isolate <- BiocGenerics::as.data.frame(matrix(NA, nrow = length(source.target.isolate),
                                              ncol = ncol(df.net)))
       colnames(df.net.isolate) <- colnames(df.net)
       df.net.isolate$source.target <- source.target.isolate
@@ -729,7 +776,7 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
   }
   else {
     dataset.name <- names(object@net)
-    df.net.all <- subsetCommunication(object, slot.name = "net",
+    df.net.all <- CellChat::subsetCommunication(object, slot.name = "net",
                                       sources.use = sources.use, targets.use = targets.use,
                                       signaling = signaling, pairLR.use = pairLR.use,
                                       thresh = thresh)
@@ -751,7 +798,7 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
       source.target.isolate <- setdiff(source.target,
                                        unique(df.net$source.target))
       if (length(source.target.isolate) > 0) {
-        df.net.isolate <- as.data.frame(matrix(NA, nrow = length(source.target.isolate),
+        df.net.isolate <- BiocGenerics::as.data.frame(matrix(NA, nrow = length(source.target.isolate),
                                                ncol = ncol(df.net)))
         colnames(df.net.isolate) <- colnames(df.net)
         df.net.isolate$source.target <- source.target.isolate
@@ -783,7 +830,7 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
         df.net$prob <- -1/log(df.net$prob)
       }
       else {
-        df.net <- as.data.frame(matrix(NA, nrow = length(group.names),
+        df.net <- BiocGenerics::as.data.frame(matrix(NA, nrow = length(group.names),
                                        ncol = 5))
         colnames(df.net) <- c("interaction_name_2",
                               "source.target", "prob", "pval", "prob.original")
@@ -878,6 +925,9 @@ get_table_for_cell_vs_axis_bubble_plot = function (object, sources.use = NULL, t
   df
 }
 
+#' @importFrom gridGraphics grid.echo
+#' @importFrom grid grid.grab
+#' 
 grab_grob <- function(){
   grid.echo()
   grid.grab()

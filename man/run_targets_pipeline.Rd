@@ -11,9 +11,10 @@ run_targets_pipeline(
   tissue,
   computing_resources = crew_controller_local(workers = 1),
   debug_step = NULL,
-  filter_empty_droplets = TRUE,
+  filter_empty_droplets = NULL,
   RNA_assay_name = "RNA",
-  sample_column = "sample"
+  sample_column = "sample",
+  cell_type_annotation_column = "Cell_type_in_each_tissue"
 )
 }
 \arguments{
@@ -34,9 +35,11 @@ run_targets_pipeline(
 \item{RNA_assay_name}{Name of the RNA assay.}
 
 \item{sample_column}{Column name for sample identification.}
+
+\item{cell_type_annotation_column}{Column name for cell type annotation in input data}
 }
 \value{
-The output of the \code{targets} pipeline, typically a preprocessed dataset.
+The output of the \code{targets} pipeline, typically a pre-processed data set.
 }
 \description{
 This function sets up and executes a \code{targets} pipeline for HPCell. It saves input data and configurations,

@@ -4,14 +4,15 @@
 #' @description
 #' This function prepares and runs a differential abundance test pipeline using the 'targets' package. It sets up necessary files, appends scripts, and executes the pipeline.
 #'
-#' @param data_df Data frame to be processed.
-#' @param formula Formula for the differential abundance test.
-#' @param .data_column Column in the data frame containing the data.
+#' @param formula_list List of formula for the differential abundance test.
 #' @param store File path for temporary storage.
 #' @param computing_resources Computing resources configuration.
 #' @param cpus_per_task Number of CPUs allocated per task.
 #' @param debug_job_id Optional job ID for debugging.
 #' @param append Flag to append to existing script.
+#' @param data_list list of dataframes to be processed
+#' @param .abundance (optional) A symbol or string indicating the column name in the `SingleCellExperiment` object to be used for abundance measures. If not explicitly provided, the function attempts to automatically detect an appropriate column by examining the first object in `data_list`.
+#' @param ... additional arguments 
 #'
 #' @return A `targets` pipeline output, typically a nested tibble with differential abundance estimates.
 #'
@@ -25,6 +26,9 @@
 #' @import targets
 #' @importFrom rlang quo_is_symbolic
 #' @importFrom SummarizedExperiment assays
+#' @importFrom tibble rowid_to_column
+#' @importFrom callr r
+#' @importFrom tibble rowid_to_column
 #' 
 #' @export
 map2_test_differential_abundance_hpc = function(
@@ -38,6 +42,23 @@ map2_test_differential_abundance_hpc = function(
     append = FALSE,
     ...
   ){
+  
+  #Fix GChecks 
+  abundance = NULL 
+  file_data = NULL 
+  file_formula = NULL
+  .abundance = NULL
+  number_of_workers = NULL
+  number_of_datasets = NULL
+  pseudobulk_df_tissue = NULL
+  name = NULL 
+  pseudobulk_df_tissue_dispersion = NULL 
+  pseudobulk_df_tissue_split_by_gene = NULL
+  pseudobulk_df_tissue_split_by_gene_grouped = NULL
+  se_md5 = NULL
+  estimates_chunk = NULL
+  my_group = NULL
+  assay_name = NULL 
   
   .abundance = enquo(.abundance)
 
@@ -67,8 +88,8 @@ map2_test_differential_abundance_hpc = function(
     #-----------------------#
     # Input
     #-----------------------#
-    library(targets)
-    library(tarchetypes)
+    # library(targets)
+    # library(tarchetypes)
     
     computing_resources = readRDS("temp_computing_resources.rds")
     debug_job_id = readRDS("temp_debug_job_id.rds")
@@ -126,7 +147,7 @@ map2_test_differential_abundance_hpc = function(
       # Dispersion
       tar_target(
         pseudobulk_df_tissue_dispersion, 
-        pseudobulk_df_tissue |> map_add_dispersion_to_se(data, formula, abundance), 
+        # pseudobulk_df_tissue |> map_add_dispersion_to_se(data, formula, abundance), 
         pattern = map(pseudobulk_df_tissue),
         iteration = "group"
       ),
@@ -239,15 +260,16 @@ map2_test_differential_abundance_hpc = function(
 #'
 #' @description
 #' A wrapper function that formats data into a tibble and calls `map2_test_differential_abundance_hpc` for differential abundance testing.
-#'
+#' @importFrom magrittr extract2
+
 #' @param .data Data frame or similar object for analysis.
 #' @param formula Formula for the differential abundance test.
 #' @param store File path for temporary storage.
 #' @param computing_resources Computing resources configuration.
-#' @param cpus_per_task Number of CPUs allocated per task.
+# cpus_per_task Number of CPUs allocated per task.
 #' @param debug_job_id Optional job ID for debugging.
 #' @param append Flag to append to existing script.
-#' @param magrittr extract2
+#' @param ... additional arguments 
 #'
 #' @return A `targets` pipeline output, typically a nested tibble with differential abundance estimates.
 #'

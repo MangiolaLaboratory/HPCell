@@ -1,18 +1,35 @@
+# RStudio files
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
 HPCell.Rproj
+
+# macOS files
 .DS_Store
 ._.DS_Store
+
+# Generic files
 file*
-HPCell.Rproj
+
+# Project specific files
 input_file.rds
 input_reference.rds
 reference_azimuth.rds
 temp_computing_resources.rds
 tissue.rds
-README.md
-README.rmd
-pipeline_store 
+
+# Exclude pipeline and scripts directories and files
+pipeline_store
 pipeline_store.R
+R_scripts
+Pipeline_benchmarking_script.R
+
+# Data directories
+fibrosis_data
+
+# Temporary R data files
+.RDataTmp*
+
+# Exclude README from being ignored
+!README.md

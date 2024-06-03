@@ -35,14 +35,26 @@ eq = function(a,b){	a==b }
 #' @importFrom DropletUtils barcodeRanks
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
-#' @noRd
+#' @export
 empty_droplet_id <- function(input_read_RNA_assay,
                              filter_empty_droplets,
                              assay = NULL){
+  #Fix GChecks 
+  FDR = NULL 
+  .cell = NULL 
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
+  # Check if empty droplets have been identified
+  if (is.null(filter_empty_droplets) ){
+    if (any(input_read_RNA_assay$nFeature_RNA < 200)) {
+      filter_empty_droplets <- "TRUE"
+    }
+    else {
+      filter_empty_droplets <- "FALSE"
+    }
+  }
   
   significance_threshold = 0.001
   # Genes to exclude
@@ -162,7 +174,7 @@ reference_label_fine_id <- function(tissue) {
 #' @param tissue Type of tissue.
 #'
 #' @return Appropriate reference label for coarse categorization.
-#' @noRd
+#' @export
 reference_label_coarse_id <- function(tissue) {
   return(
     ifelse(tissue == "pbmc", "monaco_first.labels.coarse",
@@ -173,6 +185,7 @@ reference_label_coarse_id <- function(tissue) {
 
 #' Change Default Assay to RNA
 #'
+#' @importFrom Seurat DefaultAssay
 #' @description
 #' `add_RNA_assay` changes the default assay in a Seurat object to RNA.
 #'
@@ -185,9 +198,10 @@ reference_label_coarse_id <- function(tissue) {
 #' @noRd
 add_RNA_assay <- function(input_read, RNA_assay_name){
   
+  
   if (RNA_assay_name != "RNA"){
     input_read[["RNA"]] = input_read[[RNA_assay_name]]
-    DefaultAssay(object = input_read) <- "RNA"
+    Seurat::DefaultAssay(object = input_read) <- "RNA"
     input_read[[RNA_assay_name]] = NULL
   }
   
@@ -216,9 +230,16 @@ add_RNA_assay <- function(input_read, RNA_assay_name){
 #' @importFrom Seurat FindClusters
 #' @importFrom Seurat VariableFeatures
 #' @importFrom dplyr mutate
+#' @importFrom data.table :=
+#' @import dplyr
 #' @importFrom glue glue
+#' @importFrom purrr map_int
 #' @noRd
 seurat_to_variable_features_by_cell_type = function(counts, assay, .cell_group = NULL, features_number_per_cell_group = 300){
+  
+  #Fix GitChecks 
+  feature = NULL 
+  group = NULL 
   
   .cell_group = enquo(.cell_group)
   
@@ -303,6 +324,7 @@ seurat_to_variable_features_overall = function(counts, assay, features_number = 
 #' @import tidyseurat
 #' @importFrom Seurat NormalizeData
 #' @importFrom stringr str_subset
+#' @importFrom purrr map_int
 #' @noRd
 seurat_to_variable_features = function(
     counts,
@@ -312,6 +334,10 @@ seurat_to_variable_features = function(
     features_number_independent_of_cell_groups = 300,
     features_number_per_cell_group = 300
 ){
+  
+  #Fix GitChecks 
+  upper_quantile = NULL 
+  number_features_overall = NULL 
   
   .sample = enquo(.sample)
   .cell_group = enquo(.cell_group)
@@ -389,6 +415,7 @@ seurat_to_variable_features = function(
 #' @importFrom dplyr count
 #' @importFrom dplyr with_groups
 #' @importFrom dplyr pull
+#' @importFrom purrr map_int
 #' @noRd
 subset_top_rank_variable_genes_across_batches = function(
     table_across_cell_groups,
@@ -398,6 +425,8 @@ subset_top_rank_variable_genes_across_batches = function(
     features_number_independent_of_cell_groups = 2000,
     features_number_per_cell_group = 300
 ){
+  #Fix GitChecks 
+  feature = NULL
   
   .cell_group = enquo(.cell_group)
   .batch = enquo(.batch)
@@ -506,6 +535,60 @@ addition = function(a, b){
   c
 }
 
+#' Calculate UMAP Embeddings for Seurat Object
+#' 
+#' @importFrom Seurat FindVariableFeatures
+#' @importFrom Seurat ScaleData
+#' @importFrom Seurat RunPCA
+#' @importFrom Seurat FindNeighbors
+#' @importFrom Seurat FindClusters
+#' @importFrom Seurat RunUMAP
+#' @importFrom dplyr as_tibble
+#' 
+#' @param input_seurat Input data 
+#' @return  A tibble containing UMAP coordinates and cluster assignments, to be used for plotting and further analysis 
+#'
+#' @description
+#' Identify variable features, scale the data, run Principal Component Analysis (PCA), find neighbors, identify clusters,
+#' and compute UMAP (Uniform Manifold Approximation and Projection) embeddings for 
+#' visualization of cell clusters. 
+#'
+#' @noRd
+#' 
+#' @importFrom Seurat RunUMAP
+calc_UMAP <- function(input_seurat){
+  assay_name = input_seurat@assays |> names() |> extract2(1)
+  find_var_genes <- FindVariableFeatures(input_seurat)
+  var_genes<- find_var_genes@assays[[assay_name]]@var.features
+  
+  x<- ScaleData(input_seurat) |>
+    # Calculate UMAP of clusters
+    RunPCA(features = var_genes) |>
+    FindNeighbors(dims = 1:30) |>
+    FindClusters(resolution = 0.5) |>
+    RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
+    as_tibble()
+  return(x)
+}
+#' Subsetting input dataset into a list of seurat objects by sample/ tissue 
+#' 
+#' @importFrom dplyr quo_name
+#' 
+#' @param seurat_object A Seurat object containing input single-cell data
+#' @param sample_column The column name specifying sample information
+#' 
+#' @return The unique sample types in the sample column
+#' 
+#' 
+#'  @description
+#' Function to subset Seurat object by tissue
+get_unique_tissues <- function(seurat_object, sample_column) {
+  sample_column<- quo_name(sample_column)
+  unique_sample <- seurat_object@meta.data |> pull(sample_column) |> unique()
+  
+  return(unique_sample)
+}
+
 #' Check for Strong Evidence
 #'
 #' This function checks for strong evidence in cell annotations.
@@ -519,12 +602,12 @@ addition = function(a, b){
 #'
 #' @return A data frame with a column indicating strong evidence.
 #'
-#' @examples
-#' single_cell_data <- data.frame(
-#'   cell_annotation_azimuth_l2 = c("cd14 mono", "b naive"),
-#'   cell_annotation_blueprint_singler = c("monocytes", "naive b")
-#' )
-#' strong_evidence_data <- is_strong_evidence(single_cell_data, cell_annotation_azimuth_l2, cell_annotation_blueprint_singler)
+# @examples
+# single_cell_data <- data.frame(
+#   cell_annotation_azimuth_l2 = c("cd14 mono", "b naive"),
+#   cell_annotation_blueprint_singler = c("monocytes", "naive b")
+#' 
+# strong_evidence_data <- is_strong_evidence(single_cell_data, cell_annotation_azimuth_l2, cell_annotation_blueprint_singler)
 #'
 is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell_annotation_blueprint_singler){
   
@@ -575,11 +658,13 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 #'
 #' @return A cleaned and standardized vector of cell types.
 #'
-#' @examples
-#' cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
-#' cleaned_cell_types <- clean_cell_types_deeper(cell_types)
-#'
+# @examples
+# cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
+# cleaned_cell_types <- clean_cell_types_deeper(cell_types)
 clean_cell_types_deeper = function(x){
+  #Fix GChecks 
+  cell_type_clean = NULL 
+  
   x |> 
     # Annotate
     mutate(cell_type_clean = cell_type_clean |> tolower()) |>
@@ -643,8 +728,8 @@ clean_cell_types_deeper = function(x){
 #'
 #' @examples
 #' cell_types <- c("CD4+ T-cells", "NK cells", "Blast-cells")
-#' cleaned_cell_types <- clean_cell_types(cell_types)
-#'
+# cleaned_cell_types <- clean_cell_types(cell_types)
+
 clean_cell_types = function(.x){
   .x |>
     str_remove_all("\\+") |>
@@ -667,7 +752,7 @@ clean_cell_types = function(.x){
 #'
 #' @examples
 #' metadata <- data.frame(cell_type = c("Myofibroblast", "Fibroblast", "Other Fibroblast"))
-#' harmonized_metadata <- harmonise_names_non_immune(metadata)
+# harmonized_metadata <- harmonise_names_non_immune(metadata)
 #'
 harmonise_names_non_immune = function(metadata){
   
@@ -896,28 +981,72 @@ harmonise_names_non_immune = function(metadata){
   metadata
 }
 
-
 get_manually_curated_immune_cell_types = function(){
   
-  library(zellkonverter)
-  library(Seurat)
-  library(SingleCellExperiment) # load early to avoid masking dplyr::count()
-  library(tidySingleCellExperiment)
-  library(dplyr)
-  library(cellxgenedp)
-  library(tidyverse)
+  # library(zellkonverter)
+  # library(Seurat)
+  # library(SingleCellExperiment) # load early to avoid masking dplyr::count()
+  # library(tidySingleCellExperiment)
+  # library(dplyr)
+  # library(cellxgenedp)
+  # library(tidyverse)
   #library(tidySingleCellExperiment)
-  library(stringr)
-  library(scMerge)
-  library(glue)
-  library(DelayedArray)
-  library(HDF5Array)
-  library(tidyseurat)
-  library(celldex)
-  library(SingleR)
-  library(glmGamPoi)
-  library(stringr)
-  library(purrr)
+  # library(stringr)
+  # library(scMerge)
+  # library(glue)
+  # library(tidyseurat)
+  # library(celldex)
+  # library(SingleR)
+  # library(glmGamPoi)
+  # library(stringr)
+  # library(purrr)
+  
+  
+  #Fix GCHECKS 
+  metadata_file = NULL 
+  .cell = NULL 
+  cell_type = NULL
+  file_id = NULL 
+  .sample = NULL 
+  azhimut_confirmed = NULL 
+  blueprint_confirmed <- NULL
+  arrange <- NULL # This one is actually a function from dplyr, so you should use it with dplyr::arrange or import it
+  cell_type_clean <- NULL
+  blueprint_singler <- NULL
+  predicted.celltype.l2 <- NULL
+  strong_evidence <- NULL
+  cell_type_harmonised <- NULL
+  confidence_class <- NULL
+  lineage_1 <- NULL
+  monaco_singler <- NULL
+  cell_annotation_monaco_singler <- NULL
+  cell_annotation_azimuth_l2 <- NULL
+  cell_annotation_blueprint_singler <- NULL
+  confidence_class_manually_curated <- NULL
+  cell_type_harmonised_manually_curated <- NULL
+  file_curated_annotation_merged <- NULL
+  .sample <- NULL
+  cell_type_harmonised_non_immune <- NULL
+
+  # library(zellkonverter)
+  # library(Seurat)
+  # library(SingleCellExperiment) # load early to avoid masking dplyr::count()
+  # library(tidySingleCellExperiment)
+  # library(dplyr)
+  # library(cellxgenedp)
+  # library(tidyverse)
+  # #library(tidySingleCellExperiment)
+  # library(stringr)
+  # library(scMerge)
+  # library(glue)
+  # library(DelayedArray)
+  # library(HDF5Array)
+  # library(tidyseurat)
+  # library(celldex)
+  # library(SingleR)
+  # library(glmGamPoi)
+  # library(stringr)
+  # library(purrr)
   
   # # source("utility.R")
   # 
@@ -1494,4 +1623,3 @@ get_manually_curated_immune_cell_types = function(){
   
   
 }
-

@@ -5,21 +5,23 @@
 \title{Non-Batch Variation Removal}
 \usage{
 non_batch_variation_removal(
-  input_path_demultiplexed,
-  input_path_empty_droplets,
+  input_read_RNA_assay,
+  empty_droplets_tbl,
   alive_identification_tbl,
   cell_cycle_score_tbl,
   assay = NULL
 )
 }
 \arguments{
-\item{input_path_demultiplexed}{Path to demultiplexed data.}
+\item{input_read_RNA_assay}{Path to demultiplexed data.}
 
-\item{input_path_empty_droplets}{Path to empty droplets data.}
+\item{empty_droplets_tbl}{Path to empty droplets data.}
 
 \item{alive_identification_tbl}{A tibble from alive cell identification.}
 
 \item{cell_cycle_score_tbl}{A tibble from cell cycle scoring.}
+
+\item{assay}{assay used, default = "RNA"}
 }
 \value{
 Normalized and adjusted data.
