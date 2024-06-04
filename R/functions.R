@@ -476,8 +476,8 @@ alive_identification <- function(input_read_RNA_assay,
 doublet_identification <- function(input_read_RNA_assay, 
                                    empty_droplets_tbl, 
                                    alive_identification_tbl, 
-                                   annotation_label_transfer_tbl, 
-                                   reference_label_fine,
+                                   #annotation_label_transfer_tbl, 
+                                   #reference_label_fine,
                                    assay = NULL){
   
   # Fix GChecks 
@@ -502,7 +502,7 @@ doublet_identification <- function(input_read_RNA_assay,
   
   # Annotate
   filter_empty_droplets <- filter_empty_droplets |> 
-    left_join(annotation_label_transfer_tbl, by = ".cell")|>
+    #left_join(annotation_label_transfer_tbl, by = ".cell")|>
     #scDblFinder(clusters = ifelse(reference_label_fine=="none", TRUE, reference_label_fine)) |>
     scDblFinder(clusters = NULL) 
   
@@ -548,6 +548,7 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
     
     # Normalise needed
     NormalizeData() |>
+    
     # Assign cell cycle scores of each cell 
     # Based on its expression of G2/M and S phase markers
     #Stores S and G2/M scores in object meta data along with predicted classification of each cell in either G2M, S or G1 phase

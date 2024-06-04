@@ -17,6 +17,5 @@ This function harmonizes non-immune cell type names in the metadata.
 }
 \examples{
 metadata <- data.frame(cell_type = c("Myofibroblast", "Fibroblast", "Other Fibroblast"))
-harmonized_metadata <- harmonise_names_non_immune(metadata)
 
 }

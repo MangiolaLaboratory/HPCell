@@ -23,11 +23,3 @@ A data frame with a column indicating strong evidence.
 \description{
 This function checks for strong evidence in cell annotations.
 }
-\examples{
-single_cell_data <- data.frame(
-  cell_annotation_azimuth_l2 = c("cd14 mono", "b naive"),
-  cell_annotation_blueprint_singler = c("monocytes", "naive b")
-)
-strong_evidence_data <- is_strong_evidence(single_cell_data, cell_annotation_azimuth_l2, cell_annotation_blueprint_singler)
-
-}

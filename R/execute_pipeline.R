@@ -270,13 +270,11 @@ run_targets_pipeline <- function(
       # Doublet identification
       tar_target(doublet_identification_tbl, doublet_identification(input_read,
                                                                     empty_droplets_tbl,
-                                                                    alive_identification_tbl,
-                                                                    annotation_label_transfer_tbl,
-                                                                    reference_label_fine),
+                                                                    alive_identification_tbl),
                  pattern = map(input_read,
                                empty_droplets_tbl,
-                               alive_identification_tbl,
-                               annotation_label_transfer_tbl),
+                               alive_identification_tbl
+                               ),
                  iteration = "list"),
       
       # Non-batch variation removal

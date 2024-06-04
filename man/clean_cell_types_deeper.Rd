@@ -16,8 +16,3 @@ A cleaned and standardized vector of cell types.
 This function takes a vector of cell types and applies a series of transformations
 to clean and standardize them for better consistency.
 }
-\examples{
-cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
-cleaned_cell_types <- clean_cell_types_deeper(cell_types)
-
-}

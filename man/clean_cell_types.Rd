@@ -18,6 +18,4 @@ to clean and standardize them for better consistency.
 }
 \examples{
 cell_types <- c("CD4+ T-cells", "NK cells", "Blast-cells")
-cleaned_cell_types <- clean_cell_types(cell_types)
-
 }
