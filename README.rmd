@@ -287,10 +287,11 @@ prepreprocessed_seurat = run_targets_pipeline(
     input_data = c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds"),
     tissue = "pbmc",
     computing_resources = computing_resources,
-    sample_column = "sampleName", 
+    sample_column = "sampleName",
+    cell_type_annotation_column = "cellAnno",
     store = store, 
-    input_reference = NULL
-    # debug_step = "calc_UMAP_dbl_report"
+    input_reference = NULL, 
+    debug_step = "empty_droplets_tbl"
 )
 
 
