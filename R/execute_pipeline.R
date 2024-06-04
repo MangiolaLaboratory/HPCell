@@ -232,13 +232,11 @@ run_targets_pipeline <- function(
       tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
       tar_target(reference_label_fine, reference_label_fine_id(tissue), deployment = "main"), 
       # Reading input files
-      tar_target(input_read, read_data_container(read_file, container_type = data_container_type_file |> quo_name()),
-                 pattern = map(read_file),
-                 iteration = "list"),
+      tar_target(file_path, read_file, pattern = map(read_file), format = "file", deployment = "main"),
       tar_target(unique_tissues,
-                 get_unique_tissues(input_read, sample_column |> quo_name()),
-                 pattern = map(input_read),
-                 iteration = "list", deployment = "main"),
+                 get_unique_tissues(read_data_container(file_path, container_type = data_container_type_file), sample_column |> quo_name()),
+                 pattern = map(file_path),
+                 iteration = "list"),
       # tar_target(
       #   tissue_subsets,
       #   input_read, split.by = "Tissue"),
@@ -249,53 +247,53 @@ run_targets_pipeline <- function(
 
       # Identifying empty droplets
       tar_target(empty_droplets_tbl,
-                 empty_droplet_id(input_read, filter_empty_droplets),
-                 pattern = map(input_read),
+                 empty_droplet_id(read_data_container(file_path, container_type = data_container_type_file), filter_empty_droplets),
+                 pattern = map(file_path),
                  iteration = "list"),
 
       # Cell cycle scoring
-      tar_target(cell_cycle_score_tbl, cell_cycle_scoring(input_read,
+      tar_target(cell_cycle_score_tbl, cell_cycle_scoring(read_data_container(file_path, container_type = data_container_type_file ),
                                                           empty_droplets_tbl),
-                 pattern = map(input_read,
+                 pattern = map(file_path,
                                empty_droplets_tbl),
                  iteration = "list"),
 
       # Annotation label transfer
       tar_target(annotation_label_transfer_tbl,
-                 annotation_label_transfer(input_read,
+                 annotation_label_transfer(read_data_container(file_path, container_type = data_container_type_file),
                                            empty_droplets_tbl,
                                            reference_read),
-                 pattern = map(input_read,
+                 pattern = map(file_path,
                                empty_droplets_tbl),
                  iteration = "list"),
 
       # Alive identification
-      tar_target(alive_identification_tbl, alive_identification(input_read,
+      tar_target(alive_identification_tbl, alive_identification(read_data_container(file_path, container_type = data_container_type_file),
                                                                 empty_droplets_tbl,
                                                                 annotation_label_transfer_tbl),
-                 pattern = map(input_read,
+                 pattern = map(file_path,
                                empty_droplets_tbl,
                                annotation_label_transfer_tbl),
                  iteration = "list"),
 
       # Doublet identification
-      tar_target(doublet_identification_tbl, doublet_identification(input_read,
+      tar_target(doublet_identification_tbl, doublet_identification(read_data_container(file_path, container_type = data_container_type_file),
                                                                     empty_droplets_tbl,
                                                                     alive_identification_tbl,
                                                                     annotation_label_transfer_tbl,
                                                                     reference_label_fine),
-                 pattern = map(input_read,
+                 pattern = map(file_path,
                                empty_droplets_tbl,
                                alive_identification_tbl,
                                annotation_label_transfer_tbl),
                  iteration = "list"),
 
       # Non-batch variation removal
-      tar_target(non_batch_variation_removal_S, non_batch_variation_removal(input_read,
+      tar_target(non_batch_variation_removal_S, non_batch_variation_removal(read_data_container(file_path, container_type = data_container_type_file),
                                                                             empty_droplets_tbl,
                                                                             alive_identification_tbl,
                                                                             cell_cycle_score_tbl),
-                 pattern = map(input_read,
+                 pattern = map(file_path,
                                empty_droplets_tbl,
                                alive_identification_tbl,
                                cell_cycle_score_tbl),
