@@ -8,7 +8,7 @@ read_data_container(file, container_type = "anndata")
 }
 \arguments{
 \item{file}{A character vector of length one specifies the file path, or directory path.
-For data format anndata and rds, use file path.
+For data format anndata, rds and seurat_h5, use file path.
 For data format hdf5, use directory path.}
 
 \item{container_type}{A character vector of length one specifies the input data type.}

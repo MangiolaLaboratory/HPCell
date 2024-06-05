@@ -15,22 +15,22 @@ eq = function(a,b){	a==b }
 
 #' Read various types of single-cell data
 #' @param file A character vector of length one specifies the file path, or directory path.
-#'   For data format anndata and rds, use file path.
+#'   For data format anndata, rds and seurat_h5, use file path.
 #'   For data format hdf5, use directory path.
 #' @param container_type A character vector of length one specifies the input data type.
 #' @return A `[Seurat::Seurat-class]` object
 #' @importFrom zellkonverter readH5AD
 #' @importFrom HDF5Array loadHDF5SummarizedExperiment
+#' @importFrom SeuratDisk LoadH5Seurat
 #' @export
 read_data_container <- function(file,
                                 container_type = "anndata"){
   switch(container_type,
          "anndata" = readH5AD(file, reader = "R", use_hdf5 = TRUE, obs = FALSE, raw = FALSE, layers = FALSE),
          "sce_rds" = readRDS(file),
-         #"sce_rds" =  readRDS(file) |> as.Seurat(counts = "counts", data = NULL),
          "seurat_rds" = readRDS(file),
-         "sce_hdf5" = loadHDF5SummarizedExperiment(file) |> as.Seurat(counts = "counts", data = NULL),
-         "seurat_hdf5" = loadHDF5SummarizedExperiment(file)
+         "sce_hdf5" = loadHDF5SummarizedExperiment(file),
+         "seurat_h5" = LoadH5Seurat(file)
          )
 }
 

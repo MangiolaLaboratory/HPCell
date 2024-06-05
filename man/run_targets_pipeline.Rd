@@ -15,7 +15,8 @@ run_targets_pipeline(
   RNA_assay_name = "RNA",
   sample_column = "sample",
   cell_type_annotation_column = "Cell_type_in_each_tissue",
-  data_container_type
+  data_container_type,
+  profiler = FALSE
 )
 }
 \arguments{
@@ -39,7 +40,9 @@ run_targets_pipeline(
 
 \item{cell_type_annotation_column}{Column name for cell type annotation in input data}
 
-\item{data_container_type}{A character vector of length one specifies the input data type.
+\item{data_container_type}{A character vector of length one specifies the input data type.}
+
+\item{profiler}{Optional step for profilling. Default is FALSE
 data type can be one of the following: anndata for annotated data mainly used in python.
 sce_rds and seurat_rds for \code{SingleCellExperiment} and \code{Seurat} RDS format representively
 seurat_rds for \code{Seurat} RDS format.

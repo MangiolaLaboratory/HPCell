@@ -15,6 +15,7 @@
 #' @param sample_column Column name for sample identification.
 #' @param cell_type_annotation_column Column name for cell type annotation in input data
 #' @param data_container_type A character vector of length one specifies the input data type.
+#' @param profiler Optional step for profilling. Default is FALSE
 #' data type can be one of the following: anndata for annotated data mainly used in python.
 #' sce_rds and seurat_rds for `SingleCellExperiment` and `Seurat` RDS format representively
 #' seurat_rds for `Seurat` RDS format.
@@ -49,7 +50,8 @@ run_targets_pipeline <- function(
     RNA_assay_name = "RNA", 
     sample_column = "sample", 
     cell_type_annotation_column = "Cell_type_in_each_tissue",
-    data_container_type
+    data_container_type,
+    profiler = FALSE
 ){
   
   # Fix GCHECKS 
@@ -96,6 +98,8 @@ run_targets_pipeline <- function(
   sample_column |> saveRDS("sample_column.rds")
   cell_type_annotation_column |> saveRDS("cell_type_annotation_column.rds")
   data_container_type |> saveRDS("data_container_type.rds")
+  debug_step |> saveRDS("debug_step_param.rds")
+  profiler |> saveRDS("profiler_param.rds")
   # Write pipeline to a file
   tar_script({
     # library(targets)
@@ -104,6 +108,8 @@ run_targets_pipeline <- function(
     # library(crew.cluster)
     
     computing_resources = readRDS("temp_computing_resources.rds")
+    debug_step = readRDS("debug_step_param.rds")
+    profiler = readRDS("profiler_param.rds")
     #-----------------------#
     # Packages
     #-----------------------#
@@ -381,14 +387,30 @@ run_targets_pipeline <- function(
   #   )
   # }
   # run_targets(input_files)
+  
+  # callr_function and callr_argument is adjusted based on debug_step and profiling
+  if (profiler) {
+    callr_condition = tarprof::callr_profile
+    callr_arg = list(
+      monitor_path = file.path(store, "profile_results")
+    )
+  } else if (!profiler) {
+    if (is.null(debug_step)) {
+      # assign callr_function default
+      callr_condition = callr::r
+      callr_arg = targets::tar_callr_args_default(callr_condition, reporter = NULL)
+    }
+    else if (!is.null(debug_step)) {
+      callr_condition = NULL
+      callr_arg = targets::tar_callr_args_default(callr_condition, reporter = NULL)
+    }
+  }
+  
   tar_make(
     script = glue("{store}.R"),
     store = store,
-    callr_function = NULL
-    # callr_function = tarprof::callr_profile,
-    # callr_arguments = list(
-    #   monitor_path = file.path(store, "profile_results")
-    # )
+    callr_function = callr_condition,
+    callr_arguments = callr_arg
   )
   # tar_make_future(
   #   script = glue("{store}.R"),
