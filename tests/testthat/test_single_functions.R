@@ -7,11 +7,10 @@ filter_empty_droplets <- "TRUE"
 tissue <- "pbmc"
 RNA_assay_name<- "originalexp"
 
-input_seurat_list = 
+input_seurat_abc = 
   HeOrganAtlasData(ensembl=FALSE,location=FALSE)|> 
   as.Seurat(data = NULL) |>
-  subset(subset = Tissue %in% c("Blood")) |>
-  group_split()
+  subset(subset = Tissue %in% c("Blood")) 
 
 # sample_column<- "Tissue"
 ## Defining functions 
@@ -441,3 +440,33 @@ process_seurat_object <- function(input_a, assay = NULL) {
 
 assay<- process_seurat_object(input_seurat_list[[1]])
 
+input_seurat_abc |> 
+  
+  # Initialise pipeline characteristics
+  initialise_hpc(
+    computing_resources = 
+      crew.cluster::crew_controller_slurm(
+        slurm_memory_gigabytes_per_cpu = 5,
+        workers = 50,
+        tasks_max = 5,
+        verbose = T
+      )
+  ) |> 
+  
+  # Remove empty outliers
+  # remove_empty_DropletUtils_hpc() |> 
+  
+  # Remove dead cells
+  # remove_dead_scuttle_hpc() |> 
+  
+  # Score cell cycle
+  # score_cell_cycle_seurat_hpc() |> 
+  
+  # Remove doublets
+  remove_doublets_scDblFinder_hpc() |> 
+  
+  # Annotation
+  annotate_cell_type_hpc() |> 
+  
+  # Trigger pipeline execution. It could be at evaluation time
+  evaluate_hpc()

@@ -293,11 +293,13 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' @importFrom scater isOutlier
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' @importFrom purrr map
+#' @importFrom magrittr not
 #' 
 #' @export
 alive_identification <- function(input_read_RNA_assay,
                                  empty_droplets_tbl,
-                                 annotation_label_transfer_tbl,
+                                 annotation_label_transfer_tbl = NULL,
+                                 annotation_column = NULL,
                                  assay = NULL) {
   
   # Fix GCHECK notes
@@ -307,13 +309,19 @@ alive_identification <- function(input_read_RNA_assay,
   high_mitochondrion = NULL 
   blueprint_first.labels.fine = NULL
   
+  if(
+    !is.null(annotation_column) && 
+    !annotation_column %in% colnames(as_tibble(input_read_RNA_assay[1,1]))
+  )
+    stop("HPCell says: Your `group_by` columns are not present in your data. Please run annotate_cell_type_hpc() to get the cell type annotation that you can use as grouping for the cell-type-specific quality control and removal of dead cells.")
+  
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
   input_read_RNA_assay =
     input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by=".cell") |>
-    filter(!empty_droplet)
+    dplyr::filter(!empty_droplet)
   
   # Calculate nFeature_RNA and nCount_RNA if not exist in the data
   if (!any(str_which(colnames(input_read_RNA_assay[[]]), "nFeature_RNA")) ||
@@ -353,7 +361,7 @@ alive_identification <- function(input_read_RNA_assay,
   #       left_join(x, annotation_label_transfer_tbl, by = ".cell") |>
   # 
   #       # Label cells
-  #       nest(data = -blueprint_first.labels.fine) |>
+  #       nest(data = -all_of(annotation_column)) |>
   #         mutate(data = map(
   #           data,
   #           ~ .x |>
@@ -376,77 +384,85 @@ alive_identification <- function(input_read_RNA_assay,
     as_tibble(rownames = ".cell") %>%
     dplyr::select(-sum, -detected)
   
+  # Compute ribosome statistics
+  ribosome =
+    input_read_RNA_assay |>
+    select(.cell) |>
+    #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
+    
+    # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
+    mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay))
+  
   # Add cell type labels and determine high mitochondrion content, if annotation_label_transfer_tbl is provided
-  if (inherits(annotation_label_transfer_tbl, "tbl_df")) {
-    mitochondrion <- qc_metrics %>%
-      left_join(annotation_label_transfer_tbl, by = ".cell") %>%
-      nest(data = -blueprint_first.labels.fine) %>%
-      mutate(data = map(data, ~ .x %>%
-                          mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
-                                 high_mitochondrion = as.logical(high_mitochondrion)))) %>%
-      unnest(cols = data)
+  if(annotation_column |> is.null() |> not()) {
+    
+   if (
+     inherits(annotation_label_transfer_tbl, "tbl_df") &&
+     annotation_column %in% colnames(annotation_label_transfer_tbl)
+   ) {
+     
+     mitochondrion <- qc_metrics %>%
+       left_join(annotation_label_transfer_tbl, by = ".cell") 
+     
+     ribosome =
+       ribosome |>
+       left_join(annotation_label_transfer_tbl, by = ".cell") 
+   }
+  
+  
+    else if (annotation_column %in% colnames(as_tibble(input_read_RNA_assay[1,1]))) {
+      
+      mitochondrion <- 
+        qc_metrics %>%
+        left_join(input_read_RNA_assay |> select(.cell, all_of(annotation_column)), by = ".cell") 
+      
+      
+      ribosome = 
+        ribosome |>
+        left_join(input_read_RNA_assay |> select(.cell, all_of(annotation_column)), by = ".cell") 
+    }
+
+  
+    mitochondrion = 
+      mitochondrion %>%
+      nest(data = -all_of(annotation_column)) 
+    
+    ribosome =
+      ribosome |>
+      nest(data = -all_of(annotation_column)) 
+    
   } else {
     # Determing high mitochondrion content 
     mitochondrion <- qc_metrics %>%
-      nest(data = everything()) %>%
-      mutate(data = map(data, ~ .x %>%
-                          mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
-                                 high_mitochondrion = as.logical(high_mitochondrion)))) %>%
-      unnest(cols = data)
+      nest(data = everything()) 
+    
+    ribosome <- ribosome %>%
+      nest(data = everything()) 
   }
   
+  mitochondrion = mitochondrion %>%
+    mutate(data = map(data, ~ .x %>%
+                        mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
+                               high_mitochondrion = as.logical(high_mitochondrion)))) %>%
+    unnest(cols = data)
   
-  if (inherits(annotation_label_transfer_tbl, "tbl_df")) {
-    
-    ribosome =
-      input_read_RNA_assay |>
-      select(.cell) |>
-      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
-      
-      # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)) |>
-      left_join(annotation_label_transfer_tbl, by = ".cell") |>
-      nest(data = -blueprint_first.labels.fine) |>
-      mutate(data = map(
-        data,
-        ~ .x |>
-          mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
-          mutate(high_ribosome = as.logical(high_ribosome)) |>
-          as_tibble() |>
-          select(.cell, subsets_Ribo_percent, high_ribosome)
-      )) |>
-      unnest(data)
-    
-  } else {
-    
-    # ribosome =
-    #   input_read_RNA_assay |>
-    #   select(.cell) |>
-    #   mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1])
-    ribosome =
-      input_read_RNA_assay |>
-      dplyr::select(.cell) |>
-      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay))|>
-      nest(data = everything()) |>
-      mutate(data = map(
-        data,
-        ~ .x |>
-          mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
-          mutate(high_ribosome = as.logical(high_ribosome)) |>
-          as_tibble() |>
-          dplyr::select(.cell, subsets_Ribo_percent, high_ribosome)
-      )) |>
-      unnest(data)
-  }
-  #ribosome_meta <- as.data.frame(ribosome@meta.data)
+  ribosome = 
+    ribosome |> 
+    mutate(data = map(
+      data,
+      ~ .x |>
+        mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
+        mutate(high_ribosome = as.logical(high_ribosome)) |>
+        as_tibble() |>
+        select(.cell, subsets_Ribo_percent, high_ribosome)
+    )) |>
+    unnest(data)
   
-  modified_data <- mitochondrion |>
+  # Merge
+  mitochondrion |>
     left_join(ribosome, by=".cell") |>
     mutate(alive = !high_mitochondrion) # & !high_ribosome ) |>
-  
-  modified_data
-  
+
 }
 
 
@@ -494,11 +510,11 @@ doublet_identification <- function(input_read_RNA_assay,
     # Filtering empty
     Seurat::as.SingleCellExperiment() |>
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
-    filter(!empty_droplet) |>
+    dplyr::filter(!empty_droplet) |>
     
     # Filter dead
-    left_join(alive_identification_tbl |> select(.cell, high_mitochondrion, high_ribosome), by = ".cell") |>
-    filter(!high_mitochondrion & !high_ribosome) 
+    left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
+    dplyr::filter(alive) 
   
   # Annotate
   filter_empty_droplets <- filter_empty_droplets |> 
@@ -544,7 +560,7 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
   counts =
     input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by = ".cell") |>
-    filter(!empty_droplet) |>
+    dplyr::filter(!empty_droplet) |>
     
     # Normalise needed
     NormalizeData() |>
