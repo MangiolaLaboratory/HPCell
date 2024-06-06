@@ -456,13 +456,13 @@ results =
   ) |> 
   
   # Remove empty outliers
-  # remove_empty_DropletUtils_hpc() |> 
+  remove_empty_DropletUtils_hpc() |> 
   
   # Remove dead cells
-   remove_dead_scuttle_hpc() |> 
+  remove_dead_scuttle_hpc() |> 
   
   # Score cell cycle
-   score_cell_cycle_seurat_hpc() |> 
+  score_cell_cycle_seurat_hpc() |> 
   
   # Remove doublets
   remove_doublets_scDblFinder_hpc() |> 
