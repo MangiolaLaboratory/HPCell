@@ -289,13 +289,16 @@ run_targets_pipeline <- function(
                  iteration = "list"),
       
       # Pre-processing output
-      tar_target(preprocessing_output_S, preprocessing_output(tissue,
+      tar_target(preprocessing_output_S, preprocessing_output(input_read,
+                                                              empty_droplets_tbl,
                                                               non_batch_variation_removal_S,
                                                               alive_identification_tbl,
                                                               cell_cycle_score_tbl,
                                                               annotation_label_transfer_tbl,
                                                               doublet_identification_tbl),
-                 pattern = map(non_batch_variation_removal_S,
+                 pattern = map(input_read,
+                               empty_droplets_tbl,
+                               non_batch_variation_removal_S,
                                alive_identification_tbl,
                                cell_cycle_score_tbl,
                                annotation_label_transfer_tbl,

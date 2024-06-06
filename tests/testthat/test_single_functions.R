@@ -440,10 +440,12 @@ process_seurat_object <- function(input_a, assay = NULL) {
 
 assay<- process_seurat_object(input_seurat_list[[1]])
 
-input_seurat_abc |> 
+results = 
+  input_seurat_abc |> 
   
   # Initialise pipeline characteristics
   initialise_hpc(
+    #debug_step = "preprocessing_output_S",
     computing_resources = 
       crew.cluster::crew_controller_slurm(
         slurm_memory_gigabytes_per_cpu = 5,
@@ -457,10 +459,10 @@ input_seurat_abc |>
   # remove_empty_DropletUtils_hpc() |> 
   
   # Remove dead cells
-  # remove_dead_scuttle_hpc() |> 
+   remove_dead_scuttle_hpc() |> 
   
   # Score cell cycle
-  # score_cell_cycle_seurat_hpc() |> 
+   score_cell_cycle_seurat_hpc() |> 
   
   # Remove doublets
   remove_doublets_scDblFinder_hpc() |> 
@@ -468,5 +470,8 @@ input_seurat_abc |>
   # Annotation
   annotate_cell_type_hpc() |> 
   
-  # Trigger pipeline execution. It could be at evaluation time
-  evaluate_hpc()
+  normalise_abundance_seurat_SCT_hpc(factors_to_regress = c(
+    "subsets_Mito_percent", 
+    "subsets_Ribo_percent", 
+    "G2M.Score"
+  )) 

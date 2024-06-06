@@ -606,7 +606,8 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
                                         empty_droplets_tbl, 
                                         alive_identification_tbl, 
                                         cell_cycle_score_tbl,
-                                        assay = NULL){
+                                        assay = NULL,
+                                        factors_to_regress = NULL){
   #Fix GChecks 
   empty_droplet = NULL 
   .cell <- NULL 
@@ -628,13 +629,16 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
     
     left_join(
       alive_identification_tbl |>
-        select(.cell, subsets_Ribo_percent, subsets_Mito_percent),
+        select(.cell, any_of(factors_to_regress)),
       by=".cell"
-    ) |>
+    ) 
+  
+  if(!is.null(cell_cycle_score_tbl)) 
+    counts = counts |>
     
     left_join(
       cell_cycle_score_tbl |>
-        select(.cell, G2M.Score),
+        select(.cell, any_of(factors_to_regress)),
       by=".cell"
     )
   
@@ -651,21 +655,28 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
     assay=assay,
     return.only.var.genes=FALSE,
     residual.features = NULL,
-    vars.to.regress = c("subsets_Mito_percent", "subsets_Ribo_percent", "G2M.Score"),
+    vars.to.regress = factors_to_regress,
     vst.flavor = "v2",
     scale_factor=2186
   )
+  
+  my_assays = "SCT"
   
   # Normalise antibodies
   if ( "ADT" %in% names(normalized_rna@assays)) {
     normalized_data <- normalized_rna %>%
       NormalizeData(normalization.method = 'CLR', margin = 2, assay="ADT") %>%
       select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
+    
+    my_assays = my_assays |> c("CLR")
+    
   } else { 
     normalized_data <- normalized_rna %>%
       # Drop alive columns
       select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
   }
+  
+  normalized_data[[my_assays]] 
   
 }
 
@@ -688,8 +699,14 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
 #' @importFrom dplyr select
+#' @import SeuratObject
+#' @importFrom SummarizedExperiment left_join
+#' @import tidySingleCellExperiment 
+#' @import tidyseurat
+#' @importFrom magrittr not
 #' @export
-preprocessing_output <- function(tissue, 
+preprocessing_output <- function(input_read_RNA_assay,
+                                 empty_droplets_tbl,
                                  non_batch_variation_removal_S, 
                                  alive_identification_tbl, 
                                  cell_cycle_score_tbl, 
@@ -705,11 +722,28 @@ preprocessing_output <- function(tissue,
   scDblFinder.class <- NULL
   predicted.celltype.l2 <- NULL
   
-  processed_data <- non_batch_variation_removal_S |>
+  if(empty_droplets_tbl |> is.null() |> not())
+    input_read_RNA_assay =
+      input_read_RNA_assay |>
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      filter(!empty_droplet) 
+    
+  # Add normalisation
+  if(!is.null(non_batch_variation_removal_S)){
+    if(input_read_RNA_assay |> is("Seurat"))
+      input_read_RNA_assay[["SCT"]] = non_batch_variation_removal_S
+    else if(input_read_RNA_assay |> is("SingleCellExperiment"))
+      assay(spe, "SCT") <- non_batch_variation_removal_S
+  }
+  
+  
+  
+  input_read_RNA_assay <- input_read_RNA_assay |>
+    
     # Filter dead cells
     left_join(
       alive_identification_tbl |>
-        select(.cell, alive, subsets_Mito_percent, subsets_Ribo_percent, high_mitochondrion, high_ribosome),
+        select(.cell, any_of(c("alive", "subsets_Mito_percent", "subsets_Ribo_percent", "high_mitochondrion", "high_ribosome"))),
       by = ".cell"
     ) |>
     filter(alive) |>
@@ -724,17 +758,21 @@ preprocessing_output <- function(tissue,
     left_join(doublet_identification_tbl |> select(.cell, scDblFinder.class), by = ".cell") |>
     filter(scDblFinder.class=="singlet") 
   
+  
+  # Attach annotation
   if (inherits(annotation_label_transfer_tbl, "tbl_df")){
-    processed_data <- processed_data |>
+    input_read_RNA_assay <- input_read_RNA_assay |>
       left_join(annotation_label_transfer_tbl, by = ".cell")
   }
   
-  # Filter Red blood cells and platelets
-  if (tolower(tissue) == "pbmc" & "predicted.celltype.l2" %in% c(rownames(annotation_label_transfer_tbl), colnames(annotation_label_transfer_tbl))) {
-    filtered_data <- filter(processed_data, !predicted.celltype.l2 %in% c("Eryth", "Platelet"))
-  } else {
-    filtered_data <- processed_data
-  }
+
+  input_read_RNA_assay
+  # # Filter Red blood cells and platelets
+  # if (tolower(tissue) == "pbmc" & "predicted.celltype.l2" %in% c(rownames(annotation_label_transfer_tbl), colnames(annotation_label_transfer_tbl))) {
+  #   filtered_data <- filter(processed_data, !predicted.celltype.l2 %in% c("Eryth", "Platelet"))
+  # } else {
+  #   filtered_data <- processed_data
+  # }
 }
 
 
