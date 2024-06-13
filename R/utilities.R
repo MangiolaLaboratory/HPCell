@@ -1,3 +1,9 @@
+# Helper function to add class to an object
+add_class <- function(obj, class_name) {
+  class(obj) <- c(class_name, class(obj))
+  return(obj)
+}
+
 # Greater than
 gt = function(a, b){	a > b }
 
@@ -1645,3 +1651,13 @@ get_manually_curated_immune_cell_types = function(){
   
   
 }
+
+remove_files_safely <- function(files) {
+  for (file in files) {
+    if (file.exists(file)) {
+      file.remove(file)
+    }
+  }
+}
+
+

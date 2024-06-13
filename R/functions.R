@@ -814,7 +814,7 @@ preprocessing_output <- function(input_read_RNA_assay,
 #' @export
 
 # Create pseudobulk for each sample 
-create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
+create_pseudobulk <- function(preprocessing_output_S, sample_names ,x ,...) {
   #Fix GChecks 
   .sample = NULL 
   .feature = NULL 
@@ -826,7 +826,12 @@ create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
   
   # Aggregate cells
   preprocessing_output_S |> 
-    aggregate_cells(!!x, slot = "data", assays=assays) |>
+    
+    # Add sample
+    mutate(sample_hpc = sample_names) |> 
+    
+    # Aggregate
+    aggregate_cells(c(sample_hpc, !!x), slot = "data") |>
     as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
     pivot_longer(cols = assays, names_to = "data_source", values_to = "count") |>
     filter(!count |> is.na()) |>
@@ -842,7 +847,7 @@ create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
       .sample = c(!!x),
       .transcript = .feature,
       .abundance = count
-    )
+    ) 
 }
 #' Merge pseudobulk from all samples 
 #'
@@ -860,11 +865,10 @@ create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
 #' @importFrom SummarizedExperiment SummarizedExperiment
 #' @export
 #' 
-pseudobulk_merge <- function(create_pseudobulk_sample, assays, x , ...) {
+pseudobulk_merge <- function(create_pseudobulk_sample, ...) {
   # Fix GCHECKS 
   . = NULL 
-  #browser()
-  x = enquo(x)
+
   # Select only common columns
   common_columns =
     create_pseudobulk_sample |>

@@ -19,6 +19,7 @@
 #'
 #' @importFrom glue glue
 #' @importFrom targets tar_script
+#' @importFrom magrittr set_names
 #' @import crew.cluster
 #' @import tarchetypes
 #' @import targets
@@ -40,17 +41,30 @@ initialise_hpc <- function(input_data,
   # Capture all arguments including defaults
   args_list <- as.list(environment())
   
+  # if simple names are not set, use integers
+  if(input_data |> names() |> is.null())
+    input_data |> set_names(seq_len(length(input_data)))
+  
+  input_data |> names() |> saveRDS("sample_names.rds")
+  
+
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
+  # Add pipeline step
+  args_list$target_chunk = 
+    substitute({
+      
+      target_list = 
+        target_list |> c(list(
+          tar_target(sample_name, readRDS("sample_names.rds"))
+        ))
+      
+    })
+  
+  
   list(initialisation = args_list) |>
     add_class("HPCell")
-}
-
-# Helper function to add class to an object
-add_class <- function(obj, class_name) {
-  class(obj) <- c(class_name, class(obj))
-  return(obj)
 }
 
 
@@ -88,12 +102,12 @@ target_chunk_undefined_remove_empty_DropletUtils =
 
 # Define the generic function
 #' @export
-remove_empty_DropletUtils_hpc <- function(input_data, total_RNA_count_check = NULL, ...) {
-  UseMethod("remove_empty_DropletUtils_hpc")
+remove_empty_DropletUtils <- function(input_data, total_RNA_count_check = NULL, ...) {
+  UseMethod("remove_empty_DropletUtils")
 }
 
 #' @export
-remove_empty_DropletUtils_hpc.Seurat = function(input_data, total_RNA_count_check = NULL, ...) {
+remove_empty_DropletUtils.Seurat = function(input_data, total_RNA_count_check = NULL, ...) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())
   
@@ -102,13 +116,13 @@ remove_empty_DropletUtils_hpc.Seurat = function(input_data, total_RNA_count_chec
   
   list(initialisation = list(input_data = input_data)) |>
     add_class("HPCell") |>
-    remove_empty_DropletUtils_hpc()
+    remove_empty_DropletUtils()
   
 }
 
 
 #' @export
-remove_empty_DropletUtils_hpc.HPCell = function(input_hpc, total_RNA_count_check = NULL, ...) {
+remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, ...) {
   
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
@@ -149,12 +163,12 @@ target_chunk_undefined_remove_dead_scuttle =
 
 # Define the generic function
 #' @export
-remove_dead_scuttle_hpc <- function(input_data, group_by = NULL) {
-  UseMethod("remove_dead_scuttle_hpc")
+remove_dead_scuttle <- function(input_data, group_by = NULL) {
+  UseMethod("remove_dead_scuttle")
 }
 
 #' @export
-remove_dead_scuttle_hpc.HPCell = function(input_hpc, group_by = NULL) {
+remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
   
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
@@ -206,12 +220,12 @@ target_chunk_undefined_score_cell_cycle_seurat =
 
 # Define the generic function
 #' @export
-score_cell_cycle_seurat_hpc <- function(input_data, ...) {
-  UseMethod("score_cell_cycle_seurat_hpc")
+score_cell_cycle_seurat <- function(input_data, ...) {
+  UseMethod("score_cell_cycle_seurat")
 }
 
 #' @export
-score_cell_cycle_seurat_hpc.HPCell = function(input_hpc) {
+score_cell_cycle_seurat.HPCell = function(input_hpc) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
   
@@ -270,12 +284,12 @@ target_chunk_undefined_remove_doublets_scDblFinder =
 
 # Define the generic function
 #' @export
-remove_doublets_scDblFinder_hpc <- function(input_hpc) {
-  UseMethod("remove_doublets_scDblFinder_hpc")
+remove_doublets_scDblFinder <- function(input_hpc) {
+  UseMethod("remove_doublets_scDblFinder")
 }
 
 #' @export
-remove_doublets_scDblFinder_hpc.HPCell = function(input_hpc) {
+remove_doublets_scDblFinder.HPCell = function(input_hpc) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
   
@@ -338,12 +352,12 @@ target_chunk_undefined_annotate_cell_type =
 
 # Define the generic function
 #' @export
-annotate_cell_type_hpc <- function(input_data, ...) {
-  UseMethod("annotate_cell_type_hpc")
+annotate_cell_type <- function(input_data, ...) {
+  UseMethod("annotate_cell_type")
 }
 
 #' @export
-annotate_cell_type_hpc.HPCell = function(input_hpc, azimuth_reference = NULL) {
+annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
   
@@ -375,12 +389,12 @@ target_chunk_undefined_normalise_abundance_seurat_SCT =
 
 # Define the generic function
 #' @export
-normalise_abundance_seurat_SCT_hpc <- function(input_data, ...) {
-  UseMethod("normalise_abundance_seurat_SCT_hpc")
+normalise_abundance_seurat_SCT <- function(input_data, ...) {
+  UseMethod("normalise_abundance_seurat_SCT")
 }
 
 #' @export
-normalise_abundance_seurat_SCT_hpc.HPCell = function(input_hpc, factors_to_regress = NULL) {
+normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress = NULL) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
   
@@ -416,6 +430,55 @@ normalise_abundance_seurat_SCT_hpc.HPCell = function(input_hpc, factors_to_regre
 }
 
 
+# Define the generic function
+#' @export
+calculate_pseudobulk <- function(input_data, ...) {
+  UseMethod("calculate_pseudobulk")
+}
+
+#' @export
+calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
+  # Capture all arguments including defaults
+  args_list <- as.list(environment())[-1]
+  
+  # Optionally, you can evaluate the arguments if they are expressions
+  args_list <- lapply(args_list, eval, envir = parent.frame())
+  
+  group_by |> saveRDS("pseudobulk_group_by.rds")
+  
+  args_list$target_chunk = 
+    substitute({
+      target_list = 
+        target_list |> c(list(
+          tar_target(pseudobulk_group_by, readRDS("pseudobulk_group_by.rds")), 
+          tar_target(create_pseudobulk_sample, create_pseudobulk(
+            preprocessing_output_S,  
+            sample_names,
+            x = pseudobulk_group_by
+          ), 
+                     pattern = map(preprocessing_output_S), 
+                     iteration = "list"),
+          tar_target(
+            pseudobulk_merge_all_samples, 
+            create_pseudobulk_sample |> pseudobulk_merge()
+          )
+        ))
+      
+    })
+  
+  input_hpc |>
+    c(list(calculate_pseudobulk = args_list)) |>
+    add_class("HPCell")
+  
+}
+
+
+
+
+# pseudobulk preprocessing for each sample 
+
+
+
 
 
 # Define the generic function
@@ -424,50 +487,57 @@ evaluate_hpc <- function(input_data) {
   UseMethod("evaluate_hpc")
 }
 
-
+#' @importFrom glue glue
 #' @export
 evaluate_hpc.HPCell = function(input_hpc) {
-  
-  input_hpc$initialisation$input_data |> saveRDS("~/temp.rds")
-  
-  
-  # Fix GCHECKS
-  read_file <- NULL
-  reference_file <- NULL
-  tissue_file <- NULL
-  filtered_file <- NULL
-  sample_column_file <- NULL
-  cell_type_annotation_column_file <- NULL
-  reference_label_coarse <- NULL
-  reference_label_fine <- NULL
-  input_read <- NULL
-  unique_tissues <- NULL
-  reference_read <- NULL
-  empty_droplets_tbl <- NULL
-  cell_cycle_score_tbl <- NULL
-  annotation_label_transfer_tbl <- NULL
-  alive_identification_tbl <- NULL
-  doublet_identification_tbl <- NULL
-  non_batch_variation_removal_S <- NULL
-  preprocessing_output_S <- NULL
-  create_pseudobulk_sample <- NULL
-  sampleName <- NULL
-  cellAnno <- NULL
-  pseudobulk_merge_all_samples <- NULL
-  calc_UMAP_dbl_report <- NULL
-  variable_gene_list <- NULL
-  tar_render <- NULL
-  empty_droplets_report <- NULL
-  doublet_identification_report <- NULL
-  Technical_variation_report <- NULL
-  pseudobulk_processing_report <- NULL
+# 
+#   # Fix GCHECKS
+#   read_file <- NULL
+#   reference_file <- NULL
+#   tissue_file <- NULL
+#   filtered_file <- NULL
+#   sample_column_file <- NULL
+#   cell_type_annotation_column_file <- NULL
+#   reference_label_coarse <- NULL
+#   reference_label_fine <- NULL
+#   input_read <- NULL
+#   unique_tissues <- NULL
+#   reference_read <- NULL
+#   empty_droplets_tbl <- NULL
+#   cell_cycle_score_tbl <- NULL
+#   annotation_label_transfer_tbl <- NULL
+#   alive_identification_tbl <- NULL
+#   doublet_identification_tbl <- NULL
+#   non_batch_variation_removal_S <- NULL
+#   preprocessing_output_S <- NULL
+#   create_pseudobulk_sample <- NULL
+#   sampleName <- NULL
+#   cellAnno <- NULL
+#   pseudobulk_merge_all_samples <- NULL
+#   calc_UMAP_dbl_report <- NULL
+#   variable_gene_list <- NULL
+#   tar_render <- NULL
+#   empty_droplets_report <- NULL
+#   doublet_identification_report <- NULL
+#   Technical_variation_report <- NULL
+#   pseudobulk_processing_report <- NULL
   
   #sample_column = enquo(input_hpc$initialisation$sample_column)
   # cell_type_annotation_column = enquo(cell_type_annotation_column)
   
   # Save inputs for passing to targets pipeline
   # input_data |> CHANGE_ASSAY |> saveRDS("input_file.rds")
-  "~/temp.rds" |> saveRDS("input_file.rds")
+  
+  dir.create(input_hpc$initialisation$store, showWarnings = FALSE, recursive = TRUE)
+  data_file_names = glue("{input_hpc$initialisation$store}/{names(input_hpc$initialisation$input_data)}.rds")
+    map2(
+      input_hpc$initialisation$input_data,
+      data_file_names,
+      ~ .x |> saveRDS(.y)
+    )
+  
+    list(data_file_names) |> saveRDS("input_file.rds")
+  
   input_hpc$initialisation$computing_resources |> saveRDS("temp_computing_resources.rds")
   #sample_column |> saveRDS("sample_column.rds")
   input_hpc$initialisation$debug_step |> saveRDS("temp_debug_step.rds")
@@ -494,7 +564,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
     
     target_list = list(
       tar_target(file, "input_file.rds", format = "rds"),
-      tar_target(read_file, readRDS(file))
+      tar_target(read_file, readRDS(file), iteration = "list")
     )
     
     target_list = 
@@ -511,6 +581,11 @@ evaluate_hpc.HPCell = function(input_hpc) {
     
   }, script = glue("{input_hpc$initialisation$store}.R"), ask = FALSE)
   
+  # Set sample names
+  tar_script_append2(
+    input_hpc$initialisation$target_chunk,
+    script = glue("{input_hpc$initialisation$store}.R")
+  )
   
   #-----------------------#
   # Empty droplets
@@ -608,7 +683,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
   
   
   #-----------------------#
-  # Close pipeline
+  # Create single cell output
   #-----------------------#
   
   # Pre-processing output
@@ -637,6 +712,22 @@ evaluate_hpc.HPCell = function(input_hpc) {
       ))
   }, script = glue("{input_hpc$initialisation$store}.R"))
   
+  
+  #-----------------------#
+  # Create pseudobulk 
+  #-----------------------#
+  
+  if("calculate_pseudobulk" %in% names(input_hpc))
+    tar_script_append2(
+      input_hpc$calculate_pseudobulk$target_chunk,
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+
+  
+  #-----------------------#
+  # Close pipeline
+  #-----------------------#
+  
   # Call final list
   tar_script_append({
     target_list
@@ -651,8 +742,21 @@ evaluate_hpc.HPCell = function(input_hpc) {
     callr_function = my_callr_function,
     reporter = "verbose_positives",
     script = glue("{input_hpc$initialisation$store}.R"),
-    store = glue("{input_hpc$initialisation$store}")
+    store = input_hpc$initialisation$store
   )
+  
+  # Example usage:
+  c(
+    "input_file.rds",
+    "temp_computing_resources.rds",
+    "temp_debug_step.rds",
+    "sample_names.rds",
+    "total_RNA_count_check.rds",
+    "temp_group_by.rds",
+    "factors_to_regress.rds",
+    "pseudobulk_group_by.rds"
+  ) |> 
+    remove_files_safely()
   
   return(
     tar_meta(preprocessing_output_S, store = glue("{input_hpc$initialisation$store}"))

@@ -442,10 +442,12 @@ assay<- process_seurat_object(input_seurat_list[[1]])
 
 results = 
   input_seurat_abc |> 
+  group_split(Tissue) |> 
+  set_names("blood") |> 
   
   # Initialise pipeline characteristics
   initialise_hpc(
-    #debug_step = "preprocessing_output_S",
+    #debug_step = "empty_droplets_tbl_072a0a001eedb254",
     computing_resources = 
       crew.cluster::crew_controller_slurm(
         slurm_memory_gigabytes_per_cpu = 5,
@@ -456,22 +458,24 @@ results =
   ) |> 
   
   # Remove empty outliers
-  remove_empty_DropletUtils_hpc() |> 
+  remove_empty_DropletUtils() |> 
   
   # Remove dead cells
-  remove_dead_scuttle_hpc() |> 
+  remove_dead_scuttle() |> 
   
   # Score cell cycle
-  score_cell_cycle_seurat_hpc() |> 
+  score_cell_cycle_seurat() |> 
   
   # Remove doublets
-  remove_doublets_scDblFinder_hpc() |> 
+  remove_doublets_scDblFinder() |> 
   
   # Annotation
-  annotate_cell_type_hpc() |> 
+  annotate_cell_type() |> 
   
-  normalise_abundance_seurat_SCT_hpc(factors_to_regress = c(
+  normalise_abundance_seurat_SCT(factors_to_regress = c(
     "subsets_Mito_percent", 
     "subsets_Ribo_percent", 
     "G2M.Score"
-  )) 
+  )) |> 
+  
+  calculate_pseudobulk()
