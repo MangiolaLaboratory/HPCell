@@ -278,10 +278,6 @@ target_chunk_undefined_remove_doublets_scDblFinder =
 
 
 
-
-
-
-
 # Define the generic function
 #' @export
 remove_doublets_scDblFinder <- function(input_hpc) {

@@ -440,21 +440,39 @@ process_seurat_object <- function(input_a, assay = NULL) {
 
 assay<- process_seurat_object(input_seurat_list[[1]])
 
-results = 
-  input_seurat_abc |> 
-  group_split(Tissue) |> 
-  set_names("blood") |> 
+
+library(HPCell)
+library(crew)
+library(crew.cluster)
+library(magrittr)
+library(Seurat)
+library(SeuratData)
+
+options(Seurat.object.assay.version = "v5")
+input_seurat <- 
+  LoadData("pbmc3k") |>
+  _[,1:500] |> 
+  list() |>
+  magrittr::set_names("pbmc3k")
+
+# Define and execute the pipeline
+input_seurat |> 
   
   # Initialise pipeline characteristics
   initialise_hpc(
     #debug_step = "empty_droplets_tbl_072a0a001eedb254",
-    computing_resources = 
-      crew.cluster::crew_controller_slurm(
-        slurm_memory_gigabytes_per_cpu = 5,
-        workers = 50,
-        tasks_max = 5,
-        verbose = T
-      )
+    
+    # Default resourced 
+    computing_resources = crew_controller_local(workers = 10)
+    
+    # Slurm resources
+    # computing_resources = 
+    #   crew.cluster::crew_controller_slurm(
+    #     slurm_memory_gigabytes_per_cpu = 5,
+    #     workers = 50,
+    #     tasks_max = 5,
+    #     verbose = T
+    #   )
   ) |> 
   
   # Remove empty outliers
