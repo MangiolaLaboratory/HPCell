@@ -460,7 +460,7 @@ input_seurat |>
   
   # Initialise pipeline characteristics
   initialise_hpc(
-    #debug_step = "empty_droplets_tbl_072a0a001eedb254",
+    # debug_step = "create_pseudobulk_sample",
     
     # Default resourced 
     computing_resources = crew_controller_local(workers = 10)
@@ -496,4 +496,4 @@ input_seurat |>
     "G2M.Score"
   )) |> 
   
-  calculate_pseudobulk()
+  calculate_pseudobulk(group_by = seurat_annotations)

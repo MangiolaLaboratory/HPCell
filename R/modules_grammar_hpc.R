@@ -57,7 +57,7 @@ initialise_hpc <- function(input_data,
       
       target_list = 
         target_list |> c(list(
-          tar_target(sample_name, readRDS("sample_names.rds"))
+          tar_target(sample_names, readRDS("sample_names.rds"))
         ))
       
     })
@@ -428,12 +428,15 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
 
 # Define the generic function
 #' @export
-calculate_pseudobulk <- function(input_data, ...) {
+calculate_pseudobulk <- function(input_data, group_by = NULL) {
   UseMethod("calculate_pseudobulk")
 }
 
 #' @export
 calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
+  
+  group_by = group_by |> enquo()
+  
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
   
@@ -452,7 +455,7 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
             sample_names,
             x = pseudobulk_group_by
           ), 
-                     pattern = map(preprocessing_output_S), 
+                     pattern = map(preprocessing_output_S, sample_names), 
                      iteration = "list"),
           tar_target(
             pseudobulk_merge_all_samples, 

@@ -822,7 +822,12 @@ create_pseudobulk <- function(preprocessing_output_S, sample_names ,x ,...) {
   symbol = NULL 
   
   #browser()
-  x = enquo(x)
+  # x = enquo(x)
+  
+  if(preprocessing_output_S |> is("Seurat"))
+    assays = Seurat::Assays(preprocessing_output_S)
+  else if(preprocessing_output_S |> is("SingleCellExperiment"))
+    assays = preprocessing_output_S@assays |> names()
   
   # Aggregate cells
   preprocessing_output_S |> 
@@ -849,6 +854,7 @@ create_pseudobulk <- function(preprocessing_output_S, sample_names ,x ,...) {
       .abundance = count
     ) 
 }
+
 #' Merge pseudobulk from all samples 
 #'
 #' @description
@@ -863,6 +869,13 @@ create_pseudobulk <- function(preprocessing_output_S, sample_names ,x ,...) {
 #' @importFrom dplyr select
 #' @importFrom S4Vectors cbind
 #' @importFrom SummarizedExperiment SummarizedExperiment
+#' @importFrom SummarizedExperiment colData
+#' @importFrom SummarizedExperiment colData<-
+#' @importFrom SummarizedExperiment rowData
+#' @importFrom SummarizedExperiment rowData<-
+#' 
+#' 
+#' 
 #' @export
 #' 
 pseudobulk_merge <- function(create_pseudobulk_sample, ...) {
