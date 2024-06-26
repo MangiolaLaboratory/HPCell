@@ -547,6 +547,83 @@ tar_script_append2 = function(code, script = targets::tar_config_get("script")){
     write_lines(script, append = TRUE)
 }
 
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+tar_script_append3 = function(code, script = targets::tar_config_get("script")){
+  code |>
+    head(-1) |>
+    tail(-1) |>
+    write_lines(script, append = TRUE)
+}
+
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+append_chunk_fix = function(chunk, script = targets::tar_config_get("script"), interject_function = identity){
+  
+  # Add prefix
+  "target_list = c(target_list, list(" |> 
+    c(
+      substitute(chunk) |>  # cannot start with pipe
+        deparse() |> 
+        head(-1) |>
+        tail(-1) |> 
+        interject_function()
+    ) |> 
+    
+    # Add suffix
+    c("))") |> 
+    
+    # Write
+    write_lines(script, append = TRUE)
+}
+
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("script")){
+  
+    tiers |> 
+    get_positions() |> 
+    names() |> 
+    imap(~
+           append_chunk_fix(
+             chunk = chunk, 
+             script = script, 
+             interject_function = function(x){
+               x |> 
+                 str_replace_all("TIER_PLACEHOLDER", as.character(.y)) |> 
+                 str_replace("RESOURCE_PLACEHOLDER", glue("tar_resources(crew = tar_resources_crew(\"{.x}\"))" ))
+             }
+           )
+    ) 
+  
+}
 
 #' Simple Addition Function
 #'
@@ -1661,3 +1738,34 @@ remove_files_safely <- function(files) {
 }
 
 
+#' Get positions of each unique element in a vector
+#'
+#' This function takes a vector and returns a named list where each unique
+#' element of the input vector maps to the positions at which it occurs.
+#'
+#' @param input_vector A vector of elements.
+#' @return A named list where each name is a unique element from the input vector
+#' and each value is a vector of positions where that element occurs.
+#' @examples
+#' input_vector <- c("a", "a", "b", "c", "a")
+#' positions_list <- get_positions(input_vector)
+#' print(positions_list)
+#' @importFrom dplyr tibble
+#' @importFrom dplyr group_by
+#' @importFrom dplyr summarise
+#' @importFrom purrr set_names
+#' @export
+get_positions <- function(input_vector) {
+  # Create a tibble with the input vector and their positions
+  df <- tibble(value = input_vector, position = seq_along(input_vector))
+  
+  # Group by value and summarise the positions
+  result <- df %>%
+    group_by(value) %>%
+    summarise(positions = list(position), .groups = 'drop')
+  
+  # Convert the result to a named list
+  result_list <- set_names(result$positions, result$value)
+  
+  return(result_list)
+}

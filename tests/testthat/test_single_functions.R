@@ -456,14 +456,51 @@ input_seurat <-
   magrittr::set_names("pbmc3k")
 
 # Define and execute the pipeline
-input_seurat |> 
+c(input_seurat, input_seurat) |> 
+  magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2")) |> 
   
   # Initialise pipeline characteristics
   initialise_hpc(
+    
+    tier = c("tier_1", "tier_2"),
+    
     # debug_step = "create_pseudobulk_sample",
     
     # Default resourced 
-    computing_resources = crew_controller_local(workers = 10)
+    # computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
+      
+  #   computing_resources = list(
+  #   
+  #   crew_controller_slurm(
+  #     name = "tier_1",
+  #     slurm_memory_gigabytes_per_cpu = 5,
+  #     slurm_cpus_per_task = 1,
+  #     workers = 50,
+  #     tasks_max = 5,
+  #     verbose = T
+  #   ),
+  #   crew_controller_slurm(
+  #     name = "tier_2",
+  #     slurm_memory_gigabytes_per_cpu = 10,
+  #     slurm_cpus_per_task = 1,
+  #     workers = 50,
+  #     tasks_max = 5,
+  #     verbose = T
+  #   )
+  # )
+  
+  computing_resources =
+    list(  crew_controller_local(
+      name = "tier_1",
+      workers = 2,
+      seconds_idle = 10
+    ),
+    crew_controller_local(
+      name = "tier_2",
+      workers = 2,
+      seconds_idle = 10
+    )
+  )
     
     # Slurm resources
     # computing_resources = 
