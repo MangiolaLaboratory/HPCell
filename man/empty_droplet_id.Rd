@@ -4,7 +4,11 @@
 \alias{empty_droplet_id}
 \title{Identify Empty Droplets in Single-Cell RNA-seq Data}
 \usage{
-empty_droplet_id(input_read_RNA_assay, filter_empty_droplets, assay = NULL)
+empty_droplet_id(
+  input_read_RNA_assay,
+  total_RNA_count_check = -Inf,
+  assay = NULL
+)
 }
 \arguments{
 \item{input_read_RNA_assay}{SingleCellExperiment object containing RNA assay data.}

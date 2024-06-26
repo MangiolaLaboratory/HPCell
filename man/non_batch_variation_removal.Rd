@@ -9,7 +9,8 @@ non_batch_variation_removal(
   empty_droplets_tbl,
   alive_identification_tbl,
   cell_cycle_score_tbl,
-  assay = NULL
+  assay = NULL,
+  factors_to_regress = NULL
 )
 }
 \arguments{

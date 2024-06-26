@@ -293,11 +293,13 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' @importFrom scater isOutlier
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' @importFrom purrr map
+#' @importFrom magrittr not
 #' 
 #' @export
 alive_identification <- function(input_read_RNA_assay,
                                  empty_droplets_tbl,
-                                 annotation_label_transfer_tbl,
+                                 annotation_label_transfer_tbl = NULL,
+                                 annotation_column = NULL,
                                  assay = NULL) {
   
   # Fix GCHECK notes
@@ -307,13 +309,19 @@ alive_identification <- function(input_read_RNA_assay,
   high_mitochondrion = NULL 
   blueprint_first.labels.fine = NULL
   
+  if(
+    !is.null(annotation_column) && 
+    !annotation_column %in% colnames(as_tibble(input_read_RNA_assay[1,1]))
+  )
+    stop("HPCell says: Your `group_by` columns are not present in your data. Please run annotate_cell_type_hpc() to get the cell type annotation that you can use as grouping for the cell-type-specific quality control and removal of dead cells.")
+  
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
   input_read_RNA_assay =
     input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by=".cell") |>
-    filter(!empty_droplet)
+    dplyr::filter(!empty_droplet)
   
   # Calculate nFeature_RNA and nCount_RNA if not exist in the data
   if (!any(str_which(colnames(input_read_RNA_assay[[]]), "nFeature_RNA")) ||
@@ -353,7 +361,7 @@ alive_identification <- function(input_read_RNA_assay,
   #       left_join(x, annotation_label_transfer_tbl, by = ".cell") |>
   # 
   #       # Label cells
-  #       nest(data = -blueprint_first.labels.fine) |>
+  #       nest(data = -all_of(annotation_column)) |>
   #         mutate(data = map(
   #           data,
   #           ~ .x |>
@@ -376,77 +384,85 @@ alive_identification <- function(input_read_RNA_assay,
     as_tibble(rownames = ".cell") %>%
     dplyr::select(-sum, -detected)
   
+  # Compute ribosome statistics
+  ribosome =
+    input_read_RNA_assay |>
+    select(.cell) |>
+    #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
+    
+    # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
+    mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay))
+  
   # Add cell type labels and determine high mitochondrion content, if annotation_label_transfer_tbl is provided
-  if (inherits(annotation_label_transfer_tbl, "tbl_df")) {
-    mitochondrion <- qc_metrics %>%
-      left_join(annotation_label_transfer_tbl, by = ".cell") %>%
-      nest(data = -blueprint_first.labels.fine) %>%
-      mutate(data = map(data, ~ .x %>%
-                          mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
-                                 high_mitochondrion = as.logical(high_mitochondrion)))) %>%
-      unnest(cols = data)
+  if(annotation_column |> is.null() |> not()) {
+    
+   if (
+     inherits(annotation_label_transfer_tbl, "tbl_df") &&
+     annotation_column %in% colnames(annotation_label_transfer_tbl)
+   ) {
+     
+     mitochondrion <- qc_metrics %>%
+       left_join(annotation_label_transfer_tbl, by = ".cell") 
+     
+     ribosome =
+       ribosome |>
+       left_join(annotation_label_transfer_tbl, by = ".cell") 
+   }
+  
+  
+    else if (annotation_column %in% colnames(as_tibble(input_read_RNA_assay[1,1]))) {
+      
+      mitochondrion <- 
+        qc_metrics %>%
+        left_join(input_read_RNA_assay |> select(.cell, all_of(annotation_column)), by = ".cell") 
+      
+      
+      ribosome = 
+        ribosome |>
+        left_join(input_read_RNA_assay |> select(.cell, all_of(annotation_column)), by = ".cell") 
+    }
+
+  
+    mitochondrion = 
+      mitochondrion %>%
+      nest(data = -all_of(annotation_column)) 
+    
+    ribosome =
+      ribosome |>
+      nest(data = -all_of(annotation_column)) 
+    
   } else {
     # Determing high mitochondrion content 
     mitochondrion <- qc_metrics %>%
-      nest(data = everything()) %>%
-      mutate(data = map(data, ~ .x %>%
-                          mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
-                                 high_mitochondrion = as.logical(high_mitochondrion)))) %>%
-      unnest(cols = data)
+      nest(data = everything()) 
+    
+    ribosome <- ribosome %>%
+      nest(data = everything()) 
   }
   
+  mitochondrion = mitochondrion %>%
+    mutate(data = map(data, ~ .x %>%
+                        mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
+                               high_mitochondrion = as.logical(high_mitochondrion)))) %>%
+    unnest(cols = data)
   
-  if (inherits(annotation_label_transfer_tbl, "tbl_df")) {
-    
-    ribosome =
-      input_read_RNA_assay |>
-      select(.cell) |>
-      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
-      
-      # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)) |>
-      left_join(annotation_label_transfer_tbl, by = ".cell") |>
-      nest(data = -blueprint_first.labels.fine) |>
-      mutate(data = map(
-        data,
-        ~ .x |>
-          mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
-          mutate(high_ribosome = as.logical(high_ribosome)) |>
-          as_tibble() |>
-          select(.cell, subsets_Ribo_percent, high_ribosome)
-      )) |>
-      unnest(data)
-    
-  } else {
-    
-    # ribosome =
-    #   input_read_RNA_assay |>
-    #   select(.cell) |>
-    #   mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1])
-    ribosome =
-      input_read_RNA_assay |>
-      dplyr::select(.cell) |>
-      #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
-      mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay))|>
-      nest(data = everything()) |>
-      mutate(data = map(
-        data,
-        ~ .x |>
-          mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
-          mutate(high_ribosome = as.logical(high_ribosome)) |>
-          as_tibble() |>
-          dplyr::select(.cell, subsets_Ribo_percent, high_ribosome)
-      )) |>
-      unnest(data)
-  }
-  #ribosome_meta <- as.data.frame(ribosome@meta.data)
+  ribosome = 
+    ribosome |> 
+    mutate(data = map(
+      data,
+      ~ .x |>
+        mutate(high_ribosome = isOutlier(subsets_Ribo_percent, type="higher")) |>
+        mutate(high_ribosome = as.logical(high_ribosome)) |>
+        as_tibble() |>
+        select(.cell, subsets_Ribo_percent, high_ribosome)
+    )) |>
+    unnest(data)
   
-  modified_data <- mitochondrion |>
+  # Merge
+  mitochondrion |>
     left_join(ribosome, by=".cell") |>
     mutate(alive = !high_mitochondrion) # & !high_ribosome ) |>
-  
-  modified_data
-  
+
 }
 
 
@@ -476,8 +492,8 @@ alive_identification <- function(input_read_RNA_assay,
 doublet_identification <- function(input_read_RNA_assay, 
                                    empty_droplets_tbl, 
                                    alive_identification_tbl, 
-                                   annotation_label_transfer_tbl, 
-                                   reference_label_fine,
+                                   #annotation_label_transfer_tbl, 
+                                   #reference_label_fine,
                                    assay = NULL){
   
   # Fix GChecks 
@@ -494,15 +510,15 @@ doublet_identification <- function(input_read_RNA_assay,
     # Filtering empty
     Seurat::as.SingleCellExperiment() |>
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
-    filter(!empty_droplet) |>
+    dplyr::filter(!empty_droplet) |>
     
     # Filter dead
-    left_join(alive_identification_tbl |> select(.cell, high_mitochondrion, high_ribosome), by = ".cell") |>
-    filter(!high_mitochondrion & !high_ribosome) 
+    left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
+    dplyr::filter(alive) 
   
   # Annotate
   filter_empty_droplets <- filter_empty_droplets |> 
-    left_join(annotation_label_transfer_tbl, by = ".cell")|>
+    #left_join(annotation_label_transfer_tbl, by = ".cell")|>
     #scDblFinder(clusters = ifelse(reference_label_fine=="none", TRUE, reference_label_fine)) |>
     scDblFinder(clusters = NULL) 
   
@@ -544,10 +560,11 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
   counts =
     input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by = ".cell") |>
-    filter(!empty_droplet) |>
+    dplyr::filter(!empty_droplet) |>
     
     # Normalise needed
     NormalizeData() |>
+    
     # Assign cell cycle scores of each cell 
     # Based on its expression of G2/M and S phase markers
     #Stores S and G2/M scores in object meta data along with predicted classification of each cell in either G2M, S or G1 phase
@@ -589,7 +606,8 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
                                         empty_droplets_tbl, 
                                         alive_identification_tbl, 
                                         cell_cycle_score_tbl,
-                                        assay = NULL){
+                                        assay = NULL,
+                                        factors_to_regress = NULL){
   #Fix GChecks 
   empty_droplet = NULL 
   .cell <- NULL 
@@ -611,13 +629,16 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
     
     left_join(
       alive_identification_tbl |>
-        select(.cell, subsets_Ribo_percent, subsets_Mito_percent),
+        select(.cell, any_of(factors_to_regress)),
       by=".cell"
-    ) |>
+    ) 
+  
+  if(!is.null(cell_cycle_score_tbl)) 
+    counts = counts |>
     
     left_join(
       cell_cycle_score_tbl |>
-        select(.cell, G2M.Score),
+        select(.cell, any_of(factors_to_regress)),
       by=".cell"
     )
   
@@ -634,21 +655,28 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
     assay=assay,
     return.only.var.genes=FALSE,
     residual.features = NULL,
-    vars.to.regress = c("subsets_Mito_percent", "subsets_Ribo_percent", "G2M.Score"),
+    vars.to.regress = factors_to_regress,
     vst.flavor = "v2",
     scale_factor=2186
   )
+  
+  my_assays = "SCT"
   
   # Normalise antibodies
   if ( "ADT" %in% names(normalized_rna@assays)) {
     normalized_data <- normalized_rna %>%
       NormalizeData(normalization.method = 'CLR', margin = 2, assay="ADT") %>%
       select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
+    
+    my_assays = my_assays |> c("CLR")
+    
   } else { 
     normalized_data <- normalized_rna %>%
       # Drop alive columns
       select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
   }
+  
+  normalized_data[[my_assays]] 
   
 }
 
@@ -671,8 +699,14 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
 #' @importFrom dplyr select
+#' @import SeuratObject
+#' @importFrom SummarizedExperiment left_join
+#' @import tidySingleCellExperiment 
+#' @import tidyseurat
+#' @importFrom magrittr not
 #' @export
-preprocessing_output <- function(tissue, 
+preprocessing_output <- function(input_read_RNA_assay,
+                                 empty_droplets_tbl,
                                  non_batch_variation_removal_S, 
                                  alive_identification_tbl, 
                                  cell_cycle_score_tbl, 
@@ -688,11 +722,28 @@ preprocessing_output <- function(tissue,
   scDblFinder.class <- NULL
   predicted.celltype.l2 <- NULL
   
-  processed_data <- non_batch_variation_removal_S |>
+  if(empty_droplets_tbl |> is.null() |> not())
+    input_read_RNA_assay =
+      input_read_RNA_assay |>
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      filter(!empty_droplet) 
+    
+  # Add normalisation
+  if(!is.null(non_batch_variation_removal_S)){
+    if(input_read_RNA_assay |> is("Seurat"))
+      input_read_RNA_assay[["SCT"]] = non_batch_variation_removal_S
+    else if(input_read_RNA_assay |> is("SingleCellExperiment"))
+      assay(spe, "SCT") <- non_batch_variation_removal_S
+  }
+  
+  
+  
+  input_read_RNA_assay <- input_read_RNA_assay |>
+    
     # Filter dead cells
     left_join(
       alive_identification_tbl |>
-        select(.cell, alive, subsets_Mito_percent, subsets_Ribo_percent, high_mitochondrion, high_ribosome),
+        select(.cell, any_of(c("alive", "subsets_Mito_percent", "subsets_Ribo_percent", "high_mitochondrion", "high_ribosome"))),
       by = ".cell"
     ) |>
     filter(alive) |>
@@ -707,17 +758,21 @@ preprocessing_output <- function(tissue,
     left_join(doublet_identification_tbl |> select(.cell, scDblFinder.class), by = ".cell") |>
     filter(scDblFinder.class=="singlet") 
   
+  
+  # Attach annotation
   if (inherits(annotation_label_transfer_tbl, "tbl_df")){
-    processed_data <- processed_data |>
+    input_read_RNA_assay <- input_read_RNA_assay |>
       left_join(annotation_label_transfer_tbl, by = ".cell")
   }
   
-  # Filter Red blood cells and platelets
-  if (tolower(tissue) == "pbmc" & "predicted.celltype.l2" %in% c(rownames(annotation_label_transfer_tbl), colnames(annotation_label_transfer_tbl))) {
-    filtered_data <- filter(processed_data, !predicted.celltype.l2 %in% c("Eryth", "Platelet"))
-  } else {
-    filtered_data <- processed_data
-  }
+
+  input_read_RNA_assay
+  # # Filter Red blood cells and platelets
+  # if (tolower(tissue) == "pbmc" & "predicted.celltype.l2" %in% c(rownames(annotation_label_transfer_tbl), colnames(annotation_label_transfer_tbl))) {
+  #   filtered_data <- filter(processed_data, !predicted.celltype.l2 %in% c("Eryth", "Platelet"))
+  # } else {
+  #   filtered_data <- processed_data
+  # }
 }
 
 
@@ -759,7 +814,7 @@ preprocessing_output <- function(tissue,
 #' @export
 
 # Create pseudobulk for each sample 
-create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
+create_pseudobulk <- function(preprocessing_output_S, sample_names ,x ,...) {
   #Fix GChecks 
   .sample = NULL 
   .feature = NULL 
@@ -767,11 +822,21 @@ create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
   symbol = NULL 
   
   #browser()
-  x = enquo(x)
+  # x = enquo(x)
+  
+  if(preprocessing_output_S |> is("Seurat"))
+    assays = Seurat::Assays(preprocessing_output_S)
+  else if(preprocessing_output_S |> is("SingleCellExperiment"))
+    assays = preprocessing_output_S@assays |> names()
   
   # Aggregate cells
   preprocessing_output_S |> 
-    aggregate_cells(!!x, slot = "data", assays=assays) |>
+    
+    # Add sample
+    mutate(sample_hpc = sample_names) |> 
+    
+    # Aggregate
+    aggregate_cells(c(sample_hpc, !!x), slot = "data") |>
     as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
     pivot_longer(cols = assays, names_to = "data_source", values_to = "count") |>
     filter(!count |> is.na()) |>
@@ -787,8 +852,9 @@ create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
       .sample = c(!!x),
       .transcript = .feature,
       .abundance = count
-    )
+    ) 
 }
+
 #' Merge pseudobulk from all samples 
 #'
 #' @description
@@ -803,13 +869,19 @@ create_pseudobulk <- function(preprocessing_output_S , assays ,x ,...) {
 #' @importFrom dplyr select
 #' @importFrom S4Vectors cbind
 #' @importFrom SummarizedExperiment SummarizedExperiment
+#' @importFrom SummarizedExperiment colData
+#' @importFrom SummarizedExperiment colData<-
+#' @importFrom SummarizedExperiment rowData
+#' @importFrom SummarizedExperiment rowData<-
+#' 
+#' 
+#' 
 #' @export
 #' 
-pseudobulk_merge <- function(create_pseudobulk_sample, assays, x , ...) {
+pseudobulk_merge <- function(create_pseudobulk_sample, ...) {
   # Fix GCHECKS 
   . = NULL 
-  #browser()
-  x = enquo(x)
+
   # Select only common columns
   common_columns =
     create_pseudobulk_sample |>

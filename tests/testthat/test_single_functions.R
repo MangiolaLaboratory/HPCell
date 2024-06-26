@@ -7,11 +7,10 @@ filter_empty_droplets <- "TRUE"
 tissue <- "pbmc"
 RNA_assay_name<- "originalexp"
 
-input_seurat_list = 
+input_seurat_abc = 
   HeOrganAtlasData(ensembl=FALSE,location=FALSE)|> 
   as.Seurat(data = NULL) |>
-  subset(subset = Tissue %in% c("Blood")) |>
-  group_split()
+  subset(subset = Tissue %in% c("Blood")) 
 
 # sample_column<- "Tissue"
 ## Defining functions 
@@ -441,3 +440,60 @@ process_seurat_object <- function(input_a, assay = NULL) {
 
 assay<- process_seurat_object(input_seurat_list[[1]])
 
+
+library(HPCell)
+library(crew)
+library(crew.cluster)
+library(magrittr)
+library(Seurat)
+library(SeuratData)
+
+options(Seurat.object.assay.version = "v5")
+input_seurat <- 
+  LoadData("pbmc3k") |>
+  _[,1:500] |> 
+  list() |>
+  magrittr::set_names("pbmc3k")
+
+# Define and execute the pipeline
+input_seurat |> 
+  
+  # Initialise pipeline characteristics
+  initialise_hpc(
+    # debug_step = "create_pseudobulk_sample",
+    
+    # Default resourced 
+    computing_resources = crew_controller_local(workers = 10)
+    
+    # Slurm resources
+    # computing_resources = 
+    #   crew.cluster::crew_controller_slurm(
+    #     slurm_memory_gigabytes_per_cpu = 5,
+    #     workers = 50,
+    #     tasks_max = 5,
+    #     verbose = T
+    #   )
+  ) |> 
+  
+  # Remove empty outliers
+  remove_empty_DropletUtils() |> 
+  
+  # Remove dead cells
+  remove_dead_scuttle() |> 
+  
+  # Score cell cycle
+  score_cell_cycle_seurat() |> 
+  
+  # Remove doublets
+  remove_doublets_scDblFinder() |> 
+  
+  # Annotation
+  annotate_cell_type() |> 
+  
+  normalise_abundance_seurat_SCT(factors_to_regress = c(
+    "subsets_Mito_percent", 
+    "subsets_Ribo_percent", 
+    "G2M.Score"
+  )) |> 
+  
+  calculate_pseudobulk(group_by = seurat_annotations)

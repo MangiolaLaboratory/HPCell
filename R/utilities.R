@@ -1,3 +1,9 @@
+# Helper function to add class to an object
+add_class <- function(obj, class_name) {
+  class(obj) <- c(class_name, class(obj))
+  return(obj)
+}
+
 # Greater than
 gt = function(a, b){	a > b }
 
@@ -35,9 +41,10 @@ eq = function(a,b){	a==b }
 #' @importFrom DropletUtils barcodeRanks
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' 
 #' @export
 empty_droplet_id <- function(input_read_RNA_assay,
-                             filter_empty_droplets,
+                             total_RNA_count_check  = -Inf,
                              assay = NULL){
   #Fix GChecks 
   FDR = NULL 
@@ -47,14 +54,12 @@ empty_droplet_id <- function(input_read_RNA_assay,
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
   # Check if empty droplets have been identified
-  if (is.null(filter_empty_droplets) ){
-    if (any(input_read_RNA_assay$nFeature_RNA < 200)) {
+    if (any(input_read_RNA_assay$nFeature_RNA < total_RNA_count_check)) {
       filter_empty_droplets <- "TRUE"
     }
     else {
       filter_empty_droplets <- "FALSE"
     }
-  }
   
   significance_threshold = 0.001
   # Genes to exclude
@@ -98,8 +103,10 @@ empty_droplet_id <- function(input_read_RNA_assay,
       replace_na(list(empty_droplet = TRUE))
   }
   else {
-    barcode_table <- select(., .cell) |>
-      as_tibble() |>
+    barcode_table <- 
+      input_read_RNA_assay |> 
+      as_tibble() |> 
+      select(.cell) |>
       mutate( empty_droplet = FALSE)
   } 
   
@@ -519,6 +526,27 @@ tar_script_append = function(code, script = targets::tar_config_get("script")){
     tail(-1) |>
     write_lines(script, append = TRUE)
 }
+
+
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+tar_script_append2 = function(code, script = targets::tar_config_get("script")){
+  code |>
+    deparse() |>
+    head(-1) |>
+    tail(-1) |>
+    write_lines(script, append = TRUE)
+}
+
 
 #' Simple Addition Function
 #'
@@ -1623,3 +1651,13 @@ get_manually_curated_immune_cell_types = function(){
   
   
 }
+
+remove_files_safely <- function(files) {
+  for (file in files) {
+    if (file.exists(file)) {
+      file.remove(file)
+    }
+  }
+}
+
+

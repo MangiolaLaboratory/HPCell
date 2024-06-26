@@ -5,7 +5,8 @@
 \title{Preprocessing Output}
 \usage{
 preprocessing_output(
-  tissue,
+  input_read_RNA_assay,
+  empty_droplets_tbl,
   non_batch_variation_removal_S,
   alive_identification_tbl,
   cell_cycle_score_tbl,
@@ -14,8 +15,6 @@ preprocessing_output(
 )
 }
 \arguments{
-\item{tissue}{Type of tissue.}
-
 \item{non_batch_variation_removal_S}{Result from non-batch variation removal.}
 
 \item{alive_identification_tbl}{A tibble from alive cell identification.}
@@ -25,6 +24,8 @@ preprocessing_output(
 \item{annotation_label_transfer_tbl}{A tibble from annotation label transfer.}
 
 \item{doublet_identification_tbl}{A tibble from doublet identification.}
+
+\item{tissue}{Type of tissue.}
 }
 \value{
 Processed and filter_empty_droplets dataset.

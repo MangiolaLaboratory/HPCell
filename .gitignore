@@ -33,3 +33,5 @@ fibrosis_data
 
 # Exclude README from being ignored
 !README.md
+
+_target*
