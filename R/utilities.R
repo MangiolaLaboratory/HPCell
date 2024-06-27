@@ -612,6 +612,7 @@ append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("sc
   tiers = tiers |> get_positions()
   .y = 1
   for(.x in tiers |> names()  ){
+      
     
     "target_list = c(target_list, list(" |> 
       c(
@@ -620,8 +621,16 @@ append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("sc
           head(-1) |>
           tail(-1) |> 
           str_replace_all("TIER_PLACEHOLDER", as.character(.y)) |> 
-          str_replace_all("SLICE_PLACEHOLDER", tiers[.x] |> as.numeric() |> vector_to_code()) |> 
-          str_replace("RESOURCE_PLACEHOLDER", glue("tar_resources(crew = tar_resources_crew(\"{.x}\"))" ) )
+          str_replace_all("SLICE_PLACEHOLDER", tiers[[.y]] |> as.numeric() |> vector_to_code()) |> 
+          str_replace("RESOURCE_PLACEHOLDER",  
+                      
+                      # If not tiering ignore resource naming
+                      if_else(
+                        length(tiers) == 1,
+                        "targets::tar_option_get(\"resources\")",
+                        glue("tar_resources(crew = tar_resources_crew(\"{.x}\"))" )
+                      )
+        )
       ) |> 
       
       # Add suffix

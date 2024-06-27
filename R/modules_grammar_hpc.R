@@ -36,7 +36,7 @@
 initialise_hpc <- function(input_data,
                            store =  targets::tar_config_get("store"),
                            computing_resources = crew_controller_local(workers = 1),
-                           tier = NULL,
+                           tier = rep(1, length(input_data)),
                            debug_step = NULL,
                            RNA_assay_name = "RNA") {
   # Capture all arguments including defaults
