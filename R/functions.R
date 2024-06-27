@@ -727,7 +727,7 @@ preprocessing_output <- function(input_read_RNA_assay,
       input_read_RNA_assay |>
       left_join(empty_droplets_tbl, by = ".cell") |>
       filter(!empty_droplet) 
-    
+  
   # Add normalisation
   if(!is.null(non_batch_variation_removal_S)){
     if(input_read_RNA_assay |> is("Seurat"))
@@ -748,16 +748,17 @@ preprocessing_output <- function(input_read_RNA_assay,
     ) |>
     filter(alive) |>
     
-    # Add cell cycle
-    left_join(
-      cell_cycle_score_tbl,
-      by=".cell"
-    ) |>
-    
     # Filter doublets
     left_join(doublet_identification_tbl |> select(.cell, scDblFinder.class), by = ".cell") |>
     filter(scDblFinder.class=="singlet") 
   
+  # Add cell cycle
+  if(cell_cycle_score_tbl |> is.null() |> not())
+    input_read_RNA_assay <- input_read_RNA_assay |> 
+      left_join(
+      cell_cycle_score_tbl,
+      by=".cell"
+    ) 
   
   # Attach annotation
   if (inherits(annotation_label_transfer_tbl, "tbl_df")){

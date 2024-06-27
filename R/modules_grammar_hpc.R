@@ -36,6 +36,7 @@
 initialise_hpc <- function(input_data,
                            store =  targets::tar_config_get("store"),
                            computing_resources = crew_controller_local(workers = 1),
+                           tier = rep(1, length(input_data)),
                            debug_step = NULL,
                            RNA_assay_name = "RNA") {
   # Capture all arguments including defaults
@@ -46,7 +47,7 @@ initialise_hpc <- function(input_data,
     input_data |> set_names(seq_len(length(input_data)))
   
   input_data |> names() |> saveRDS("sample_names.rds")
-  
+  #cell_count |> saveRDS("cell_count.rds")
 
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
@@ -68,36 +69,7 @@ initialise_hpc <- function(input_data,
 }
 
 
-target_chunk_remove_empty_DropletUtils = 
-  substitute({
-    target_list = 
-      target_list |> c(list(
-        tar_target(my_total_RNA_count_check, readRDS("total_RNA_count_check.rds")), 
-        tar_target(
-          empty_droplets_tbl,
-          empty_droplet_id(input_read, my_total_RNA_count_check),
-          pattern = map(input_read),
-          iteration = "list"
-        )
-      ))
-    
-  })
 
-target_chunk_undefined_remove_empty_DropletUtils = 
-  substitute({
-    target_list = 
-      target_list |> c(list(
-        tar_target(
-          empty_droplets_tbl, 
-          input_read |> as_tibble() |> select(.cell) |> mutate(empty_droplet = FALSE), 
-          pattern = map(input_read), 
-          iteration = "list",
-          packages = c("dplyr","tidySingleCellExperiment", "tidyseurat")
-          
-        )
-      ))
-    
-  })
 
 
 # Define the generic function
@@ -120,7 +92,6 @@ remove_empty_DropletUtils.Seurat = function(input_data, total_RNA_count_check = 
   
 }
 
-
 #' @export
 remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, ...) {
   
@@ -134,6 +105,28 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   total_RNA_count_check |> saveRDS("total_RNA_count_check.rds")  
   
   # Add pipeline step
+  args_list$target_chunk = function(){
+    
+    append_chunk_fix(
+      { tar_target(my_total_RNA_count_check, readRDS("total_RNA_count_check.rds")) }, 
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+    
+    append_chunk_tiers(
+      { tar_target(
+        empty_droplets_tbl_TIER_PLACEHOLDER,
+        empty_droplet_id(input_read, my_total_RNA_count_check),
+        pattern = slice(input_read, index  = SLICE_PLACEHOLDER ),
+        iteration = "list", 
+        resources = RESOURCE_PLACEHOLDER
+      ) }, 
+      tiers = input_hpc$initialisation$tier,
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+  
+  }
+  
+  # Add pipeline step
   input_hpc |>
     c(list(remove_empty_DropletUtils = args_list)) |>
     add_class("HPCell")
@@ -141,23 +134,19 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   
 }
 
-
-target_chunk_undefined_remove_dead_scuttle = 
-  substitute({
-    target_list = 
-      target_list |> c(list(
-        tar_target(
-          alive_identification_tbl, 
-          input_read |> as_tibble() |> dplyr::select(.cell) |> mutate(alive = TRUE), 
-          pattern = map(input_read), 
-          iteration = "list",
-          packages = c("dplyr","tidySingleCellExperiment", "tidyseurat")
-          
-        )
-      ))
-    
-  })
-
+target_chunk_undefined_remove_empty_DropletUtils = function(){
+  append_chunk_tiers(
+    { tar_target(
+      empty_droplets_tbl_TIER_PLACEHOLDER,
+      input_read |> as_tibble() |> select(.cell) |> mutate(empty_droplet = FALSE),
+      pattern = slice(input_read, index  = SLICE_PLACEHOLDER ),
+      iteration = "list", 
+      resources = RESOURCE_PLACEHOLDER
+    ) }, 
+    tiers = input_hpc$initialisation$tier,
+    script = glue("{input_hpc$initialisation$store}.R")
+  )
+}
 
 
 
@@ -178,25 +167,31 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
   
   group_by |> saveRDS("temp_group_by.rds")
   
-  args_list$target_chunk = 
-    substitute({
-      target_list = 
-        target_list |> c(list(
-          tar_target(grouping_column, readRDS("temp_group_by.rds")),
-          tar_target(
-            alive_identification_tbl, 
-            alive_identification(input_read,
-                                 empty_droplets_tbl,
-                                 annotation_label_transfer_tbl,
-                                 grouping_column),
-            pattern = map(input_read,
-                          empty_droplets_tbl,
-                          annotation_label_transfer_tbl),
-            iteration = "list"
-          )
-        ))
-      
-    })
+  args_list$target_chunk = function(){
+    
+    append_chunk_fix(
+      { tar_target(grouping_column, readRDS("temp_group_by.rds")) }, 
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+    
+    append_chunk_tiers(
+      { tar_target(
+        alive_identification_tbl_TIER_PLACEHOLDER, 
+        alive_identification(input_read,
+                             empty_droplets_tbl_TIER_PLACEHOLDER,
+                             annotation_label_transfer_tbl_TIER_PLACEHOLDER,
+                             grouping_column),
+        pattern = map(slice(input_read, index  = SLICE_PLACEHOLDER ),
+                      empty_droplets_tbl_TIER_PLACEHOLDER,
+                      annotation_label_transfer_tbl_TIER_PLACEHOLDER),
+        iteration = "list",
+        resources = RESOURCE_PLACEHOLDER
+      ) }, 
+      tiers = input_hpc$initialisation$tier,
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+    
+  }
   
   input_hpc |>
     c(list(remove_dead_scuttle = args_list))  |>
@@ -204,19 +199,22 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
   
 }
 
-target_chunk_undefined_score_cell_cycle_seurat = 
-  substitute({
-    target_list = 
-      target_list |> c(list(
-        tar_target(cell_cycle_score_tbl,
-                   NULL,
-                   pattern = map(input_read),
-                   iteration = "list", 
-                   description = "setup"
-        )
-      ))
-    
-  })
+
+target_chunk_undefined_remove_dead_scuttle = function(input_hpc){
+  append_chunk_tiers(
+    { tar_target(
+      alive_identification_tbl_TIER_PLACEHOLDER, 
+      input_read |> as_tibble() |> dplyr::select(.cell) |> mutate(alive = TRUE), 
+      pattern = slice(input_read, index  = SLICE_PLACEHOLDER ), 
+      iteration = "list", 
+      resources = RESOURCE_PLACEHOLDER
+    ) }, 
+    tiers = input_hpc$initialisation$tier,
+    script = glue("{input_hpc$initialisation$store}.R")
+  )
+}
+
+
 
 # Define the generic function
 #' @export
@@ -233,22 +231,24 @@ score_cell_cycle_seurat.HPCell = function(input_hpc) {
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
   # Add pipeline step
-  args_list$target_chunk = 
-    substitute({
+  args_list$target_chunk = function(){
+    
+    append_chunk_tiers(
+      { tar_target(
+        cell_cycle_score_tbl_TIER_PLACEHOLDER,
+        cell_cycle_scoring(input_read,
+                           empty_droplets_tbl_TIER_PLACEHOLDER),
+        pattern = map(slice(input_read, index  = SLICE_PLACEHOLDER ),
+                      empty_droplets_tbl_TIER_PLACEHOLDER),
+        iteration = "list",
+        resources = RESOURCE_PLACEHOLDER
       
-      target_list = 
-        target_list |> c(list(
-          tar_target(
-            cell_cycle_score_tbl,
-            cell_cycle_scoring(input_read,
-                               empty_droplets_tbl),
-            pattern = map(input_read,
-                          empty_droplets_tbl),
-            iteration = "list"
-          )
-        ))
-      
-    })
+      ) }, 
+      tiers = input_hpc$initialisation$tier,
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+    
+  }
   
   input_hpc |>
     c(list(score_cell_cycle_seurat = args_list)) |>
@@ -256,24 +256,19 @@ score_cell_cycle_seurat.HPCell = function(input_hpc) {
   
 }
 
-
-
-
-target_chunk_undefined_remove_doublets_scDblFinder = 
-  substitute({
-    target_list = 
-      target_list |> c(list(
-        tar_target(
-          doublet_identification_tbl, 
-          input_read |> as_tibble() |> dplyr::select(.cell) |> mutate(scDblFinder.class=="singlet"), 
-          pattern = map(input_read), 
-          iteration = "list",
-          packages = c("dplyr","tidySingleCellExperiment", "tidyseurat")
-          
-        )
-      ))
-    
-  })
+target_chunk_undefined_score_cell_cycle_seurat = function(input_hpc){
+  append_chunk_tiers(
+    { tar_target(
+      cell_cycle_score_tbl_TIER_PLACEHOLDER,
+      NULL,
+      pattern = slice(input_read, index  = SLICE_PLACEHOLDER ),
+      iteration = "list",
+      resources = RESOURCE_PLACEHOLDER
+    ) }, 
+    tiers = input_hpc$initialisation$tier,
+    script = glue("{input_hpc$initialisation$store}.R")
+  )
+}
 
 
 
@@ -292,22 +287,26 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc) {
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
-  args_list$target_chunk = 
-    substitute({
-      target_list = 
-        target_list |> c(list(
-          tar_target(doublet_identification_tbl, doublet_identification(input_read,
-                                                                        empty_droplets_tbl,
-                                                                        alive_identification_tbl),
-                     pattern = map(input_read,
-                                   empty_droplets_tbl,
-                                   alive_identification_tbl
-                     ),
-                     iteration = "list"
-          )
-        ))
-      
-    })
+  args_list$target_chunk = function(){
+    
+    append_chunk_tiers(
+      { tar_target(
+        doublet_identification_tbl_TIER_PLACEHOLDER, 
+        doublet_identification(input_read, empty_droplets_tbl_TIER_PLACEHOLDER, alive_identification_tbl_TIER_PLACEHOLDER),
+        pattern = map(slice(input_read, index  = SLICE_PLACEHOLDER ),
+                      empty_droplets_tbl_TIER_PLACEHOLDER,
+                      alive_identification_tbl_TIER_PLACEHOLDER
+        ),
+        iteration = "list",
+        resources = RESOURCE_PLACEHOLDER
+        
+      ) }, 
+      tiers = input_hpc$initialisation$tier,
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+    
+  }
+  
   
   input_hpc |>
     c(list(remove_doublets_scDblFinder = args_list)) |>
@@ -315,36 +314,19 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc) {
   
 }
 
-target_chunk_annotate_cell_type = 
-  substitute({
-    target_list = 
-      target_list |> c(list(
-        tar_target(reference_read, readRDS("input_reference.rds")), 
-        tar_target(annotation_label_transfer_tbl,
-                   annotation_label_transfer(input_read,
-                                             empty_droplets_tbl,
-                                             reference_read),
-                   pattern = map(input_read, empty_droplets_tbl),
-                   iteration = "list"
-        )
-        
-      ))
-    
-  })
-
-target_chunk_undefined_annotate_cell_type = 
-  substitute({
-    target_list = 
-      target_list |> c(list(
-        tar_target(annotation_label_transfer_tbl,
-                   NULL,
-                   pattern = map(input_read),
-                   iteration = "list"
-        )
-      ))
-    
-  })
-
+target_chunk_undefined_remove_doublets_scDblFinder = function(input_hpc){
+  append_chunk_tiers(
+    { tar_target(
+      doublet_identification_tbl_TIER_PLACEHOLDER, 
+      input_read |> as_tibble() |> dplyr::select(.cell) |> mutate(scDblFinder.class="singlet"), 
+      pattern = slice(input_read, index  = SLICE_PLACEHOLDER ), 
+      iteration = "list", 
+      resources = RESOURCE_PLACEHOLDER
+    ) }, 
+    tiers = input_hpc$initialisation$tier,
+    script = glue("{input_hpc$initialisation$store}.R")
+  )
+}
 
 # Define the generic function
 #' @export
@@ -360,27 +342,47 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL) {
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
+  args_list$target_chunk = function(){
+    
+    append_chunk_fix(
+      {  tar_target(reference_read, readRDS("input_reference.rds")) }, 
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+    
+    append_chunk_tiers(
+      { tar_target(annotation_label_transfer_tbl_TIER_PLACEHOLDER,
+                   annotation_label_transfer(input_read,
+                                             empty_droplets_tbl_TIER_PLACEHOLDER,
+                                             reference_read),
+                   pattern = map(slice(input_read, index  = SLICE_PLACEHOLDER ), empty_droplets_tbl_TIER_PLACEHOLDER),
+                   iteration = "list",
+                   resources = RESOURCE_PLACEHOLDER
+        )}, 
+      tiers = input_hpc$initialisation$tier,
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+    
+  }
+  
   input_hpc |>
     c(list(annotate_cell_type = args_list)) |>
     add_class("HPCell")
   
 }
 
-
-target_chunk_undefined_normalise_abundance_seurat_SCT = 
-  substitute({
-    target_list = 
-      target_list |> c(list(
-        tar_target( 
-          non_batch_variation_removal_S, 
-          NULL, 
-          pattern = map(input_read), 
-          iteration = "list"
-          
-        )
-      ))
-    
-  })
+target_chunk_undefined_annotate_cell_type = function(input_hpc){
+  append_chunk_tiers(
+    { tar_target(
+      annotation_label_transfer_tbl_TIER_PLACEHOLDER, 
+      NULL, 
+      pattern = slice(input_read, index  = SLICE_PLACEHOLDER ), 
+      iteration = "list", 
+      resources = RESOURCE_PLACEHOLDER
+    ) }, 
+    tiers = input_hpc$initialisation$tier,
+    script = glue("{input_hpc$initialisation$store}.R")
+  )
+}
 
 
 # Define the generic function
@@ -399,25 +401,35 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
   
   factors_to_regress |> saveRDS("factors_to_regress.rds")
   
-  args_list$target_chunk = 
-    substitute({
-      target_list = 
-        target_list |> c(list(
-          tar_target(my_factors_to_regress, readRDS("factors_to_regress.rds")), 
-          tar_target(non_batch_variation_removal_S, non_batch_variation_removal(input_read,
-                                                                                empty_droplets_tbl,
-                                                                                alive_identification_tbl,
-                                                                                cell_cycle_score_tbl,
-                                                                                factors_to_regress = my_factors_to_regress),
-                     pattern = map(input_read,
-                                   empty_droplets_tbl,
-                                   alive_identification_tbl,
-                                   cell_cycle_score_tbl),
-                     iteration = "list"
-          )
-        ))
-      
-    })
+  args_list$target_chunk = function(){
+    
+    append_chunk_fix(
+      { tar_target(my_factors_to_regress, readRDS("factors_to_regress.rds")) }, 
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+    
+    append_chunk_tiers(
+      { tar_target(
+        non_batch_variation_removal_S_TIER_PLACEHOLDER, 
+        non_batch_variation_removal(
+              input_read,
+             empty_droplets_tbl_TIER_PLACEHOLDER,
+             alive_identification_tbl_TIER_PLACEHOLDER,
+             cell_cycle_score_tbl_TIER_PLACEHOLDER,
+             factors_to_regress = my_factors_to_regress
+        ),
+        pattern = map(slice(input_read, index  = SLICE_PLACEHOLDER ),
+                      empty_droplets_tbl_TIER_PLACEHOLDER,
+                      alive_identification_tbl_TIER_PLACEHOLDER,
+                      cell_cycle_score_tbl_TIER_PLACEHOLDER),
+        iteration = "list",
+        resources = RESOURCE_PLACEHOLDER
+      )}, 
+      tiers = input_hpc$initialisation$tier,
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+    
+  }
   
   input_hpc |>
     c(list(normalise_abundance_seurat_SCT = args_list)) |>
@@ -425,6 +437,19 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
   
 }
 
+target_chunk_undefined_normalise_abundance_seurat_SCT = function(input_hpc){
+  append_chunk_tiers(
+    { tar_target(
+      non_batch_variation_removal_S_TIER_PLACEHOLDER, 
+      NULL, 
+      pattern = slice(input_read, index  = SLICE_PLACEHOLDER ), 
+      iteration = "list", 
+      resources = RESOURCE_PLACEHOLDER
+    ) }, 
+    tiers = input_hpc$initialisation$tier,
+    script = glue("{input_hpc$initialisation$store}.R")
+  )
+}
 
 # Define the generic function
 #' @export
@@ -445,40 +470,36 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   
   group_by |> saveRDS("pseudobulk_group_by.rds")
   
-  args_list$target_chunk = 
-    substitute({
-      target_list = 
-        target_list |> c(list(
-          tar_target(pseudobulk_group_by, readRDS("pseudobulk_group_by.rds")), 
-          tar_target(create_pseudobulk_sample, create_pseudobulk(
-            preprocessing_output_S,  
-            sample_names,
-            x = pseudobulk_group_by
-          ), 
-                     pattern = map(preprocessing_output_S, sample_names), 
-                     iteration = "list"),
-          tar_target(
-            pseudobulk_merge_all_samples, 
-            create_pseudobulk_sample |> pseudobulk_merge()
-          )
-        ))
-      
-    })
-  
+  args_list$target_chunk = function(){
+    
+    append_chunk_fix(
+      { tar_target(pseudobulk_group_by, readRDS("pseudobulk_group_by.rds")) }, 
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+    
+    append_chunk_tiers(
+      { tar_target(
+        create_pseudobulk_sample_TIER_PLACEHOLDER, 
+        create_pseudobulk(
+          preprocessing_output_S_TIER_PLACEHOLDER,  
+          sample_names,
+          x = pseudobulk_group_by
+        ), 
+        pattern = map(preprocessing_output_S_TIER_PLACEHOLDER, slice(sample_names, index  = SLICE_PLACEHOLDER )), 
+        iteration = "list",
+        resources = RESOURCE_PLACEHOLDER
+      )}, 
+      tiers = input_hpc$initialisation$tier,
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+    
+  }
+
   input_hpc |>
     c(list(calculate_pseudobulk = args_list)) |>
     add_class("HPCell")
   
 }
-
-
-
-
-# pseudobulk preprocessing for each sample 
-
-
-
-
 
 # Define the generic function
 #' @export
@@ -487,6 +508,7 @@ evaluate_hpc <- function(input_data) {
 }
 
 #' @importFrom glue glue
+#' @importFrom purrr imap
 #' @export
 evaluate_hpc.HPCell = function(input_hpc) {
 # 
@@ -535,12 +557,17 @@ evaluate_hpc.HPCell = function(input_hpc) {
       ~ .x |> saveRDS(.y)
     )
   
-    list(data_file_names) |> saveRDS("input_file.rds")
+    data_file_names |> as.list() |>  saveRDS("input_file.rds")
   
   input_hpc$initialisation$computing_resources |> saveRDS("temp_computing_resources.rds")
+  tiers = input_hpc$initialisation$tier |> 
+    get_positions() 
+  tiers |> 
+    saveRDS("temp_tiers.rds")
+  
   #sample_column |> saveRDS("sample_column.rds")
   input_hpc$initialisation$debug_step |> saveRDS("temp_debug_step.rds")
-  
+
   # Write pipeline to a file
   tar_script({
     library(targets)
@@ -557,13 +584,12 @@ evaluate_hpc.HPCell = function(input_hpc) {
       format = "qs",
       debug = readRDS("temp_debug_step.rds"), # Set the target you want to debug.
       # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
-      controller = readRDS("temp_computing_resources.rds"), 
+      controller = crew_controller_group ( readRDS("temp_computing_resources.rds") ), 
       packages = c("HPCell")
     )
     
     target_list = list(
-      tar_target(file, "input_file.rds", format = "rds"),
-      tar_target(read_file, readRDS(file), iteration = "list")
+      tar_target(read_file, readRDS("input_file.rds"), iteration = "list")
     )
     
     target_list = 
@@ -575,7 +601,8 @@ evaluate_hpc.HPCell = function(input_hpc) {
           readRDS(read_file),
           pattern = map(read_file),
           iteration = "list"
-        )
+        ) ,
+        tar_target(tiers, readRDS("temp_tiers.rds"))
       ))
     
   }, script = glue("{input_hpc$initialisation$store}.R"), ask = FALSE)
@@ -591,15 +618,10 @@ evaluate_hpc.HPCell = function(input_hpc) {
   #-----------------------#
   
   if("remove_empty_DropletUtils" %in% names(input_hpc))
-    tar_script_append2(
-      target_chunk_remove_empty_DropletUtils,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+    input_hpc$remove_empty_DropletUtils$target_chunk() 
+    
   else
-    tar_script_append2(
-      target_chunk_undefined_remove_empty_DropletUtils,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+    target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
   
   #-----------------------#
   # Annotate cell type
@@ -609,120 +631,87 @@ evaluate_hpc.HPCell = function(input_hpc) {
     "annotate_cell_types" %in% names(input_hpc) |
     ( "remove_dead_scuttle" %in% names(input_hpc) & !is.null(input_hpc$remove_dead_scuttle$group_by))
   )
-    tar_script_append2(
-      target_chunk_annotate_cell_type,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+      input_hpc$annotate_cell_types$target_chunk()
+    
   else
-    tar_script_append2(
-      target_chunk_undefined_annotate_cell_type,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+      target_chunk_undefined_annotate_cell_type(input_hpc)
   
   #-----------------------#
   # Remove dead
   #-----------------------#
   
   if("remove_dead_scuttle" %in% names(input_hpc))
-    tar_script_append2(
-      input_hpc$remove_dead_scuttle$target_chunk,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+    input_hpc$remove_dead_scuttle$target_chunk()
+
   else
-    tar_script_append2(
-      target_chunk_undefined_remove_dead_scuttle,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+      target_chunk_undefined_remove_dead_scuttle(input_hpc)
   
   
   #-----------------------#
   # score cell cycle
   #-----------------------#
   if("score_cell_cycle_seurat" %in% names(input_hpc))
-    tar_script_append2(
-      input_hpc$score_cell_cycle_seurat$target_chunk,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+    input_hpc$score_cell_cycle_seurat$target_chunk()
+
   else
-    tar_script_append2(
-      target_chunk_undefined_score_cell_cycle_seurat,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+      target_chunk_undefined_score_cell_cycle_seurat(input_hpc)
   
   #-----------------------#
   # Doublets
   #-----------------------#
   
   if("remove_doublets_scDblFinder" %in% names(input_hpc))
-    tar_script_append2(
-      input_hpc$remove_doublets_scDblFinder$target_chunk,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+      input_hpc$remove_doublets_scDblFinder$target_chunk()
+    
   else
-    tar_script_append2(
-      target_chunk_undefined_remove_doublets_scDblFinder,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+    target_chunk_undefined_remove_doublets_scDblFinder(input_hpc)
   
   #-----------------------#
   # SCT
   #-----------------------#
   
   if("normalise_abundance_seurat_SCT" %in% names(input_hpc))
-    tar_script_append2(
-      input_hpc$normalise_abundance_seurat_SCT$target_chunk,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+    input_hpc$normalise_abundance_seurat_SCT$target_chunk()
+  
   else
-    tar_script_append2(
-      target_chunk_undefined_normalise_abundance_seurat_SCT,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+    target_chunk_undefined_normalise_abundance_seurat_SCT(input_hpc)
   
-  
-  
+
   #-----------------------#
   # Create single cell output
   #-----------------------#
   
-  # Pre-processing output
-  
-  
-  # Pre-processing output
-  tar_script_append({
-    target_list = 
-      target_list |> c(list(
-        
-        tar_target(preprocessing_output_S, preprocessing_output(input_read,
-                                                                empty_droplets_tbl,
-                                                                non_batch_variation_removal_S,
-                                                                alive_identification_tbl,
-                                                                cell_cycle_score_tbl,
-                                                                annotation_label_transfer_tbl,
-                                                                doublet_identification_tbl),
-                   pattern = map(input_read,
-                                 empty_droplets_tbl,
-                                 non_batch_variation_removal_S,
-                                 alive_identification_tbl,
-                                 cell_cycle_score_tbl,
-                                 annotation_label_transfer_tbl,
-                                 doublet_identification_tbl),
-                   iteration = "list")
-      ))
-  }, script = glue("{input_hpc$initialisation$store}.R"))
-  
+  append_chunk_tiers(
+    { tar_target(
+      preprocessing_output_S_TIER_PLACEHOLDER, 
+      preprocessing_output(input_read,
+           empty_droplets_tbl_TIER_PLACEHOLDER,
+           non_batch_variation_removal_S_TIER_PLACEHOLDER,
+           alive_identification_tbl_TIER_PLACEHOLDER,
+           cell_cycle_score_tbl_TIER_PLACEHOLDER,
+           annotation_label_transfer_tbl_TIER_PLACEHOLDER,
+           doublet_identification_tbl_TIER_PLACEHOLDER),
+      pattern = map(slice(input_read, index  = SLICE_PLACEHOLDER ),
+                    empty_droplets_tbl_TIER_PLACEHOLDER,
+                    non_batch_variation_removal_S_TIER_PLACEHOLDER,
+                    alive_identification_tbl_TIER_PLACEHOLDER,
+                    cell_cycle_score_tbl_TIER_PLACEHOLDER,
+                    annotation_label_transfer_tbl_TIER_PLACEHOLDER,
+                    doublet_identification_tbl_TIER_PLACEHOLDER),
+      iteration = "list",
+      resources = RESOURCE_PLACEHOLDER
+    ) }, 
+    tiers = input_hpc$initialisation$tier,
+    script = glue("{input_hpc$initialisation$store}.R")
+  )
   
   #-----------------------#
   # Create pseudobulk 
   #-----------------------#
   
   if("calculate_pseudobulk" %in% names(input_hpc))
-    tar_script_append2(
-      input_hpc$calculate_pseudobulk$target_chunk,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+      input_hpc$calculate_pseudobulk$target_chunk()
 
-  
   #-----------------------#
   # Close pipeline
   #-----------------------#
@@ -758,7 +747,8 @@ evaluate_hpc.HPCell = function(input_hpc) {
     remove_files_safely()
   
   return(
-    tar_meta(preprocessing_output_S, store = glue("{input_hpc$initialisation$store}"))
+    tar_meta(store = glue("{input_hpc$initialisation$store}")) |> 
+      filter(name |> str_detect("preprocessing_output_S_?[1-9]*$")) 
   )
 }
 

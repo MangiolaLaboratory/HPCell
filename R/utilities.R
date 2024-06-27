@@ -547,6 +547,103 @@ tar_script_append2 = function(code, script = targets::tar_config_get("script")){
     write_lines(script, append = TRUE)
 }
 
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+tar_script_append3 = function(code, script = targets::tar_config_get("script")){
+  code |>
+    head(-1) |>
+    tail(-1) |>
+    write_lines(script, append = TRUE)
+}
+
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+append_chunk_fix = function(chunk, script = targets::tar_config_get("script")){
+  
+  # Add prefix
+  "target_list = c(target_list, list(" |> 
+    c(
+      substitute(chunk) |>  # cannot start with pipe
+        deparse() |> 
+        head(-1) |>
+        tail(-1) 
+    ) |> 
+    
+    # Add suffix
+    c("))") |> 
+    
+    # Write
+    write_lines(script, append = TRUE)
+}
+
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("script")){
+   
+  # This does not work with purrr:::imap
+  # As chunk does not like passed to a function
+  tiers = tiers |> get_positions()
+  .y = 1
+  for(.x in tiers |> names()  ){
+      
+    
+    "target_list = c(target_list, list(" |> 
+      c(
+        substitute(chunk) |>  # cannot start with pipe
+          deparse() |> 
+          head(-1) |>
+          tail(-1) |> 
+          str_replace_all("TIER_PLACEHOLDER", as.character(.y)) |> 
+          str_replace_all("SLICE_PLACEHOLDER", tiers[[.y]] |> as.numeric() |> vector_to_code()) |> 
+          str_replace("RESOURCE_PLACEHOLDER",  
+                      
+                      # If not tiering ignore resource naming
+                      if_else(
+                        length(tiers) == 1,
+                        "targets::tar_option_get(\"resources\")",
+                        glue("tar_resources(crew = tar_resources_crew(\"{.x}\"))" )
+                      )
+        )
+      ) |> 
+      
+      # Add suffix
+      c("))") |> 
+      
+      # Write
+      write_lines(script, append = TRUE)
+    
+    .y = .y + 1
+  }
+
+  
+}
 
 #' Simple Addition Function
 #'
@@ -1661,3 +1758,55 @@ remove_files_safely <- function(files) {
 }
 
 
+#' Get positions of each unique element in a vector
+#'
+#' This function takes a vector and returns a named list where each unique
+#' element of the input vector maps to the positions at which it occurs.
+#'
+#' @param input_vector A vector of elements.
+#' @return A named list where each name is a unique element from the input vector
+#' and each value is a vector of positions where that element occurs.
+#' @examples
+#' input_vector <- c("a", "a", "b", "c", "a")
+#' positions_list <- get_positions(input_vector)
+#' print(positions_list)
+#' @importFrom dplyr tibble
+#' @importFrom dplyr group_by
+#' @importFrom dplyr summarise
+#' @importFrom purrr set_names
+#' @export
+get_positions <- function(input_vector) {
+  # Create a tibble with the input vector and their positions
+  df <- tibble(value = input_vector, position = seq_along(input_vector))
+  
+  # Group by value and summarise the positions
+  result <- df %>%
+    group_by(value) %>%
+    summarise(positions = list(position), .groups = 'drop')
+  
+  # Convert the result to a named list
+  result_list <- set_names(result$positions, result$value)
+  
+  return(result_list)
+}
+
+#' Convert a vector of integers to its R code form as a character
+#'
+#' This function takes a vector of integers and returns its R code form as a character string.
+#'
+#' @param int_vector A vector of integers.
+#' @return A character string representing the R code form of the vector.
+#' @examples
+#' int_vector <- c(1, 2, 3, 4, 5)
+#' code_string <- vector_to_code(int_vector)
+#' print(code_string)
+#' @export
+vector_to_code <- function(int_vector) {
+  # Convert the vector to its R code form
+  code_string <- deparse(int_vector)
+  
+  # Collapse the output into a single string
+  code_string <- paste(code_string, collapse = "")
+  
+  return(code_string)
+}
