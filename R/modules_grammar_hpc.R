@@ -485,16 +485,11 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
           sample_names,
           x = pseudobulk_group_by
         ), 
-        pattern = map(preprocessing_output_S_TIER_PLACEHOLDER, sample_names[ tiers[[TIER_PLACEHOLDER]] ]), 
+        pattern = map(preprocessing_output_S_TIER_PLACEHOLDER, slice(sample_names, index  = SLICE_PLACEHOLDER )), 
         iteration = "list",
         resources = RESOURCE_PLACEHOLDER
       )}, 
       tiers = input_hpc$initialisation$tier,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
-    
-    append_chunk_fix(
-      {  tar_target( pseudobulk_merge_all_samples,  create_pseudobulk_sample |> pseudobulk_merge() ) }, 
       script = glue("{input_hpc$initialisation$store}.R")
     )
     
@@ -752,7 +747,8 @@ evaluate_hpc.HPCell = function(input_hpc) {
     remove_files_safely()
   
   return(
-    tar_meta(preprocessing_output_S, store = glue("{input_hpc$initialisation$store}"))
+    tar_meta(store = glue("{input_hpc$initialisation$store}")) |> 
+      filter(name |> str_detect("preprocessing_output_S_?[1-9]*$")) 
   )
 }
 
