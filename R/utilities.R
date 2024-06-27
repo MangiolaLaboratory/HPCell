@@ -576,7 +576,7 @@ tar_script_append3 = function(code, script = targets::tar_config_get("script")){
 #' @importFrom readr write_lines
 #' @importFrom targets tar_config_get
 #' @noRd
-append_chunk_fix = function(chunk, script = targets::tar_config_get("script"), interject_function = identity){
+append_chunk_fix = function(chunk, script = targets::tar_config_get("script")){
   
   # Add prefix
   "target_list = c(target_list, list(" |> 
@@ -584,8 +584,7 @@ append_chunk_fix = function(chunk, script = targets::tar_config_get("script"), i
       substitute(chunk) |>  # cannot start with pipe
         deparse() |> 
         head(-1) |>
-        tail(-1) |> 
-        interject_function()
+        tail(-1) 
     ) |> 
     
     # Add suffix
@@ -607,21 +606,33 @@ append_chunk_fix = function(chunk, script = targets::tar_config_get("script"), i
 #' @importFrom targets tar_config_get
 #' @noRd
 append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("script")){
-  
-    tiers |> 
-    get_positions() |> 
-    names() |> 
-    imap(~
-           append_chunk_fix(
-             chunk = chunk, 
-             script = script, 
-             interject_function = function(x){
-               x |> 
-                 str_replace_all("TIER_PLACEHOLDER", as.character(.y)) |> 
-                 str_replace("RESOURCE_PLACEHOLDER", glue("tar_resources(crew = tar_resources_crew(\"{.x}\"))" ))
-             }
-           )
-    ) 
+   
+  # This does not work with purrr:::imap
+  # As chunk does not like passed to a function
+  tiers = tiers |> get_positions()
+  .y = 1
+  for(.x in tiers |> names()  ){
+    
+    "target_list = c(target_list, list(" |> 
+      c(
+        substitute(chunk) |>  # cannot start with pipe
+          deparse() |> 
+          head(-1) |>
+          tail(-1) |> 
+          str_replace_all("TIER_PLACEHOLDER", as.character(.y)) |> 
+          str_replace_all("SLICE_PLACEHOLDER", tiers[.x] |> as.numeric() |> vector_to_code()) |> 
+          str_replace("RESOURCE_PLACEHOLDER", glue("tar_resources(crew = tar_resources_crew(\"{.x}\"))" ) )
+      ) |> 
+      
+      # Add suffix
+      c("))") |> 
+      
+      # Write
+      write_lines(script, append = TRUE)
+    
+    .y = .y + 1
+  }
+
   
 }
 
@@ -1768,4 +1779,25 @@ get_positions <- function(input_vector) {
   result_list <- set_names(result$positions, result$value)
   
   return(result_list)
+}
+
+#' Convert a vector of integers to its R code form as a character
+#'
+#' This function takes a vector of integers and returns its R code form as a character string.
+#'
+#' @param int_vector A vector of integers.
+#' @return A character string representing the R code form of the vector.
+#' @examples
+#' int_vector <- c(1, 2, 3, 4, 5)
+#' code_string <- vector_to_code(int_vector)
+#' print(code_string)
+#' @export
+vector_to_code <- function(int_vector) {
+  # Convert the vector to its R code form
+  code_string <- deparse(int_vector)
+  
+  # Collapse the output into a single string
+  code_string <- paste(code_string, collapse = "")
+  
+  return(code_string)
 }
