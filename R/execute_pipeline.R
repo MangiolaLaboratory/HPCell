@@ -15,6 +15,7 @@
 #' @param sample_column Column name for sample identification.
 #' @param cell_type_annotation_column Column name for cell type annotation in input data
 #' @param data_container_type A character vector of length one specifies the input data type.
+#' @param profiler Optional step for profilling. Default is FALSE
 #' data type can be one of the following: anndata for annotated data mainly used in python.
 #' sce_rds and seurat_rds for `SingleCellExperiment` and `Seurat` RDS format representively
 #' seurat_rds for `Seurat` RDS format.
@@ -96,6 +97,7 @@ run_targets_pipeline <- function(
   sample_column |> saveRDS("sample_column.rds")
   cell_type_annotation_column |> saveRDS("cell_type_annotation_column.rds")
   data_container_type |> saveRDS("data_container_type.rds")
+  debug_step |> saveRDS("debug_step_param.rds")
   # Write pipeline to a file
   tar_script({
     # library(targets)
@@ -104,6 +106,7 @@ run_targets_pipeline <- function(
     # library(crew.cluster)
     
     computing_resources = readRDS("temp_computing_resources.rds")
+    debug_step = readRDS("debug_step_param.rds")
     #-----------------------#
     # Packages
     #-----------------------#
@@ -244,20 +247,20 @@ run_targets_pipeline <- function(
       #   iteration = "list"
       # ),
       tar_target(reference_read, reference_file, deployment = "main"),
-
+      
       # Identifying empty droplets
       tar_target(empty_droplets_tbl,
                  empty_droplet_id(read_data_container(file_path, container_type = data_container_type_file), filter_empty_droplets),
                  pattern = map(file_path),
                  iteration = "list"),
-
+      
       # Cell cycle scoring
       tar_target(cell_cycle_score_tbl, cell_cycle_scoring(read_data_container(file_path, container_type = data_container_type_file ),
                                                           empty_droplets_tbl),
                  pattern = map(file_path,
                                empty_droplets_tbl),
                  iteration = "list"),
-
+      
       # Annotation label transfer
       tar_target(annotation_label_transfer_tbl,
                  annotation_label_transfer(read_data_container(file_path, container_type = data_container_type_file),
@@ -266,7 +269,7 @@ run_targets_pipeline <- function(
                  pattern = map(file_path,
                                empty_droplets_tbl),
                  iteration = "list"),
-
+      
       # Alive identification
       tar_target(alive_identification_tbl, alive_identification(read_data_container(file_path, container_type = data_container_type_file),
                                                                 empty_droplets_tbl,
@@ -275,7 +278,7 @@ run_targets_pipeline <- function(
                                empty_droplets_tbl,
                                annotation_label_transfer_tbl),
                  iteration = "list"),
-
+      
       # Doublet identification
       tar_target(doublet_identification_tbl, doublet_identification(read_data_container(file_path, container_type = data_container_type_file),
                                                                     empty_droplets_tbl,
@@ -287,7 +290,7 @@ run_targets_pipeline <- function(
                                alive_identification_tbl,
                                annotation_label_transfer_tbl),
                  iteration = "list"),
-
+      
       # Non-batch variation removal
       tar_target(non_batch_variation_removal_S, non_batch_variation_removal(read_data_container(file_path, container_type = data_container_type_file),
                                                                             empty_droplets_tbl,
@@ -298,7 +301,7 @@ run_targets_pipeline <- function(
                                alive_identification_tbl,
                                cell_cycle_score_tbl),
                  iteration = "list"),
-
+      
       # Pre-processing output
       tar_target(preprocessing_output_S, preprocessing_output(tissue,
                                                               non_batch_variation_removal_S,
@@ -381,14 +384,11 @@ run_targets_pipeline <- function(
   #   )
   # }
   # run_targets(input_files)
+  
   tar_make(
     script = glue("{store}.R"),
     store = store,
     callr_function = NULL
-    # callr_function = tarprof::callr_profile,
-    # callr_arguments = list(
-    #   monitor_path = file.path(store, "profile_results")
-    # )
   )
   # tar_make_future(
   #   script = glue("{store}.R"),

@@ -647,12 +647,12 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   
   if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
-    input_read_RNA_assay_seurat <- input_read_RNA_assay |> as.Seurat(data = NULL) |>
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL) |>
       RenameAssays(originalexp = assay)
   }
   
   counts =
-    input_read_RNA_assay_seurat |>
+    input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by = ".cell") |>
     filter(!empty_droplet) |>
     
