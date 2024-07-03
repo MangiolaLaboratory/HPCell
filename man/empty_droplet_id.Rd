@@ -11,12 +11,12 @@ empty_droplet_id(
 )
 }
 \arguments{
-\item{input_read_RNA_assay}{SingleCellExperiment object containing RNA assay data.}
+\item{input_read_RNA_assay}{SingleCellExperiment or Seurat object containing RNA assay data.}
 
 \item{filter_empty_droplets}{Logical value indicating whether to filter the input data.}
 }
 \value{
-A tibble with columns: logprob, FDR, empty_droplet (classification of droplets).
+A tibble with columns: logProb, FDR, empty_droplet (classification of droplets).
 }
 \description{
 \code{empty_droplet_id} distinguishes between empty and non-empty droplets using the DropletUtils package.
