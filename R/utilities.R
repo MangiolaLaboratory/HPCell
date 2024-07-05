@@ -527,6 +527,25 @@ tar_script_append = function(code, script = targets::tar_config_get("script")){
     write_lines(script, append = TRUE)
 }
 
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+tar_append = function(code, script = targets::tar_config_get("script")){
+  substitute(code) |>
+    deparse() |>
+    head(-1) |>
+    tail(-1) |>
+    write_lines(script, append = TRUE)
+}
+
 
 #' Append Code to a Targets Script
 #'

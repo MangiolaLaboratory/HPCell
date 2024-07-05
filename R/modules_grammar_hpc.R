@@ -101,29 +101,31 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
-  # Save parameter
-  total_RNA_count_check |> saveRDS("total_RNA_count_check.rds")  
+  total_RNA_count_check |> saveRDS("total_RNA_count_check.rds")
   
-  # Add pipeline step
-  args_list$target_chunk = function(){
+  args_list$factory = function(){
+  t1 =   tar_target_raw("my_total_RNA_count_check", readRDS("total_RNA_count_check.rds"))
+  tiers = input_hpc$initialisation$tier |> get_positions()
+  t2 = imap(tiers, ~ {
     
-    append_chunk_fix(
-      { tar_target(my_total_RNA_count_check, readRDS("total_RNA_count_check.rds")) }, 
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
+    pattern = substitute(slice(input_read, index  = arg ), list(arg=.x))
     
-    append_chunk_tiers(
-      { tar_target(
-        empty_droplets_tbl_TIER_PLACEHOLDER,
-        empty_droplet_id(input_read, my_total_RNA_count_check),
-        pattern = slice(input_read, index  = SLICE_PLACEHOLDER ),
-        iteration = "list", 
-        resources = RESOURCE_PLACEHOLDER
-      ) }, 
-      tiers = input_hpc$initialisation$tier,
-      script = glue("{input_hpc$initialisation$store}.R")
+    tar_target_raw(
+      glue("empty_droplets_tbl_{.y}"),
+      quote(empty_droplet_id(input_read, total_RNA_count_check)),
+      pattern = pattern,
+      iteration = "list"
+      #, 
+      #resources =  targets::tar_option_get("resources") 
+      # resources = if_else(
+      #   length(tiers) == 1,
+      #   targets::tar_option_get("resources"),
+      #   substitute(tar_resources(crew = tar_resources_crew(arg)) , list(arg = .x)) 
+      # )
     )
-  
+  })
+    
+    list(t1, t2)
   }
   
   # Add pipeline step
@@ -570,6 +572,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
 
   # Write pipeline to a file
   tar_script({
+    library(HPCell)
     library(targets)
     library(tarchetypes)
     library(crew)
@@ -618,7 +621,10 @@ evaluate_hpc.HPCell = function(input_hpc) {
   #-----------------------#
   
   if("remove_empty_DropletUtils" %in% names(input_hpc))
-    input_hpc$remove_empty_DropletUtils$target_chunk() 
+    append_chunk_fix(
+      { remove_empty_DropletUtils$factory() } ,
+      glue("{input_hpc$initialisation$store}.R")
+    )
     
   else
     target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
