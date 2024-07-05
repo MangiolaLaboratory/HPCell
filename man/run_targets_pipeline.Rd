@@ -15,8 +15,7 @@ run_targets_pipeline(
   RNA_assay_name = "RNA",
   sample_column = "sample",
   cell_type_annotation_column = "Cell_type_in_each_tissue",
-  data_container_type,
-  profiler = FALSE
+  data_container_type
 )
 }
 \arguments{

@@ -10,7 +10,8 @@ initialise_hpc(
   computing_resources = crew_controller_local(workers = 1),
   tier = rep(1, length(input_data)),
   debug_step = NULL,
-  RNA_assay_name = "RNA"
+  RNA_assay_name = "RNA",
+  gene_nomenclature
 )
 }
 \arguments{
@@ -23,6 +24,8 @@ initialise_hpc(
 \item{debug_step}{Optional step for debugging.}
 
 \item{RNA_assay_name}{Name of the RNA assay.}
+
+\item{gene_nomenclature}{Character vector indicating gene nomenclature in input_data}
 
 \item{input_reference}{Optional reference data.}
 

@@ -40,6 +40,33 @@ read_data_container <- function(file,
          )
 }
 
+#' Gene name conversion using ensembl database
+#' 
+#' @param id Character vector of gene names
+#' @param current_nomenclature Character vector of input gene nomenclature
+#' @return A data frame of gene name before and after conversion
+#' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importMethodsFrom ensembldb genes   
+#' @export
+convert_gene_names <- function(id,
+                               current_nomenclature) {
+  if (current_nomenclature == "symbol"){
+    edb <- EnsDb.Hsapiens.v86
+    edb_df <- genes(edb,
+                    columns = c("gene_name", "entrezid", "gene_biotype"),
+                    filter = AnnotationFilter::GeneNameFilter(id),
+                    return.type = "data.frame")   
+  } 
+  else if (current_nomenclature == "ensembl") {
+    edb <- EnsDb.Hsapiens.v86
+    edb_df <- genes(edb,
+                    columns = c("gene_name", "entrezid", "gene_biotype"),
+                    filter = AnnotationFilter::GeneIdFilter(id),
+                    return.type = "data.frame")   
+  }
+  edb_df
+}
+
 #' Identify Empty Droplets in Single-Cell RNA-seq Data
 #'
 #' @description

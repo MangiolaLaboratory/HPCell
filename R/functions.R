@@ -578,9 +578,11 @@ doublet_identification <- function(input_read_RNA_assay,
 #' @importFrom dplyr left_join filter select
 #' @importFrom tibble as_tibble
 #' @importFrom Seurat CellCycleScoring as.Seurat NormalizeData
+#' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' @export
 cell_cycle_scoring <- function(input_read_RNA_assay, 
                                empty_droplets_tbl,
+                               gene_nomenclature,
                                assay = NULL){
   #Fix GCHECK
   empty_droplet = NULL 
@@ -598,6 +600,17 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
       RenameAssays(originalexp = assay)
   }
   
+  if (gene_nomenclature == "ensembl") {
+    s.features_tidy = Seurat::cc.genes$s.genes |> convert_gene_names(current_nomenclature = "symbol") |>
+    filter(stringr::str_detect(gene_id, "ENSG*")) |> dplyr::pull(gene_id)
+    g2m.features_tidy = Seurat::cc.genes$g2m.genes |> convert_gene_names(current_nomenclature = "symbol") |>
+      filter(stringr::str_detect(gene_id, "ENSG*")) |> dplyr::pull(gene_id)
+  } else if (gene_nomenclature == "symbol") {
+    s.features_tidy = Seurat::cc.genes$s.genes
+    g2m.features_tidy = Seurat::cc.genes$g2m.genes
+  }
+  
+  
   counts <-
     input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by = ".cell") |>
@@ -610,8 +623,8 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
     # Based on its expression of G2/M and S phase markers
     #Stores S and G2/M scores in object meta data along with predicted classification of each cell in either G2M, S or G1 phase
     CellCycleScoring(  
-      s.features = Seurat::cc.genes$s.genes,
-      g2m.features = Seurat::cc.genes$g2m.genes,
+      s.features = s.features_tidy,
+      g2m.features = g2m.features_tidy,
       set.ident = FALSE 
     ) |>
     
