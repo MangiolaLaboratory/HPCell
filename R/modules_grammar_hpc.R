@@ -104,24 +104,23 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   total_RNA_count_check |> saveRDS("total_RNA_count_check.rds")
   
   args_list$factory = function(){
-  t1 =   tar_target_raw("my_total_RNA_count_check", readRDS("total_RNA_count_check.rds"))
+  t1 =   tar_target_raw("my_total_RNA_count_check", quote(readRDS("total_RNA_count_check.rds")))
   tiers = input_hpc$initialisation$tier |> get_positions()
   t2 = imap(tiers, ~ {
     
     pattern = substitute(slice(input_read, index  = arg ), list(arg=.x))
+    resources = if_else(
+      length(tiers) == 1,
+      targets::tar_option_get("resources"),
+      substitute(tar_resources(crew = tar_resources_crew(arg)) , list(arg = .x))
+    )
     
     tar_target_raw(
       glue("empty_droplets_tbl_{.y}"),
       quote(empty_droplet_id(input_read, total_RNA_count_check)),
       pattern = pattern,
-      iteration = "list"
-      #, 
-      #resources =  targets::tar_option_get("resources") 
-      # resources = if_else(
-      #   length(tiers) == 1,
-      #   targets::tar_option_get("resources"),
-      #   substitute(tar_resources(crew = tar_resources_crew(arg)) , list(arg = .x)) 
-      # )
+      iteration = "list",
+      resources = resources
     )
   })
     
