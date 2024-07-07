@@ -109,15 +109,6 @@ factory_split = function(name_output, command, tiers,  other_arguments_to_tier =
         c(glue("{other_arguments_to_tier}_{.y}") |> lapply(as.name))
     )
     
-    # pattern = substitute(
-    #   map(other_arguments_to_tier, slice(input, index  = arg )), 
-    #   env = list(
-    #     other_arguments_to_tier = as.call(c(quote(c), lapply(other_arguments_to_tier, as.name))),
-    #     input = input, 
-    #     arg=.x
-    #   )
-    # )
-    
     # Resources
     if(length(tiers) == 1)
       resources = targets::tar_option_get("resources")

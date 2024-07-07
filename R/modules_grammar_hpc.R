@@ -310,24 +310,34 @@ score_cell_cycle_seurat.HPCell = function(input_hpc) {
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
   # Add pipeline step
-  args_list$target_chunk = function(){
-    
-    append_chunk_tiers(
-      { tar_target(
-        cell_cycle_score_tbl_TIER_PLACEHOLDER,
-        cell_cycle_scoring(input_read,
-                           empty_droplets_tbl_TIER_PLACEHOLDER),
-        pattern = map(slice(input_read, index  = SLICE_PLACEHOLDER ),
-                      empty_droplets_tbl_TIER_PLACEHOLDER),
-        iteration = "list",
-        resources = RESOURCE_PLACEHOLDER
+  args_list$factory = function(tiers){
+    list(
+      factory_split(
+        "cell_cycle_score_tbl", cell_cycle_scoring(
+          input_read,
+          empty_droplets_tbl
+        ) |> quote(),
+        tiers,
+        c("empty_droplets_tbl")
+      ),
       
-      ) }, 
-      tiers = input_hpc$initialisation$tier,
-      script = glue("{input_hpc$initialisation$store}.R")
+      factory_collapse(
+        "my_report3",
+        bind_rows(cell_cycle_score_tbl) |> quote(), 
+        "cell_cycle_score_tbl",
+        tiers
+      )
     )
     
   }
+  
+  # We don't want recursive when we call factory
+  if(input_hpc |> length() > 0) 
+    tar_tier_append(
+      quote(dummy_hpc |> score_cell_cycle_seurat() %$% score_cell_cycle_seurat %$% factory),
+      input_hpc$initialisation$tier |> get_positions() ,
+      glue("{input_hpc$initialisation$store}.R")
+    )
   
   input_hpc |>
     c(list(score_cell_cycle_seurat = args_list)) |>
@@ -365,26 +375,35 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc) {
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
-  args_list$target_chunk = function(){
-    
-    append_chunk_tiers(
-      { tar_target(
-        doublet_identification_tbl_TIER_PLACEHOLDER, 
-        doublet_identification(input_read, empty_droplets_tbl_TIER_PLACEHOLDER, alive_identification_tbl_TIER_PLACEHOLDER),
-        pattern = map(slice(input_read, index  = SLICE_PLACEHOLDER ),
-                      empty_droplets_tbl_TIER_PLACEHOLDER,
-                      alive_identification_tbl_TIER_PLACEHOLDER
-        ),
-        iteration = "list",
-        resources = RESOURCE_PLACEHOLDER
-        
-      ) }, 
-      tiers = input_hpc$initialisation$tier,
-      script = glue("{input_hpc$initialisation$store}.R")
+  args_list$factory = function(tiers){
+    list(
+      factory_split(
+        "doublet_identification_tbl", doublet_identification(
+          input_read,
+          empty_droplets_tbl,
+          alive_identification_tbl
+        ) |> quote(),
+        tiers,
+        c("empty_droplets_tbl", "alive_identification_tbl")
+      ),
+      
+      factory_collapse(
+        "my_report4",
+        bind_rows(doublet_identification_tbl) |> quote(), 
+        "doublet_identification_tbl",
+        tiers
+      )
     )
     
   }
   
+  # We don't want recursive when we call factory
+  if(input_hpc |> length() > 0) 
+    tar_tier_append(
+      quote(dummy_hpc |> remove_doublets_scDblFinder() %$% remove_doublets_scDblFinder %$% factory),
+      input_hpc$initialisation$tier |> get_positions() ,
+      glue("{input_hpc$initialisation$store}.R")
+    )
   
   input_hpc |>
     c(list(remove_doublets_scDblFinder = args_list)) |>
@@ -421,27 +440,37 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL) {
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
-  args_list$target_chunk = function(){
-    
-    append_chunk_fix(
-      {  tar_target(reference_read, readRDS("input_reference.rds")) }, 
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
-    
-    append_chunk_tiers(
-      { tar_target(annotation_label_transfer_tbl_TIER_PLACEHOLDER,
-                   annotation_label_transfer(input_read,
-                                             empty_droplets_tbl_TIER_PLACEHOLDER,
-                                             reference_read),
-                   pattern = map(slice(input_read, index  = SLICE_PLACEHOLDER ), empty_droplets_tbl_TIER_PLACEHOLDER),
-                   iteration = "list",
-                   resources = RESOURCE_PLACEHOLDER
-        )}, 
-      tiers = input_hpc$initialisation$tier,
-      script = glue("{input_hpc$initialisation$store}.R")
+  args_list$factory = function(tiers){
+    list(
+      tar_target_raw("reference_read", readRDS("input_reference.rds") |> quote()),
+      
+      factory_split(
+        "annotation_label_transfer_tbl", annotation_label_transfer(
+          input_read,
+          empty_droplets_tbl,
+          reference_read
+        ) |> quote(),
+        tiers,
+        c("empty_droplets_tbl")
+      ),
+      
+      factory_collapse(
+        "my_report5",
+        bind_rows(annotation_label_transfer_tbl) |> quote(), 
+        "annotation_label_transfer_tbl",
+        tiers
+      )
     )
     
   }
+  
+  # We don't want recursive when we call factory
+  if(input_hpc |> length() > 0) 
+    tar_tier_append(
+      quote(dummy_hpc |> annotate_cell_type() %$% annotate_cell_type %$% factory),
+      input_hpc$initialisation$tier |> get_positions() ,
+      glue("{input_hpc$initialisation$store}.R")
+    )
   
   input_hpc |>
     c(list(annotate_cell_type = args_list)) |>
@@ -481,36 +510,41 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
   
   factors_to_regress |> saveRDS("factors_to_regress.rds")
   
-  args_list$target_chunk = function(){
-    
-    append_chunk_fix(
-      { tar_target(my_factors_to_regress, readRDS("factors_to_regress.rds")) }, 
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
-    
-    append_chunk_tiers(
-      { tar_target(
-        non_batch_variation_removal_S_TIER_PLACEHOLDER, 
-        non_batch_variation_removal(
-              input_read,
-             empty_droplets_tbl_TIER_PLACEHOLDER,
-             alive_identification_tbl_TIER_PLACEHOLDER,
-             cell_cycle_score_tbl_TIER_PLACEHOLDER,
-             factors_to_regress = my_factors_to_regress
-        ),
-        pattern = map(slice(input_read, index  = SLICE_PLACEHOLDER ),
-                      empty_droplets_tbl_TIER_PLACEHOLDER,
-                      alive_identification_tbl_TIER_PLACEHOLDER,
-                      cell_cycle_score_tbl_TIER_PLACEHOLDER),
-        iteration = "list",
-        resources = RESOURCE_PLACEHOLDER
-      )}, 
-      tiers = input_hpc$initialisation$tier,
-      script = glue("{input_hpc$initialisation$store}.R")
+  args_list$factory = function(tiers){
+    list(
+      tar_target_raw("my_factors_to_regress", readRDS("factors_to_regress.rds") |> quote()),
+      
+      factory_split(
+        "non_batch_variation_removal_S", non_batch_variation_removal(
+          input_read,
+          empty_droplets_tbl,
+          alive_identification_tbl,
+          cell_cycle_score_tbl,
+          factors_to_regress
+        ) |> quote(),
+        tiers,
+        c("empty_droplets_tbl", "alive_identification_tbl", "cell_cycle_score_tbl")
+      ),
+      
+      factory_collapse(
+        "my_report6",
+        bind_rows(non_batch_variation_removal_S) |> quote(), 
+        "non_batch_variation_removal_S",
+        tiers
+      )
     )
     
   }
   
+  # We don't want recursive when we call factory
+  if(input_hpc |> length() > 0) 
+    tar_tier_append(
+      quote(dummy_hpc |> normalise_abundance_seurat_SCT() %$% normalise_abundance_seurat_SCT %$% factory),
+      input_hpc$initialisation$tier |> get_positions() ,
+      glue("{input_hpc$initialisation$store}.R")
+    )
+  
+
   input_hpc |>
     c(list(normalise_abundance_seurat_SCT = args_list)) |>
     add_class("HPCell")
@@ -597,6 +631,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
   #-----------------------#
   # Empty droplets
   #-----------------------#
+  
   if(! "remove_empty_DropletUtils" %in% names(input_hpc))
     target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
   
@@ -605,12 +640,9 @@ evaluate_hpc.HPCell = function(input_hpc) {
   #-----------------------#
   
   if(
-    "annotate_cell_types" %in% names(input_hpc) |
+    !("annotate_cell_type" %in% names(input_hpc) |
     ( "remove_dead_scuttle" %in% names(input_hpc) & !is.null(input_hpc$remove_dead_scuttle$group_by))
-  )
-      input_hpc$annotate_cell_types$target_chunk()
-    
-  else
+  ))
       target_chunk_undefined_annotate_cell_type(input_hpc)
   
   #-----------------------#
@@ -624,33 +656,23 @@ evaluate_hpc.HPCell = function(input_hpc) {
   #-----------------------#
   # score cell cycle
   #-----------------------#
-  if("score_cell_cycle_seurat" %in% names(input_hpc))
-    input_hpc$score_cell_cycle_seurat$target_chunk()
-
-  else
+  if(! "score_cell_cycle_seurat" %in% names(input_hpc))
       target_chunk_undefined_score_cell_cycle_seurat(input_hpc)
   
   #-----------------------#
   # Doublets
   #-----------------------#
   
-  if("remove_doublets_scDblFinder" %in% names(input_hpc))
-      input_hpc$remove_doublets_scDblFinder$target_chunk()
-    
-  else
-    target_chunk_undefined_remove_doublets_scDblFinder(input_hpc)
+  if(! "remove_doublets_scDblFinder" %in% names(input_hpc))
+     target_chunk_undefined_remove_doublets_scDblFinder(input_hpc)
   
   #-----------------------#
   # SCT
   #-----------------------#
   
-  if("normalise_abundance_seurat_SCT" %in% names(input_hpc))
-    input_hpc$normalise_abundance_seurat_SCT$target_chunk()
-  
-  else
+  if(! "normalise_abundance_seurat_SCT" %in% names(input_hpc))
     target_chunk_undefined_normalise_abundance_seurat_SCT(input_hpc)
   
-
   #-----------------------#
   # Create single cell output
   #-----------------------#

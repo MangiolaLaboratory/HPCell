@@ -462,8 +462,8 @@ c(input_seurat, input_seurat) |>
   # Initialise pipeline characteristics
   initialise_hpc(
     
-    tier = c("tier_1", "tier_2"),
-    
+    # tier = c("tier_1", "tier_2"),
+    # 
     # debug_step = "create_pseudobulk_sample",
     
     # Default resourced 
@@ -489,18 +489,18 @@ c(input_seurat, input_seurat) |>
   #   )
   # )
   
-  computing_resources =
-    list(  crew_controller_local(
-      name = "tier_1",
-      workers = 2,
-      seconds_idle = 10
-    ),
-    crew_controller_local(
-      name = "tier_2",
-      workers = 2,
-      seconds_idle = 10
-    )
-  )
+  # computing_resources =
+  #   list(  crew_controller_local(
+  #     name = "tier_1",
+  #     workers = 2,
+  #     seconds_idle = 10
+  #   ),
+  #   crew_controller_local(
+  #     name = "tier_2",
+  #     workers = 2,
+  #     seconds_idle = 10
+  #   )
+  # )
     
     # Slurm resources
     # computing_resources = 
@@ -549,4 +549,7 @@ c(input_seurat, input_seurat) |>
   remove_empty_DropletUtils() |> 
   
   # Remove dead cells
-  remove_dead_scuttle()
+  remove_dead_scuttle() |> 
+  
+  # Score cell cycle
+  score_cell_cycle_seurat()
