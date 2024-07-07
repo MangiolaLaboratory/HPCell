@@ -1873,7 +1873,8 @@ add_tier_inputs <- function(command, arguments_to_tier, i) {
   
   if(length(arguments_to_tier)==0) return(command)
   
-  input = command |> deparse() |> str_extract("[a-zA-Z0-9_]+\\((.+),.*", group=1) 
+  command = command |> deparse() |> paste(collapse = "")  
+  input = command |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
   
   # Filter out arguments to be tiered from the input command
   arguments_to_tier <- arguments_to_tier |> str_subset(input, negate = TRUE)
@@ -1882,7 +1883,7 @@ add_tier_inputs <- function(command, arguments_to_tier, i) {
   replacement_regexp <- glue("{arguments_to_tier}_{i}") |> as.character() |> set_names(arguments_to_tier)
   
   # Replace the specified arguments in the command with their tiered versions
-  command |> deparse() |> str_replace_all(replacement_regexp) |>  rlang::parse_expr()
+  command |> str_replace_all(replacement_regexp) |>  rlang::parse_expr()
   
 }
 

@@ -534,3 +534,19 @@ c(input_seurat, input_seurat) |>
   )) |> 
   
   calculate_pseudobulk(group_by = seurat_annotations)
+
+
+
+
+
+c(input_seurat, input_seurat) |> 
+  magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2")) |> 
+  
+  # Initialise pipeline characteristics
+  initialise_hpc() |> 
+  
+  # Remove empty outliers
+  remove_empty_DropletUtils() |> 
+  
+  # Remove dead cells
+  remove_dead_scuttle()

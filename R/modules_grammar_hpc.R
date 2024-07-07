@@ -169,12 +169,24 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   total_RNA_count_check |> saveRDS("total_RNA_count_check.rds")
   
   args_list$factory = function(tiers){
-    factory_tiering(
-      list("total_RNA_count_check", readRDS("total_RNA_count_check.rds") |> quote()), 
-      list("empty_droplets_tbl", empty_droplet_id(input_read, total_RNA_count_check) |> quote()), 
-      list("my_report", bind_rows(empty_droplets_tbl) |> quote(), "empty_droplets_tbl"), 
-      tiers
+    list(
+      tar_target_raw("total_RNA_count_check", readRDS("total_RNA_count_check.rds") |> quote()),
+      
+      factory_split(
+        "empty_droplets_tbl", 
+        empty_droplet_id(input_read, total_RNA_count_check) |> quote(),
+        tiers
+      )
+      # ,
+      # 
+      # factory_collapse(
+      #   "my_report", 
+      #   bind_rows(empty_droplets_tbl) |> quote(), 
+      #   "empty_droplets_tbl",
+      #   tiers
+      # )
     )
+    
   }
 
   # We don't want recursive when we call factory
@@ -227,47 +239,38 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
   group_by |> saveRDS("temp_group_by.rds")
   
   args_list$factory = function(tiers){
-    factory_tiering(
-      list("grouping_column", readRDS("temp_group_by.rds") |> quote()), 
-      list("alive_identification_tbl", alive_identification(
-                            input_read,
-                            empty_droplets_tbl,
-                            annotation_label_transfer_tbl,
-                            grouping_column
-                        ) |> quote(),
-           c("empty_droplets_tbl", "annotation_label_transfer_tbl")
-                   ), 
-      list("my_report2", bind_rows(alive_identification_tbl) |> quote(), "alive_identification_tbl"), 
-      tiers
+    list(
+      tar_target_raw("grouping_column", readRDS("temp_group_by.rds") |> quote()),
+      
+      factory_split(
+        "alive_identification_tbl", alive_identification(
+          input_read,
+          empty_droplets_tbl,
+          annotation_label_transfer_tbl,
+          grouping_column
+        ) |> quote(),
+        tiers,
+        c("empty_droplets_tbl", "annotation_label_transfer_tbl")
+     ),
+      
+      factory_collapse(
+        "my_report2",
+        bind_rows(alive_identification_tbl) |> quote(), 
+        "alive_identification_tbl",
+        tiers
+      )
     )
+  
   }
   
-  # args_list$target_chunk = function(){
-  #   
-  #   append_chunk_fix(
-  #     { tar_target(grouping_column, readRDS("temp_group_by.rds")) }, 
-  #     script = glue("{input_hpc$initialisation$store}.R")
-  #   )
-  #   
-  #   append_chunk_tiers(
-  #     { tar_target(
-  #       alive_identification_tbl_TIER_PLACEHOLDER, 
-  #       alive_identification(input_read,
-  #                            empty_droplets_tbl_TIER_PLACEHOLDER,
-  #                            annotation_label_transfer_tbl_TIER_PLACEHOLDER,
-  #                            grouping_column),
-  #       pattern = map(slice(input_read, index  = SLICE_PLACEHOLDER ),
-  #                     empty_droplets_tbl_TIER_PLACEHOLDER,
-  #                     annotation_label_transfer_tbl_TIER_PLACEHOLDER),
-  #       iteration = "list",
-  #       resources = RESOURCE_PLACEHOLDER
-  #     ) }, 
-  #     tiers = input_hpc$initialisation$tier,
-  #     script = glue("{input_hpc$initialisation$store}.R")
-  #   )
-  #   
-  # }
-  # 
+  # We don't want recursive when we call factory
+  if(input_hpc |> length() > 0) 
+    tar_tier_append(
+      quote(dummy_hpc |> remove_dead_scuttle() %$% remove_dead_scuttle %$% factory),
+      input_hpc$initialisation$tier |> get_positions() ,
+      glue("{input_hpc$initialisation$store}.R")
+    )
+  
   input_hpc |>
     c(list(remove_dead_scuttle = args_list))  |>
     add_class("HPCell")
@@ -614,10 +617,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
   # Remove dead
   #-----------------------#
   
-  if("remove_dead_scuttle" %in% names(input_hpc))
-    input_hpc$remove_dead_scuttle$target_chunk()
-
-  else
+  if(! "remove_dead_scuttle" %in% names(input_hpc))
       target_chunk_undefined_remove_dead_scuttle(input_hpc)
   
   

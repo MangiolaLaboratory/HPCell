@@ -89,29 +89,49 @@ expand_tiered_arguments <- function(command, tiers, tiered_args) {
 #' @importFrom stringr str_extract
 factory_split = function(name_output, command, tiers,  other_arguments_to_tier = c() ){
   
-  if(command |> deparse() |> str_detect("%>%")) 
+  if(command |> deparse() |> str_detect("%>%") |> any()) 
     stop("HPCell says: no \"%>%\" allowed in the command, please use \"|>\" ")
   
-  input = command |> deparse() |> str_extract("[a-zA-Z0-9_]+\\((.+),.*", group=1) |> as.symbol() 
+  input = command |> deparse() |> paste(collapse = "") |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
   
-  tiers |> imap(~ {
+  # Filter out arguments to be tiered from the input command
+  other_arguments_to_tier <- other_arguments_to_tier |> str_subset(input, negate = TRUE)
+  
+   map2(tiers, names(tiers), ~ {
+  
     
     # Pattern
-    pattern = substitute(slice(input, index  = arg ), list(input = input, arg=.x))
+    pattern = 
+      
+      as.call(
+      as.name("map") |>
+        c(substitute(slice(input, index  = arg ), list(input = as.symbol(input), arg=.x)) ) |>
+        c(glue("{other_arguments_to_tier}_{.y}") |> lapply(as.name))
+    )
+    
+    # pattern = substitute(
+    #   map(other_arguments_to_tier, slice(input, index  = arg )), 
+    #   env = list(
+    #     other_arguments_to_tier = as.call(c(quote(c), lapply(other_arguments_to_tier, as.name))),
+    #     input = input, 
+    #     arg=.x
+    #   )
+    # )
     
     # Resources
     if(length(tiers) == 1)
       resources = targets::tar_option_get("resources")
     else 
-      resources = substitute(tar_resources(crew = tar_resources_crew(arg)) , list(arg = .x))
+      resources = substitute(tar_resources(crew = tar_resources_crew(arg)) , list(arg = .y))
     
     
     tar_target_raw(
       glue("{name_output}_{.y}"),
-      command |> add_tier_inputs(other_arguments_to_tier, .y),
+      command |>  add_tier_inputs(other_arguments_to_tier, .y),
       pattern = pattern,
-      iteration = "list",
-      resources = resources
+      iteration = "list"
+      #,
+      #resources = resources
     )
   })
 }
@@ -123,21 +143,22 @@ factory_collapse = function(name_output, command, tiered_input, tiers){
   tar_target_raw(name_output, command) 
 }
 
-factory_tiering = function(preparation, tiering, collapsing, tiers){
-  
-  t1 = tar_target_raw(preparation[[1]], preparation[[2]])
-  t2 = factory_split(
-    tiering[[1]], 
-    tiering[[2]], 
-    tiers
-  )
-  t3 = factory_collapse(
-    collapsing[[1]],
-    collapsing[[2]],
-    collapsing[[3]],
-    tiers
-    
-  )
-  
-  list(t1, t2, t3)
-}
+# factory_tiering = function(preparation, tiering, collapsing, tiers){
+#   
+#   t1 = tar_target_raw(preparation[[1]], preparation[[2]])
+#   t2 = factory_split(
+#     tiering[[1]], 
+#     tiering[[2]], 
+#     tiers,
+#     tiering[[3]]
+#   )
+#   t3 = factory_collapse(
+#     collapsing[[1]],
+#     collapsing[[2]],
+#     collapsing[[3]],
+#     tiers
+#     
+#   )
+#   
+#   list(t1, t2, t3)
+# }
