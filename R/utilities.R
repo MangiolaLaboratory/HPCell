@@ -1877,7 +1877,7 @@ add_tier_inputs <- function(command, arguments_to_tier, i) {
   input = command |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
   
   # Filter out arguments to be tiered from the input command
-  arguments_to_tier <- arguments_to_tier |> str_subset(input, negate = TRUE)
+  #arguments_to_tier <- arguments_to_tier |> str_subset(input, negate = TRUE)
   
   # Create a named vector for replacements
   replacement_regexp <- glue("{arguments_to_tier}_{i}") |> as.character() |> set_names(arguments_to_tier)

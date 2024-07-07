@@ -175,16 +175,15 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
       factory_split(
         "empty_droplets_tbl", 
         empty_droplet_id(input_read, total_RNA_count_check) |> quote(),
+        tiers, arguments_to_tier = "input_read"
+      )  ,
+
+      factory_collapse(
+        "my_report",
+        bind_rows(empty_droplets_tbl) |> quote(),
+        "empty_droplets_tbl",
         tiers
       )
-      # ,
-      # 
-      # factory_collapse(
-      #   "my_report", 
-      #   bind_rows(empty_droplets_tbl) |> quote(), 
-      #   "empty_droplets_tbl",
-      #   tiers
-      # )
     )
     
   }
@@ -249,7 +248,7 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
           annotation_label_transfer_tbl,
           grouping_column
         ) |> quote(),
-        tiers,
+        tiers, arguments_to_tier = "input_read",
         c("empty_droplets_tbl", "annotation_label_transfer_tbl")
      ),
       
@@ -317,7 +316,7 @@ score_cell_cycle_seurat.HPCell = function(input_hpc) {
           input_read,
           empty_droplets_tbl
         ) |> quote(),
-        tiers,
+        tiers, arguments_to_tier = "input_read",
         c("empty_droplets_tbl")
       ),
       
@@ -383,7 +382,7 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc) {
           empty_droplets_tbl,
           alive_identification_tbl
         ) |> quote(),
-        tiers,
+        tiers, arguments_to_tier = "input_read",
         c("empty_droplets_tbl", "alive_identification_tbl")
       ),
       
@@ -450,7 +449,7 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL) {
           empty_droplets_tbl,
           reference_read
         ) |> quote(),
-        tiers,
+        tiers, arguments_to_tier = "input_read",
         c("empty_droplets_tbl")
       ),
       
@@ -512,7 +511,7 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
   
   args_list$factory = function(tiers){
     list(
-      tar_target_raw("my_factors_to_regress", readRDS("factors_to_regress.rds") |> quote()),
+      tar_target_raw("factors_to_regress", readRDS("factors_to_regress.rds") |> quote()),
       
       factory_split(
         "non_batch_variation_removal_S", non_batch_variation_removal(
@@ -522,16 +521,17 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
           cell_cycle_score_tbl,
           factors_to_regress
         ) |> quote(),
-        tiers,
+        tiers, arguments_to_tier = "input_read",
         c("empty_droplets_tbl", "alive_identification_tbl", "cell_cycle_score_tbl")
-      ),
-      
-      factory_collapse(
-        "my_report6",
-        bind_rows(non_batch_variation_removal_S) |> quote(), 
-        "non_batch_variation_removal_S",
-        tiers
       )
+      # ,
+      # 
+      # factory_collapse(
+      #   "my_report6",
+      #   bind_rows(tibble()) |> quote(), 
+      #   "non_batch_variation_removal_S",
+      #   tiers, packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
+      # )
     )
     
   }
@@ -585,31 +585,36 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   
   group_by |> saveRDS("pseudobulk_group_by.rds")
   
-  args_list$target_chunk = function(){
-    
-    append_chunk_fix(
-      { tar_target(pseudobulk_group_by, readRDS("pseudobulk_group_by.rds")) }, 
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
-    
-    append_chunk_tiers(
-      { tar_target(
-        create_pseudobulk_sample_TIER_PLACEHOLDER, 
-        create_pseudobulk(
-          preprocessing_output_S_TIER_PLACEHOLDER,  
-          sample_names,
-          x = pseudobulk_group_by
-        ), 
-        pattern = map(preprocessing_output_S_TIER_PLACEHOLDER, slice(sample_names, index  = SLICE_PLACEHOLDER )), 
-        iteration = "list",
-        resources = RESOURCE_PLACEHOLDER
-      )}, 
-      tiers = input_hpc$initialisation$tier,
-      script = glue("{input_hpc$initialisation$store}.R")
+  args_list$factory = function(tiers){
+    list(
+      tar_target_raw("pseudobulk_group_by", readRDS("pseudobulk_group_by.rds") |> quote()),
+      
+      factory_split(
+        "create_pseudobulk_sample", 
+        create_pseudobulk(preprocessing_output_S, sample_names, x = pseudobulk_group_by) |> quote(),
+        tiers, arguments_to_tier = "sample_names", other_arguments_to_tier = "preprocessing_output_S"
+      ) 
+      # ,
+      # 
+      # factory_collapse(
+      #   "my_report7",
+      #   bind_rows(create_pseudobulk_sample) |> quote(),
+      #   "create_pseudobulk_sample",
+      #   tiers
+      # )
     )
     
   }
-
+  
+  # We don't want recursive when we call factory
+  if(input_hpc |> length() > 0) 
+    tar_tier_append(
+      quote(dummy_hpc |> calculate_pseudobulk() %$% calculate_pseudobulk %$% factory),
+      input_hpc$initialisation$tier |> get_positions() ,
+      glue("{input_hpc$initialisation$store}.R")
+    )
+  
+  
   input_hpc |>
     c(list(calculate_pseudobulk = args_list)) |>
     add_class("HPCell")
@@ -700,13 +705,6 @@ evaluate_hpc.HPCell = function(input_hpc) {
     tiers = input_hpc$initialisation$tier,
     script = glue("{input_hpc$initialisation$store}.R")
   )
-  
-  #-----------------------#
-  # Create pseudobulk 
-  #-----------------------#
-  
-  if("calculate_pseudobulk" %in% names(input_hpc))
-      input_hpc$calculate_pseudobulk$target_chunk()
 
   #-----------------------#
   # Close pipeline

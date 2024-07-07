@@ -87,27 +87,30 @@ expand_tiered_arguments <- function(command, tiers, tiered_args) {
 
 
 #' @importFrom stringr str_extract
-factory_split = function(name_output, command, tiers,  other_arguments_to_tier = c() ){
+factory_split = function(name_output, command, tiers, arguments_to_tier = c(), other_arguments_to_tier = c() ){
   
   if(command |> deparse() |> str_detect("%>%") |> any()) 
     stop("HPCell says: no \"%>%\" allowed in the command, please use \"|>\" ")
   
-  input = command |> deparse() |> paste(collapse = "") |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
+  #input = command |> deparse() |> paste(collapse = "") |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
   
   # Filter out arguments to be tiered from the input command
-  other_arguments_to_tier <- other_arguments_to_tier |> str_subset(input, negate = TRUE)
+  other_arguments_to_tier <- other_arguments_to_tier |> str_subset(arguments_to_tier, negate = TRUE)
   
    map2(tiers, names(tiers), ~ {
   
     
     # Pattern
-    pattern = 
-      
-      as.call(
-      as.name("map") |>
-        c(substitute(slice(input, index  = arg ), list(input = as.symbol(input), arg=.x)) ) |>
-        c(glue("{other_arguments_to_tier}_{.y}") |> lapply(as.name))
-    )
+     pattern = as.name("map")
+     
+     if(arguments_to_tier |> length() > 0)
+       pattern = pattern |> c(substitute(slice(input, index  = arg ), list(input = as.symbol(arguments_to_tier), arg=.x)) )
+  
+     if(other_arguments_to_tier |> length() > 0)
+       pattern = pattern |> c(glue("{other_arguments_to_tier}_{.y}") |> lapply(as.name))
+
+     pattern = as.call(pattern)
+
     
     # Resources
     if(length(tiers) == 1)
@@ -127,11 +130,11 @@ factory_split = function(name_output, command, tiers,  other_arguments_to_tier =
   })
 }
 
-factory_collapse = function(name_output, command, tiered_input, tiers){
+factory_collapse = function(name_output, command, tiered_input, tiers, ...){
   
   command = command |> expand_tiered_arguments(names(tiers), tiered_input)
   
-  tar_target_raw(name_output, command) 
+  tar_target_raw(name_output, command, ...) 
 }
 
 # factory_tiering = function(preparation, tiering, collapsing, tiers){
