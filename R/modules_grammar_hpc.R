@@ -92,6 +92,29 @@ remove_empty_DropletUtils.Seurat = function(input_data, total_RNA_count_check = 
   
 }
 
+factory = function(tiers){
+  t1 =   tar_target_raw("total_RNA_count_check", quote(readRDS("total_RNA_count_check.rds")))
+  t2 = imap(tiers, ~ {
+    
+    pattern = substitute(slice(input_read, index  = arg ), list(arg=.x))
+    if(length(tiers) == 1)
+      resources = targets::tar_option_get("resources")
+    else 
+      resources = substitute(tar_resources(crew = tar_resources_crew(arg)) , list(arg = .x))
+    
+    
+    tar_target_raw(
+      glue("empty_droplets_tbl_{.y}"),
+      quote(empty_droplet_id(input_read, total_RNA_count_check)),
+      pattern = pattern,
+      iteration = "list",
+      resources = resources
+    )
+  })
+  
+  list(t1, t2)
+}
+
 #' @export
 remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, ...) {
   
@@ -103,29 +126,7 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   
   total_RNA_count_check |> saveRDS("total_RNA_count_check.rds")
   
-  args_list$factory = function(){
-  t1 =   tar_target_raw("my_total_RNA_count_check", quote(readRDS("total_RNA_count_check.rds")))
-  tiers = input_hpc$initialisation$tier |> get_positions()
-  t2 = imap(tiers, ~ {
-    
-    pattern = substitute(slice(input_read, index  = arg ), list(arg=.x))
-    resources = if_else(
-      length(tiers) == 1,
-      targets::tar_option_get("resources"),
-      substitute(tar_resources(crew = tar_resources_crew(arg)) , list(arg = .x))
-    )
-    
-    tar_target_raw(
-      glue("empty_droplets_tbl_{.y}"),
-      quote(empty_droplet_id(input_read, total_RNA_count_check)),
-      pattern = pattern,
-      iteration = "list",
-      resources = resources
-    )
-  })
-    
-    list(t1, t2)
-  }
+
   
   # Add pipeline step
   input_hpc |>
@@ -200,7 +201,7 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
   
 }
 
-
+#' @importFrom dplyr mutate
 target_chunk_undefined_remove_dead_scuttle = function(input_hpc){
   append_chunk_tiers(
     { tar_target(
@@ -572,6 +573,8 @@ evaluate_hpc.HPCell = function(input_hpc) {
   # Write pipeline to a file
   tar_script({
     library(HPCell)
+    library(dplyr)
+    library(tibble)
     library(targets)
     library(tarchetypes)
     library(crew)
@@ -620,8 +623,9 @@ evaluate_hpc.HPCell = function(input_hpc) {
   #-----------------------#
   
   if("remove_empty_DropletUtils" %in% names(input_hpc))
-    append_chunk_fix(
-      { remove_empty_DropletUtils$factory() } ,
+    tar_tier_append(
+      quote(HPCell:::factory), 
+      tiers,
       glue("{input_hpc$initialisation$store}.R")
     )
     
