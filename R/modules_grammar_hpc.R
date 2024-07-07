@@ -92,8 +92,14 @@ remove_empty_DropletUtils.Seurat = function(input_data, total_RNA_count_check = 
   
 }
 
-
-factory_tier = function(name_output, input, command, tiers){
+#' @importFrom stringr str_extract
+factory_tier = function(name_output, command, tiers){
+  
+  if(command |> deparse() |> str_detect("%>%")) 
+    stop("HPCell says: no \"%>%\" allowed in the command, please use \"|>\" ")
+  
+  input = command |> deparse() |> str_extract("[a-zA-Z0-9_]+\\((.+),.*", group=1) |> as.symbol() 
+  
   tiers |> imap(~ {
     
     pattern = substitute(slice(input, index  = arg ), list(input = input, arg=.x))
@@ -117,7 +123,6 @@ factory = function(tiers){
   t1 = tar_target_raw("total_RNA_count_check", quote(readRDS("total_RNA_count_check.rds")))
   t2 = factory_tier(
     "empty_droplets_tbl", 
-    quote(input_read), 
     quote(empty_droplet_id(input_read, total_RNA_count_check)), 
     tiers
   )
