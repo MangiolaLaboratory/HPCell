@@ -92,9 +92,9 @@ remove_empty_DropletUtils.Seurat = function(input_data, total_RNA_count_check = 
   
 }
 
-factory = function(tiers){
-  t1 =   tar_target_raw("total_RNA_count_check", quote(readRDS("total_RNA_count_check.rds")))
-  t2 = imap(tiers, ~ {
+
+factory_tier = function(name_output, input, command, tiers){
+  tiers |> imap(~ {
     
     pattern = substitute(slice(input_read, index  = arg ), list(arg=.x))
     if(length(tiers) == 1)
@@ -104,13 +104,18 @@ factory = function(tiers){
     
     
     tar_target_raw(
-      glue("empty_droplets_tbl_{.y}"),
+      glue("{name_output}_{.y}"),
       quote(empty_droplet_id(input_read, total_RNA_count_check)),
       pattern = pattern,
       iteration = "list",
       resources = resources
     )
   })
+}
+
+factory = function(tiers){
+  t1 =   tar_target_raw("total_RNA_count_check", quote(readRDS("total_RNA_count_check.rds")))
+  t2 = factory_tier("empty_droplets_tbl", input, command, tiers)
   
   list(t1, t2)
 }
@@ -143,7 +148,8 @@ target_chunk_undefined_remove_empty_DropletUtils = function(){
       input_read |> as_tibble() |> select(.cell) |> mutate(empty_droplet = FALSE),
       pattern = slice(input_read, index  = SLICE_PLACEHOLDER ),
       iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER
+      resources = RESOURCE_PLACEHOLDER,
+      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
     ) }, 
     tiers = input_hpc$initialisation$tier,
     script = glue("{input_hpc$initialisation$store}.R")
@@ -209,7 +215,8 @@ target_chunk_undefined_remove_dead_scuttle = function(input_hpc){
       input_read |> as_tibble() |> dplyr::select(.cell) |> mutate(alive = TRUE), 
       pattern = slice(input_read, index  = SLICE_PLACEHOLDER ), 
       iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER
+      resources = RESOURCE_PLACEHOLDER,
+      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
     ) }, 
     tiers = input_hpc$initialisation$tier,
     script = glue("{input_hpc$initialisation$store}.R")
@@ -265,7 +272,8 @@ target_chunk_undefined_score_cell_cycle_seurat = function(input_hpc){
       NULL,
       pattern = slice(input_read, index  = SLICE_PLACEHOLDER ),
       iteration = "list",
-      resources = RESOURCE_PLACEHOLDER
+      resources = RESOURCE_PLACEHOLDER,
+      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
     ) }, 
     tiers = input_hpc$initialisation$tier,
     script = glue("{input_hpc$initialisation$store}.R")
@@ -320,10 +328,11 @@ target_chunk_undefined_remove_doublets_scDblFinder = function(input_hpc){
   append_chunk_tiers(
     { tar_target(
       doublet_identification_tbl_TIER_PLACEHOLDER, 
-      input_read |> as_tibble() |> dplyr::select(.cell) |> mutate(scDblFinder.class="singlet"), 
+      input_read |> as_tibble() |> select(.cell) |> mutate(scDblFinder.class="singlet"), 
       pattern = slice(input_read, index  = SLICE_PLACEHOLDER ), 
       iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER
+      resources = RESOURCE_PLACEHOLDER,
+      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
     ) }, 
     tiers = input_hpc$initialisation$tier,
     script = glue("{input_hpc$initialisation$store}.R")
@@ -379,7 +388,8 @@ target_chunk_undefined_annotate_cell_type = function(input_hpc){
       NULL, 
       pattern = slice(input_read, index  = SLICE_PLACEHOLDER ), 
       iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER
+      resources = RESOURCE_PLACEHOLDER,
+      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
     ) }, 
     tiers = input_hpc$initialisation$tier,
     script = glue("{input_hpc$initialisation$store}.R")
@@ -446,7 +456,8 @@ target_chunk_undefined_normalise_abundance_seurat_SCT = function(input_hpc){
       NULL, 
       pattern = slice(input_read, index  = SLICE_PLACEHOLDER ), 
       iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER
+      resources = RESOURCE_PLACEHOLDER,
+      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
     ) }, 
     tiers = input_hpc$initialisation$tier,
     script = glue("{input_hpc$initialisation$store}.R")
