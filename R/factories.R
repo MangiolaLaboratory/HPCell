@@ -79,16 +79,15 @@ expand_tiered_arguments <- function(command, tiers, tiered_args) {
   }))
   
   # Construct the new function call string
-  expanded_call <- paste0(function_name, "(", paste(expanded_arguments, collapse = ", "), ")")
-  
-  expanded_call |> rlang::parse_expr()
+  paste0(function_name, "(", paste(expanded_arguments, collapse = ", "), ")")  |> 
+    rlang::parse_expr()
   
 }
 
 
 
 #' @importFrom stringr str_extract
-factory_split = function(name_output, command, tiers){
+factory_split = function(name_output, command, tiers,  other_arguments_to_tier = c() ){
   
   if(command |> deparse() |> str_detect("%>%")) 
     stop("HPCell says: no \"%>%\" allowed in the command, please use \"|>\" ")
@@ -97,7 +96,10 @@ factory_split = function(name_output, command, tiers){
   
   tiers |> imap(~ {
     
+    # Pattern
     pattern = substitute(slice(input, index  = arg ), list(input = input, arg=.x))
+    
+    # Resources
     if(length(tiers) == 1)
       resources = targets::tar_option_get("resources")
     else 
@@ -106,7 +108,7 @@ factory_split = function(name_output, command, tiers){
     
     tar_target_raw(
       glue("{name_output}_{.y}"),
-      command,
+      command |> add_tier_inputs(other_arguments_to_tier, .y),
       pattern = pattern,
       iteration = "list",
       resources = resources

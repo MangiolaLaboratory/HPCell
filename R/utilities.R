@@ -1846,5 +1846,43 @@ vector_to_code <- function(int_vector) {
   return(code_string)
 }
 
-
+#' Add Tier Inputs to a Function Call String
+#'
+#' This function modifies a function call string by appending a tier label to specified arguments.
+#'
+#' @param command A character string representing a function call, e.g., "a(b, c, d)".
+#' @param arguments_to_tier A character vector specifying which arguments should be tiered, e.g., c("b", "c", "d").
+#' @param i A character string representing the tier label to be appended, e.g., "_1".
+#'
+#' @return A character string representing the modified function call with tiered arguments.
+#'
+#' @importFrom stringr str_subset
+#' @importFrom stringr str_replace_all
+#' @importFrom glue glue
+#'
+#' @examples
+#' # Example usage:
+#' command <- "a(b, c, d)"
+#' arguments_to_tier <- c("b", "c", "d")
+#' i <- "_1"
+#' output <- add_tier_inputs(command, arguments_to_tier, i)
+#' print(output)  # Outputs: "a(b_1, c_1, d_1)"
+#'
+#' @noRd
+add_tier_inputs <- function(command, arguments_to_tier, i) {
+  
+  if(length(arguments_to_tier)==0) return(command)
+  
+  input = command |> deparse() |> str_extract("[a-zA-Z0-9_]+\\((.+),.*", group=1) 
+  
+  # Filter out arguments to be tiered from the input command
+  arguments_to_tier <- arguments_to_tier |> str_subset(input, negate = TRUE)
+  
+  # Create a named vector for replacements
+  replacement_regexp <- glue("{arguments_to_tier}_{i}") |> as.character() |> set_names(arguments_to_tier)
+  
+  # Replace the specified arguments in the command with their tiered versions
+  command |> deparse() |> str_replace_all(replacement_regexp) |>  rlang::parse_expr()
+  
+}
 
