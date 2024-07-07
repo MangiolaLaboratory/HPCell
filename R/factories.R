@@ -126,7 +126,7 @@ factory_split = function(name_output, command, tiers,  other_arguments_to_tier =
     
     
     tar_target_raw(
-      glue("{name_output}_{.y}"),
+      glue("{name_output}_{.y}") |> as.character(),
       command |>  add_tier_inputs(other_arguments_to_tier, .y),
       pattern = pattern,
       iteration = "list"
