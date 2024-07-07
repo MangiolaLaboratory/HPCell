@@ -119,15 +119,28 @@ factory_tier = function(name_output, command, tiers){
   })
 }
 
+factory_collapse = function(name_output, command, tiers, tiered_input){
+  
+  command = command |> expand_tiered_arguments(names(tiers), tiered_input)
+  
+  tar_target_raw(name_output, command) 
+}
+
 factory = function(tiers){
   t1 = tar_target_raw("total_RNA_count_check", quote(readRDS("total_RNA_count_check.rds")))
   t2 = factory_tier(
     "empty_droplets_tbl", 
-    quote(empty_droplet_id(input_read, total_RNA_count_check)), 
+    empty_droplet_id(input_read, total_RNA_count_check) |> quote(), 
     tiers
   )
+  t3 = factory_collapse(
+    "my_report",
+    rbind(empty_droplets_tbl) |> quote(),
+    tiers,
+    "empty_droplets_tbl"
+  )
   
-  list(t1, t2)
+  list(t1, t2, t3)
 }
 
 #' @export
