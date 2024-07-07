@@ -93,7 +93,7 @@ remove_empty_DropletUtils.Seurat = function(input_data, total_RNA_count_check = 
 }
 
 #' @importFrom stringr str_extract
-factory_tier = function(name_output, command, tiers){
+factory_split = function(name_output, command, tiers){
   
   if(command |> deparse() |> str_detect("%>%")) 
     stop("HPCell says: no \"%>%\" allowed in the command, please use \"|>\" ")
@@ -119,29 +119,44 @@ factory_tier = function(name_output, command, tiers){
   })
 }
 
-factory_collapse = function(name_output, command, tiers, tiered_input){
+factory_collapse = function(name_output, command, tiered_input, tiers){
   
   command = command |> expand_tiered_arguments(names(tiers), tiered_input)
   
   tar_target_raw(name_output, command) 
 }
 
-factory = function(tiers){
-  t1 = tar_target_raw("total_RNA_count_check", quote(readRDS("total_RNA_count_check.rds")))
-  t2 = factory_tier(
-    "empty_droplets_tbl", 
-    empty_droplet_id(input_read, total_RNA_count_check) |> quote(), 
+factory_tiering = function(preparation, tiering, collapsing, tiers){
+  
+  t1 = tar_target_raw(preparation[[1]], preparation[[2]])
+  t2 = factory_split(
+    tiering[[1]], 
+    tiering[[2]], 
     tiers
   )
   t3 = factory_collapse(
-    "my_report",
-    bind_rows(empty_droplets_tbl) |> quote(),
-    tiers,
-    "empty_droplets_tbl"
+    collapsing[[1]],
+    collapsing[[2]],
+    collapsing[[3]],
+    tiers
+    
   )
   
   list(t1, t2, t3)
 }
+
+
+factory = function(tiers){
+  factory_tiering(
+      list("total_RNA_count_check", readRDS("total_RNA_count_check.rds") |> quote()), 
+      list("empty_droplets_tbl", empty_droplet_id(input_read, total_RNA_count_check) |> quote()), 
+      list("my_report", bind_rows(empty_droplets_tbl) |> quote(), "empty_droplets_tbl"), 
+      tiers
+    )
+}
+
+
+
 
 #' @export
 remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, ...) {
