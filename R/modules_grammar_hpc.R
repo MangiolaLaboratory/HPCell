@@ -135,7 +135,7 @@ factory = function(tiers){
   )
   t3 = factory_collapse(
     "my_report",
-    rbind(empty_droplets_tbl) |> quote(),
+    bind_rows(empty_droplets_tbl) |> quote(),
     tiers,
     "empty_droplets_tbl"
   )
