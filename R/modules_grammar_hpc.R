@@ -105,7 +105,7 @@ factory_tier = function(name_output, input, command, tiers){
     
     tar_target_raw(
       glue("{name_output}_{.y}"),
-      quote(empty_droplet_id(input_read, total_RNA_count_check)),
+      command,
       pattern = pattern,
       iteration = "list",
       resources = resources
@@ -115,7 +115,12 @@ factory_tier = function(name_output, input, command, tiers){
 
 factory = function(tiers){
   t1 = tar_target_raw("total_RNA_count_check", quote(readRDS("total_RNA_count_check.rds")))
-  t2 = factory_tier("empty_droplets_tbl", quote(input_read), command, tiers)
+  t2 = factory_tier(
+    "empty_droplets_tbl", 
+    quote(input_read), 
+    quote(empty_droplet_id(input_read, total_RNA_count_check)), 
+    tiers
+  )
   
   list(t1, t2)
 }
