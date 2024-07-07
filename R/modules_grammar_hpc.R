@@ -92,60 +92,6 @@ remove_empty_DropletUtils.Seurat = function(input_data, total_RNA_count_check = 
   
 }
 
-#' @importFrom stringr str_extract
-factory_split = function(name_output, command, tiers){
-  
-  if(command |> deparse() |> str_detect("%>%")) 
-    stop("HPCell says: no \"%>%\" allowed in the command, please use \"|>\" ")
-  
-  input = command |> deparse() |> str_extract("[a-zA-Z0-9_]+\\((.+),.*", group=1) |> as.symbol() 
-  
-  tiers |> imap(~ {
-    
-    pattern = substitute(slice(input, index  = arg ), list(input = input, arg=.x))
-    if(length(tiers) == 1)
-      resources = targets::tar_option_get("resources")
-    else 
-      resources = substitute(tar_resources(crew = tar_resources_crew(arg)) , list(arg = .x))
-    
-    
-    tar_target_raw(
-      glue("{name_output}_{.y}"),
-      command,
-      pattern = pattern,
-      iteration = "list",
-      resources = resources
-    )
-  })
-}
-
-factory_collapse = function(name_output, command, tiered_input, tiers){
-  
-  command = command |> expand_tiered_arguments(names(tiers), tiered_input)
-  
-  tar_target_raw(name_output, command) 
-}
-
-factory_tiering = function(preparation, tiering, collapsing, tiers){
-  
-  t1 = tar_target_raw(preparation[[1]], preparation[[2]])
-  t2 = factory_split(
-    tiering[[1]], 
-    tiering[[2]], 
-    tiers
-  )
-  t3 = factory_collapse(
-    collapsing[[1]],
-    collapsing[[2]],
-    collapsing[[3]],
-    tiers
-    
-  )
-  
-  list(t1, t2, t3)
-}
-
-
 factory = function(tiers){
   factory_tiering(
       list("total_RNA_count_check", readRDS("total_RNA_count_check.rds") |> quote()), 
@@ -154,8 +100,6 @@ factory = function(tiers){
       tiers
     )
 }
-
-
 
 
 #' @export
