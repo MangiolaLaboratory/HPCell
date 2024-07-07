@@ -52,8 +52,71 @@ initialise_hpc <- function(input_data,
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
-  # Add pipeline step
-  args_list$target_chunk = 
+  # Write targets
+  dir.create(store, showWarnings = FALSE, recursive = TRUE)
+  data_file_names = glue("{store}/{names(input_data)}.rds")
+  map2(
+    input_data,
+    data_file_names,
+    ~ .x |> saveRDS(.y)
+  )
+  
+  data_file_names |> as.list() |>  saveRDS("input_file.rds")
+  
+  computing_resources |> saveRDS("temp_computing_resources.rds")
+  tiers = tier |> 
+    get_positions() 
+  tiers |> 
+    saveRDS("temp_tiers.rds")
+  
+  #sample_column |> saveRDS("sample_column.rds")
+  debug_step |> saveRDS("temp_debug_step.rds")
+  
+  # Write pipeline to a file
+  tar_script({
+    library(HPCell)
+    library(dplyr)
+    library(magrittr)
+    library(tibble)
+    library(targets)
+    library(tarchetypes)
+    library(crew)
+    library(crew.cluster)
+    
+    tar_option_set(
+      memory = "transient",
+      garbage_collection = TRUE,
+      storage = "worker",
+      retrieval = "worker",
+      #error = "continue",
+      format = "qs",
+      debug = readRDS("temp_debug_step.rds"), # Set the target you want to debug.
+      # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
+      controller = crew_controller_group ( readRDS("temp_computing_resources.rds") ), 
+      packages = c("HPCell")
+    )
+    
+    target_list = list(
+      tar_target(read_file, readRDS("input_file.rds"), iteration = "list")
+    )
+    
+    target_list = 
+      target_list |> c(list(
+        
+        # Reading input files
+        tar_target(
+          input_read,
+          readRDS(read_file),
+          pattern = map(read_file),
+          iteration = "list"
+        ) ,
+        tar_target(tiers, readRDS("temp_tiers.rds"))
+      ))
+    
+  }, script = glue("{store}.R"), ask = FALSE)
+  
+  # Set sample names
+  tar_script_append2(
     substitute({
       
       target_list = 
@@ -61,7 +124,9 @@ initialise_hpc <- function(input_data,
           tar_target(sample_names, readRDS("sample_names.rds"))
         ))
       
-    })
+    }),
+    script = glue("{store}.R")
+  )
   
   
   list(initialisation = args_list) |>
@@ -92,16 +157,6 @@ remove_empty_DropletUtils.Seurat = function(input_data, total_RNA_count_check = 
   
 }
 
-factory = function(tiers){
-  factory_tiering(
-      list("total_RNA_count_check", readRDS("total_RNA_count_check.rds") |> quote()), 
-      list("empty_droplets_tbl", empty_droplet_id(input_read, total_RNA_count_check) |> quote()), 
-      list("my_report", bind_rows(empty_droplets_tbl) |> quote(), "empty_droplets_tbl"), 
-      tiers
-    )
-}
-
-
 #' @export
 remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, ...) {
   
@@ -113,7 +168,20 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   
   total_RNA_count_check |> saveRDS("total_RNA_count_check.rds")
   
+  args_list$factory = function(tiers){
+    factory_tiering(
+      list("total_RNA_count_check", readRDS("total_RNA_count_check.rds") |> quote()), 
+      list("empty_droplets_tbl", empty_droplet_id(input_read, total_RNA_count_check) |> quote()), 
+      list("my_report", bind_rows(empty_droplets_tbl) |> quote(), "empty_droplets_tbl"), 
+      tiers
+    )
+  }
 
+  # tar_tier_append(
+  #   quote(dummy_hpc |> remove_empty_DropletUtils() %$% remove_empty_DropletUtils %$% factory), 
+  #   input_hpc$initialisation$tier |> get_positions() ,
+  #   glue("{input_hpc$initialisation$store}.R")
+  # )
   
   # Add pipeline step
   input_hpc |>
@@ -123,7 +191,7 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   
 }
 
-target_chunk_undefined_remove_empty_DropletUtils = function(){
+target_chunk_undefined_remove_empty_DropletUtils = function(input_hpc){
   append_chunk_tiers(
     { tar_target(
       empty_droplets_tbl_TIER_PLACEHOLDER,
@@ -137,7 +205,6 @@ target_chunk_undefined_remove_empty_DropletUtils = function(){
     script = glue("{input_hpc$initialisation$store}.R")
   )
 }
-
 
 
 # Define the generic function
@@ -261,8 +328,6 @@ target_chunk_undefined_score_cell_cycle_seurat = function(input_hpc){
     script = glue("{input_hpc$initialisation$store}.R")
   )
 }
-
-
 
 
 # Define the generic function
@@ -506,122 +571,18 @@ evaluate_hpc <- function(input_data) {
 #' @importFrom purrr imap
 #' @export
 evaluate_hpc.HPCell = function(input_hpc) {
-# 
-#   # Fix GCHECKS
-#   read_file <- NULL
-#   reference_file <- NULL
-#   tissue_file <- NULL
-#   filtered_file <- NULL
-#   sample_column_file <- NULL
-#   cell_type_annotation_column_file <- NULL
-#   reference_label_coarse <- NULL
-#   reference_label_fine <- NULL
-#   input_read <- NULL
-#   unique_tissues <- NULL
-#   reference_read <- NULL
-#   empty_droplets_tbl <- NULL
-#   cell_cycle_score_tbl <- NULL
-#   annotation_label_transfer_tbl <- NULL
-#   alive_identification_tbl <- NULL
-#   doublet_identification_tbl <- NULL
-#   non_batch_variation_removal_S <- NULL
-#   preprocessing_output_S <- NULL
-#   create_pseudobulk_sample <- NULL
-#   sampleName <- NULL
-#   cellAnno <- NULL
-#   pseudobulk_merge_all_samples <- NULL
-#   calc_UMAP_dbl_report <- NULL
-#   variable_gene_list <- NULL
-#   tar_render <- NULL
-#   empty_droplets_report <- NULL
-#   doublet_identification_report <- NULL
-#   Technical_variation_report <- NULL
-#   pseudobulk_processing_report <- NULL
-  
-  #sample_column = enquo(input_hpc$initialisation$sample_column)
-  # cell_type_annotation_column = enquo(cell_type_annotation_column)
-  
-  # Save inputs for passing to targets pipeline
-  # input_data |> CHANGE_ASSAY |> saveRDS("input_file.rds")
-  
-  dir.create(input_hpc$initialisation$store, showWarnings = FALSE, recursive = TRUE)
-  data_file_names = glue("{input_hpc$initialisation$store}/{names(input_hpc$initialisation$input_data)}.rds")
-    map2(
-      input_hpc$initialisation$input_data,
-      data_file_names,
-      ~ .x |> saveRDS(.y)
-    )
-  
-    data_file_names |> as.list() |>  saveRDS("input_file.rds")
-  
-  input_hpc$initialisation$computing_resources |> saveRDS("temp_computing_resources.rds")
-  tiers = input_hpc$initialisation$tier |> 
-    get_positions() 
-  tiers |> 
-    saveRDS("temp_tiers.rds")
-  
-  #sample_column |> saveRDS("sample_column.rds")
-  input_hpc$initialisation$debug_step |> saveRDS("temp_debug_step.rds")
 
-  # Write pipeline to a file
-  tar_script({
-    library(HPCell)
-    library(dplyr)
-    library(tibble)
-    library(targets)
-    library(tarchetypes)
-    library(crew)
-    library(crew.cluster)
-    
-    tar_option_set(
-      memory = "transient",
-      garbage_collection = TRUE,
-      storage = "worker",
-      retrieval = "worker",
-      #error = "continue",
-      format = "qs",
-      debug = readRDS("temp_debug_step.rds"), # Set the target you want to debug.
-      # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
-      controller = crew_controller_group ( readRDS("temp_computing_resources.rds") ), 
-      packages = c("HPCell")
-    )
-    
-    target_list = list(
-      tar_target(read_file, readRDS("input_file.rds"), iteration = "list")
-    )
-    
-    target_list = 
-      target_list |> c(list(
-        
-        # Reading input files
-        tar_target(
-          input_read,
-          readRDS(read_file),
-          pattern = map(read_file),
-          iteration = "list"
-        ) ,
-        tar_target(tiers, readRDS("temp_tiers.rds"))
-      ))
-    
-  }, script = glue("{input_hpc$initialisation$store}.R"), ask = FALSE)
-  
-  # Set sample names
-  tar_script_append2(
-    input_hpc$initialisation$target_chunk,
-    script = glue("{input_hpc$initialisation$store}.R")
-  )
   
   #-----------------------#
   # Empty droplets
   #-----------------------#
-  
   if("remove_empty_DropletUtils" %in% names(input_hpc))
-    tar_tier_append(
-      quote(HPCell:::factory), 
-      tiers,
-      glue("{input_hpc$initialisation$store}.R")
-    )
-    
+  tar_tier_append(
+    quote(dummy_hpc |> remove_empty_DropletUtils() %$% remove_empty_DropletUtils %$% factory), 
+    input_hpc$initialisation$tier |> get_positions() ,
+    glue("{input_hpc$initialisation$store}.R")
+  )
+  
   else
     target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
   
