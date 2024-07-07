@@ -96,7 +96,7 @@ remove_empty_DropletUtils.Seurat = function(input_data, total_RNA_count_check = 
 factory_tier = function(name_output, input, command, tiers){
   tiers |> imap(~ {
     
-    pattern = substitute(slice(input_read, index  = arg ), list(arg=.x))
+    pattern = substitute(slice(input, index  = arg ), list(input = input, arg=.x))
     if(length(tiers) == 1)
       resources = targets::tar_option_get("resources")
     else 
@@ -114,8 +114,8 @@ factory_tier = function(name_output, input, command, tiers){
 }
 
 factory = function(tiers){
-  t1 =   tar_target_raw("total_RNA_count_check", quote(readRDS("total_RNA_count_check.rds")))
-  t2 = factory_tier("empty_droplets_tbl", input, command, tiers)
+  t1 = tar_target_raw("total_RNA_count_check", quote(readRDS("total_RNA_count_check.rds")))
+  t2 = factory_tier("empty_droplets_tbl", quote(input_read), command, tiers)
   
   list(t1, t2)
 }
