@@ -4,7 +4,7 @@
 \alias{create_pseudobulk}
 \title{Create pseudobulk}
 \usage{
-create_pseudobulk(preprocessing_output_S, sample_names, x, ...)
+create_pseudobulk(preprocessing_output_S, sample_names, x = c(), ...)
 }
 \arguments{
 \item{preprocessing_output_S}{Processed dataset from preprocessing.}

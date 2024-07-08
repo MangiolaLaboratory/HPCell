@@ -4,7 +4,7 @@
 #' This function sets up and executes a `targets` pipeline for HPCell. It saves input data and configurations,
 #' writes a pipeline script, and runs the pipeline using the 'targets' package.
 #'
-#' @param input_data Input data for the pipeline.
+#' @param input_hpc Input data for the pipeline.
 #' @param store Directory path for storing the pipeline files.
 #' @param input_reference Optional reference data.
 #' @param tissue Tissue type for the analysis.
@@ -33,20 +33,20 @@
 #' @import crew
 #' @import crew.cluster
 #' @export
-initialise_hpc <- function(input_data,
+initialise_hpc <- function(input_hpc,
                            store =  targets::tar_config_get("store"),
                            computing_resources = crew_controller_local(workers = 1),
-                           tier = rep(1, length(input_data)),
+                           tier = rep(1, length(input_hpc)),
                            debug_step = NULL,
                            RNA_assay_name = "RNA") {
   # Capture all arguments including defaults
   args_list <- as.list(environment())
   
   # if simple names are not set, use integers
-  if(input_data |> names() |> is.null())
-    input_data |> set_names(seq_len(length(input_data)))
+  if(input_hpc |> names() |> is.null())
+    input_hpc |> set_names(seq_len(length(input_hpc)))
   
-  input_data |> names() |> saveRDS("sample_names.rds")
+  input_hpc |> names() |> saveRDS("sample_names.rds")
   #cell_count |> saveRDS("cell_count.rds")
 
   # Optionally, you can evaluate the arguments if they are expressions
@@ -54,9 +54,9 @@ initialise_hpc <- function(input_data,
   
   # Write targets
   dir.create(store, showWarnings = FALSE, recursive = TRUE)
-  data_file_names = glue("{store}/{names(input_data)}.rds")
+  data_file_names = glue("{store}/{names(input_hpc)}.rds")
   map2(
-    input_data,
+    input_hpc,
     data_file_names,
     ~ .x |> saveRDS(.y)
   )
@@ -139,19 +139,19 @@ initialise_hpc <- function(input_data,
 
 # Define the generic function
 #' @export
-remove_empty_DropletUtils <- function(input_data, total_RNA_count_check = NULL, ...) {
+remove_empty_DropletUtils <- function(input_hpc, total_RNA_count_check = NULL, ...) {
   UseMethod("remove_empty_DropletUtils")
 }
 
 #' @export
-remove_empty_DropletUtils.Seurat = function(input_data, total_RNA_count_check = NULL, ...) {
+remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = NULL, ...) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())
   
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
-  list(initialisation = list(input_data = input_data)) |>
+  list(initialisation = list(input_hpc = input_hpc)) |>
     add_class("HPCell") |>
     remove_empty_DropletUtils()
   
@@ -165,8 +165,6 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  total_RNA_count_check |> saveRDS("total_RNA_count_check.rds")
   
   args_list$factory = function(tiers){
     list(
@@ -189,12 +187,17 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   }
 
   # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) 
+  if(input_hpc |> length() > 0) {
+    total_RNA_count_check |> saveRDS("total_RNA_count_check.rds")
+    
     tar_tier_append(
       quote(dummy_hpc |> remove_empty_DropletUtils() %$% remove_empty_DropletUtils %$% factory),
       input_hpc$initialisation$tier |> get_positions() ,
       glue("{input_hpc$initialisation$store}.R")
     )
+    
+  }
+
   
   # Add pipeline step
   input_hpc |>
@@ -222,7 +225,7 @@ target_chunk_undefined_remove_empty_DropletUtils = function(input_hpc){
 
 # Define the generic function
 #' @export
-remove_dead_scuttle <- function(input_data, group_by = NULL) {
+remove_dead_scuttle <- function(input_hpc, group_by = NULL) {
   UseMethod("remove_dead_scuttle")
 }
 
@@ -234,8 +237,6 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
   
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  group_by |> saveRDS("temp_group_by.rds")
   
   args_list$factory = function(tiers){
     list(
@@ -263,12 +264,16 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
   }
   
   # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) 
+  if(input_hpc |> length() > 0) {
+    group_by |> saveRDS("temp_group_by.rds")
+    
     tar_tier_append(
       quote(dummy_hpc |> remove_dead_scuttle() %$% remove_dead_scuttle %$% factory),
       input_hpc$initialisation$tier |> get_positions() ,
       glue("{input_hpc$initialisation$store}.R")
     )
+  }
+
   
   input_hpc |>
     c(list(remove_dead_scuttle = args_list))  |>
@@ -296,7 +301,7 @@ target_chunk_undefined_remove_dead_scuttle = function(input_hpc){
 
 # Define the generic function
 #' @export
-score_cell_cycle_seurat <- function(input_data, ...) {
+score_cell_cycle_seurat <- function(input_hpc, ...) {
   UseMethod("score_cell_cycle_seurat")
 }
 
@@ -427,7 +432,7 @@ target_chunk_undefined_remove_doublets_scDblFinder = function(input_hpc){
 
 # Define the generic function
 #' @export
-annotate_cell_type <- function(input_data, ...) {
+annotate_cell_type <- function(input_hpc, ...) {
   UseMethod("annotate_cell_type")
 }
 
@@ -495,7 +500,7 @@ target_chunk_undefined_annotate_cell_type = function(input_hpc){
 
 # Define the generic function
 #' @export
-normalise_abundance_seurat_SCT <- function(input_data, ...) {
+normalise_abundance_seurat_SCT <- function(input_hpc, ...) {
   UseMethod("normalise_abundance_seurat_SCT")
 }
 
@@ -506,8 +511,6 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
   
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  factors_to_regress |> saveRDS("factors_to_regress.rds")
   
   args_list$factory = function(tiers){
     list(
@@ -537,12 +540,16 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
   }
   
   # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) 
+  if(input_hpc |> length() > 0) {
+    factors_to_regress |> saveRDS("factors_to_regress.rds")
+    
     tar_tier_append(
       quote(dummy_hpc |> normalise_abundance_seurat_SCT() %$% normalise_abundance_seurat_SCT %$% factory),
       input_hpc$initialisation$tier |> get_positions() ,
       glue("{input_hpc$initialisation$store}.R")
     )
+  }
+
   
 
   input_hpc |>
@@ -568,22 +575,18 @@ target_chunk_undefined_normalise_abundance_seurat_SCT = function(input_hpc){
 
 # Define the generic function
 #' @export
-calculate_pseudobulk <- function(input_data, group_by = NULL) {
+calculate_pseudobulk <- function(input_hpc, group_by = NULL) {
   UseMethod("calculate_pseudobulk")
 }
 
 #' @export
 calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   
-  group_by = group_by |> enquo()
-  
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
   
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  group_by |> saveRDS("pseudobulk_group_by.rds")
   
   args_list$factory = function(tiers){
     list(
@@ -607,14 +610,18 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   }
   
   # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) 
+  if(input_hpc |> length() > 0) {
+
+    group_by |> saveRDS("pseudobulk_group_by.rds")
+    
     tar_tier_append(
       quote(dummy_hpc |> calculate_pseudobulk() %$% calculate_pseudobulk %$% factory),
       input_hpc$initialisation$tier |> get_positions() ,
       glue("{input_hpc$initialisation$store}.R")
     )
-  
-  
+  }
+
+
   input_hpc |>
     c(list(calculate_pseudobulk = args_list)) |>
     add_class("HPCell")
@@ -623,7 +630,7 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
 
 # Define the generic function
 #' @export
-evaluate_hpc <- function(input_data) {
+evaluate_hpc <- function(input_hpc) {
   UseMethod("evaluate_hpc")
 }
 
