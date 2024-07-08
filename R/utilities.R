@@ -100,12 +100,14 @@ empty_droplet_id <- function(input_read_RNA_assay,
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
   # Check if empty droplets have been identified
-    if (any(input_read_RNA_assay$nFeature_RNA < total_RNA_count_check)) {
-      filter_empty_droplets <- "TRUE"
-    }
-    else {
-      filter_empty_droplets <- "FALSE"
-    }
+  nFeature_name <- paste0("nFeature_", assay)
+  
+    #if (any(input_read_RNA_assay[[nFeature_name]] < total_RNA_count_check)) {
+  filter_empty_droplets <- "TRUE"
+    # }
+    # else {
+    #   filter_empty_droplets <- "FALSE"
+    # }
   
   significance_threshold = 0.001
   # Genes to exclude
