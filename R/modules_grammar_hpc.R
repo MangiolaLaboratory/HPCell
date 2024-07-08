@@ -743,7 +743,8 @@ evaluate_hpc.HPCell = function(input_hpc) {
     "total_RNA_count_check.rds",
     "temp_group_by.rds",
     "factors_to_regress.rds",
-    "pseudobulk_group_by.rds"
+    "pseudobulk_group_by.rds",
+    "temp_tiers.rds"
   ) |> 
     remove_files_safely()
   
