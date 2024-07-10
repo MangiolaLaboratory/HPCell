@@ -116,16 +116,15 @@ factory_split = function(name_output, command, tiers, arguments_to_tier = c(), o
     if(length(tiers) == 1)
       resources = targets::tar_option_get("resources")
     else 
-      resources = substitute(tar_resources(crew = tar_resources_crew(arg)) , list(arg = .y))
+      resources = tar_resources(crew = tar_resources_crew(.y)) 
     
     
     tar_target_raw(
       glue("{name_output}_{.y}") |> as.character(),
       command |>  add_tier_inputs(other_arguments_to_tier, .y),
       pattern = pattern,
-      iteration = "list"
-      #,
-      #resources = resources
+      iteration = "list",
+      resources = resources
     )
   })
 }

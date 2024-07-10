@@ -474,26 +474,26 @@ c("dev/input_seurat.rds", "dev/input_seurat.rds") |>
     # Default resourced 
    # computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
       
-  #   computing_resources = list(
-  #   
-  #   crew_controller_slurm(
-  #     name = "tier_1",
-  #     slurm_memory_gigabytes_per_cpu = 5,
-  #     slurm_cpus_per_task = 1,
-  #     workers = 50,
-  #     tasks_max = 5,
-  #     verbose = T
-  #   ),
-  #   crew_controller_slurm(
-  #     name = "tier_2",
-  #     slurm_memory_gigabytes_per_cpu = 10,
-  #     slurm_cpus_per_task = 1,
-  #     workers = 50,
-  #     tasks_max = 5,
-  #     verbose = T
-  #   )
-  # )
-  
+    computing_resources = list(
+
+    crew_controller_slurm(
+      name = "tier_1",
+      slurm_memory_gigabytes_per_cpu = 5,
+      slurm_cpus_per_task = 1,
+      workers = 50,
+      tasks_max = 5,
+      verbose = T
+    ),
+    crew_controller_slurm(
+      name = "tier_2",
+      slurm_memory_gigabytes_per_cpu = 10,
+      slurm_cpus_per_task = 1,
+      workers = 50,
+      tasks_max = 5,
+      verbose = T
+    )
+  )
+
   # computing_resources =
   #   list(  crew_controller_local(
   #     name = "tier_1",
