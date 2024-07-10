@@ -459,14 +459,16 @@ input_seurat |> saveRDS("dev/input_seurat.rds")
 
 # Define and execute the pipeline
 c("dev/input_seurat.rds", "dev/input_seurat.rds") |> 
+  purrr::map_chr(here::here) |> 
   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2")) |> 
   
   # Initialise pipeline characteristics
   initialise_hpc(
-    gene_nomenclature == "symbol",
+    gene_nomenclature = "symbol",
+    data_container_type = "seurat_rds",
     # tier = c("tier_1", "tier_2"),
     # 
-    # debug_step = "create_pseudobulk_sample",
+     debug_step = "read_file",
 
     
     # Default resourced 
@@ -505,14 +507,14 @@ c("dev/input_seurat.rds", "dev/input_seurat.rds") |>
   #   )
   # )
     
-  #  Slurm resources
-    computing_resources =
-      crew.cluster::crew_controller_slurm(
-        slurm_memory_gigabytes_per_cpu = 5,
-        workers = 50,
-        tasks_max = 5,
-        verbose = T
-      )
+  # #  Slurm resources
+  #   computing_resources =
+  #     crew.cluster::crew_controller_slurm(
+  #       slurm_memory_gigabytes_per_cpu = 5,
+  #       workers = 50,
+  #       tasks_max = 5,
+  #       verbose = T
+  #     )
   ) |> 
   
   # Remove empty outliers

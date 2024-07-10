@@ -40,7 +40,9 @@ initialise_hpc <- function(input_hpc,
                            tier = rep(1, length(input_hpc)),
                            debug_step = NULL,
                            RNA_assay_name = "RNA",
-                           gene_nomenclature) {
+                           gene_nomenclature = "symbol",
+                           data_container_type) {
+  
   # Capture all arguments including defaults
   args_list <- as.list(environment())
   
@@ -57,14 +59,15 @@ initialise_hpc <- function(input_hpc,
   # Write targets
   dir.create(store, showWarnings = FALSE, recursive = TRUE)
   data_file_names = glue("{store}/{names(input_hpc)}.rds")
-  map2(
-    input_hpc,
-    data_file_names,
-    ~ .x |> saveRDS(.y)
-  )
+  # map2(
+  #   input_hpc,
+  #   data_file_names,
+  #   ~ .x |> saveRDS(.y)
+  # )
   
-  data_file_names |> as.list() |>  saveRDS("input_file.rds")
+  input_hpc |> as.list() |>  saveRDS("input_file.rds")
   gene_nomenclature |> saveRDS("temp_gene_nomenclature.rds")
+  data_container_type |> saveRDS("data_container_type.rds")
   
   computing_resources |> saveRDS("temp_computing_resources.rds")
   tiers = tier |> 
@@ -100,20 +103,23 @@ initialise_hpc <- function(input_hpc,
     )
     
     target_list = list(
-      tar_target(read_file, readRDS("input_file.rds"), iteration = "list"),
-      tar_target(gene_nomenclature, readRDS("temp_gene_nomenclature.rds"), iteration = "list")
+      tar_files(read_file,readRDS("input_file.rds") , iteration = "list"),
+      #tar_target(read_file, readRDS("input_file.rds"), format = "file", iteration = "list"),
+      tar_target(gene_nomenclature, readRDS("temp_gene_nomenclature.rds"), iteration = "list", deployment = "main"),
+      tar_target(data_container_type, readRDS("data_container_type.rds"), deployment = "main")
+    
     )
     
     target_list = 
       target_list |> c(list(
         
-        # Reading input files
-        tar_target(
-          input_read,
-          readRDS(read_file),
-          pattern = map(read_file),
-          iteration = "list"
-        ) ,
+        # # Reading input files
+        # tar_target(
+        #   input_read,
+        #   readRDS(read_file),
+        #   pattern = map(read_file),
+        #   iteration = "list"
+        # ) ,
         tar_target(tiers, readRDS("temp_tiers.rds"), deployment = "main")
       ))
     
@@ -176,8 +182,11 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
       
       factory_split(
         "empty_droplets_tbl", 
-        empty_droplet_id(input_read, total_RNA_count_check) |> quote(),
-        tiers, arguments_to_tier = "input_read"
+        read_file |> 
+          read_data_container(container_type = data_container_type) |> 
+          empty_droplet_id(total_RNA_count_check) |> 
+          quote(),
+        tiers, arguments_to_tier = "read_file"
       )  ,
 
       factory_collapse(
@@ -215,8 +224,9 @@ target_chunk_undefined_remove_empty_DropletUtils = function(input_hpc){
   append_chunk_tiers(
     { tar_target(
       empty_droplets_tbl_TIER_PLACEHOLDER,
-      input_read |> as_tibble() |> select(.cell) |> mutate(empty_droplet = FALSE),
-      pattern = slice(input_read, index  = SLICE_PLACEHOLDER ),
+      read_file |> 
+        read_data_container(container_type = data_container_type) |> as_tibble() |> select(.cell) |> mutate(empty_droplet = FALSE),
+      pattern = slice(read_file, index  = SLICE_PLACEHOLDER ),
       iteration = "list", 
       resources = RESOURCE_PLACEHOLDER,
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
@@ -247,13 +257,15 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
       tar_target_raw("grouping_column", readRDS("temp_group_by.rds") |> quote(), deployment = "main"),
       
       factory_split(
-        "alive_identification_tbl", alive_identification(
-          input_read,
+        "alive_identification_tbl", 
+        read_file |> 
+          read_data_container(container_type = data_container_type) |> 
+          alive_identification(
           empty_droplets_tbl,
           annotation_label_transfer_tbl,
           grouping_column
         ) |> quote(),
-        tiers, arguments_to_tier = "input_read",
+        tiers, arguments_to_tier = "read_file",
         c("empty_droplets_tbl", "annotation_label_transfer_tbl")
      ),
       
@@ -290,8 +302,9 @@ target_chunk_undefined_remove_dead_scuttle = function(input_hpc){
   append_chunk_tiers(
     { tar_target(
       alive_identification_tbl_TIER_PLACEHOLDER, 
-      input_read |> as_tibble() |> dplyr::select(.cell) |> mutate(alive = TRUE), 
-      pattern = slice(input_read, index  = SLICE_PLACEHOLDER ), 
+      read_file |> 
+        read_data_container(container_type = data_container_type) |> as_tibble() |> dplyr::select(.cell) |> mutate(alive = TRUE), 
+      pattern = slice(read_file, index  = SLICE_PLACEHOLDER ), 
       iteration = "list", 
       resources = RESOURCE_PLACEHOLDER,
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
@@ -321,12 +334,13 @@ score_cell_cycle_seurat.HPCell = function(input_hpc) {
   args_list$factory = function(tiers){
     list(
       factory_split(
-        "cell_cycle_score_tbl", cell_cycle_scoring(
-          input_read,
+        "cell_cycle_score_tbl", read_file |> 
+          read_data_container(container_type = data_container_type) |> 
+          cell_cycle_scoring(
           empty_droplets_tbl,  
           gene_nomenclature = gene_nomenclature
         ) |> quote(),
-        tiers, arguments_to_tier = "input_read",
+        tiers, arguments_to_tier = "read_file",
         c("empty_droplets_tbl")
       ),
       
@@ -359,7 +373,7 @@ target_chunk_undefined_score_cell_cycle_seurat = function(input_hpc){
     { tar_target(
       cell_cycle_score_tbl_TIER_PLACEHOLDER,
       NULL,
-      pattern = slice(input_read, index  = SLICE_PLACEHOLDER ),
+      pattern = slice(read_file, index  = SLICE_PLACEHOLDER ),
       iteration = "list",
       resources = RESOURCE_PLACEHOLDER,
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
@@ -387,12 +401,13 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc) {
   args_list$factory = function(tiers){
     list(
       factory_split(
-        "doublet_identification_tbl", doublet_identification(
-          input_read,
+        "doublet_identification_tbl", read_file |> 
+          read_data_container(container_type = data_container_type) |> 
+          doublet_identification(
           empty_droplets_tbl,
           alive_identification_tbl
         ) |> quote(),
-        tiers, arguments_to_tier = "input_read",
+        tiers, arguments_to_tier = "read_file",
         c("empty_droplets_tbl", "alive_identification_tbl")
       ),
       
@@ -424,8 +439,9 @@ target_chunk_undefined_remove_doublets_scDblFinder = function(input_hpc){
   append_chunk_tiers(
     { tar_target(
       doublet_identification_tbl_TIER_PLACEHOLDER, 
-      input_read |> as_tibble() |> select(.cell) |> mutate(scDblFinder.class="singlet"), 
-      pattern = slice(input_read, index  = SLICE_PLACEHOLDER ), 
+      read_file |> 
+        read_data_container(container_type = data_container_type) |> as_tibble() |> select(.cell) |> mutate(scDblFinder.class="singlet"), 
+      pattern = slice(read_file, index  = SLICE_PLACEHOLDER ), 
       iteration = "list", 
       resources = RESOURCE_PLACEHOLDER,
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
@@ -454,12 +470,13 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL) {
       tar_target_raw("reference_read", readRDS("input_reference.rds") |> quote()),
       
       factory_split(
-        "annotation_label_transfer_tbl", annotation_label_transfer(
-          input_read,
+        "annotation_label_transfer_tbl", read_file |> 
+          read_data_container(container_type = data_container_type) |> 
+          annotation_label_transfer(
           empty_droplets_tbl,
           reference_read
         ) |> quote(),
-        tiers, arguments_to_tier = "input_read",
+        tiers, arguments_to_tier = "read_file",
         c("empty_droplets_tbl")
       ),
       
@@ -496,7 +513,7 @@ target_chunk_undefined_annotate_cell_type = function(input_hpc){
     { tar_target(
       annotation_label_transfer_tbl_TIER_PLACEHOLDER, 
       NULL, 
-      pattern = slice(input_read, index  = SLICE_PLACEHOLDER ), 
+      pattern = slice(read_file, index  = SLICE_PLACEHOLDER ), 
       iteration = "list", 
       resources = RESOURCE_PLACEHOLDER,
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
@@ -526,14 +543,15 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
       tar_target_raw("factors_to_regress", readRDS("factors_to_regress.rds") |> quote(), deployment = "main"),
       
       factory_split(
-        "non_batch_variation_removal_S", non_batch_variation_removal(
-          input_read,
+        "non_batch_variation_removal_S", read_file |> 
+          read_data_container(container_type = data_container_type) |> 
+          non_batch_variation_removal(
           empty_droplets_tbl,
           alive_identification_tbl,
           cell_cycle_score_tbl,
           factors_to_regress = factors_to_regress
         ) |> quote(),
-        tiers, arguments_to_tier = "input_read",
+        tiers, arguments_to_tier = "read_file",
         c("empty_droplets_tbl", "alive_identification_tbl", "cell_cycle_score_tbl")
       )
       # ,
@@ -572,7 +590,7 @@ target_chunk_undefined_normalise_abundance_seurat_SCT = function(input_hpc){
     { tar_target(
       non_batch_variation_removal_S_TIER_PLACEHOLDER, 
       NULL, 
-      pattern = slice(input_read, index  = SLICE_PLACEHOLDER ), 
+      pattern = slice(read_file, index  = SLICE_PLACEHOLDER ), 
       iteration = "list", 
       resources = RESOURCE_PLACEHOLDER,
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
@@ -700,14 +718,15 @@ evaluate_hpc.HPCell = function(input_hpc) {
   append_chunk_tiers(
     { tar_target(
       preprocessing_output_S_TIER_PLACEHOLDER, 
-      preprocessing_output(input_read,
-           empty_droplets_tbl_TIER_PLACEHOLDER,
+      read_file |> 
+        read_data_container(container_type = data_container_type) |> 
+        preprocessing_output(empty_droplets_tbl_TIER_PLACEHOLDER,
            non_batch_variation_removal_S_TIER_PLACEHOLDER,
            alive_identification_tbl_TIER_PLACEHOLDER,
            cell_cycle_score_tbl_TIER_PLACEHOLDER,
            annotation_label_transfer_tbl_TIER_PLACEHOLDER,
            doublet_identification_tbl_TIER_PLACEHOLDER),
-      pattern = map(slice(input_read, index  = SLICE_PLACEHOLDER ),
+      pattern = map(slice(read_file, index  = SLICE_PLACEHOLDER ),
                     empty_droplets_tbl_TIER_PLACEHOLDER,
                     non_batch_variation_removal_S_TIER_PLACEHOLDER,
                     alive_identification_tbl_TIER_PLACEHOLDER,
@@ -752,7 +771,8 @@ evaluate_hpc.HPCell = function(input_hpc) {
     "temp_group_by.rds",
     "factors_to_regress.rds",
     "pseudobulk_group_by.rds",
-    "temp_tiers.rds"
+    "temp_tiers.rds",
+    "temp_gene_nomenclature.rds"
   ) |> 
     remove_files_safely()
   
