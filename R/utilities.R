@@ -19,6 +19,65 @@ pow = function(a,b){	a^b }
 # Equals
 eq = function(a,b){	a==b }
 
+#' Read various types of single-cell data
+#' @param file A character vector of length one specifies the file path, or directory path.
+#'   For data format anndata, rds and seurat_h5, use file path.
+#'   For data format hdf5, use directory path.
+#' @param container_type A character vector of length one specifies the input data type.
+#' @return A `[Seurat::Seurat-class]` object
+#' @importFrom HDF5Array loadHDF5SummarizedExperiment
+#' @export
+read_data_container <- function(file,
+                                container_type = "anndata"){
+  
+  if (container_type == "seurat_h5") {
+    if (!requireNamespace("SeuratDisk", quietly = TRUE)) {
+      stop("HPCell says: You need to install the SeuratDisk package.")
+    }
+  }
+  
+  if (container_type == "anndata") {
+    if (!requireNamespace("zellkonverter", quietly = TRUE)) {
+      stop("HPCell says: You need to install the zellkonverter package.")
+    }
+  }
+  
+  switch(container_type,
+         "anndata" = zellkonverter::readH5AD(file, reader = "R", use_hdf5 = TRUE, obs = FALSE, raw = FALSE, layers = FALSE),
+         "sce_rds" = readRDS(file),
+         "seurat_rds" = readRDS(file),
+         "sce_hdf5" = loadHDF5SummarizedExperiment(file),
+         "seurat_h5" = SeuratDisk::LoadH5Seurat(file)
+         )
+}
+
+#' Gene name conversion using ensembl database
+#' 
+#' @param id Character vector of gene names
+#' @param current_nomenclature Character vector of input gene nomenclature
+#' @return A data frame of gene name before and after conversion
+#' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importMethodsFrom ensembldb genes   
+#' @export
+convert_gene_names <- function(id,
+                               current_nomenclature) {
+  if (current_nomenclature == "symbol"){
+    edb <- EnsDb.Hsapiens.v86
+    edb_df <- genes(edb,
+                    columns = c("gene_name", "entrezid", "gene_biotype"),
+                    filter = AnnotationFilter::GeneNameFilter(id),
+                    return.type = "data.frame")   
+  } 
+  else if (current_nomenclature == "ensembl") {
+    edb <- EnsDb.Hsapiens.v86
+    edb_df <- genes(edb,
+                    columns = c("gene_name", "entrezid", "gene_biotype"),
+                    filter = AnnotationFilter::GeneIdFilter(id),
+                    return.type = "data.frame")   
+  }
+  edb_df
+}
+
 #' Identify Empty Droplets in Single-Cell RNA-seq Data
 #'
 #' @description
@@ -27,18 +86,16 @@ eq = function(a,b){	a==b }
 #' based on these criteria. The function returns a tibble containing log probabilities, FDR, and a classification
 #' indicating whether cells are empty droplets.
 #'
-#' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
+#' @param input_read_RNA_assay SingleCellExperiment or Seurat object containing RNA assay data.
 #' @param filter_empty_droplets Logical value indicating whether to filter the input data.
 #'
-#' @return A tibble with columns: logprob, FDR, empty_droplet (classification of droplets).
+#' @return A tibble with columns: logProb, FDR, empty_droplet (classification of droplets).
 #'
 #' @importFrom AnnotationDbi mapIds
 #' @importFrom stringr str_subset
-#' @importFrom dplyr left_join
-#' @importFrom dplyr mutate
+#' @importFrom dplyr left_join mutate
 #' @importFrom tidyr replace_na
-#' @importFrom DropletUtils emptyDrops
-#' @importFrom DropletUtils barcodeRanks
+#' @importFrom DropletUtils emptyDrops barcodeRanks
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' 
@@ -54,12 +111,14 @@ empty_droplet_id <- function(input_read_RNA_assay,
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
   # Check if empty droplets have been identified
-    if (any(input_read_RNA_assay$nFeature_RNA < total_RNA_count_check)) {
-      filter_empty_droplets <- "TRUE"
-    }
-    else {
-      filter_empty_droplets <- "FALSE"
-    }
+  nFeature_name <- paste0("nFeature_", assay)
+  
+    #if (any(input_read_RNA_assay[[nFeature_name]] < total_RNA_count_check)) {
+  filter_empty_droplets <- "TRUE"
+    # }
+    # else {
+    #   filter_empty_droplets <- "FALSE"
+    # }
   
   significance_threshold = 0.001
   # Genes to exclude
@@ -78,8 +137,15 @@ empty_droplet_id <- function(input_read_RNA_assay,
   #   barcode_ranks <- barcodeRanks(input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
   # }
   
+  # Get counts
+  if (inherits(input_read_RNA_assay, "Seurat")) {
+    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+  } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    counts <- assay(input_read_RNA_assay, assay)
+  }
+  filtered_counts <- counts[!(rownames(counts) %in% c(mitochondrial_genes, ribosome_genes)),, drop=FALSE ]
   # Calculate bar-codes ranks
-  barcode_ranks = barcodeRanks(GetAssayData(input_read_RNA_assay, assay, slot = "counts")[!rownames(GetAssayData(input_read_RNA_assay, assay, slot = "counts")) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
+  barcode_ranks <- barcodeRanks(filtered_counts)
   
   # Set the minimum total RNA per cell for ambient RNA
   if(min(barcode_ranks$total) < 100) { lower = 100 } else {
@@ -96,7 +162,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
   if (
     # If filter_empty_droplets
     filter_empty_droplets == "TRUE") {
-    barcode_table <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")[!rownames(GetAssayData(input_read_RNA_assay, assay, slot = "counts")) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
+    barcode_table <- filtered_counts |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>
       mutate(empty_droplet = FDR >= significance_threshold) |>
@@ -163,7 +229,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' @param tissue Type of tissue.
 #'
 #' @return Appropriate reference label for fine categorization.
-#' @noRd
+#' @export
 reference_label_fine_id <- function(tissue) {
   return(
     ifelse(tissue == "pbmc", "monaco_first.labels.fine",
@@ -730,23 +796,31 @@ calc_UMAP <- function(input_seurat){
     as_tibble()
   return(x)
 }
-#' Subsetting input dataset into a list of seurat objects by sample/ tissue 
+#' Subsetting input dataset into a list of SingleCellExperiment or Seurat objects by pre-specified sample column tissue 
 #' 
-#' @importFrom dplyr quo_name
+#' @importFrom dplyr quo_name pull
+#' @importFrom SummarizedExperiment colData
 #' 
-#' @param seurat_object A Seurat object containing input single-cell data
+#' @param sce_obj A `SingleCellExperiment` or `Seurat` object containing input single-cell data
 #' @param sample_column The column name specifying sample information
 #' 
 #' @return The unique sample types in the sample column
 #' 
-#' 
 #'  @description
-#' Function to subset Seurat object by tissue
-get_unique_tissues <- function(seurat_object, sample_column) {
-  sample_column<- quo_name(sample_column)
-  unique_sample <- seurat_object@meta.data |> pull(sample_column) |> unique()
+#' Function to subset `SingleCellExperiment` or `Seurat` object by tissue
+#' @export
+get_unique_tissues <- function(sce_obj, sample_column) {
+  sample_column <- quo_name(sample_column)
   
-  return(unique_sample)
+  if (inherits(sce_obj, "Seurat")) {
+    unique_sample <-
+      sce_obj@meta.data |> pull(sample_column) |> unique()
+  } else if (inherits(sce_obj, "SingleCellExperiment")) {
+    unique_sample <-
+      colData(sce_obj) |> as.data.frame() |> pull(sample_column) |> unique()
+  }
+  
+  unique_sample
 }
 
 #' Check for Strong Evidence

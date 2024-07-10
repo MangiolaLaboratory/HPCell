@@ -14,7 +14,8 @@ run_targets_pipeline(
   filter_empty_droplets = NULL,
   RNA_assay_name = "RNA",
   sample_column = "sample",
-  cell_type_annotation_column = "Cell_type_in_each_tissue"
+  cell_type_annotation_column = "Cell_type_in_each_tissue",
+  data_container_type
 )
 }
 \arguments{
@@ -37,6 +38,15 @@ run_targets_pipeline(
 \item{sample_column}{Column name for sample identification.}
 
 \item{cell_type_annotation_column}{Column name for cell type annotation in input data}
+
+\item{data_container_type}{A character vector of length one specifies the input data type.}
+
+\item{profiler}{Optional step for profilling. Default is FALSE
+data type can be one of the following: anndata for annotated data mainly used in python.
+sce_rds and seurat_rds for \code{SingleCellExperiment} and \code{Seurat} RDS format representively
+seurat_rds for \code{Seurat} RDS format.
+sce_hdf5 for \code{SingleCellExperiment} HDF5 format
+seurat_hdf5 for \code{Seurat} HDF5 format}
 }
 \value{
 The output of the \code{targets} pipeline, typically a pre-processed data set.

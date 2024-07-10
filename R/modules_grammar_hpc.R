@@ -14,6 +14,7 @@
 #' @param RNA_assay_name Name of the RNA assay.
 #' @param sample_column Column name for sample identification.
 #' @param cell_type_annotation_column Column name for cell type annotation in input data
+#' @param gene_nomenclature Character vector indicating gene nomenclature in input_data
 #'
 #' @return The output of the `targets` pipeline, typically a pre-processed data set.
 #'
@@ -38,7 +39,8 @@ initialise_hpc <- function(input_hpc,
                            computing_resources = crew_controller_local(workers = 1),
                            tier = rep(1, length(input_hpc)),
                            debug_step = NULL,
-                           RNA_assay_name = "RNA") {
+                           RNA_assay_name = "RNA",
+                           gene_nomenclature) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())
   
@@ -62,6 +64,7 @@ initialise_hpc <- function(input_hpc,
   )
   
   data_file_names |> as.list() |>  saveRDS("input_file.rds")
+  gene_nomenclature |> saveRDS("temp_gene_nomenclature.rds")
   
   computing_resources |> saveRDS("temp_computing_resources.rds")
   tiers = tier |> 
@@ -97,7 +100,8 @@ initialise_hpc <- function(input_hpc,
     )
     
     target_list = list(
-      tar_target(read_file, readRDS("input_file.rds"), iteration = "list")
+      tar_target(read_file, readRDS("input_file.rds"), iteration = "list"),
+      tar_target(gene_nomenclature, readRDS("temp_gene_nomenclature.rds"), iteration = "list")
     )
     
     target_list = 
@@ -319,7 +323,8 @@ score_cell_cycle_seurat.HPCell = function(input_hpc) {
       factory_split(
         "cell_cycle_score_tbl", cell_cycle_scoring(
           input_read,
-          empty_droplets_tbl
+          empty_droplets_tbl,  
+          gene_nomenclature = gene_nomenclature
         ) |> quote(),
         tiers, arguments_to_tier = "input_read",
         c("empty_droplets_tbl")
@@ -642,7 +647,6 @@ evaluate_hpc <- function(input_hpc) {
 #' @importFrom purrr imap
 #' @export
 evaluate_hpc.HPCell = function(input_hpc) {
-
   
   #-----------------------#
   # Empty droplets

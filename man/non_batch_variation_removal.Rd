@@ -14,9 +14,9 @@ non_batch_variation_removal(
 )
 }
 \arguments{
-\item{input_read_RNA_assay}{Path to demultiplexed data.}
+\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object containing RNA assay data.}
 
-\item{empty_droplets_tbl}{Path to empty droplets data.}
+\item{empty_droplets_tbl}{A tibble identifying empty droplets.}
 
 \item{alive_identification_tbl}{A tibble from alive cell identification.}
 

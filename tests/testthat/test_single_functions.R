@@ -463,10 +463,11 @@ c("dev/input_seurat.rds", "dev/input_seurat.rds") |>
   
   # Initialise pipeline characteristics
   initialise_hpc(
-    
+    gene_nomenclature == "symbol",
     # tier = c("tier_1", "tier_2"),
     # 
-   #  debug_step = "non_batch_variation_removal_S_1",
+    # debug_step = "create_pseudobulk_sample",
+
     
     # Default resourced 
    # computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
