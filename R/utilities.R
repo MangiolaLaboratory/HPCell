@@ -25,18 +25,29 @@ eq = function(a,b){	a==b }
 #'   For data format hdf5, use directory path.
 #' @param container_type A character vector of length one specifies the input data type.
 #' @return A `[Seurat::Seurat-class]` object
-#' @importFrom zellkonverter readH5AD
 #' @importFrom HDF5Array loadHDF5SummarizedExperiment
-#' @importFrom SeuratDisk LoadH5Seurat
 #' @export
 read_data_container <- function(file,
                                 container_type = "anndata"){
+  
+  if (container_type == "seurat_h5") {
+    if (!requireNamespace("SeuratDisk", quietly = TRUE)) {
+      stop("HPCell says: You need to install the SeuratDisk package.")
+    }
+  }
+  
+  if (container_type == "anndata") {
+    if (!requireNamespace("zellkonverter", quietly = TRUE)) {
+      stop("HPCell says: You need to install the zellkonverter package.")
+    }
+  }
+  
   switch(container_type,
-         "anndata" = readH5AD(file, reader = "R", use_hdf5 = TRUE, obs = FALSE, raw = FALSE, layers = FALSE),
+         "anndata" = zellkonverter::readH5AD(file, reader = "R", use_hdf5 = TRUE, obs = FALSE, raw = FALSE, layers = FALSE),
          "sce_rds" = readRDS(file),
          "seurat_rds" = readRDS(file),
          "sce_hdf5" = loadHDF5SummarizedExperiment(file),
-         "seurat_h5" = LoadH5Seurat(file)
+         "seurat_h5" = SeuratDisk::LoadH5Seurat(file)
          )
 }
 
