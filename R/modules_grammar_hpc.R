@@ -110,7 +110,7 @@ initialise_hpc <- function(input_hpc,
           pattern = map(read_file),
           iteration = "list"
         ) ,
-        tar_target(tiers, readRDS("temp_tiers.rds"))
+        tar_target(tiers, readRDS("temp_tiers.rds"), deployment = "main")
       ))
     
   }, script = glue("{store}.R"), ask = FALSE)
@@ -168,7 +168,7 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   
   args_list$factory = function(tiers){
     list(
-      tar_target_raw("total_RNA_count_check", readRDS("total_RNA_count_check.rds") |> quote()),
+      tar_target_raw("total_RNA_count_check", readRDS("total_RNA_count_check.rds") |> quote(), deployment = "main"),
       
       factory_split(
         "empty_droplets_tbl", 
@@ -240,7 +240,7 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
   
   args_list$factory = function(tiers){
     list(
-      tar_target_raw("grouping_column", readRDS("temp_group_by.rds") |> quote()),
+      tar_target_raw("grouping_column", readRDS("temp_group_by.rds") |> quote(), deployment = "main"),
       
       factory_split(
         "alive_identification_tbl", alive_identification(
@@ -518,7 +518,7 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
   
   args_list$factory = function(tiers){
     list(
-      tar_target_raw("factors_to_regress", readRDS("factors_to_regress.rds") |> quote()),
+      tar_target_raw("factors_to_regress", readRDS("factors_to_regress.rds") |> quote(), deployment = "main"),
       
       factory_split(
         "non_batch_variation_removal_S", non_batch_variation_removal(
@@ -594,7 +594,7 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   
   args_list$factory = function(tiers){
     list(
-      tar_target_raw("pseudobulk_group_by", readRDS("pseudobulk_group_by.rds") |> quote()),
+      tar_target_raw("pseudobulk_group_by", readRDS("pseudobulk_group_by.rds") |> quote(), deployment = "main"),
       
       factory_split(
         "create_pseudobulk_sample", 

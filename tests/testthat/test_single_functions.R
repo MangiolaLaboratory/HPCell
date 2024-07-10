@@ -464,10 +464,10 @@ c(input_seurat, input_seurat) |>
     
     # tier = c("tier_1", "tier_2"),
     # 
-     debug_step = "non_batch_variation_removal_S_1",
+   #  debug_step = "non_batch_variation_removal_S_1",
     
     # Default resourced 
-    computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
+   # computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
       
   #   computing_resources = list(
   #   
@@ -502,14 +502,14 @@ c(input_seurat, input_seurat) |>
   #   )
   # )
     
-    # Slurm resources
-    # computing_resources = 
-    #   crew.cluster::crew_controller_slurm(
-    #     slurm_memory_gigabytes_per_cpu = 5,
-    #     workers = 50,
-    #     tasks_max = 5,
-    #     verbose = T
-    #   )
+  #  Slurm resources
+    computing_resources =
+      crew.cluster::crew_controller_slurm(
+        slurm_memory_gigabytes_per_cpu = 5,
+        workers = 50,
+        tasks_max = 5,
+        verbose = T
+      )
   ) |> 
   
   # Remove empty outliers
