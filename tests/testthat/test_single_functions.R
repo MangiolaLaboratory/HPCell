@@ -455,8 +455,10 @@ input_seurat <-
   list() |>
   magrittr::set_names("pbmc3k")
 
+input_seurat |> saveRDS("dev/input_seurat.rds")
+
 # Define and execute the pipeline
-c(input_seurat, input_seurat) |> 
+c("dev/input_seurat.rds", "dev/input_seurat.rds") |> 
   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2")) |> 
   
   # Initialise pipeline characteristics
