@@ -655,6 +655,36 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   
 }
 
+#' @export
+preprocessing_output_factory = function(tiers){
+  
+  
+  
+  list(
+    factory_split(
+      "preprocessing_output_S", 
+      read_file |> 
+        read_data_container(container_type = data_container_type) |> 
+        preprocessing_output(empty_droplets_tbl,
+                             non_batch_variation_removal_S,
+                             alive_identification_tbl,
+                             cell_cycle_score_tbl,
+                             annotation_label_transfer_tbl,
+                             doublet_identification_tbl) |> 
+        quote(),
+      tiers, 
+      arguments_to_tier = "read_file", other_arguments_to_tier = c("empty_droplets_tbl",
+                              "non_batch_variation_removal_S",
+                              "alive_identification_tbl",
+                              "cell_cycle_score_tbl",
+                              "annotation_label_transfer_tbl",
+                              "doublet_identification_tbl")
+    ) 
+    
+  )
+  
+}
+
 # Define the generic function
 #' @export
 evaluate_hpc <- function(input_hpc) {
@@ -715,31 +745,12 @@ evaluate_hpc.HPCell = function(input_hpc) {
   # Create single cell output
   #-----------------------#
   
-  append_chunk_tiers(
-    { tar_target(
-      preprocessing_output_S_TIER_PLACEHOLDER, 
-      read_file |> 
-        read_data_container(container_type = data_container_type) |> 
-        preprocessing_output(empty_droplets_tbl_TIER_PLACEHOLDER,
-           non_batch_variation_removal_S_TIER_PLACEHOLDER,
-           alive_identification_tbl_TIER_PLACEHOLDER,
-           cell_cycle_score_tbl_TIER_PLACEHOLDER,
-           annotation_label_transfer_tbl_TIER_PLACEHOLDER,
-           doublet_identification_tbl_TIER_PLACEHOLDER),
-      pattern = map(slice(read_file, index  = SLICE_PLACEHOLDER ),
-                    empty_droplets_tbl_TIER_PLACEHOLDER,
-                    non_batch_variation_removal_S_TIER_PLACEHOLDER,
-                    alive_identification_tbl_TIER_PLACEHOLDER,
-                    cell_cycle_score_tbl_TIER_PLACEHOLDER,
-                    annotation_label_transfer_tbl_TIER_PLACEHOLDER,
-                    doublet_identification_tbl_TIER_PLACEHOLDER),
-      iteration = "list",
-      resources = RESOURCE_PLACEHOLDER
-    ) }, 
-    tiers = input_hpc$initialisation$tier,
-    script = glue("{input_hpc$initialisation$store}.R")
+  tar_tier_append(
+    quote(preprocessing_output_factory),
+    input_hpc$initialisation$tier |> get_positions() ,
+    glue("{input_hpc$initialisation$store}.R")
   )
-
+  
   #-----------------------#
   # Close pipeline
   #-----------------------#
@@ -778,7 +789,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
   
   return(
     tar_meta(store = glue("{input_hpc$initialisation$store}")) |> 
-      filter(name |> str_detect("preprocessing_output_S_?[1-9]*$")) 
+      filter(name |> str_detect("preprocessing_output_S_?.*$")) 
   )
 }
 

@@ -466,9 +466,9 @@ c("dev/input_seurat.rds", "dev/input_seurat.rds") |>
   initialise_hpc(
     gene_nomenclature = "symbol",
     data_container_type = "seurat_rds",
-    # tier = c("tier_1", "tier_2"),
+    tier = c("tier_1", "tier_2"),
     # 
-     debug_step = "read_file",
+    # debug_step = "read_file",
 
     
     # Default resourced 

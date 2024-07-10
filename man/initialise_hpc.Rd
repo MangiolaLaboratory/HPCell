@@ -11,7 +11,8 @@ initialise_hpc(
   tier = rep(1, length(input_hpc)),
   debug_step = NULL,
   RNA_assay_name = "RNA",
-  gene_nomenclature
+  gene_nomenclature = "symbol",
+  data_container_type
 )
 }
 \arguments{
