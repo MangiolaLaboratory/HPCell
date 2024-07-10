@@ -464,10 +464,10 @@ c(input_seurat, input_seurat) |>
     
     # tier = c("tier_1", "tier_2"),
     # 
-    # debug_step = "create_pseudobulk_sample_1",
+     debug_step = "non_batch_variation_removal_S_1",
     
     # Default resourced 
-    # computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
+    computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
       
   #   computing_resources = list(
   #   

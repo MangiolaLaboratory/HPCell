@@ -180,7 +180,7 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
         "my_report",
         bind_rows(empty_droplets_tbl) |> quote(),
         "empty_droplets_tbl",
-        tiers
+        tiers, packages = c("dplyr")
       )
     )
     
@@ -257,7 +257,7 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
         "my_report2",
         bind_rows(alive_identification_tbl) |> quote(), 
         "alive_identification_tbl",
-        tiers
+        tiers, packages = c("dplyr")
       )
     )
   
@@ -329,7 +329,7 @@ score_cell_cycle_seurat.HPCell = function(input_hpc) {
         "my_report3",
         bind_rows(cell_cycle_score_tbl) |> quote(), 
         "cell_cycle_score_tbl",
-        tiers
+        tiers, packages = c("dplyr")
       )
     )
     
@@ -395,7 +395,7 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc) {
         "my_report4",
         bind_rows(doublet_identification_tbl) |> quote(), 
         "doublet_identification_tbl",
-        tiers
+        tiers, packages = c("dplyr")
       )
     )
     
@@ -462,19 +462,23 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL) {
         "my_report5",
         bind_rows(annotation_label_transfer_tbl) |> quote(), 
         "annotation_label_transfer_tbl",
-        tiers
+        tiers, packages = c("dplyr")
       )
     )
     
   }
   
   # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) 
+  if(input_hpc |> length() > 0) {
+    azimuth_reference |> saveRDS("input_reference.rds")
+    
     tar_tier_append(
       quote(dummy_hpc |> annotate_cell_type() %$% annotate_cell_type %$% factory),
       input_hpc$initialisation$tier |> get_positions() ,
       glue("{input_hpc$initialisation$store}.R")
     )
+  }
+    
   
   input_hpc |>
     c(list(annotate_cell_type = args_list)) |>
@@ -522,7 +526,7 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
           empty_droplets_tbl,
           alive_identification_tbl,
           cell_cycle_score_tbl,
-          factors_to_regress
+          factors_to_regress = factors_to_regress
         ) |> quote(),
         tiers, arguments_to_tier = "input_read",
         c("empty_droplets_tbl", "alive_identification_tbl", "cell_cycle_score_tbl")
