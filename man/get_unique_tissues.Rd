@@ -2,12 +2,12 @@
 % Please edit documentation in R/utilities.R
 \name{get_unique_tissues}
 \alias{get_unique_tissues}
-\title{Subsetting input dataset into a list of seurat objects by sample/ tissue}
+\title{Subsetting input dataset into a list of SingleCellExperiment or Seurat objects by pre-specified sample column tissue}
 \usage{
-get_unique_tissues(seurat_object, sample_column)
+get_unique_tissues(sce_obj, sample_column)
 }
 \arguments{
-\item{seurat_object}{A Seurat object containing input single-cell data}
+\item{sce_obj}{A \code{SingleCellExperiment} or \code{Seurat} object containing input single-cell data}
 
 \item{sample_column}{The column name specifying sample information}
 }
@@ -15,8 +15,8 @@ get_unique_tissues(seurat_object, sample_column)
 The unique sample types in the sample column
 
 @description
-Function to subset Seurat object by tissue
+Function to subset \code{SingleCellExperiment} or \code{Seurat} object by tissue
 }
 \description{
-Subsetting input dataset into a list of seurat objects by sample/ tissue
+Subsetting input dataset into a list of SingleCellExperiment or Seurat objects by pre-specified sample column tissue
 }

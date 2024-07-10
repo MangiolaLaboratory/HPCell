@@ -4,10 +4,15 @@
 \alias{cell_cycle_scoring}
 \title{Cell Cycle Scoring}
 \usage{
-cell_cycle_scoring(input_read_RNA_assay, empty_droplets_tbl, assay = NULL)
+cell_cycle_scoring(
+  input_read_RNA_assay,
+  empty_droplets_tbl,
+  gene_nomenclature,
+  assay = NULL
+)
 }
 \arguments{
-\item{input_read_RNA_assay}{SingleCellExperiment object containing RNA assay data.}
+\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object containing RNA assay data.}
 
 \item{empty_droplets_tbl}{A tibble identifying empty droplets.}
 
