@@ -1,6 +1,16 @@
 HPCell
 ================
 
+Simple to compose, but incredibly scalable single-cell/spatial
+pipelines.
+
+HPCell is a grammar that allows to compose pipe-friendly single-cell and
+spatial pipelines, that are converted to fully integrated,
+dependency-based parallelised workflow, that can be easily deployed to
+HPC with no setup, and easily to cloud-computing.
+
+<img src="man/figures/hpcell_cover.png" width="70%" />
+
 The advent of advanced sequencing techniques, such as microfluidic,
 microwell, droplet-based methodologies, and spatial transcriptomics
 technologies, has significantly transformed the study of biological
@@ -65,9 +75,9 @@ library(Seurat)
 library(SeuratData)
 ```
 
-    ## ── Installed datasets ───────────────────────────────────── SeuratData v0.2.2 ──
+    ## ── Installed datasets ──────────────────────────────── SeuratData v0.2.2.9001 ──
 
-    ## ✔ pbmc3k   3.1.4                        ✔ stxBrain 0.1.1
+    ## ✔ pbmc3k 3.1.4
 
     ## ────────────────────────────────────── Key ─────────────────────────────────────
 
@@ -80,7 +90,29 @@ options(Seurat.object.assay.version = "v5")
 input_seurat <- 
   LoadData("pbmc3k") |>
   _[,1:500] 
+```
 
+    ## Validating object structure
+
+    ## Updating object slots
+
+    ## Ensuring keys are in the proper structure
+
+    ## Warning: Assay RNA changing from Assay to Assay
+
+    ## Ensuring keys are in the proper structure
+
+    ## Ensuring feature names don't have underscores or pipes
+
+    ## Updating slots in RNA
+
+    ## Validating object structure for Assay 'RNA'
+
+    ## Object representation is consistent with the most current Seurat version
+
+    ## Warning: Assay RNA changing from Assay to Assay5
+
+``` r
 file_path = tempfile()
 
 input_seurat |> saveRDS(file_path)

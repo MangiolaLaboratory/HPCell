@@ -3,6 +3,14 @@ title: "HPCell"
 output: github_document
 ---
 
+Simple to compose, but incredibly scalable single-cell/spatial pipelines.
+
+HPCell is a grammar that allows to compose pipe-friendly single-cell and spatial pipelines, that are converted to fully integrated, dependency-based parallelised workflow, that can be easily deployed to HPC with no setup, and easily to cloud-computing.
+
+```{r, echo=FALSE, out.width = "70%"}
+knitr::include_graphics("man/figures/hpcell_cover.png")
+```
+
 The advent of advanced sequencing techniques, such as microfluidic, microwell, droplet-based methodologies, and spatial transcriptomics technologies, has significantly transformed the study of biological systems. These advancements have resulted in extensive human and mouse cell compendiums, necessitating scalable analysis pipelines for large-scale data. Single-cell RNA-seq pipelines, including Nextflow and Snakemake, provide robust solutions but require extensive customisation and scripting. Graphical workflow systems like Galaxy and KNIME, while user-friendly, often lack the scalability needed for large datasets. With tools like Bioconductor, Seurat, scater, and others, the R ecosystem offers comprehensive solutions for single-cell RNA sequencing analysis but faces limitations in parallelisation efficiency. The targets R ecosystem addresses these challenges by offering an integrated, high-performance, cloud-compatible solution that optimises computational resources and enhances workflow robustness. We introduce HPCell, a modular grammar based on tidy principles, utilising targets to parallelise single-cell and spatial R workflows efficiently. HPCell simplifies workflow management, improves scalability and reproducibility, and generates visual reports for enhanced data interpretability, significantly accelerating scientific discovery in the single-cell RNA sequencing community.
 
  The key features of HPCell include:
