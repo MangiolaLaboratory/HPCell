@@ -878,7 +878,7 @@ preprocessing_output <- function(input_read_RNA_assay,
 #' @export
 
 # Create pseudobulk for each sample 
-create_pseudobulk <- function(preprocessing_output_S, sample_names , x = c() ,...) {
+create_pseudobulk <- function(preprocessing_output_S, sample_names , x = c() , external_path) {
   #Fix GChecks 
   .sample = NULL 
   .feature = NULL 
@@ -916,7 +916,11 @@ create_pseudobulk <- function(preprocessing_output_S, sample_names , x = c() ,..
       .sample = c(!!x),
       .transcript = .feature,
       .abundance = count
-    ) 
+    )  |>
+    
+    # Conver to H5
+    saveHDF5SummarizedExperiment(paste0(cache.path, file_id), replace=TRUE)
+  
 }
 
 #' Merge pseudobulk from all samples 
