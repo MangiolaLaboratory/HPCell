@@ -448,14 +448,12 @@ library(magrittr)
 library(Seurat)
 library(SeuratData)
 
-options(Seurat.object.assay.version = "v5")
-input_seurat <- 
-  LoadData("pbmc3k") |>
-  _[,1:500] |> 
-  list() |>
-  magrittr::set_names("pbmc3k")
-
-input_seurat |> saveRDS("dev/input_seurat.rds")
+# options(Seurat.object.assay.version = "v5")
+# input_seurat <-
+#   LoadData("pbmc3k") |>
+#   _[,1:500]
+# 
+# input_seurat |> saveRDS("dev/input_seurat.rds")
 
 # Define and execute the pipeline
 c("dev/input_seurat.rds", "dev/input_seurat.rds") |> 
