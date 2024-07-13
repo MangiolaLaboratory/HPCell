@@ -449,11 +449,9 @@ library(Seurat)
 library(SeuratData)
 
 # options(Seurat.object.assay.version = "v5")
-# input_seurat <- 
+# input_seurat <-
 #   LoadData("pbmc3k") |>
-#   _[,1:500] |> 
-#   list() |>
-#   magrittr::set_names("pbmc3k")
+#   _[,1:500]
 # 
 # input_seurat |> saveRDS("dev/input_seurat.rds")
 
