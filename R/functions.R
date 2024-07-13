@@ -799,8 +799,7 @@ preprocessing_output <- function(input_read_RNA_assay,
       assay(spe, "SCT") <- non_batch_variation_removal_S
   }
   
-  
-  
+
   input_read_RNA_assay <- input_read_RNA_assay |>
     
     # Filter dead cells
@@ -875,33 +874,56 @@ preprocessing_output <- function(input_read_RNA_assay,
 #' @importFrom purrr map
 #' @importFrom scater isOutlier
 #' @importFrom SummarizedExperiment rowData
+#' @importFrom digest digest
+#' @importFrom HDF5Array saveHDF5SummarizedExperiment
+#' 
 #' @export
 
 # Create pseudobulk for each sample 
-create_pseudobulk <- function(preprocessing_output_S, sample_names , x = c() , external_path) {
+create_pseudobulk <- function(input_read_RNA_assay, sample_names, 
+                              empty_droplets_tbl,
+                              alive_identification_tbl,
+                              cell_cycle_score_tbl,
+                              annotation_label_transfer_tbl,
+                              doublet_identification_tbl ,  
+                              x = c() , 
+                              external_path, assays = NULL) {
   #Fix GChecks 
   .sample = NULL 
   .feature = NULL 
   data_source = NULL 
   symbol = NULL 
   
-  #browser()
-  # x = enquo(x)
+  dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
   
-  if(preprocessing_output_S |> is("Seurat"))
-    assays = Seurat::Assays(preprocessing_output_S)
-  else if(preprocessing_output_S |> is("SingleCellExperiment"))
-    assays = preprocessing_output_S@assays |> names()
+  preprocessing_output_S = 
+    preprocessing_output(input_read_RNA_assay,
+         empty_droplets_tbl,
+         non_batch_variation_removal_S = NULL, 
+         alive_identification_tbl, 
+         cell_cycle_score_tbl, 
+         annotation_label_transfer_tbl, 
+         doublet_identification_tbl)
+
   
+  if(assays |> is.null()){
+    if(preprocessing_output_S |> is("Seurat"))
+      assays = Seurat::Assays(preprocessing_output_S)
+    else if(preprocessing_output_S |> is("SingleCellExperiment"))
+      assays = preprocessing_output_S@assays |> names()
+    
+  }
+
   # Aggregate cells
-  preprocessing_output_S |> 
+  pseudobulk = 
+    preprocessing_output_S |> 
     
     # Add sample
     mutate(sample_hpc = sample_names) |> 
     
     # Aggregate
-    aggregate_cells(c(sample_hpc, any_of(x)), slot = "data") |>
-    as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
+    aggregate_cells(c(sample_hpc, any_of(x)), slot = "data", assays = assays) |>
+    as_SummarizedExperiment(.sample, .feature, any_of(assays)) |>
     pivot_longer(cols = assays, names_to = "data_source", values_to = "count") |>
     filter(!count |> is.na()) |>
     
@@ -916,10 +938,14 @@ create_pseudobulk <- function(preprocessing_output_S, sample_names , x = c() , e
       .sample = c(!!x),
       .transcript = .feature,
       .abundance = count
-    )  |>
+    ) 
+  
+  file_name = glue("{external_path}/{digest(pseudobulk)}")
+  
+  pseudobulk |>
     
     # Conver to H5
-    saveHDF5SummarizedExperiment(paste0(cache.path, file_id), replace=TRUE)
+    saveHDF5SummarizedExperiment(dir = file_name, replace=TRUE, as.sparse=TRUE)
   
 }
 

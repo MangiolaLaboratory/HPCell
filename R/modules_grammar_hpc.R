@@ -103,7 +103,7 @@ initialise_hpc <- function(input_hpc,
     )
     
     target_list = list(
-      tar_files(read_file,readRDS("input_file.rds") , iteration = "list"),
+      tar_files(read_file,readRDS("input_file.rds") , iteration = "list", deployment = "main"),
       #tar_target(read_file, readRDS("input_file.rds"), format = "file", iteration = "list"),
       tar_target(gene_nomenclature, readRDS("temp_gene_nomenclature.rds"), iteration = "list", deployment = "main"),
       tar_target(data_container_type, readRDS("data_container_type.rds"), deployment = "main")
@@ -616,19 +616,32 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
   args_list$factory = function(tiers, external_path){
+    
     list(
       tar_target_raw("pseudobulk_group_by", readRDS("pseudobulk_group_by.rds") |> quote(), deployment = "main"),
       
       factory_split(
         "create_pseudobulk_sample", 
-        create_pseudobulk(
-          preprocessing_output_S, 
-          sample_names, 
-          x = pseudobulk_group_by, 
-          external_path = e
-        ) |> 
+        read_file |> 
+          read_data_container(container_type = data_container_type) |> 
+          create_pseudobulk(
+            sample_names, 
+            empty_droplets_tbl,
+            alive_identification_tbl,
+            cell_cycle_score_tbl,
+            annotation_label_transfer_tbl,
+            doublet_identification_tbl,
+            
+            x = pseudobulk_group_by, 
+            external_path = e
+          ) |> 
           substitute(env = list(e = external_path)),
-        tiers, arguments_to_tier = "sample_names", other_arguments_to_tier = "preprocessing_output_S"
+        tiers, arguments_to_tier = c("read_file", "sample_names"), 
+        other_arguments_to_tier = c("empty_droplets_tbl",
+                                     "alive_identification_tbl",
+                                     "cell_cycle_score_tbl",
+                                     "annotation_label_transfer_tbl",
+                                     "doublet_identification_tbl")
       ) 
       # ,
       # 
@@ -650,7 +663,8 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
     tar_tier_append(
       quote(dummy_hpc |> calculate_pseudobulk() %$% calculate_pseudobulk %$% factory),
       input_hpc$initialisation$tier |> get_positions() ,
-      script = glue("{input_hpc$initialisation$store}.R")
+      script = glue("{input_hpc$initialisation$store}.R"), 
+      external_path = glue("{input_hpc$initialisation$store}/external")
     )
   }
 

@@ -612,21 +612,31 @@ tar_append = function(code, script = targets::tar_config_get("script")){
     write_lines(script, append = TRUE)
 }
 
-tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script")){
+tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script"), ...){
+  
+  # Deal with additional argument
+  additional_args <- list(...)
+  
+  # Construct the call with substitute
+  if (length(additional_args) > 0) {
+    call_expr = 
+      as.call(c(fx, list(tiers), additional_args)) |> 
+      deparse()
+  } else {
+    call_expr <- substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
+      deparse() 
+  }
   
   # Add prefix
   "target_list = c(target_list, list(" |> 
-    c(
-      substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
-        deparse() 
-    ) |> 
+    c(call_expr ) |> 
     
     # Add suffix
     c("))") |> 
     
     # Write
     write_lines(script, append = TRUE)
-
+  
 }
 
 #' Append Code to a Targets Script
