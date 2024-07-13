@@ -5,17 +5,18 @@
 \title{Run Targets Pipeline for HPCell}
 \usage{
 initialise_hpc(
-  input_data,
+  input_hpc,
   store = targets::tar_config_get("store"),
   computing_resources = crew_controller_local(workers = 1),
-  tier = rep(1, length(input_data)),
+  tier = rep(1, length(input_hpc)),
   debug_step = NULL,
   RNA_assay_name = "RNA",
-  gene_nomenclature
+  gene_nomenclature = "symbol",
+  data_container_type
 )
 }
 \arguments{
-\item{input_data}{Input data for the pipeline.}
+\item{input_hpc}{Input data for the pipeline.}
 
 \item{store}{Directory path for storing the pipeline files.}
 

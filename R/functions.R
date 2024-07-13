@@ -878,7 +878,7 @@ preprocessing_output <- function(input_read_RNA_assay,
 #' @export
 
 # Create pseudobulk for each sample 
-create_pseudobulk <- function(preprocessing_output_S, sample_names ,x ,...) {
+create_pseudobulk <- function(preprocessing_output_S, sample_names , x = c() ,...) {
   #Fix GChecks 
   .sample = NULL 
   .feature = NULL 
@@ -900,7 +900,7 @@ create_pseudobulk <- function(preprocessing_output_S, sample_names ,x ,...) {
     mutate(sample_hpc = sample_names) |> 
     
     # Aggregate
-    aggregate_cells(c(sample_hpc, !!x), slot = "data") |>
+    aggregate_cells(c(sample_hpc, any_of(x)), slot = "data") |>
     as_SummarizedExperiment(.sample, .feature, any_of(c("RNA", "ADT"))) |>
     pivot_longer(cols = assays, names_to = "data_source", values_to = "count") |>
     filter(!count |> is.na()) |>

@@ -593,6 +593,41 @@ tar_script_append = function(code, script = targets::tar_config_get("script")){
     write_lines(script, append = TRUE)
 }
 
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+tar_append = function(code, script = targets::tar_config_get("script")){
+  substitute(code) |>
+    deparse() |>
+    head(-1) |>
+    tail(-1) |>
+    write_lines(script, append = TRUE)
+}
+
+tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script")){
+  
+  # Add prefix
+  "target_list = c(target_list, list(" |> 
+    c(
+      substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
+        deparse() 
+    ) |> 
+    
+    # Add suffix
+    c("))") |> 
+    
+    # Write
+    write_lines(script, append = TRUE)
+
+}
 
 #' Append Code to a Targets Script
 #'
@@ -1884,3 +1919,45 @@ vector_to_code <- function(int_vector) {
   
   return(code_string)
 }
+
+#' Add Tier Inputs to a Function Call String
+#'
+#' This function modifies a function call string by appending a tier label to specified arguments.
+#'
+#' @param command A character string representing a function call, e.g., "a(b, c, d)".
+#' @param arguments_to_tier A character vector specifying which arguments should be tiered, e.g., c("b", "c", "d").
+#' @param i A character string representing the tier label to be appended, e.g., "_1".
+#'
+#' @return A character string representing the modified function call with tiered arguments.
+#'
+#' @importFrom stringr str_subset
+#' @importFrom stringr str_replace_all
+#' @importFrom glue glue
+#'
+#' @examples
+#' # Example usage:
+#' command <- "a(b, c, d)"
+#' arguments_to_tier <- c("b", "c", "d")
+#' i <- "_1"
+#' output <- add_tier_inputs(command, arguments_to_tier, i)
+#' print(output)  # Outputs: "a(b_1, c_1, d_1)"
+#'
+#' @noRd
+add_tier_inputs <- function(command, arguments_to_tier, i) {
+  
+  if(length(arguments_to_tier)==0) return(command)
+  
+  command = command |> deparse() |> paste(collapse = "")  
+  input = command |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
+  
+  # Filter out arguments to be tiered from the input command
+  #arguments_to_tier <- arguments_to_tier |> str_subset(input, negate = TRUE)
+  
+  # Create a named vector for replacements
+  replacement_regexp <- glue("{arguments_to_tier}_{i}") |> as.character() |> set_names(arguments_to_tier)
+  
+  # Replace the specified arguments in the command with their tiered versions
+  command |> str_replace_all(replacement_regexp) |>  rlang::parse_expr()
+  
+}
+
