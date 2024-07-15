@@ -103,7 +103,7 @@ initialise_hpc <- function(input_hpc,
     )
     
     target_list = list(
-      tar_files(read_file,readRDS("input_file.rds") , iteration = "list"),
+      tar_files(read_file,readRDS("input_file.rds"), iteration = "list"),
       #tar_target(read_file, readRDS("input_file.rds"), format = "file", iteration = "list"),
       tar_target(gene_nomenclature, readRDS("temp_gene_nomenclature.rds"), iteration = "list", deployment = "main"),
       tar_target(data_container_type, readRDS("data_container_type.rds"), deployment = "main")
@@ -263,7 +263,8 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
           alive_identification(
           empty_droplets_tbl,
           annotation_label_transfer_tbl,
-          grouping_column
+          grouping_column,
+          gene_nomenclature = gene_nomenclature
         ) |> quote(),
         tiers, arguments_to_tier = "read_file",
         c("empty_droplets_tbl", "annotation_label_transfer_tbl")
@@ -474,7 +475,8 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL) {
           read_data_container(container_type = data_container_type) |> 
           annotation_label_transfer(
           empty_droplets_tbl,
-          reference_read
+          reference_read,
+          gene_nomenclature = gene_nomenclature
         ) |> quote(),
         tiers, arguments_to_tier = "read_file",
         c("empty_droplets_tbl")
