@@ -406,10 +406,11 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc) {
           read_data_container(container_type = data_container_type) |> 
           doublet_identification(
           empty_droplets_tbl,
-          alive_identification_tbl
+          alive_identification_tbl,
+          annotation_label_transfer_tbl
         ) |> quote(),
         tiers, arguments_to_tier = "read_file",
-        c("empty_droplets_tbl", "alive_identification_tbl")
+        c("empty_droplets_tbl", "alive_identification_tbl", "annotation_label_transfer_tbl")
       ),
       
       factory_collapse(

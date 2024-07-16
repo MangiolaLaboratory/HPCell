@@ -533,7 +533,7 @@ alive_identification <- function(input_read_RNA_assay,
 doublet_identification <- function(input_read_RNA_assay, 
                                    empty_droplets_tbl, 
                                    alive_identification_tbl, 
-                                   #annotation_label_transfer_tbl, 
+                                   annotation_label_transfer_tbl, 
                                    #reference_label_fine,
                                    assay = NULL){
   
@@ -564,13 +564,19 @@ doublet_identification <- function(input_read_RNA_assay,
       filter(!empty_droplet) |>
       
       # Filter dead
-      left_join(alive_identification_tbl |> select(.cell, high_mitochondrion, high_ribosome), by = ".cell") |>
+      left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
       filter(alive) 
   }
   
+  # Condition as scDblFinder only accept assay "counts"
+  if (!"counts" %in% (SummarizedExperiment::assays(filter_empty_droplets) |> names())){
+    SummarizedExperiment::assay(filter_empty_droplets, "counts") <-  
+      SummarizedExperiment::assay(filter_empty_droplets, assay)
+    SummarizedExperiment::assay(filter_empty_droplets, assay) <- NULL
+  }
   # Annotate
   filter_empty_droplets <- filter_empty_droplets |> 
-    #left_join(annotation_label_transfer_tbl, by = ".cell")|>
+    left_join(annotation_label_transfer_tbl, by = ".cell")|>
     #scDblFinder(clusters = ifelse(reference_label_fine=="none", TRUE, reference_label_fine)) |>
     scDblFinder(clusters = NULL) 
   
@@ -700,13 +706,13 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     SummarizedExperiment::assay(input_read_RNA_assay, assay) <- 
       SummarizedExperiment::assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
-    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL,
+    input_read_RNA_assay_transform <- input_read_RNA_assay |> as.Seurat(data = NULL,
                                                               counts = assay) |>
       RenameAssays(originalexp = assay)
   }
   
   counts =
-    input_read_RNA_assay |>
+    input_read_RNA_assay_transform |>
     left_join(empty_droplets_tbl, by = ".cell") |>
     filter(!empty_droplet) |>
     
@@ -766,7 +772,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
       select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
   }
   
-  normalized_data[[my_assays]] 
+  #normalized_data[[my_assays]] 
   
 }
 
@@ -786,11 +792,9 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
 #'
 #' @return Processed and filter_empty_droplets dataset.
 #'
-#' @importFrom dplyr left_join
-#' @importFrom dplyr filter
-#' @importFrom dplyr select
+#' @importFrom dplyr left_join filter select
 #' @import SeuratObject
-#' @importFrom SummarizedExperiment left_join
+#' @importFrom SummarizedExperiment left_join assay assay<-
 #' @import tidySingleCellExperiment 
 #' @import tidyseurat
 #' @importFrom magrittr not
@@ -823,7 +827,7 @@ preprocessing_output <- function(input_read_RNA_assay,
     if(input_read_RNA_assay |> is("Seurat"))
       input_read_RNA_assay[["SCT"]] = non_batch_variation_removal_S
     else if(input_read_RNA_assay |> is("SingleCellExperiment"))
-      assay(spe, "SCT") <- non_batch_variation_removal_S
+      assay(input_read_RNA_assay, "SCT") <- non_batch_variation_removal_S
   }
   
   
