@@ -1971,3 +1971,58 @@ add_tier_inputs <- function(command, arguments_to_tier, i) {
   
 }
 
+#' Divide Features into Chunks
+#'
+#' This function divides a list of features into chunks of a specified size.
+#'
+#' @param features A vector of features to be divided into chunks.
+#' @param chunk_size The size of each chunk. Defaults to 100.
+#' @return A tibble with the features and their corresponding chunk numbers.
+#' @importFrom dplyr tibble
+#' @importFrom purrr rep_along
+#' @importFrom purrr ceiling
+#' @importFrom purrr seq_len
+#' @importFrom purrr length
+#' @importFrom magrittr divide_by
+#' 
+#' 
+#' @export
+feature_chunks = function(features, chunk_size = 100){
+  
+  chunks = 
+    features |> 
+    length() |> 
+    divide_by(chunk_size) |> 
+    ceiling() |> 
+    seq_len() |>
+    rep(each = chunk_size, length.out = length(features))
+  
+  
+  tibble(feature = features, chunk___ = chunks) 
+  
+}
+
+add_missingh_genes_to_se = function(se, all_genes, missing_genes){
+  
+  missing_matrix = matrix(rep(0, length(missing_genes) * ncol(se)), ncol = ncol(se))
+  
+  rownames(missing_matrix) = missing_genes
+  colnames(missing_matrix) = colnames(se)
+  
+  new_se = SummarizedExperiment(assay = list(count = missing_matrix))
+  colData(new_se) = colData(se)
+  
+  empty_rowdata = 
+    rowData(se)[seq_len(nrow(new_se)),,drop=FALSE] |> 
+    as_tibble() |> 
+    mutate(across(everything(), ~ replace(., TRUE, NA))) |> 
+    DataFrame(row.names = missing_genes)
+  
+  rowData(new_se) =  empty_rowdata
+  
+  se = se |> rbind(new_se)
+  
+  se[all_genes,]
+  
+}
+
