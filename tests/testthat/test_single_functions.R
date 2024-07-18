@@ -549,6 +549,8 @@ c("dev/input_seurat_treated_1.rds",
     "G2M.Score"
   )) |> 
   
-  calculate_pseudobulk(group_by = "monaco_first.labels.fine")
+  calculate_pseudobulk(group_by = "monaco_first.labels.fine") |> 
+  
+  test_differential_abundance(~ condition)
 
 
