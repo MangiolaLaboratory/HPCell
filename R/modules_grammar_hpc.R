@@ -618,11 +618,10 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
-  args_list$factory = function(tiers, external_path){
+  args_list$factory = function(tiers, external_path, pseudobulk_group_by = ""){
     
     list(
-      tar_target_raw("pseudobulk_group_by", readRDS("pseudobulk_group_by.rds") |> quote(), deployment = "main"),
-      
+
       factory_split(
         "create_pseudobulk_sample", 
         read_file |> 
@@ -638,7 +637,7 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
             x = pseudobulk_group_by, 
             external_path = e
           ) |> 
-          substitute(env = list(e = external_path)),
+          substitute(env = list(e = external_path, pseudobulk_group_by = pseudobulk_group_by)),
         tiers, arguments_to_tier = c("read_file", "sample_names"), 
         other_arguments_to_tier = c("empty_droplets_tbl",
                                     "alive_identification_tbl",
@@ -667,13 +666,12 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   # We don't want recursive when we call factory
   if(input_hpc |> length() > 0) {
 
-    group_by |> saveRDS("pseudobulk_group_by.rds")
-    
     tar_tier_append(
       quote(dummy_hpc |> calculate_pseudobulk() %$% calculate_pseudobulk %$% factory),
       input_hpc$initialisation$tier |> get_positions() ,
       script = glue("{input_hpc$initialisation$store}.R"), 
-      external_path = glue("{input_hpc$initialisation$store}/external")
+      external_path = glue("{input_hpc$initialisation$store}/external"),
+      pseudobulk_group_by = group_by
     )
   }
 

@@ -479,11 +479,11 @@ c("dev/input_seurat_treated_1.rds",
     data_container_type = "seurat_rds",
     # tier = c("tier_1", "tier_2"),
     # 
-      debug_step = "de_f026caa183a4eb8f",
+      debug_step = "create_pseudobulk_sample_1_c144ac3eea61903f",
 
     
     # Default resourced 
-  #  computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
+    computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
       
   #   computing_resources = list(
   # 
@@ -518,14 +518,14 @@ c("dev/input_seurat_treated_1.rds",
   #   )
   # )
     
-  # #  Slurm resources
-    computing_resources =
-      crew.cluster::crew_controller_slurm(
-        slurm_memory_gigabytes_per_cpu = 5,
-        workers = 50,
-        tasks_max = 5,
-        verbose = T
-      )
+  # # #  Slurm resources
+  #   computing_resources =
+  #     crew.cluster::crew_controller_slurm(
+  #       slurm_memory_gigabytes_per_cpu = 5,
+  #       workers = 50,
+  #       tasks_max = 5,
+  #       verbose = T
+  #     )
   ) |> 
   
   # Remove empty outliers
