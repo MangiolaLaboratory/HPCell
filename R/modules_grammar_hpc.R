@@ -667,7 +667,7 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
     )
     
   }
-  
+   
   # We don't want recursive when we call factory
   if(input_hpc |> length() > 0) {
 
