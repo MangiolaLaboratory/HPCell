@@ -455,21 +455,27 @@ library(tidySingleCellExperiment)
 #   _[,1:500]
 # 
 # change_seurat_counts = function(data){
-#   
-#   data@assays$RNA@counts = data@assays$RNA@counts * runif(min = 0, max = 2, n = length(data@assays$RNA@counts))
-#   data@assays$RNA@data = data@assays$RNA@counts
+# 
+#   data@assays$RNA$counts = data@assays$RNA$counts * runif(min = 0, max = 2, n = length(data@assays$RNA$counts))
+#   data@assays$RNA$data = data@assays$RNA$counts
 #   data
 # }
 # input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_treated_1.rds")
 # input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_treated_2.rds")
 # input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_UNtreated_1.rds")
 # input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_UNtreated_2.rds")
+# 
+# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |> as.SingleCellExperiment() |>   saveRDS("dev/input_seurat_treated_1_SCE.rds")
+# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_treated_2_SCE.rds")
+# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_1_SCE.rds")
+# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_2_SCE.rds")
+
 
 # Define and execute the pipeline
-c("dev/input_seurat_treated_1.rds", 
-  "dev/input_seurat_treated_2.rds",
-  "dev/input_seurat_UNtreated_1.rds",
-  "dev/input_seurat_UNtreated_2.rds") |> 
+c("dev/input_seurat_treated_1_SCE.rds", 
+  "dev/input_seurat_treated_2_SCE.rds",
+  "dev/input_seurat_UNtreated_1_SCE.rds",
+  "dev/input_seurat_UNtreated_2_SCE.rds") |> 
   purrr::map_chr(here::here) |> 
   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
   
@@ -479,7 +485,7 @@ c("dev/input_seurat_treated_1.rds",
     data_container_type = "seurat_rds",
     # tier = c("tier_1", "tier_2"),
     # 
-      debug_step = "create_pseudobulk_sample_1_c144ac3eea61903f",
+     debug_step = "create_pseudobulk_sample_1_0dcbdb0cc9b69ebd",
 
     
     # Default resourced 
