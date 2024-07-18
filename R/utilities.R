@@ -612,21 +612,31 @@ tar_append = function(code, script = targets::tar_config_get("script")){
     write_lines(script, append = TRUE)
 }
 
-tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script")){
+tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script"), ...){
+  
+  # Deal with additional argument
+  additional_args <- list(...)
+  
+  # Construct the call with substitute
+  if (length(additional_args) > 0) {
+    call_expr = 
+      as.call(c(fx, list(tiers), additional_args)) |> 
+      deparse()
+  } else {
+    call_expr <- substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
+      deparse() 
+  }
   
   # Add prefix
   "target_list = c(target_list, list(" |> 
-    c(
-      substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
-        deparse() 
-    ) |> 
+    c(call_expr ) |> 
     
     # Add suffix
     c("))") |> 
     
     # Write
     write_lines(script, append = TRUE)
-
+  
 }
 
 #' Append Code to a Targets Script
@@ -1958,6 +1968,61 @@ add_tier_inputs <- function(command, arguments_to_tier, i) {
   
   # Replace the specified arguments in the command with their tiered versions
   command |> str_replace_all(replacement_regexp) |>  rlang::parse_expr()
+  
+}
+
+#' Divide Features into Chunks
+#'
+#' This function divides a list of features into chunks of a specified size.
+#'
+#' @param features A vector of features to be divided into chunks.
+#' @param chunk_size The size of each chunk. Defaults to 100.
+#' @return A tibble with the features and their corresponding chunk numbers.
+#' @importFrom dplyr tibble
+#' @importFrom purrr rep_along
+#' @importFrom purrr ceiling
+#' @importFrom purrr seq_len
+#' @importFrom purrr length
+#' @importFrom magrittr divide_by
+#' 
+#' 
+#' @export
+feature_chunks = function(features, chunk_size = 100){
+  
+  chunks = 
+    features |> 
+    length() |> 
+    divide_by(chunk_size) |> 
+    ceiling() |> 
+    seq_len() |>
+    rep(each = chunk_size, length.out = length(features))
+  
+  
+  tibble(feature = features, chunk___ = chunks) 
+  
+}
+
+add_missingh_genes_to_se = function(se, all_genes, missing_genes){
+  
+  missing_matrix = matrix(rep(0, length(missing_genes) * ncol(se)), ncol = ncol(se))
+  
+  rownames(missing_matrix) = missing_genes
+  colnames(missing_matrix) = colnames(se)
+  
+  new_se = SummarizedExperiment(assay = list(count = missing_matrix))
+  colData(new_se) = colData(se)
+  
+  empty_rowdata = 
+    rowData(se)[seq_len(nrow(new_se)),,drop=FALSE] |> 
+    as_tibble() |> 
+    mutate(across(everything(), ~ replace(., TRUE, NA))) |> 
+    DataFrame(row.names = missing_genes)
+  
+  rowData(new_se) =  empty_rowdata
+  
+  se = se |> rbind(new_se)
+  
+  se[all_genes,]
   
 }
 
