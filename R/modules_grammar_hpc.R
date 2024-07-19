@@ -626,7 +626,7 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   args_list$factory = function(tiers, external_path, pseudobulk_group_by = ""){
     
     list(
-      tar_target_raw("pseudobulk_group_by", pseudobulk_group_by) ,
+      tar_target_raw("pseudobulk_group_by", pseudobulk_group_by, deployment = "main") ,
 
       factory_split(
         "create_pseudobulk_sample", 
