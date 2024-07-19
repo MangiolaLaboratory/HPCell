@@ -626,6 +626,7 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   args_list$factory = function(tiers, external_path, pseudobulk_group_by = ""){
     
     list(
+      tar_target_raw("pseudobulk_group_by", pseudobulk_group_by) ,
 
       factory_split(
         "create_pseudobulk_sample", 
@@ -642,7 +643,7 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
             x = pseudobulk_group_by, 
             external_path = e
           ) |> 
-          substitute(env = list(e = external_path, pseudobulk_group_by = pseudobulk_group_by)),
+          substitute(env = list(e = external_path)),
         tiers, arguments_to_tier = c("read_file", "sample_names"), 
         other_arguments_to_tier = c("empty_droplets_tbl",
                                     "alive_identification_tbl",
