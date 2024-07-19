@@ -740,7 +740,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
     
     # Rename assay
     assay_name_old = input_read_RNA_assay |> Assays() |> _[[1]]
-    input_read_RNA_assay = input_read_RNA_assay |>
+    input_read_RNA_assay_transform = input_read_RNA_assay |>
       RenameAssays(
         assay.name = assay_name_old,
         new.assay.name = assay)
@@ -996,7 +996,7 @@ create_pseudobulk <- function(input_read_RNA_assay, sample_names,
     mutate(sample_hpc = sample_names) |> 
     
     # Aggregate
-    aggregate_cells(c(sample_hpc, any_of(x)), slot = "data", assays = assays) 
+    aggregate_cells(c(sample_hpc, !!sym(x)), slot = "data", assays = assays) 
   
   # If I start from Seurat
   if(pseudobulk |> is("data.frame"))
@@ -1005,7 +1005,7 @@ create_pseudobulk <- function(input_read_RNA_assay, sample_names,
   
   rowData(pseudobulk)$feature_name = rownames(pseudobulk)
   
-  pseudobulk |>
+  pseudobulk = pseudobulk |>
     pivot_longer(cols = assays, names_to = "data_source", values_to = "count") |>
     filter(!count |> is.na()) |>
     

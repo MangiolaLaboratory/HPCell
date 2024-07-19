@@ -417,8 +417,10 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc) {
           annotation_label_transfer_tbl
         ) |> quote(),
         tiers, arguments_to_tier = "read_file",
-        other_arguments_to_tier = c("empty_droplets_tbl", "alive_identification_tbl"), 
-        other_arguments_to_map = c("empty_droplets_tbl", "alive_identification_tbl")
+        other_arguments_to_tier = c("empty_droplets_tbl", "alive_identification_tbl", 
+                                    "annotation_label_transfer_tbl"), 
+        other_arguments_to_map = c("empty_droplets_tbl", "alive_identification_tbl", 
+                                   "annotation_label_transfer_tbl")
       ),
       
       factory_collapse(
