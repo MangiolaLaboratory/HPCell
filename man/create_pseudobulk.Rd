@@ -4,22 +4,33 @@
 \alias{create_pseudobulk}
 \title{Create pseudobulk}
 \usage{
-create_pseudobulk(preprocessing_output_S, sample_names, x = c(), ...)
+create_pseudobulk(
+  input_read_RNA_assay,
+  sample_names,
+  empty_droplets_tbl,
+  alive_identification_tbl,
+  cell_cycle_score_tbl,
+  annotation_label_transfer_tbl,
+  doublet_identification_tbl,
+  x = c(),
+  external_path,
+  assays = NULL
+)
 }
 \arguments{
-\item{preprocessing_output_S}{Processed dataset from preprocessing.}
-
 \item{x}{A grouping variable used to aggregate cells into pseudobulk samples.
 This variable should be present in the \code{preprocessing_output_S} object and
 typically represents a factor such as sample ID or condition.}
+
+\item{assays}{A character vector specifying the assays to be included in the
+pseudobulk creation process, such as c("RNA", "ADT").}
+
+\item{preprocessing_output_S}{Processed dataset from preprocessing.}
 
 \item{...}{Additional arguments passed to internal functions used within
 \code{create_pseudobulk}. This includes parameters for customization of
 aggregation, data transformation, or any other process involved in the
 creation of pseudobulk samples.}
-
-\item{assays}{A character vector specifying the assays to be included in the
-pseudobulk creation process, such as c("RNA", "ADT").}
 }
 \value{
 List containing pseudobulk data aggregated by sample and by both sample and cell type.

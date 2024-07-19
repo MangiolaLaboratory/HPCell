@@ -62,32 +62,23 @@ parse_function_call <- function(command) {
 #' @export
 expand_tiered_arguments <- function(command, tiers, tiered_args) {
   # Parse the input command to get function name and arguments
-  parsed_call <- parse_function_call(command)
+  command_character = command |> deparse() 
   
-  function_name <- parsed_call$function_name
-  arguments <- parsed_call$arguments
+  for(t in tiered_args){
+    command_character = command_character |> str_replace(t, paste0(t, "_", tiers) |> paste(collapse = ", "))
+  } 
   
-  # Expand tiered arguments
-  expanded_arguments <- unlist(lapply(arguments, function(arg) {
-    if (arg %in% tiered_args) {
-      # Generate tiered arguments using provided tier labels
-      return(paste0(arg, "_", tiers))
-    } else {
-      # Return the argument as is
-      return(arg)
-    }
-  }))
-  
-  # Construct the new function call string
-  paste0(function_name, "(", paste(expanded_arguments, collapse = ", "), ")")  |> 
-    rlang::parse_expr()
-  
+  command_character |> rlang::parse_expr()
+
 }
 
 
 
 #' @importFrom stringr str_extract
-factory_split = function(name_output, command, tiers, arguments_to_tier = c(), other_arguments_to_tier = c() ){
+factory_split = function(
+    name_output, command, tiers, arguments_to_tier = c(), other_arguments_to_tier = c(), 
+    other_arguments_to_map = c(), packages = targets::tar_option_get("packages") 
+  ){
   
   if(command |> deparse() |> str_detect("%>%") |> any()) 
     stop("HPCell says: no \"%>%\" allowed in the command, please use \"|>\" ")
@@ -95,22 +86,36 @@ factory_split = function(name_output, command, tiers, arguments_to_tier = c(), o
   #input = command |> deparse() |> paste(collapse = "") |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
   
   # Filter out arguments to be tiered from the input command
-  other_arguments_to_tier <- other_arguments_to_tier |> str_subset(arguments_to_tier, negate = TRUE)
+  if(arguments_to_tier |> length() > 0)
+    other_arguments_to_tier <- other_arguments_to_tier |> str_subset(paste(arguments_to_tier, collapse = "|"), negate = TRUE)
   
-   map2(tiers, names(tiers), ~ {
-  
+  map2(tiers, names(tiers), ~ {
+    
+    my_index = .x
     
     # Pattern
-     pattern = as.name("map")
-     
-     if(arguments_to_tier |> length() > 0)
-       pattern = pattern |> c(substitute(slice(input, index  = arg ), list(input = as.symbol(arguments_to_tier), arg=.x)) )
-  
-     if(other_arguments_to_tier |> length() > 0)
-       pattern = pattern |> c(glue("{other_arguments_to_tier}_{.y}") |> lapply(as.name))
+    pattern = NULL
+    if(
+      arguments_to_tier |> length() > 0 |
+      other_arguments_to_map |> length() > 0
+    ){
+      
+      pattern = as.name("map")
+      
+      if(arguments_to_tier |> length() > 0)
+        pattern = pattern |> c(
+          arguments_to_tier |>
+            map(~ substitute(slice(input, index  = arg ), list(input = as.symbol(.x), arg=my_index)) )
+        )
+      
+      if(other_arguments_to_map |> length() > 0)
+        pattern = pattern |> c(glue("{other_arguments_to_map}_{.y}") |> lapply(as.name))
+      
+      pattern = as.call(pattern)
+      
+    }
 
-     pattern = as.call(pattern)
-
+    
     
     # Resources
     if(length(tiers) == 1)
@@ -120,11 +125,12 @@ factory_split = function(name_output, command, tiers, arguments_to_tier = c(), o
     
     
     tar_target_raw(
-      glue("{name_output}_{.y}") |> as.character(),
-      command |>  add_tier_inputs(other_arguments_to_tier, .y),
+      name = glue("{name_output}_{.y}") |> as.character(), 
+      command = command |>  add_tier_inputs(other_arguments_to_tier, .y),
       pattern = pattern,
       iteration = "list",
-      resources = resources
+      resources = resources,
+      packages = packages
     )
   })
 }
@@ -155,3 +161,24 @@ factory_collapse = function(name_output, command, tiered_input, tiers, ...){
 #   
 #   list(t1, t2, t3)
 # }
+
+factory_merge_pseudobulk = function(se_list_input, output_se, tiers){
+  list(
+    factory_split(
+      name_output = "pseudobulk_group", 
+      command = i |> pseudobulk_merge() |> 
+        substitute(env = list(i = as.name(se_list_input))), 
+      tiers = tiers, 
+      arguments_to_tier = c(), 
+      other_arguments_to_tier = c(se_list_input), 
+      packages = c("tidySummarizedExperiment")
+    ) ,
+    
+    factory_collapse(
+      name_output = output_se, 
+      command = cbind(pseudobulk_group) |> quote(), 
+      tiers = tiers, 
+      tiered_input = "pseudobulk_group"
+    )
+  )
+}
