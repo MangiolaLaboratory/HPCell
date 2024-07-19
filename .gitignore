@@ -4,34 +4,27 @@
 .RData
 .Ruserdata
 HPCell.Rproj
-
 # macOS files
 .DS_Store
 ._.DS_Store
-
 # Generic files
 file*
-
 # Project specific files
 input_file.rds
 input_reference.rds
 reference_azimuth.rds
 temp_computing_resources.rds
 tissue.rds
-
 # Exclude pipeline and scripts directories and files
 pipeline_store
 pipeline_store.R
 R_scripts
 Pipeline_benchmarking_script.R
-
 # Data directories
 fibrosis_data
-
 # Temporary R data files
 .RDataTmp*
-
 # Exclude README from being ignored
 !README.md
-
 _target*
+dev

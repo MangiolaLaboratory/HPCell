@@ -445,54 +445,71 @@ library(HPCell)
 library(crew)
 library(crew.cluster)
 library(magrittr)
-library(Seurat)
-library(SeuratData)
+library(tidySingleCellExperiment)
 
-options(Seurat.object.assay.version = "v5")
-input_seurat <- 
-  LoadData("pbmc3k") |>
-  _[,1:500] |> 
-  list() |>
-  magrittr::set_names("pbmc3k")
+# library(Seurat)
+# library(SeuratData)
+# options(Seurat.object.assay.version = "v5")
+# input_seurat <-
+#   LoadData("pbmc3k") |>
+#   _[,1:500]
+# 
+# change_seurat_counts = function(data){
+# 
+#   data@assays$RNA$counts = data@assays$RNA$counts * runif(min = 0, max = 2, n = length(data@assays$RNA$counts))
+#   data@assays$RNA$data = data@assays$RNA$counts
+#   data
+# }
+# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_treated_1.rds")
+# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_treated_2.rds")
+# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_UNtreated_1.rds")
+# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_UNtreated_2.rds")
+# 
+# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |> as.SingleCellExperiment() |>   saveRDS("dev/input_seurat_treated_1_SCE.rds")
+# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_treated_2_SCE.rds")
+# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_1_SCE.rds")
+# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_2_SCE.rds")
 
-input_seurat |> saveRDS("dev/input_seurat.rds")
 
 # Define and execute the pipeline
-c("dev/input_seurat.rds", "dev/input_seurat.rds") |> 
+c("dev/input_seurat_treated_1_SCE.rds", 
+  "dev/input_seurat_treated_2_SCE.rds",
+  "dev/input_seurat_UNtreated_1_SCE.rds",
+  "dev/input_seurat_UNtreated_2_SCE.rds") |> 
   purrr::map_chr(here::here) |> 
-  magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2")) |> 
+  magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
   
   # Initialise pipeline characteristics
   initialise_hpc(
     gene_nomenclature = "symbol",
     data_container_type = "seurat_rds",
-    tier = c("tier_1", "tier_2"),
+    # tier = c("tier_1", "tier_2"),
     # 
-    # debug_step = "read_file",
+     debug_step = "create_pseudobulk_sample_1_0dcbdb0cc9b69ebd",
 
     
     # Default resourced 
-   # computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
+    computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
       
-    computing_resources = list(
-
-    crew_controller_slurm(
-      name = "tier_1",
-      slurm_memory_gigabytes_per_cpu = 5,
-      slurm_cpus_per_task = 1,
-      workers = 50,
-      tasks_max = 5,
-      verbose = T
-    ),
-    crew_controller_slurm(
-      name = "tier_2",
-      slurm_memory_gigabytes_per_cpu = 10,
-      slurm_cpus_per_task = 1,
-      workers = 50,
-      tasks_max = 5,
-      verbose = T
-    )
-  )
+  #   computing_resources = list(
+  # 
+  #   crew_controller_slurm(
+  #     name = "tier_1",
+  #     slurm_memory_gigabytes_per_cpu = 5,
+  #     slurm_cpus_per_task = 1,
+  #     workers = 50,
+  #     tasks_max = 5,
+  #     verbose = T
+  #   ),
+  #   crew_controller_slurm(
+  #     name = "tier_2",
+  #     slurm_memory_gigabytes_per_cpu = 10,
+  #     slurm_cpus_per_task = 1,
+  #     workers = 50,
+  #     tasks_max = 5,
+  #     verbose = T
+  #   )
+  # )
 
   # computing_resources =
   #   list(  crew_controller_local(
@@ -507,7 +524,7 @@ c("dev/input_seurat.rds", "dev/input_seurat.rds") |>
   #   )
   # )
     
-  # #  Slurm resources
+  # # #  Slurm resources
   #   computing_resources =
   #     crew.cluster::crew_controller_slurm(
   #       slurm_memory_gigabytes_per_cpu = 5,
