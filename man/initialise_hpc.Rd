@@ -16,7 +16,7 @@ initialise_hpc(
 )
 }
 \arguments{
-\item{input_hpc}{Input data for the pipeline.}
+\item{input_hpc}{Character vector of input data path for the pipeline.}
 
 \item{store}{Directory path for storing the pipeline files.}
 
@@ -27,6 +27,13 @@ initialise_hpc(
 \item{RNA_assay_name}{Name of the RNA assay.}
 
 \item{gene_nomenclature}{Character vector indicating gene nomenclature in input_data}
+
+\item{data_container_type}{A character vector of length one specifies the input data type.
+The accepted input data type are:
+sce_rds for \code{SingleCellExperiment} RDS,
+seurat_rds for \code{Seurat} RDS,
+sce_hdf5 for \code{SingleCellExperiment} HDF5-based object
+seurat_h5 for \code{Seurat} HDF5-based object}
 
 \item{input_reference}{Optional reference data.}
 

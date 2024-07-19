@@ -4,7 +4,7 @@
 #' This function sets up and executes a `targets` pipeline for HPCell. It saves input data and configurations,
 #' writes a pipeline script, and runs the pipeline using the 'targets' package.
 #'
-#' @param input_hpc Input data for the pipeline.
+#' @param input_hpc Character vector of input data path for the pipeline.
 #' @param store Directory path for storing the pipeline files.
 #' @param input_reference Optional reference data.
 #' @param tissue Tissue type for the analysis.
@@ -15,7 +15,12 @@
 #' @param sample_column Column name for sample identification.
 #' @param cell_type_annotation_column Column name for cell type annotation in input data
 #' @param gene_nomenclature Character vector indicating gene nomenclature in input_data
-#'
+#' @param data_container_type A character vector of length one specifies the input data type.
+#' The accepted input data type are: 
+#' sce_rds for `SingleCellExperiment` RDS,
+#' seurat_rds for `Seurat` RDS,
+#' sce_hdf5 for `SingleCellExperiment` HDF5-based object
+#' seurat_h5 for `Seurat` HDF5-based object
 #' @return The output of the `targets` pipeline, typically a pre-processed data set.
 #'
 #' @importFrom glue glue
@@ -103,7 +108,7 @@ initialise_hpc <- function(input_hpc,
     )
     
     target_list = list(
-      tar_files(read_file,readRDS("input_file.rds"), iteration = "list"),
+      tar_files(read_file,readRDS("input_file.rds") , iteration = "list", deployment = "main"),
       #tar_target(read_file, readRDS("input_file.rds"), format = "file", iteration = "list"),
       tar_target(gene_nomenclature, readRDS("temp_gene_nomenclature.rds"), iteration = "list", deployment = "main"),
       tar_target(data_container_type, readRDS("data_container_type.rds"), deployment = "main")
@@ -186,9 +191,10 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
           read_data_container(container_type = data_container_type) |> 
           empty_droplet_id(total_RNA_count_check) |> 
           quote(),
-        tiers, arguments_to_tier = "read_file"
+        tiers, 
+        arguments_to_tier = "read_file"
       )  ,
-
+      
       factory_collapse(
         "my_report",
         bind_rows(empty_droplets_tbl) |> quote(),
@@ -198,7 +204,7 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
     )
     
   }
-
+  
   # We don't want recursive when we call factory
   if(input_hpc |> length() > 0) {
     total_RNA_count_check |> saveRDS("total_RNA_count_check.rds")
@@ -267,8 +273,9 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
           gene_nomenclature = gene_nomenclature
         ) |> quote(),
         tiers, arguments_to_tier = "read_file",
-        c("empty_droplets_tbl", "annotation_label_transfer_tbl")
-     ),
+        other_arguments_to_tier = c("empty_droplets_tbl", "annotation_label_transfer_tbl"), 
+        other_arguments_to_map = c("empty_droplets_tbl", "annotation_label_transfer_tbl")
+      ),
       
       factory_collapse(
         "my_report2",
@@ -277,7 +284,7 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
         tiers, packages = c("dplyr")
       )
     )
-  
+    
   }
   
   # We don't want recursive when we call factory
@@ -338,11 +345,11 @@ score_cell_cycle_seurat.HPCell = function(input_hpc) {
         "cell_cycle_score_tbl", read_file |> 
           read_data_container(container_type = data_container_type) |> 
           cell_cycle_scoring(
-          empty_droplets_tbl,  
-          gene_nomenclature = gene_nomenclature
-        ) |> quote(),
+            empty_droplets_tbl,  
+            gene_nomenclature = gene_nomenclature
+          ) |> quote(),
         tiers, arguments_to_tier = "read_file",
-        c("empty_droplets_tbl")
+        other_arguments_to_tier = c("empty_droplets_tbl"), other_arguments_to_map = c("empty_droplets_tbl")
       ),
       
       factory_collapse(
@@ -410,7 +417,8 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc) {
           annotation_label_transfer_tbl
         ) |> quote(),
         tiers, arguments_to_tier = "read_file",
-        c("empty_droplets_tbl", "alive_identification_tbl", "annotation_label_transfer_tbl")
+        other_arguments_to_tier = c("empty_droplets_tbl", "alive_identification_tbl"), 
+        other_arguments_to_map = c("empty_droplets_tbl", "alive_identification_tbl")
       ),
       
       factory_collapse(
@@ -480,7 +488,7 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL) {
           gene_nomenclature = gene_nomenclature
         ) |> quote(),
         tiers, arguments_to_tier = "read_file",
-        c("empty_droplets_tbl")
+        other_arguments_to_tier = c("empty_droplets_tbl"), other_arguments_to_map = c("empty_droplets_tbl") 
       ),
       
       factory_collapse(
@@ -549,13 +557,14 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
         "non_batch_variation_removal_S", read_file |> 
           read_data_container(container_type = data_container_type) |> 
           non_batch_variation_removal(
-          empty_droplets_tbl,
-          alive_identification_tbl,
-          cell_cycle_score_tbl,
-          factors_to_regress = factors_to_regress
-        ) |> quote(),
+            empty_droplets_tbl,
+            alive_identification_tbl,
+            cell_cycle_score_tbl,
+            factors_to_regress = factors_to_regress
+          ) |> quote(),
         tiers, arguments_to_tier = "read_file",
-        c("empty_droplets_tbl", "alive_identification_tbl", "cell_cycle_score_tbl")
+        other_arguments_to_tier = c("empty_droplets_tbl", "alive_identification_tbl", "cell_cycle_score_tbl"), other_arguments_to_map = c("empty_droplets_tbl", "alive_identification_tbl", "cell_cycle_score_tbl")
+        
       )
       # ,
       # 
@@ -618,14 +627,38 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
-  args_list$factory = function(tiers){
+  args_list$factory = function(tiers, external_path, pseudobulk_group_by = ""){
+    
     list(
-      tar_target_raw("pseudobulk_group_by", readRDS("pseudobulk_group_by.rds") |> quote(), deployment = "main"),
-      
+
       factory_split(
         "create_pseudobulk_sample", 
-        create_pseudobulk(preprocessing_output_S, sample_names, x = pseudobulk_group_by) |> quote(),
-        tiers, arguments_to_tier = "sample_names", other_arguments_to_tier = "preprocessing_output_S"
+        read_file |> 
+          read_data_container(container_type = data_container_type) |> 
+          create_pseudobulk(
+            sample_names, 
+            empty_droplets_tbl,
+            alive_identification_tbl,
+            cell_cycle_score_tbl,
+            annotation_label_transfer_tbl,
+            doublet_identification_tbl,
+            
+            x = pseudobulk_group_by, 
+            external_path = e
+          ) |> 
+          substitute(env = list(e = external_path, pseudobulk_group_by = pseudobulk_group_by)),
+        tiers, arguments_to_tier = c("read_file", "sample_names"), 
+        other_arguments_to_tier = c("empty_droplets_tbl",
+                                    "alive_identification_tbl",
+                                    "cell_cycle_score_tbl",
+                                    "annotation_label_transfer_tbl",
+                                    "doublet_identification_tbl"),
+        other_arguments_to_map = c("empty_droplets_tbl",
+                                   "alive_identification_tbl",
+                                   "cell_cycle_score_tbl",
+                                   "annotation_label_transfer_tbl",
+                                   "doublet_identification_tbl")
+        
       ) 
       # ,
       # 
@@ -642,12 +675,12 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   # We don't want recursive when we call factory
   if(input_hpc |> length() > 0) {
 
-    group_by |> saveRDS("pseudobulk_group_by.rds")
-    
     tar_tier_append(
       quote(dummy_hpc |> calculate_pseudobulk() %$% calculate_pseudobulk %$% factory),
       input_hpc$initialisation$tier |> get_positions() ,
-      glue("{input_hpc$initialisation$store}.R")
+      script = glue("{input_hpc$initialisation$store}.R"), 
+      external_path = glue("{input_hpc$initialisation$store}/external"),
+      pseudobulk_group_by = group_by
     )
   }
 
@@ -676,17 +709,25 @@ preprocessing_output_factory = function(tiers){
                              doublet_identification_tbl) |> 
         quote(),
       tiers, 
-      arguments_to_tier = "read_file", other_arguments_to_tier = c("empty_droplets_tbl",
-                              "non_batch_variation_removal_S",
-                              "alive_identification_tbl",
-                              "cell_cycle_score_tbl",
-                              "annotation_label_transfer_tbl",
-                              "doublet_identification_tbl")
+      arguments_to_tier = "read_file", 
+      other_arguments_to_tier = c("empty_droplets_tbl",
+                                  "non_batch_variation_removal_S",
+                                  "alive_identification_tbl",
+                                  "cell_cycle_score_tbl",
+                                  "annotation_label_transfer_tbl",
+                                  "doublet_identification_tbl"),
+      other_arguments_to_map = c("empty_droplets_tbl",
+                                 "non_batch_variation_removal_S",
+                                 "alive_identification_tbl",
+                                 "cell_cycle_score_tbl",
+                                 "annotation_label_transfer_tbl",
+                                 "doublet_identification_tbl")
     ) 
     
   )
   
 }
+
 
 # Define the generic function
 #' @export
