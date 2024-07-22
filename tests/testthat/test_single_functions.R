@@ -558,5 +558,7 @@ c("dev/input_seurat_treated_1.rds",
   calculate_pseudobulk(group_by = "monaco_first.labels.fine") |> 
   
   test_differential_abundance(~ condition + (1|group))
+  #test_differential_abundance(~ condition)
+
 
 
