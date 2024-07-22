@@ -738,8 +738,8 @@ setMethod(
         factory_de_random_effect(
           se_list_input = "create_pseudobulk_sample", 
           output_se = "de", 
-          formula="~condition",
-          method="edger_robust_likelihood_ratio", 
+          formula=.formula,
+          #method="edger_robust_likelihood_ratio", 
           tiers = tiers
         )
       
@@ -747,7 +747,7 @@ setMethod(
         factory_de_fix_effect(
           se_list_input = "create_pseudobulk_sample", 
           output_se = "de", 
-          formula="~condition",
+          formula=.formula,
           method="edger_robust_likelihood_ratio", 
           tiers = tiers
         )

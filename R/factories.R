@@ -240,7 +240,15 @@ factory_de_fix_effect = function(se_list_input, output_se, formula, method, tier
   )
 }
 
-
+#' @importFrom rlang sym
+#' @importFrom dplyr left_join
+#' @importFrom dplyr nest
+#' @importFrom dplyr group_by
+#' @importFrom dplyr mutate
+#' @importFrom dplyr unnest
+#' @importFrom purrr map
+#' @importFrom S4Vectors split
+#' 
 #' @export
 factory_de_random_effect = function(se_list_input, output_se, formula, tiers){
   list(
@@ -273,13 +281,15 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers){
     tar_target_raw(
       "pseudobulk_table_dispersion",
       pseudobulk_table  |> 
-        mutate(se = map(se, keep_abundant, as.formula(formula))) |> 
+        mutate(se = map(se, keep_abundant, factor_of_interest = i)) |> 
         mutate(se = map(se, scale_abundance)) |> 
-        
-        se_add_dispersion(as.formula(formula), "RNA") |> 
-        quote(), 
+        HPCell::se_add_dispersion(f, "RNA_scaled") |> 
+        substitute(env = list(
+          f=as.formula(formula), 
+          i = terms(~condition + (1 | group)) |> attr("term.labels") |> _[[1]] |> sym()
+          )), 
       pattern = map(pseudobulk_table) |> quote(), 
-      packages = "tidybulk"
+      packages = c("tidySummarizedExperiment", "S4Vectors", "purrr", "dplyr" ,"tidybulk")
     ), 
     
     tar_target_raw(
@@ -295,7 +305,7 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers){
         #mutate(tar_group = chunk___) |> 
         quote(),
       iteration = "group",
-      packages = c("tidySummarizedExperiment", "S4Vectors")
+      packages = c("tidySummarizedExperiment", "S4Vectors", "purrr", "dplyr")
     ),
     
     # Analyse
@@ -305,7 +315,7 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers){
         map_de(
           as.formula(formula), 
           "RNA", 
-          "edger_robust_likelihood_ratio", 
+          "glmmseq_lme4", 
           max_rows_for_matrix_multiplication = 10000, 
           cores = 1
         ) |> 
