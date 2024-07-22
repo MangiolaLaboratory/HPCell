@@ -4,7 +4,7 @@
 #' This function sets up and executes a `targets` pipeline for HPCell. It saves input data and configurations,
 #' writes a pipeline script, and runs the pipeline using the 'targets' package.
 #'
-#' @param input_hpc Input data for the pipeline.
+#' @param input_hpc Character vector of input data path for the pipeline.
 #' @param store Directory path for storing the pipeline files.
 #' @param input_reference Optional reference data.
 #' @param tissue Tissue type for the analysis.
@@ -15,7 +15,12 @@
 #' @param sample_column Column name for sample identification.
 #' @param cell_type_annotation_column Column name for cell type annotation in input data
 #' @param gene_nomenclature Character vector indicating gene nomenclature in input_data
-#'
+#' @param data_container_type A character vector of length one specifies the input data type.
+#' The accepted input data type are: 
+#' sce_rds for `SingleCellExperiment` RDS,
+#' seurat_rds for `Seurat` RDS,
+#' sce_hdf5 for `SingleCellExperiment` HDF5-based object
+#' seurat_h5 for `Seurat` HDF5-based object
 #' @return The output of the `targets` pipeline, typically a pre-processed data set.
 #'
 #' @importFrom glue glue
