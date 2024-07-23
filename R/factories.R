@@ -65,7 +65,10 @@ expand_tiered_arguments <- function(command, tiers, tiered_args) {
   command_character = command |> deparse() 
   
   for(t in tiered_args){
-    command_character = command_character |> str_replace(t, paste0(t, "_", tiers) |> paste(collapse = ", "))
+    command_character = command_character |> str_replace(t, sprintf("c(%s)",
+                                                                 paste0(t, "_", 
+                                                                        tiers) |> 
+                                                           paste(collapse = ", ")))
   } 
   
   command_character |> rlang::parse_expr()

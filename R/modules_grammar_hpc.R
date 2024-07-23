@@ -189,7 +189,8 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
         "empty_droplets_tbl", 
         read_file |> 
           read_data_container(container_type = data_container_type) |> 
-          empty_droplet_id(total_RNA_count_check) |> 
+          empty_droplet_id(total_RNA_count_check,
+                           gene_nomenclature = gene_nomenclature) |> 
           quote(),
         tiers, 
         arguments_to_tier = "read_file"
@@ -197,7 +198,7 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
       
       factory_collapse(
         "my_report",
-        bind_rows(empty_droplets_tbl) |> quote(),
+        do.call(bind_rows, empty_droplets_tbl) |> quote(),
         "empty_droplets_tbl",
         tiers, packages = c("dplyr")
       )
@@ -829,7 +830,8 @@ evaluate_hpc.HPCell = function(input_hpc) {
     "factors_to_regress.rds",
     "pseudobulk_group_by.rds",
     "temp_tiers.rds",
-    "temp_gene_nomenclature.rds"
+    "temp_gene_nomenclature.rds",
+    "data_container_type.rds"
   ) |> 
     remove_files_safely()
   

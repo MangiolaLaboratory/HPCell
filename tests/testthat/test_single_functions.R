@@ -472,21 +472,19 @@ library(tidySingleCellExperiment)
 
 
 # Define and execute the pipeline
-c("dev/input_seurat_treated_1_SCE.rds", 
+c("dev/input_seurat_treated_1_SCE.rds",
   "dev/input_seurat_treated_2_SCE.rds",
   "dev/input_seurat_UNtreated_1_SCE.rds",
-  "dev/input_seurat_UNtreated_2_SCE.rds") |> 
+  "dev/input_seurat_UNtreated_2_SCE.rds") |>
   purrr::map_chr(here::here) |> 
-  magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
+   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
   
   # Initialise pipeline characteristics
   initialise_hpc(
     gene_nomenclature = "symbol",
-    data_container_type = "seurat_rds",
-    # tier = c("tier_1", "tier_2"),
-    # 
-     debug_step = "create_pseudobulk_sample_1_0dcbdb0cc9b69ebd",
-
+    data_container_type = "sce_rds",
+     store = "~/scratch/Census/census_reanalysis/sample_test/",
+     tier = c("tier_1", "tier_1", "tier_2", "tier_2"),
     
     # Default resourced 
     computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm

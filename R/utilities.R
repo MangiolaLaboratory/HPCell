@@ -43,7 +43,8 @@ read_data_container <- function(file,
   }
   
   switch(container_type,
-         "anndata" = zellkonverter::readH5AD(file, reader = "R", use_hdf5 = TRUE, obs = FALSE, raw = FALSE, layers = FALSE),
+         "anndata" = zellkonverter::readH5AD(file, reader = "R", use_hdf5 = TRUE, 
+                                             obs = FALSE, raw = FALSE, layers = FALSE),
          "sce_rds" = readRDS(file),
          "seurat_rds" = readRDS(file),
          "sce_hdf5" = loadHDF5SummarizedExperiment(file),
@@ -98,11 +99,13 @@ convert_gene_names <- function(id,
 #' @importFrom DropletUtils emptyDrops barcodeRanks
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importFrom biomaRt useMart getBM
 #' 
 #' @export
 empty_droplet_id <- function(input_read_RNA_assay,
                              total_RNA_count_check  = -Inf,
-                             assay = NULL){
+                             assay = NULL,
+                             gene_nomenclature){
   #Fix GChecks 
   FDR = NULL 
   .cell = NULL 
@@ -122,14 +125,29 @@ empty_droplet_id <- function(input_read_RNA_assay,
   
   significance_threshold = 0.001
   # Genes to exclude
-  location <- mapIds(
-    EnsDb.Hsapiens.v86,
-    keys=rownames(input_read_RNA_assay),
-    column="SEQNAME",
-    keytype="SYMBOL"
-  )
-  mitochondrial_genes = which(location=="MT") |> names()
-  ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
+  if (gene_nomenclature == "symbol") {
+    location <- mapIds(
+      EnsDb.Hsapiens.v86,
+      keys=rownames(input_read_RNA_assay),
+      column="SEQNAME",
+      keytype="SYMBOL"
+    )
+    mitochondrial_genes = which(location=="MT") |> names()
+    ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
+    
+  } else if (gene_nomenclature == "ensembl") {
+    ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+    genes_info <- getBM(
+      attributes = c('ensembl_gene_id', 'external_gene_name', 'chromosome_name'),
+      filters = 'ensembl_gene_id',
+      values = rownames(input_read_RNA_assay),
+      mart = ensembl
+    )
+    
+    mitochondrial_genes <- genes_info[genes_info$chromosome_name == "MT", ] |> pull(ensembl_gene_id)
+    ribosome_genes <- genes_info[grep("^RPS|^RPL", genes_info$external_gene_name), ] |> pull(ensembl_gene_id)
+  }
+
   
   # if ("originalexp" %in% names(input_file@assays)) {
   #   barcode_ranks <- barcodeRanks(input_file@assays$originalexp@counts[!rownames(input_file@assays$originalexp@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
