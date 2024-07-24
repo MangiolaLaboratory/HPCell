@@ -39,22 +39,10 @@ eq = function(a,b){	a==b }
 empty_droplet_id <- function(input_read_RNA_assay,
                              filter_empty_droplets,
                              assay = NULL){
-  #Fix GChecks 
-  FDR = NULL 
-  .cell = NULL 
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
-  # Check if empty droplets have been identified
-  if (is.null(filter_empty_droplets) ){
-    if (any(input_read_RNA_assay$nFeature_RNA < 200)) {
-      filter_empty_droplets <- "TRUE"
-    }
-    else {
-      filter_empty_droplets <- "FALSE"
-    }
-  }
   
   significance_threshold = 0.001
   # Genes to exclude
@@ -88,7 +76,9 @@ empty_droplet_id <- function(input_read_RNA_assay,
   }
   
   # Remove genes from input
-  if (filter_empty_droplets == "TRUE") {
+  if (
+    # If filter_empty_droplets
+    filter_empty_droplets == "TRUE") {
     barcode_table <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")[!rownames(GetAssayData(input_read_RNA_assay, assay, slot = "counts")) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>
@@ -96,7 +86,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
       replace_na(list(empty_droplet = TRUE))
   }
   else {
-    barcode_table <- select(input_read_RNA_assay, .cell) |>
+    barcode_table <- select(., .cell) |>
       as_tibble() |>
       mutate( empty_droplet = FALSE)
   } 
@@ -111,6 +101,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
           inflection =  metadata(barcode_ranks)$inflection
         )
     )
+  
   
   
   # barcode_table |>  saveRDS(output_path_result)
