@@ -12,7 +12,7 @@ annotation_label_transfer(
 )
 }
 \arguments{
-\item{input_read_RNA_assay}{SingleCellExperiment object containing RNA assay data.}
+\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object containing RNA assay data.}
 
 \item{empty_droplets_tbl}{A tibble identifying empty droplets.}
 

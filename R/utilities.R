@@ -1,3 +1,9 @@
+# Helper function to add class to an object
+add_class <- function(obj, class_name) {
+  class(obj) <- c(class_name, class(obj))
+  return(obj)
+}
+
 # Greater than
 gt = function(a, b){	a > b }
 
@@ -13,6 +19,65 @@ pow = function(a,b){	a^b }
 # Equals
 eq = function(a,b){	a==b }
 
+#' Read various types of single-cell data
+#' @param file A character vector of length one specifies the file path, or directory path.
+#'   For data format anndata, rds and seurat_h5, use file path.
+#'   For data format hdf5, use directory path.
+#' @param container_type A character vector of length one specifies the input data type.
+#' @return A `[Seurat::Seurat-class]` object
+#' @importFrom HDF5Array loadHDF5SummarizedExperiment
+#' @export
+read_data_container <- function(file,
+                                container_type = "anndata"){
+  
+  if (container_type == "seurat_h5") {
+    if (!requireNamespace("SeuratDisk", quietly = TRUE)) {
+      stop("HPCell says: You need to install the SeuratDisk package.")
+    }
+  }
+  
+  if (container_type == "anndata") {
+    if (!requireNamespace("zellkonverter", quietly = TRUE)) {
+      stop("HPCell says: You need to install the zellkonverter package.")
+    }
+  }
+  
+  switch(container_type,
+         "anndata" = zellkonverter::readH5AD(file, reader = "R", use_hdf5 = TRUE, obs = FALSE, raw = FALSE, layers = FALSE),
+         "sce_rds" = readRDS(file),
+         "seurat_rds" = readRDS(file),
+         "sce_hdf5" = loadHDF5SummarizedExperiment(file),
+         "seurat_h5" = SeuratDisk::LoadH5Seurat(file)
+         )
+}
+
+#' Gene name conversion using ensembl database
+#' 
+#' @param id Character vector of gene names
+#' @param current_nomenclature Character vector of input gene nomenclature
+#' @return A data frame of gene name before and after conversion
+#' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importMethodsFrom ensembldb genes   
+#' @export
+convert_gene_names <- function(id,
+                               current_nomenclature) {
+  if (current_nomenclature == "symbol"){
+    edb <- EnsDb.Hsapiens.v86
+    edb_df <- genes(edb,
+                    columns = c("gene_name", "entrezid", "gene_biotype"),
+                    filter = AnnotationFilter::GeneNameFilter(id),
+                    return.type = "data.frame")   
+  } 
+  else if (current_nomenclature == "ensembl") {
+    edb <- EnsDb.Hsapiens.v86
+    edb_df <- genes(edb,
+                    columns = c("gene_name", "entrezid", "gene_biotype"),
+                    filter = AnnotationFilter::GeneIdFilter(id),
+                    return.type = "data.frame")   
+  }
+  edb_df
+}
+
 #' Identify Empty Droplets in Single-Cell RNA-seq Data
 #'
 #' @description
@@ -21,28 +86,36 @@ eq = function(a,b){	a==b }
 #' based on these criteria. The function returns a tibble containing log probabilities, FDR, and a classification
 #' indicating whether cells are empty droplets.
 #'
-#' @param input_read_RNA_assay SingleCellExperiment object containing RNA assay data.
+#' @param input_read_RNA_assay SingleCellExperiment or Seurat object containing RNA assay data.
 #' @param filter_empty_droplets Logical value indicating whether to filter the input data.
 #'
-#' @return A tibble with columns: logprob, FDR, empty_droplet (classification of droplets).
+#' @return A tibble with columns: logProb, FDR, empty_droplet (classification of droplets).
 #'
 #' @importFrom AnnotationDbi mapIds
 #' @importFrom stringr str_subset
-#' @importFrom dplyr left_join
-#' @importFrom dplyr mutate
+#' @importFrom dplyr left_join mutate
 #' @importFrom tidyr replace_na
-#' @importFrom DropletUtils emptyDrops
-#' @importFrom DropletUtils barcodeRanks
+#' @importFrom DropletUtils emptyDrops barcodeRanks
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
-#' @noRd
+#' 
+#' @export
 empty_droplet_id <- function(input_read_RNA_assay,
-                             filter_empty_droplets,
+                             total_RNA_count_check  = -Inf,
                              assay = NULL){
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
+  # Check if empty droplets have been identified
+  nFeature_name <- paste0("nFeature_", assay)
+  
+    #if (any(input_read_RNA_assay[[nFeature_name]] < total_RNA_count_check)) {
+  filter_empty_droplets <- "TRUE"
+    # }
+    # else {
+    #   filter_empty_droplets <- "FALSE"
+    # }
   
   significance_threshold = 0.001
   # Genes to exclude
@@ -61,8 +134,15 @@ empty_droplet_id <- function(input_read_RNA_assay,
   #   barcode_ranks <- barcodeRanks(input_file@assays$RNA@counts[!rownames(input_file@assays$RNA@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
   # }
   
+  # Get counts
+  if (inherits(input_read_RNA_assay, "Seurat")) {
+    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+  } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    counts <- assay(input_read_RNA_assay, assay)
+  }
+  filtered_counts <- counts[!(rownames(counts) %in% c(mitochondrial_genes, ribosome_genes)),, drop=FALSE ]
   # Calculate bar-codes ranks
-  barcode_ranks = barcodeRanks(GetAssayData(input_read_RNA_assay, assay, slot = "counts")[!rownames(GetAssayData(input_read_RNA_assay, assay, slot = "counts")) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
+  barcode_ranks <- barcodeRanks(filtered_counts)
   
   # Set the minimum total RNA per cell for ambient RNA
   if(min(barcode_ranks$total) < 100) { lower = 100 } else {
@@ -79,15 +159,17 @@ empty_droplet_id <- function(input_read_RNA_assay,
   if (
     # If filter_empty_droplets
     filter_empty_droplets == "TRUE") {
-    barcode_table <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")[!rownames(GetAssayData(input_read_RNA_assay, assay, slot = "counts")) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
+    barcode_table <- filtered_counts |>
       emptyDrops( test.ambient = TRUE, lower=lower) |>
       as_tibble(rownames = ".cell") |>
       mutate(empty_droplet = FDR >= significance_threshold) |>
       replace_na(list(empty_droplet = TRUE))
   }
   else {
-    barcode_table <- select(., .cell) |>
-      as_tibble() |>
+    barcode_table <- 
+      input_read_RNA_assay |> 
+      as_tibble() |> 
+      select(.cell) |>
       mutate( empty_droplet = FALSE)
   } 
   
@@ -145,7 +227,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' @param tissue Type of tissue.
 #'
 #' @return Appropriate reference label for fine categorization.
-#' @noRd
+#' @export
 reference_label_fine_id <- function(tissue) {
   return(
     ifelse(tissue == "pbmc", "monaco_first.labels.fine",
@@ -163,7 +245,7 @@ reference_label_fine_id <- function(tissue) {
 #' @param tissue Type of tissue.
 #'
 #' @return Appropriate reference label for coarse categorization.
-#' @noRd
+#' @export
 reference_label_coarse_id <- function(tissue) {
   return(
     ifelse(tissue == "pbmc", "monaco_first.labels.coarse",
@@ -509,6 +591,169 @@ tar_script_append = function(code, script = targets::tar_config_get("script")){
     write_lines(script, append = TRUE)
 }
 
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+tar_append = function(code, script = targets::tar_config_get("script")){
+  substitute(code) |>
+    deparse() |>
+    head(-1) |>
+    tail(-1) |>
+    write_lines(script, append = TRUE)
+}
+
+tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script"), ...){
+  
+  # Deal with additional argument
+  additional_args <- list(...)
+  
+  # Construct the call with substitute
+  if (length(additional_args) > 0) {
+    call_expr = 
+      as.call(c(fx, list(tiers), additional_args)) |> 
+      deparse()
+  } else {
+    call_expr <- substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
+      deparse() 
+  }
+  
+  # Add prefix
+  "target_list = c(target_list, list(" |> 
+    c(call_expr ) |> 
+    
+    # Add suffix
+    c("))") |> 
+    
+    # Write
+    write_lines(script, append = TRUE)
+  
+}
+
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+tar_script_append2 = function(code, script = targets::tar_config_get("script")){
+  code |>
+    deparse() |>
+    head(-1) |>
+    tail(-1) |>
+    write_lines(script, append = TRUE)
+}
+
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+tar_script_append3 = function(code, script = targets::tar_config_get("script")){
+  code |>
+    head(-1) |>
+    tail(-1) |>
+    write_lines(script, append = TRUE)
+}
+
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+append_chunk_fix = function(chunk, script = targets::tar_config_get("script")){
+  
+  # Add prefix
+  "target_list = c(target_list, list(" |> 
+    c(
+      substitute(chunk) |>  # cannot start with pipe
+        deparse() |> 
+        head(-1) |>
+        tail(-1) 
+    ) |> 
+    
+    # Add suffix
+    c("))") |> 
+    
+    # Write
+    write_lines(script, append = TRUE)
+}
+
+#' Append Code to a Targets Script
+#'
+#' @description
+#' Appends given code to a 'targets' package script.
+#'
+#' @param code Code to append.
+#' @param script Path to the script file.
+#'
+#' @importFrom readr write_lines
+#' @importFrom targets tar_config_get
+#' @noRd
+append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("script")){
+   
+  # This does not work with purrr:::imap
+  # As chunk does not like passed to a function
+  tiers = tiers |> get_positions()
+  .y = 1
+  for(.x in tiers |> names()  ){
+      
+    
+    "target_list = c(target_list, list(" |> 
+      c(
+        substitute(chunk) |>  # cannot start with pipe
+          deparse() |> 
+          head(-1) |>
+          tail(-1) |> 
+          str_replace_all("TIER_PLACEHOLDER", as.character(.y)) |> 
+          str_replace_all("SLICE_PLACEHOLDER", tiers[[.y]] |> as.numeric() |> vector_to_code()) |> 
+          str_replace("RESOURCE_PLACEHOLDER",  
+                      
+                      # If not tiering ignore resource naming
+                      if_else(
+                        length(tiers) == 1,
+                        "targets::tar_option_get(\"resources\")",
+                        glue("tar_resources(crew = tar_resources_crew(\"{.x}\"))" )
+                      )
+        )
+      ) |> 
+      
+      # Add suffix
+      c("))") |> 
+      
+      # Write
+      write_lines(script, append = TRUE)
+    
+    .y = .y + 1
+  }
+
+  
+}
+
 #' Simple Addition Function
 #'
 #' @description
@@ -559,23 +804,31 @@ calc_UMAP <- function(input_seurat){
     as_tibble()
   return(x)
 }
-#' Subsetting input dataset into a list of seurat objects by sample/ tissue 
+#' Subsetting input dataset into a list of SingleCellExperiment or Seurat objects by pre-specified sample column tissue 
 #' 
-#' @importFrom dplyr quo_name
+#' @importFrom dplyr quo_name pull
+#' @importFrom SummarizedExperiment colData
 #' 
-#' @param seurat_object A Seurat object containing input single-cell data
+#' @param sce_obj A `SingleCellExperiment` or `Seurat` object containing input single-cell data
 #' @param sample_column The column name specifying sample information
 #' 
 #' @return The unique sample types in the sample column
 #' 
-#' 
 #'  @description
-#' Function to subset Seurat object by tissue
-get_unique_tissues <- function(seurat_object, sample_column) {
-  sample_column<- quo_name(sample_column)
-  unique_sample <- seurat_object@meta.data |> pull(sample_column) |> unique()
+#' Function to subset `SingleCellExperiment` or `Seurat` object by tissue
+#' @export
+get_unique_tissues <- function(sce_obj, sample_column) {
+  sample_column <- quo_name(sample_column)
   
-  return(unique_sample)
+  if (inherits(sce_obj, "Seurat")) {
+    unique_sample <-
+      sce_obj@meta.data |> pull(sample_column) |> unique()
+  } else if (inherits(sce_obj, "SingleCellExperiment")) {
+    unique_sample <-
+      colData(sce_obj) |> as.data.frame() |> pull(sample_column) |> unique()
+  }
+  
+  unique_sample
 }
 
 #' Check for Strong Evidence
@@ -1612,3 +1865,162 @@ get_manually_curated_immune_cell_types = function(){
   
   
 }
+
+remove_files_safely <- function(files) {
+  for (file in files) {
+    if (file.exists(file)) {
+      file.remove(file)
+    }
+  }
+}
+
+
+#' Get positions of each unique element in a vector
+#'
+#' This function takes a vector and returns a named list where each unique
+#' element of the input vector maps to the positions at which it occurs.
+#'
+#' @param input_vector A vector of elements.
+#' @return A named list where each name is a unique element from the input vector
+#' and each value is a vector of positions where that element occurs.
+#' @examples
+#' input_vector <- c("a", "a", "b", "c", "a")
+#' positions_list <- get_positions(input_vector)
+#' print(positions_list)
+#' @importFrom dplyr tibble
+#' @importFrom dplyr group_by
+#' @importFrom dplyr summarise
+#' @importFrom purrr set_names
+#' @export
+get_positions <- function(input_vector) {
+  # Create a tibble with the input vector and their positions
+  df <- tibble(value = input_vector, position = seq_along(input_vector))
+  
+  # Group by value and summarise the positions
+  result <- df %>%
+    group_by(value) %>%
+    summarise(positions = list(position), .groups = 'drop')
+  
+  # Convert the result to a named list
+  result_list <- set_names(result$positions, result$value)
+  
+  return(result_list)
+}
+
+#' Convert a vector of integers to its R code form as a character
+#'
+#' This function takes a vector of integers and returns its R code form as a character string.
+#'
+#' @param int_vector A vector of integers.
+#' @return A character string representing the R code form of the vector.
+#' @examples
+#' int_vector <- c(1, 2, 3, 4, 5)
+#' code_string <- vector_to_code(int_vector)
+#' print(code_string)
+#' @export
+vector_to_code <- function(int_vector) {
+  # Convert the vector to its R code form
+  code_string <- deparse(int_vector)
+  
+  # Collapse the output into a single string
+  code_string <- paste(code_string, collapse = "")
+  
+  return(code_string)
+}
+
+#' Add Tier Inputs to a Function Call String
+#'
+#' This function modifies a function call string by appending a tier label to specified arguments.
+#'
+#' @param command A character string representing a function call, e.g., "a(b, c, d)".
+#' @param arguments_to_tier A character vector specifying which arguments should be tiered, e.g., c("b", "c", "d").
+#' @param i A character string representing the tier label to be appended, e.g., "_1".
+#'
+#' @return A character string representing the modified function call with tiered arguments.
+#'
+#' @importFrom stringr str_subset
+#' @importFrom stringr str_replace_all
+#' @importFrom glue glue
+#'
+#' @examples
+#' # Example usage:
+#' command <- "a(b, c, d)"
+#' arguments_to_tier <- c("b", "c", "d")
+#' i <- "_1"
+#' output <- add_tier_inputs(command, arguments_to_tier, i)
+#' print(output)  # Outputs: "a(b_1, c_1, d_1)"
+#'
+#' @noRd
+add_tier_inputs <- function(command, arguments_to_tier, i) {
+  
+  if(length(arguments_to_tier)==0) return(command)
+  
+  command = command |> deparse() |> paste(collapse = "")  
+  input = command |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
+  
+  # Filter out arguments to be tiered from the input command
+  #arguments_to_tier <- arguments_to_tier |> str_subset(input, negate = TRUE)
+  
+  # Create a named vector for replacements
+  replacement_regexp <- glue("{arguments_to_tier}_{i}") |> as.character() |> set_names(arguments_to_tier)
+  
+  # Replace the specified arguments in the command with their tiered versions
+  command |> str_replace_all(replacement_regexp) |>  rlang::parse_expr()
+  
+}
+
+#' Divide Features into Chunks
+#'
+#' This function divides a list of features into chunks of a specified size.
+#'
+#' @param features A vector of features to be divided into chunks.
+#' @param chunk_size The size of each chunk. Defaults to 100.
+#' @return A tibble with the features and their corresponding chunk numbers.
+#' @importFrom dplyr tibble
+#' @importFrom purrr rep_along
+#' @importFrom purrr ceiling
+#' @importFrom purrr seq_len
+#' @importFrom purrr length
+#' @importFrom magrittr divide_by
+#' 
+#' 
+#' @export
+feature_chunks = function(features, chunk_size = 100){
+  
+  chunks = 
+    features |> 
+    length() |> 
+    divide_by(chunk_size) |> 
+    ceiling() |> 
+    seq_len() |>
+    rep(each = chunk_size, length.out = length(features))
+  
+  
+  tibble(feature = features, chunk___ = chunks) 
+  
+}
+
+add_missingh_genes_to_se = function(se, all_genes, missing_genes){
+  
+  missing_matrix = matrix(rep(0, length(missing_genes) * ncol(se)), ncol = ncol(se))
+  
+  rownames(missing_matrix) = missing_genes
+  colnames(missing_matrix) = colnames(se)
+  
+  new_se = SummarizedExperiment(assay = list(count = missing_matrix))
+  colData(new_se) = colData(se)
+  
+  empty_rowdata = 
+    rowData(se)[seq_len(nrow(new_se)),,drop=FALSE] |> 
+    as_tibble() |> 
+    mutate(across(everything(), ~ replace(., TRUE, NA))) |> 
+    DataFrame(row.names = missing_genes)
+  
+  rowData(new_se) =  empty_rowdata
+  
+  se = se |> rbind(new_se)
+  
+  se[all_genes,]
+  
+}
+

@@ -7,11 +7,10 @@ filter_empty_droplets <- "TRUE"
 tissue <- "pbmc"
 RNA_assay_name<- "originalexp"
 
-input_seurat_list = 
+input_seurat_abc = 
   HeOrganAtlasData(ensembl=FALSE,location=FALSE)|> 
   as.Seurat(data = NULL) |>
-  subset(subset = Tissue %in% c("Blood")) |>
-  group_split()
+  subset(subset = Tissue %in% c("Blood")) 
 
 # sample_column<- "Tissue"
 ## Defining functions 
@@ -440,4 +439,122 @@ process_seurat_object <- function(input_a, assay = NULL) {
 }
 
 assay<- process_seurat_object(input_seurat_list[[1]])
+
+
+library(HPCell)
+library(crew)
+library(crew.cluster)
+library(magrittr)
+library(tidySingleCellExperiment)
+
+# library(Seurat)
+# library(SeuratData)
+# options(Seurat.object.assay.version = "v5")
+# input_seurat <-
+#   LoadData("pbmc3k") |>
+#   _[,1:500]
+# 
+# change_seurat_counts = function(data){
+# 
+#   data@assays$RNA$counts = data@assays$RNA$counts * runif(min = 0, max = 2, n = length(data@assays$RNA$counts))
+#   data@assays$RNA$data = data@assays$RNA$counts
+#   data
+# }
+# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_treated_1.rds")
+# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_treated_2.rds")
+# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_UNtreated_1.rds")
+# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_UNtreated_2.rds")
+# 
+# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |> as.SingleCellExperiment() |>   saveRDS("dev/input_seurat_treated_1_SCE.rds")
+# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_treated_2_SCE.rds")
+# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_1_SCE.rds")
+# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_2_SCE.rds")
+
+
+# Define and execute the pipeline
+c("dev/input_seurat_treated_1_SCE.rds", 
+  "dev/input_seurat_treated_2_SCE.rds",
+  "dev/input_seurat_UNtreated_1_SCE.rds",
+  "dev/input_seurat_UNtreated_2_SCE.rds") |> 
+  purrr::map_chr(here::here) |> 
+  magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
+  
+  # Initialise pipeline characteristics
+  initialise_hpc(
+    gene_nomenclature = "symbol",
+    data_container_type = "seurat_rds",
+    # tier = c("tier_1", "tier_2"),
+    # 
+     debug_step = "create_pseudobulk_sample_1_0dcbdb0cc9b69ebd",
+
+    
+    # Default resourced 
+    computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
+      
+  #   computing_resources = list(
+  # 
+  #   crew_controller_slurm(
+  #     name = "tier_1",
+  #     slurm_memory_gigabytes_per_cpu = 5,
+  #     slurm_cpus_per_task = 1,
+  #     workers = 50,
+  #     tasks_max = 5,
+  #     verbose = T
+  #   ),
+  #   crew_controller_slurm(
+  #     name = "tier_2",
+  #     slurm_memory_gigabytes_per_cpu = 10,
+  #     slurm_cpus_per_task = 1,
+  #     workers = 50,
+  #     tasks_max = 5,
+  #     verbose = T
+  #   )
+  # )
+
+  # computing_resources =
+  #   list(  crew_controller_local(
+  #     name = "tier_1",
+  #     workers = 2,
+  #     seconds_idle = 10
+  #   ),
+  #   crew_controller_local(
+  #     name = "tier_2",
+  #     workers = 2,
+  #     seconds_idle = 10
+  #   )
+  # )
+    
+  # # #  Slurm resources
+  #   computing_resources =
+  #     crew.cluster::crew_controller_slurm(
+  #       slurm_memory_gigabytes_per_cpu = 5,
+  #       workers = 50,
+  #       tasks_max = 5,
+  #       verbose = T
+  #     )
+  ) |> 
+  
+  # Remove empty outliers
+  remove_empty_DropletUtils() |> 
+  
+  # Remove dead cells
+  remove_dead_scuttle() |> 
+  
+  # Score cell cycle
+  score_cell_cycle_seurat() |> 
+  
+  # Remove doublets
+  remove_doublets_scDblFinder() |> 
+  
+  # Annotation
+  annotate_cell_type() |> 
+  
+  normalise_abundance_seurat_SCT(factors_to_regress = c(
+    "subsets_Mito_percent", 
+    "subsets_Ribo_percent", 
+    "G2M.Score"
+  )) |> 
+  
+  calculate_pseudobulk(group_by = "monaco_first.labels.fine")
+
 
