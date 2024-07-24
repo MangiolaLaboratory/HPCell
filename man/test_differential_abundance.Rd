@@ -17,6 +17,7 @@
   omit_contrast_in_colnames = FALSE,
   prefix = "",
   action = "add",
+  factor_of_interest = NULL,
   ...,
   significance_threshold = NULL,
   fill_missing_values = NULL,

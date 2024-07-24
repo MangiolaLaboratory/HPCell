@@ -53,7 +53,7 @@ initialise_hpc <- function(input_hpc,
   
   # if simple names are not set, use integers
   if(input_hpc |> names() |> is.null())
-    input_hpc |> set_names(seq_len(length(input_hpc)))
+    input_hpc = input_hpc |> set_names(seq_len(length(input_hpc)))
   
   input_hpc |> names() |> saveRDS("sample_names.rds")
   #cell_count |> saveRDS("cell_count.rds")
@@ -722,7 +722,7 @@ setMethod(
   function(.data, .formula, .sample = NULL, .transcript = NULL, 
            .abundance = NULL, contrasts = NULL, method = "edgeR_quasi_likelihood", 
            test_above_log2_fold_change = NULL, scaling_method = "TMM", 
-           omit_contrast_in_colnames = FALSE, prefix = "", action = "add", 
+           omit_contrast_in_colnames = FALSE, prefix = "", action = "add", factor_of_interest = NULL,
            ..., significance_threshold = NULL, fill_missing_values = NULL, 
            .contrasts = NULL) {
     
@@ -732,15 +732,17 @@ setMethod(
     # Optionally, you can evaluate the arguments if they are expressions
     args_list <- lapply(args_list, eval, envir = parent.frame())
     
-    args_list$factory = function(tiers, .formula){
-      
+    args_list$factory = function(tiers, .formula, factor_of_interest = NULL, .abundance = NULL){
+        
       if(.formula |> deparse() |> str_detect("\\|"))
         factory_de_random_effect(
           se_list_input = "create_pseudobulk_sample", 
           output_se = "de", 
           formula=.formula,
           #method="edger_robust_likelihood_ratio", 
-          tiers = tiers
+          tiers = tiers,
+          factor_of_interest = factor_of_interest,
+          .abundance = .abundance
         )
       
       else
@@ -749,7 +751,9 @@ setMethod(
           output_se = "de", 
           formula=.formula,
           method="edger_robust_likelihood_ratio", 
-          tiers = tiers
+          tiers = tiers,
+          factor_of_interest = factor_of_interest,
+          .abundance = .abundance
         )
       
     }
@@ -761,7 +765,9 @@ setMethod(
         quote(dummy_hpc |> test_differential_abundance() %$% test_differential_abundance %$% factory),
         tiers = .data$initialisation$tier |> get_positions() ,
         script = glue("{.data$initialisation$store}.R"),
-        .formula = .formula
+        .formula = .formula, 
+        factor_of_interest = factor_of_interest,
+        .abundance = .abundance
       )
       
     }

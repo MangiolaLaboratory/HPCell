@@ -471,25 +471,29 @@ library(crew.cluster)
 # input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_2_SCE.rds")
 
 
-# Define and execute the pipeline
-c("dev/input_seurat_treated_1.rds", 
-  "dev/input_seurat_treated_2.rds",
-  "dev/input_seurat_UNtreated_1.rds",
-  "dev/input_seurat_UNtreated_2.rds") |> 
-  purrr::map_chr(here::here) |> 
-  magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
+# # Define and execute the pipeline
+# c("dev/input_seurat_treated_1.rds", 
+#   "dev/input_seurat_treated_2.rds",
+#   "dev/input_seurat_UNtreated_1.rds",
+#   "dev/input_seurat_UNtreated_2.rds") |> 
+# purrr::map_chr(here::here) |> 
+#   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
+#   
   
+  dir("dev/CAQ_sce/", full.names = T) |> 
+
+
   # Initialise pipeline characteristics
   initialise_hpc(
     gene_nomenclature = "symbol",
-    data_container_type = "seurat_rds",
+    data_container_type = "sce_hdf5",
     # tier = c("tier_1", "tier_2"),
     # 
-     debug_step = "de",
+    # debug_step = "de_f1f9407fad200b7a",
 
     
     # Default resourced 
-    computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
+  #  computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
       
   #   computing_resources = list(
   # 
@@ -524,14 +528,14 @@ c("dev/input_seurat_treated_1.rds",
   #   )
   # )
     
-  # # #  Slurm resources
-  #   computing_resources =
-  #     crew.cluster::crew_controller_slurm(
-  #       slurm_memory_gigabytes_per_cpu = 5,
-  #       workers = 50,
-  #       tasks_max = 5,
-  #       verbose = T
-  #     )
+  # #  Slurm resources
+    computing_resources =
+      crew.cluster::crew_controller_slurm(
+        slurm_memory_gigabytes_per_cpu = 50,
+        workers = 50,
+        tasks_max = 5,
+        verbose = T
+      )
   ) |> 
   
   # Remove empty outliers
@@ -557,7 +561,7 @@ c("dev/input_seurat_treated_1.rds",
   
   calculate_pseudobulk(group_by = "monaco_first.labels.fine") |> 
   
-  test_differential_abundance(~ condition + (1|group))
+  test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts")
   #test_differential_abundance(~ condition)
 
 
