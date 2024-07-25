@@ -163,7 +163,10 @@ factory_collapse = function(name_output, command, tiered_input, tiers, ...){
 # }
 
 
-factory_merge_pseudobulk = function(se_list_input, output_se, tiers){
+factory_merge_pseudobulk = function(se_list_input, output_se, tiers, external_path){
+  
+  dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
+  
   list(
     factory_split(
       name_output = "pseudobulk_group", 
@@ -177,7 +180,12 @@ factory_merge_pseudobulk = function(se_list_input, output_se, tiers){
     
     factory_collapse(
       name_output = output_se, 
-      command = cbind(pseudobulk_group) |> quote(), 
+      command =
+        cbind(pseudobulk_group) |>
+        
+        # Conver to monolytic H5 cebause otherwise the memory blows up
+        saveHDF5SummarizedExperiment(dir = f, replace=TRUE, as.sparse=TRUE) |> 
+        substitute(env = list(f = glue("{external_path}/output_se"))), 
       tiers = tiers, 
       tiered_input = "pseudobulk_group"
     )
@@ -193,7 +201,6 @@ factory_merge_pseudobulk = function(se_list_input, output_se, tiers){
 factory_de_fix_effect = function(se_list_input, output_se, formula, method, tiers, factor_of_interest = NULL, .abundance = NULL){
   list(
     
-    factory_merge_pseudobulk(se_list_input, "pseudobulk_gran_group", tiers),
     
     tar_target_raw("chunk_tbl", 
                    pseudobulk_gran_group |> 
@@ -227,7 +234,7 @@ factory_de_fix_effect = function(se_list_input, output_se, formula, method, tier
         substitute(
           env = list(
             f=as.formula(formula), a = .abundance, m=method, 
-            i = terms(formula) |> attr("term.labels") |> _[[1]] |> sym()
+            i = factor_of_interest
           )),
       pattern = map(pseudobulk_group_list) |> quote(), 
       packages="tidybulk"
@@ -258,8 +265,6 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers, fa
   
   
   list(
-    
-    factory_merge_pseudobulk(se_list_input, "pseudobulk_gran_group", tiers),
     
     tar_target_raw("chunk_tbl", 
                    pseudobulk_gran_group |> 
@@ -325,8 +330,9 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers, fa
           cores = 1,
           .scaling_factor = !!sym(s)
         ) |> 
-        substitute(env = list(f=as.formula(formula), a = .abundance, s = glue("{.abundance}_scaled"))),
-      pattern = map(pseudobulk_table_dispersion_gene) |> quote()
+
+        substitute(env = list(f=as.formula(formula), a = .abundance, s = "TMM")),
+      pattern = map(pseudobulk_table_dispersion_gene) |> quote(),
     )
     
     
