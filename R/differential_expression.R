@@ -26,15 +26,9 @@
 #' 
 #' @export
 #' 
-se_add_dispersion = function(se_df, my_formula, my_assay){
+se_add_dispersion = function(se, my_formula, my_assay){
 
-  se_df |>
-    mutate(se = map(
-      se,
-      ~ {
-        # Assign the current SingleCellExperiment object to 'se'
-        se = .x
-        
+
         
         # Handle cases where the SingleCellExperiment object is empty
         if(ncol(se) == 0) {
@@ -87,8 +81,7 @@ se_add_dispersion = function(se_df, my_formula, my_assay){
         
         # Return the processed SingleCellExperiment object
         se
-      }
-    ))
+
   
 }
 
@@ -122,36 +115,35 @@ map_quantile_scale_abundance = function(se_df){
 #' @importFrom tidybulk test_differential_abundance
 #' 
 #' @export
-map_de = function(se_df, my_formula, assay, method, max_rows_for_matrix_multiplication = NULL, cores = 1, .scaling_factor = NULL){
+map_de = function(se, my_formula, assay, method, max_rows_for_matrix_multiplication = NULL, cores = 1, .scaling_factor = NULL){
   
-  se_df |>
-    mutate(se = map(
-      se,
-      ~ {
-        
-        # Return prematurely
-        if(ncol(.x) == 0) return(.x)
-        
-        # Use fast method but does not have dispersion
-        if(ncol(.x) > 2000 & method |> str_detect("glmmseq")) method = "glmmseq_glmmTMB"
-        
-        .x = .x |>
-          
-          # Test
-          test_differential_abundance(
-            as.formula(my_formula),
-            .abundance = !!sym(assay),
-            method = method,
-            cores = min(nrow(.x), cores),
-            max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,
-            .dispersion = dispersion,
-            .scaling_factor = !!sym(.scaling_factor) 
-          )
-        
-        attr(.x, "internals")$glmmseq_glmmTMB = NULL
-        
-        .x
-      }))
+  .scaling_factor = enquo(.scaling_factor)
+  
+
+    
+    # Return prematurely
+    if(ncol(se) == 0) return(se)
+    
+    # Use fast method but does not have dispersion
+    if(ncol(se) > 2000 & method |> str_detect("glmmseq")) method = "glmmseq_glmmTMB"
+    
+    se = se |>
+      
+      # Test
+      test_differential_abundance(
+        as.formula(my_formula),
+        .abundance = !!sym(assay),
+        method = method,
+        cores = min(nrow(se), cores),
+        max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,
+        .dispersion = dispersion,
+        .scaling_factor = !!.scaling_factor
+      )
+    
+    attr(se, "internals")$glmmseq_glmmTMB = NULL
+    
+    se
+
   
 }
 
