@@ -656,7 +656,14 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
                                    "annotation_label_transfer_tbl",
                                    "doublet_identification_tbl")
         
+      ),
+      factory_merge_pseudobulk(
+        se_list_input = "create_pseudobulk_sample",
+        "pseudobulk_gran_group", 
+        tiers, 
+        external_path = external_path
       ) 
+      
       # ,
       # 
       # factory_collapse(
@@ -760,6 +767,8 @@ setMethod(
     
     # We don't want recursive when we call factory
     if(.data |> length() > 0) {
+      
+      environment(.formula) <- new.env(parent = emptyenv())
       
       tar_tier_append(
         quote(dummy_hpc |> test_differential_abundance() %$% test_differential_abundance %$% factory),
