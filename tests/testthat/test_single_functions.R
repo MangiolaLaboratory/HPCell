@@ -491,7 +491,7 @@ library(crew.cluster)
     # 
    #  debug_step = "pseudobulk_table_dispersion_gene",
 
-    
+
     # Default resourced 
   #  computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
       
@@ -532,9 +532,10 @@ library(crew.cluster)
     computing_resources =
       crew.cluster::crew_controller_slurm(
         slurm_memory_gigabytes_per_cpu = 5,
-        workers = 50,
+        workers = 500,
         tasks_max = 5,
-        verbose = T
+        verbose = T,
+        slurm_cpus_per_task = 1
       )
   ) |> 
   
