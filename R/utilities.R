@@ -2068,3 +2068,4 @@ remove_random_effects <- function(formula) {
   # Return the fixed effects formula
   return(fixed_formula)
 }
+
