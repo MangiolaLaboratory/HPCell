@@ -489,7 +489,7 @@ library(crew.cluster)
     data_container_type = "sce_hdf5",
     # tier = c("tier_1", "tier_2"),
     # 
-   #  debug_step = "pseudobulk_table_dispersion_gene",
+     # debug_step = "de",
 
     
     # Default resourced 
@@ -532,9 +532,10 @@ library(crew.cluster)
     computing_resources =
       crew.cluster::crew_controller_slurm(
         slurm_memory_gigabytes_per_cpu = 5,
-        workers = 50,
+        workers = 500,
         tasks_max = 5,
-        verbose = T
+        verbose = T,
+        slurm_cpus_per_task = 1
       )
   ) |> 
   

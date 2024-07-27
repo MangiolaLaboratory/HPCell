@@ -187,7 +187,8 @@ factory_merge_pseudobulk = function(se_list_input, output_se, tiers, external_pa
         saveHDF5SummarizedExperiment(dir = f, replace=TRUE, as.sparse=TRUE) |> 
         substitute(env = list(f = glue("{external_path}/output_se"))), 
       tiers = tiers, 
-      tiered_input = "pseudobulk_group"
+      tiered_input = "pseudobulk_group",
+      packages = c("HDF5Array")
     )
   )
 }
@@ -259,20 +260,15 @@ factory_de_fix_effect = function(se_list_input, output_se, formula, method, tier
 #' @importFrom dplyr unnest
 #' @importFrom purrr map
 #' @importFrom S4Vectors split
+#' @importFrom purrr compact
+#' @importFrom purrr map
 #' 
 #' @export
 factory_de_random_effect = function(se_list_input, output_se, formula, tiers, factor_of_interest = NULL, .abundance = NULL){
   
   
   list(
-    
-    tar_target_raw("chunk_tbl", 
-                   pseudobulk_gran_group |> 
-                     rownames() |> 
-                     feature_chunks() |> 
-                     quote()
-                   
-    ),
+  
     
     
     tar_target_raw(
@@ -281,32 +277,16 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers, fa
         group_split(!!sym(pseudobulk_group_by)) |>  
         quote(),
       iteration = "list",
-      packages = c("tidySummarizedExperiment", "S4Vectors", "targets")
+      packages = c("tidySummarizedExperiment", "S4Vectors", "targets", "rlang")
     ),
-    
-    # tar_target_raw(
-    #   "pseudobulk_table",
-    #   pseudobulk_gran_group |> 
-    #     
-    #     # Join featrure split, why now? simpler?
-    #     left_join(chunk_tbl, by = c("feature_name" = "feature")) |> 
-    #     
-    #     nest(se = -c(pseudobulk_group_by)) |> 
-    #     group_by(!!sym(pseudobulk_group_by) ) |> 
-    #     tar_group() |> 
-    #     quote(),
-    #   iteration = "group",
-    #   packages = c("tidySummarizedExperiment", "S4Vectors", "targets", "tarchetypes")
-    # ),
     
     tar_target_raw(
       "pseudobulk_table_dispersion_gene",
       pseudobulk_group_list  |> 
         keep_abundant(factor_of_interest = i, .abundance = a, minimum_proportion = 0.2, minimum_counts = 1,) |> 
         scale_abundance() |> 
-        HPCell::se_add_dispersion(f, a ) |> 
-        left_join(chunk_tbl) |> 
-        group_split(chunk___) |> 
+        se_add_dispersion(f, a ) |> 
+        split_summarized_experiment(chunk_size = 10) |> 
         substitute(env = list(
           f=as.formula(formula), 
           a = glue("{.abundance}_scaled"),
@@ -314,49 +294,36 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers, fa
           )), 
       pattern = map(pseudobulk_group_list) |> quote(), 
       iteration = "list",
-      packages = c("tidySummarizedExperiment", "S4Vectors", "purrr", "dplyr" ,"tidybulk")
+      packages = c("tidySummarizedExperiment", "S4Vectors", "purrr", "dplyr" ,"tidybulk", "HPCell")
     ), 
     
-   tar_combine_raw("pseudobulk_table_dispersion_gene_unlist", pseudobulk_table_dispersion_gene |> quote()),
-    
-    # tar_target_raw(
-    #   "pseudobulk_table_dispersion_gene",
-    #   pseudobulk_table_dispersion |>
-    #     mutate(se = map(se, ~ tibble(
-    #       chunk___ = rowData(.x)$chunk___ |> unique(),
-    #       se = .x |> S4Vectors::split(rowData(.x)$chunk___) |> as.list()
-    #     ), .progress = TRUE)) |>
-    #     unnest(se) |>
-    #     group_by(!!sym(pseudobulk_group_by), chunk___) |> 
-    #     tar_group() |> 
-    #     #mutate(tar_group = chunk___) |> 
-    #     quote(),
-    #   iteration = "group",
-    #   packages = c("tidySummarizedExperiment", "S4Vectors", "purrr", "dplyr", "tarchetypes")
-    # ),
+   tar_target_raw("pseudobulk_table_dispersion_gene_unlist", pseudobulk_table_dispersion_gene |> unlist() |>  quote(), iteration = "list"),
     
     # Analyse
     tar_target_raw(
-      output_se,
+      "de_split",
       pseudobulk_table_dispersion_gene_unlist |> 
         map_de( f, a, 
           "glmmseq_lme4", 
           max_rows_for_matrix_multiplication = 10000, 
           cores = 1,
-          .scaling_factor = !!sym(s)
+          .scaling_factor = !!sym(s),
+          .group_by = !!sym(pseudobulk_group_by)
         ) |> 
         substitute(env = list(f=as.formula(formula), a = .abundance, s = "TMM")),
       pattern = map(pseudobulk_table_dispersion_gene_unlist) |> quote(),
-      iteration = "list"
-    )
+      iteration = "list",
+      packages = c("rlang")
+    ),
+   
+   tar_target_raw(output_se, 
+                  de_split |>
+                    compact() |> 
+                    bind_rows() |>
+                    nest(summary = -!!sym(pseudobulk_group_by)) |>
+                    quote(), 
+                  packages = c("tidyr", "dplyr", "purrr")
+                )
     
-    
-    # factory_collapse(
-    #   "pseudobulk_joined", 
-    #   command = bind_rows(create_pseudobulk_sample) |> left_join(chunk_tbl) |> quote(),
-    #   tiered_input = "create_pseudobulk_sample", 
-    #   tiers = tiers, 
-    #   packages = c("dplyr") #, pattern = map(create_pseudobulk_sample) |> quote()
-    # )
   )
 }

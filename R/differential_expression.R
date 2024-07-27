@@ -86,6 +86,42 @@ se_add_dispersion = function(se, my_formula, my_assay){
 }
 
 
+
+#' Split a SummarizedExperiment object into chunks of specified size
+#'
+#' This function splits a SummarizedExperiment object into smaller chunks,
+#' each containing a specified number of genes.
+#'
+#' @param se A SummarizedExperiment object to be split.
+#' @param chunk_size The number of genes per chunk (default is 100).
+#' @return A list of SummarizedExperiment objects, each containing a chunk of genes.
+#' @importFrom SummarizedExperiment SummarizedExperiment
+#' @examples
+#' # Assume `se` is your SummarizedExperiment object
+#' # se <- your SummarizedExperiment object here
+#' # Split the SummarizedExperiment object into chunks of 100 genes each
+#' # se_chunks <- split_summarized_experiment(se)
+#' @export
+split_summarized_experiment <- function(se, chunk_size = 100) {
+  # Get the total number of genes
+  total_genes <- nrow(se)
+  
+  # Calculate the number of chunks
+  num_chunks <- ceiling(total_genes / chunk_size)
+  
+  # Split into chunks
+  chunk_list <- lapply(seq_len(num_chunks), function(i) {
+    start_index <- (i - 1) * chunk_size + 1
+    end_index <- min(i * chunk_size, total_genes)
+    
+    se_chunk <- se[start_index:end_index, ]
+    return(se_chunk)
+  })
+  
+  return(chunk_list)
+}
+
+
 # Define a function 'map_quantile_scale_abundance' for scaling and normalizing abundance in single-cell experiment data
 map_quantile_scale_abundance = function(se_df){
   # Print a message indicating the start of the scaling process
@@ -113,12 +149,19 @@ map_quantile_scale_abundance = function(se_df){
 
 
 #' @importFrom tidybulk test_differential_abundance
+#' @importFrom tidybulk pivot_transcript
+#' @importFrom purrr safely
 #' 
 #' @export
-map_de = function(se, my_formula, assay, method, max_rows_for_matrix_multiplication = NULL, cores = 1, .scaling_factor = NULL){
+map_de = function(se, my_formula, assay, method, max_rows_for_matrix_multiplication = NULL, cores = 1, .scaling_factor = NULL, .group_by = NULL){
   
   .scaling_factor = enquo(.scaling_factor)
+  .group_by = enquo(.group_by)
   
+  group_label = se |> distinct(!!.group_by) |> pull(!!.group_by)
+  
+  # Catch failures
+  test_differential_abundance_safe = safely(test_differential_abundance, otherwise = NULL, quiet = TRUE)
 
     
     # Return prematurely
@@ -130,7 +173,7 @@ map_de = function(se, my_formula, assay, method, max_rows_for_matrix_multiplicat
     se = se |>
       
       # Test
-      test_differential_abundance(
+      test_differential_abundance_safe(
         as.formula(my_formula),
         .abundance = !!sym(assay),
         method = method,
@@ -138,7 +181,17 @@ map_de = function(se, my_formula, assay, method, max_rows_for_matrix_multiplicat
         max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,
         .dispersion = dispersion,
         .scaling_factor = !!.scaling_factor
-      )
+      ) 
+    
+    # Throw warning if failed
+    # if(se$error |> is.null() |> not())
+    #   warning(se$error)
+    
+    se = se %$% result
+    
+    # Add the label for joining
+    if(se |> is.null() |> not() && .group_by |> quo_is_symbolic())
+      se = se |> pivot_transcript() |> mutate(!!.group_by := group_label)
     
     attr(se, "internals")$glmmseq_glmmTMB = NULL
     
