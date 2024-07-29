@@ -124,6 +124,8 @@ empty_droplet_id <- function(input_read_RNA_assay,
     # }
   
   significance_threshold = 0.001
+  RNA_feature_count_threshold = 200
+  RNA_count_threshold = 100 
   # Genes to exclude
   if (gene_nomenclature == "symbol") {
     location <- mapIds(
@@ -136,16 +138,15 @@ empty_droplet_id <- function(input_read_RNA_assay,
     ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
     
   } else if (gene_nomenclature == "ensembl") {
-    ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
-    genes_info <- getBM(
-      attributes = c('ensembl_gene_id', 'external_gene_name', 'chromosome_name'),
-      filters = 'ensembl_gene_id',
-      values = rownames(input_read_RNA_assay),
-      mart = ensembl
-    )
+    # all_genes are saved in data/all_genes.rda to avoid recursively accessing biomaRt backend for potential timeout error
+    data(ensembl_genes_biomart)
+    all_mitochondrial_genes <- ensembl_genes_biomart[grep("MT", ensembl_genes_biomart$chromosome_name), ] 
+    all_ribosome_genes <- ensembl_genes_biomart[grep("^(RPL|RPS)", ensembl_genes_biomart$external_gene_name), ]
     
-    mitochondrial_genes <- genes_info[genes_info$chromosome_name == "MT", ] |> pull(ensembl_gene_id)
-    ribosome_genes <- genes_info[grep("^RPS|^RPL", genes_info$external_gene_name), ] |> pull(ensembl_gene_id)
+    mitochondrial_genes <- all_mitochondrial_genes |> 
+      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+    ribosome_genes <- all_ribosome_genes |> 
+      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
   }
 
   
@@ -162,6 +163,10 @@ empty_droplet_id <- function(input_read_RNA_assay,
     counts <- assay(input_read_RNA_assay, assay)
   }
   filtered_counts <- counts[!(rownames(counts) %in% c(mitochondrial_genes, ribosome_genes)),, drop=FALSE ]
+  
+  # filter based on RNA_count_threshold
+  filtered_counts <- filtered_counts[rowSums(filtered_counts) > RNA_count_threshold, ]
+  
   # Calculate bar-codes ranks
   barcode_ranks <- barcodeRanks(filtered_counts)
   
