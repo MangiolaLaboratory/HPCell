@@ -2049,3 +2049,46 @@ add_missingh_genes_to_se = function(se, all_genes, missing_genes){
   
 }
 
+
+
+#' Remove Random Effects from a Mixed Effects Model Formula
+#'
+#' This function takes a formula used in mixed effects models and removes the random effects part,
+#' returning the fixed effects formula.
+#'
+#' @param formula A formula used in mixed effects models, containing both fixed and random effects.
+#' @return A formula containing only the fixed effects part of the input formula.
+#' @importFrom lme4 findbars
+#' @importFrom stats update
+#' @importFrom stats as.formula
+#' @examples
+#' library(lme4)
+#' f1 <- Reaction ~ Days + (Days | Subject)
+#' fixed_formula <- remove_random_effects(f1)
+#' print(fixed_formula)
+#' @noRd
+remove_random_effects <- function(formula) {
+  # Find the random effects parts of the formula
+  random_effects <- findbars(formula)
+  
+  # Start with the original formula
+  fixed_formula <- formula
+  
+  # Remove each random effects term from the formula
+  for (re in random_effects) {
+    fixed_formula <- update(fixed_formula, paste(". ~ . - (", deparse(re), ")", sep = ""))
+  }
+  
+  # Convert the updated formula to a character string
+  fixed_formula_str <- deparse(fixed_formula)
+  
+  # Remove the leading ". ~" if present and ensure the string is properly formatted
+  fixed_formula_str <- sub("^\\. ~", "~", fixed_formula_str)
+  
+  # Convert the string back to a formula object
+  fixed_formula <- as.formula(fixed_formula_str)
+  
+  # Return the fixed effects formula
+  return(fixed_formula)
+}
+

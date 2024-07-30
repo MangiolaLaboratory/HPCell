@@ -444,9 +444,9 @@ assay<- process_seurat_object(input_seurat_list[[1]])
 library(HPCell)
 library(crew)
 library(crew.cluster)
-library(magrittr)
-library(tidySingleCellExperiment)
 
+# library(magrittr)
+# library(tidySingleCellExperiment)
 # library(Seurat)
 # library(SeuratData)
 # options(Seurat.object.assay.version = "v5")
@@ -460,11 +460,11 @@ library(tidySingleCellExperiment)
 #   data@assays$RNA$data = data@assays$RNA$counts
 #   data
 # }
-# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_treated_1.rds")
-# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_treated_2.rds")
-# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_UNtreated_1.rds")
-# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |>  saveRDS("dev/input_seurat_UNtreated_2.rds")
-# 
+# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |> mutate(group = 1) |>   saveRDS("dev/input_seurat_treated_1.rds")
+# input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |>  mutate(group = 2) |> saveRDS("dev/input_seurat_treated_2.rds")
+# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |>  mutate(group = 1) |> saveRDS("dev/input_seurat_UNtreated_1.rds")
+# input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |>  mutate(group = 2) |> saveRDS("dev/input_seurat_UNtreated_2.rds")
+
 # input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |> as.SingleCellExperiment() |>   saveRDS("dev/input_seurat_treated_1_SCE.rds")
 # input_seurat |> mutate(condition = "treated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_treated_2_SCE.rds")
 # input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_1_SCE.rds")
@@ -479,6 +479,9 @@ c("dev/input_seurat_treated_1_SCE.rds",
   purrr::map_chr(here::here) |> 
    magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
   
+  dir("dev/CAQ_sce/", full.names = T) |> 
+
+
   # Initialise pipeline characteristics
   initialise_hpc(
     gene_nomenclature = "symbol",
@@ -487,7 +490,7 @@ c("dev/input_seurat_treated_1_SCE.rds",
      tier = c("tier_1", "tier_1", "tier_2", "tier_2"),
     
     # Default resourced 
-    computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
+  #  computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
       
   #   computing_resources = list(
   # 
@@ -522,14 +525,15 @@ c("dev/input_seurat_treated_1_SCE.rds",
   #   )
   # )
     
-  # # #  Slurm resources
-  #   computing_resources =
-  #     crew.cluster::crew_controller_slurm(
-  #       slurm_memory_gigabytes_per_cpu = 5,
-  #       workers = 50,
-  #       tasks_max = 5,
-  #       verbose = T
-  #     )
+  # #  Slurm resources
+    computing_resources =
+      crew.cluster::crew_controller_slurm(
+        slurm_memory_gigabytes_per_cpu = 5,
+        workers = 500,
+        tasks_max = 5,
+        verbose = T,
+        slurm_cpus_per_task = 1
+      )
   ) |> 
   
   # Remove empty outliers
@@ -553,6 +557,10 @@ c("dev/input_seurat_treated_1_SCE.rds",
     "G2M.Score"
   )) |> 
   
-  calculate_pseudobulk(group_by = "monaco_first.labels.fine")
+  calculate_pseudobulk(group_by = "monaco_first.labels.fine") |> 
+  
+  test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts")
+  #test_differential_abundance(~ age_days, .abundance="counts")
+
 
 

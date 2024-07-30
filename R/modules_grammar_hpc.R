@@ -53,7 +53,7 @@ initialise_hpc <- function(input_hpc,
   
   # if simple names are not set, use integers
   if(input_hpc |> names() |> is.null())
-    input_hpc |> set_names(seq_len(length(input_hpc)))
+    input_hpc = input_hpc |> set_names(seq_len(length(input_hpc)))
   
   input_hpc |> names() |> saveRDS("sample_names.rds")
   #cell_count |> saveRDS("cell_count.rds")
@@ -633,6 +633,7 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
   args_list$factory = function(tiers, external_path, pseudobulk_group_by = ""){
     
     list(
+      tar_target_raw("pseudobulk_group_by", pseudobulk_group_by, deployment = "main") ,
 
       factory_split(
         "create_pseudobulk_sample", 
@@ -649,7 +650,7 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
             x = pseudobulk_group_by, 
             external_path = e
           ) |> 
-          substitute(env = list(e = external_path, pseudobulk_group_by = pseudobulk_group_by)),
+          substitute(env = list(e = external_path)),
         tiers, arguments_to_tier = c("read_file", "sample_names"), 
         other_arguments_to_tier = c("empty_droplets_tbl",
                                     "alive_identification_tbl",
@@ -662,7 +663,14 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
                                    "annotation_label_transfer_tbl",
                                    "doublet_identification_tbl")
         
+      ),
+      factory_merge_pseudobulk(
+        se_list_input = "create_pseudobulk_sample",
+        "pseudobulk_gran_group", 
+        tiers, 
+        external_path = external_path
       ) 
+      
       # ,
       # 
       # factory_collapse(
@@ -674,7 +682,7 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
     )
     
   }
-  
+   
   # We don't want recursive when we call factory
   if(input_hpc |> length() > 0) {
 
@@ -686,13 +694,108 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
       pseudobulk_group_by = group_by
     )
   }
-
-
+  
+  
   input_hpc |>
     c(list(calculate_pseudobulk = args_list)) |>
     add_class("HPCell")
   
 }
+
+#' Test Differential Abundance for HPCell
+#'
+#' This function tests differential abundance for HPCell objects.
+#'
+#' @name test_differential_abundance,HPCell-method
+#' @rdname test_differential_abundance
+#' @inherit tidybulk::test_differential_abundance
+#'
+#' @importFrom tidybulk test_differential_abundance
+#' @exportMethod test_differential_abundance
+#' @param .data An HPCell object.
+#' @param .formula A formula used to model the design matrix.
+#' @param .sample Sample parameter.
+#' @param .transcript Transcript parameter.
+#' @param .abundance Abundance parameter.
+#' @param contrasts Contrasts parameter.
+#' @param method Method parameter, default is "edgeR_quasi_likelihood".
+#' @param test_above_log2_fold_change Test above log2 fold change.
+#' @param scaling_method Scaling method, default is "TMM".
+#' @param omit_contrast_in_colnames Omit contrast in column names.
+#' @param prefix Prefix parameter.
+#' @param action Action parameter, default is "add".
+#' @param ... Additional parameters.
+#' @param significance_threshold Significance threshold.
+#' @param fill_missing_values Fill missing values.
+#' @param .contrasts Contrasts parameter.
+#' @return The result of the differential abundance test.
+#'
+setMethod(
+  "test_differential_abundance",
+  signature(.data = "HPCell"),
+  function(.data, .formula, .sample = NULL, .transcript = NULL, 
+           .abundance = NULL, contrasts = NULL, method = "edgeR_quasi_likelihood", 
+           test_above_log2_fold_change = NULL, scaling_method = "TMM", 
+           omit_contrast_in_colnames = FALSE, prefix = "", action = "add", factor_of_interest = NULL,
+           ..., significance_threshold = NULL, fill_missing_values = NULL, 
+           .contrasts = NULL) {
+    
+    # Capture all arguments including defaults
+    args_list <- as.list(environment())[-1]
+    
+    # Optionally, you can evaluate the arguments if they are expressions
+    args_list <- lapply(args_list, eval, envir = parent.frame())
+    
+    args_list$factory = function(tiers, .formula, factor_of_interest = NULL, .abundance = NULL){
+        
+      if(.formula |> deparse() |> str_detect("\\|"))
+        factory_de_random_effect(
+          se_list_input = "create_pseudobulk_sample", 
+          output_se = "de", 
+          formula=.formula,
+          #method="edger_robust_likelihood_ratio", 
+          tiers = tiers,
+          factor_of_interest = factor_of_interest,
+          .abundance = .abundance
+        )
+      
+      else
+        factory_de_fix_effect(
+          se_list_input = "create_pseudobulk_sample", 
+          output_se = "de", 
+          formula=.formula,
+          method="edger_robust_likelihood_ratio", 
+          tiers = tiers,
+          factor_of_interest = factor_of_interest,
+          .abundance = .abundance
+        )
+      
+    }
+    
+    # We don't want recursive when we call factory
+    if(.data |> length() > 0) {
+      
+      environment(.formula) <- new.env(parent = emptyenv())
+      
+      tar_tier_append(
+        quote(dummy_hpc |> test_differential_abundance() %$% test_differential_abundance %$% factory),
+        tiers = .data$initialisation$tier |> get_positions() ,
+        script = glue("{.data$initialisation$store}.R"),
+        .formula = .formula, 
+        factor_of_interest = factor_of_interest,
+        .abundance = .abundance
+      )
+      
+    }
+    
+    
+    .data |>
+      c(list(test_differential_abundance = args_list)) |>
+      add_class("HPCell")
+    
+  }
+)
+
 
 #' @export
 preprocessing_output_factory = function(tiers){
