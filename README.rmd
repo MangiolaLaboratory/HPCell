@@ -50,6 +50,11 @@ input_seurat |> saveRDS(file_path)
 input_hpc =
   c(file_path, file_path) |> 
   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2"))
+
+## Test with fibrosis samples 
+input_hpc =
+  c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds") |> 
+  magrittr::set_names(c("GSM3489182", "THD0001"))
 ```
 
 ```{r}
@@ -86,6 +91,7 @@ Local parallel computing
 `computing_resources = crew_controller_local(workers = 10)`
 
 ```{r, eval= FALSE}
+
 library(HPCell)
 
 input_hpc |> 
