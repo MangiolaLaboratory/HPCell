@@ -489,9 +489,9 @@ library(crew.cluster)
     data_container_type = "sce_hdf5",
     # tier = c("tier_1", "tier_2"),
     # 
-    # debug_step = "de_f1f9407fad200b7a",
+   #  debug_step = "pseudobulk_table_dispersion_gene",
 
-    
+
     # Default resourced 
   #  computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
       
@@ -531,10 +531,11 @@ library(crew.cluster)
   # #  Slurm resources
     computing_resources =
       crew.cluster::crew_controller_slurm(
-        slurm_memory_gigabytes_per_cpu = 50,
-        workers = 50,
+        slurm_memory_gigabytes_per_cpu = 5,
+        workers = 500,
         tasks_max = 5,
-        verbose = T
+        verbose = T,
+        slurm_cpus_per_task = 1
       )
   ) |> 
   
@@ -562,7 +563,7 @@ library(crew.cluster)
   calculate_pseudobulk(group_by = "monaco_first.labels.fine") |> 
   
   test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts")
-  #test_differential_abundance(~ condition)
+  #test_differential_abundance(~ age_days, .abundance="counts")
 
 
 
