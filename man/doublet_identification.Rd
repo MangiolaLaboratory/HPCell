@@ -8,38 +8,21 @@ doublet_identification(
   input_read_RNA_assay,
   empty_droplets_tbl,
   alive_identification_tbl,
-<<<<<<< HEAD
-  annotation_label_transfer_tbl,
-  reference_label_fine,
-=======
->>>>>>> upstream/master
   assay = NULL
 )
 }
 \arguments{
-<<<<<<< HEAD
-\item{input_read_RNA_assay}{SingleCellExperiment object containing RNA assay data.}
-=======
 \item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object containing RNA assay data.}
->>>>>>> upstream/master
 
 \item{empty_droplets_tbl}{A tibble identifying empty droplets.}
 
 \item{alive_identification_tbl}{A tibble identifying alive cells.}
 
-<<<<<<< HEAD
-\item{annotation_label_transfer_tbl}{A tibble with annotation label transfer data.}
-
-\item{reference_label_fine}{Optional reference label for fine-tuning.}
-
-\item{assay}{Name of the assay to use.}
-=======
 \item{assay}{Name of the assay to use.}
 
 \item{annotation_label_transfer_tbl}{A tibble with annotation label transfer data.}
 
 \item{reference_label_fine}{Optional reference label for fine-tuning.}
->>>>>>> upstream/master
 }
 \value{
 A tibble containing cells with their scDblFinder scores.

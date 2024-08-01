@@ -972,7 +972,8 @@ create_pseudobulk <- function(input_read_RNA_assay, sample_names,
     mutate(sample_hpc = sample_names) |> 
     
     # Aggregate
-    aggregate_cells(c(sample_hpc, any_of(x)), slot = "data", assays = assays) 
+    #aggregate_cells(c(sample_hpc, any_of(x)), slot = "data", assays = assays) 
+    tidySingleCellExperiment::aggregate_cells(c(sample_hpc, !!sym(x)), slot = "data", assays = assays)
   
   # If I start from Seurat
   if(pseudobulk |> is("data.frame"))

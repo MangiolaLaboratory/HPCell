@@ -57,7 +57,7 @@ initialise_hpc <- function(input_hpc,
   
   input_hpc |> names() |> saveRDS("sample_names.rds")
   #cell_count |> saveRDS("cell_count.rds")
-
+  
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
@@ -112,7 +112,7 @@ initialise_hpc <- function(input_hpc,
       #tar_target(read_file, readRDS("input_file.rds"), format = "file", iteration = "list"),
       tar_target(gene_nomenclature, readRDS("temp_gene_nomenclature.rds"), iteration = "list", deployment = "main"),
       tar_target(data_container_type, readRDS("data_container_type.rds"), deployment = "main")
-    
+      
     )
     
     target_list = 
@@ -216,7 +216,7 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
     )
     
   }
-
+  
   
   # Add pipeline step
   input_hpc |>
@@ -296,7 +296,7 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
       glue("{input_hpc$initialisation$store}.R")
     )
   }
-
+  
   
   input_hpc |>
     c(list(remove_dead_scuttle = args_list))  |>
@@ -507,7 +507,7 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL) {
       glue("{input_hpc$initialisation$store}.R")
     )
   }
-    
+  
   
   input_hpc |>
     c(list(annotate_cell_type = args_list)) |>
@@ -584,9 +584,9 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
       glue("{input_hpc$initialisation$store}.R")
     )
   }
-
   
-
+  
+  
   input_hpc |>
     c(list(normalise_abundance_seurat_SCT = args_list)) |>
     add_class("HPCell")
@@ -627,7 +627,7 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
     
     list(
       tar_target_raw("pseudobulk_group_by", pseudobulk_group_by, deployment = "main") ,
-
+      
       factory_split(
         "create_pseudobulk_sample", 
         read_file |> 
@@ -675,10 +675,10 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
     )
     
   }
-   
+  
   # We don't want recursive when we call factory
   if(input_hpc |> length() > 0) {
-
+    
     tar_tier_append(
       quote(dummy_hpc |> calculate_pseudobulk() %$% calculate_pseudobulk %$% factory),
       input_hpc$initialisation$tier |> get_positions() ,
@@ -740,7 +740,7 @@ setMethod(
     args_list <- lapply(args_list, eval, envir = parent.frame())
     
     args_list$factory = function(tiers, .formula, factor_of_interest = NULL, .abundance = NULL){
-        
+      
       if(.formula |> deparse() |> str_detect("\\|"))
         factory_de_random_effect(
           se_list_input = "create_pseudobulk_sample", 
@@ -852,30 +852,30 @@ evaluate_hpc.HPCell = function(input_hpc) {
   
   if(
     !("annotate_cell_type" %in% names(input_hpc) |
-    ( "remove_dead_scuttle" %in% names(input_hpc) & !is.null(input_hpc$remove_dead_scuttle$group_by))
-  ))
-      target_chunk_undefined_annotate_cell_type(input_hpc)
+      ( "remove_dead_scuttle" %in% names(input_hpc) & !is.null(input_hpc$remove_dead_scuttle$group_by))
+    ))
+    target_chunk_undefined_annotate_cell_type(input_hpc)
   
   #-----------------------#
   # Remove dead
   #-----------------------#
   
   if(! "remove_dead_scuttle" %in% names(input_hpc))
-      target_chunk_undefined_remove_dead_scuttle(input_hpc)
+    target_chunk_undefined_remove_dead_scuttle(input_hpc)
   
   
   #-----------------------#
   # score cell cycle
   #-----------------------#
   if(! "score_cell_cycle_seurat" %in% names(input_hpc))
-      target_chunk_undefined_score_cell_cycle_seurat(input_hpc)
+    target_chunk_undefined_score_cell_cycle_seurat(input_hpc)
   
   #-----------------------#
   # Doublets
   #-----------------------#
   
   if(! "remove_doublets_scDblFinder" %in% names(input_hpc))
-     target_chunk_undefined_remove_doublets_scDblFinder(input_hpc)
+    target_chunk_undefined_remove_doublets_scDblFinder(input_hpc)
   
   #-----------------------#
   # SCT

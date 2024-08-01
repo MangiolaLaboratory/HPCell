@@ -11,7 +11,8 @@ params:
   x5: "NA"
   x6: "NA"
 ---
-
+## Introduction 
+This report contains UMAP representation of cell clusters and visualization of the distribution of doublets across processed samples.
 ```{r setup, include=FALSE}
 library(dplyr)
 library(tidyr)

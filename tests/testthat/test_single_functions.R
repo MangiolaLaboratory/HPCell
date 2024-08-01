@@ -361,11 +361,21 @@ path<- paste0(system.file(package = "HPCell"), "extdata/Test.Rmd")
 
 ## Testing in Targets 
 
+file_paths <- tar_read(file_path, store = store)
+data_container_type <- tar_read(data_container_type_file, store = store)
+
+input_file <- list()
+
+# Loop over elements in file_paths list
+for (i in seq_along(file_paths)) {
+  input_file[[i]] <- read_data_container(file_paths[[i]], container_type = data_container_type)
+}
+
 ## Empty Droplets
 rmarkdown::render(
   input =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/Empty_droplet_report.html"),
-  params = list(x1 = tar_read(input_read, store = store), 
+  params = list(x1 = read_data_container(tar_read(file_path, store = store), container_type = tar_read(data_container_type_file, store = store)), 
                 x2 = tar_read(empty_droplets_tbl, store = store),
                 x3 = tar_read(annotation_label_transfer_tbl, store = store),
                 x4 = tar_read(unique_tissues, store = store), 

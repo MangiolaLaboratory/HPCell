@@ -56,9 +56,11 @@ input_hpc =
   c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds") |> 
   magrittr::set_names(c("GSM3489182", "THD0001"))
 
-# input_hpc =
-#   c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds") |> 
-#   magrittr::set_names(c("sampleName", "sampleName"))
+input_hpc =
+  c("~/HPCell/CA1.rds", "~/HPCell/CA2.rds") |>
+  magrittr::set_names(c("trachea", "blood"))
+
+
 ```
 
 Local parallel computing
@@ -87,7 +89,7 @@ input_hpc |>
     "subsets_Ribo_percent", 
     "G2M.Score"
   )) |> 
-  calculate_pseudobulk(group_by = "monaco_first.labels.fine")
+  calculate_pseudobulk(group_by = c("sampleName"))
 
 ```
 

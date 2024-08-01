@@ -167,6 +167,7 @@ print(plot)
 ```
 
 ## Proportion of empty droplets
+- Number and proportion of cells (non-empty droplets), everything above knee is retained.
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 empty_count <- function(df) {
   # Count the TRUE and FALSE values in the empty_droplet column
@@ -184,7 +185,6 @@ empty_count_results <- empty_count(combined_df)
 empty_count_results
 ```
 
-## Number and proportion of cells (non-empty droplets), everything above knee is retained.
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 # Number of non-empty droplets -------------------------------------------------
 empty_table <- function(df) {
@@ -246,9 +246,9 @@ plot_hist
 
 ## Percentage of reads assigned to mitochondrial transcrips against library size
 
-Scatter plot comparing mitochondrial content percentage to total count of RNA sequencing reads across different samples (in this case tissues)
+- Scatter plot comparing mitochondrial content percentage to total count of RNA sequencing reads across different samples (in this case tissues)
 
-The X-axis is on a logarithmic scale and represents the total count of RNA sequencing reads per cell, while the Y-axis shows the percentage of those reads that are mitochondrial. Each point on the plot represents a single cell.
+- The X-axis is on a logarithmic scale and represents the total count of RNA sequencing reads per cell, while the Y-axis shows the percentage of those reads that are mitochondrial. Each point on the plot represents a single cell.
 
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 plot_mito_data <- function(input_seurat, tissue_name, annotation_labels){
