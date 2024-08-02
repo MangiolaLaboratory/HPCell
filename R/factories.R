@@ -295,7 +295,12 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers, fa
       packages = c("tidySummarizedExperiment", "S4Vectors", "purrr", "dplyr" ,"tidybulk", "HPCell")
     ), 
     
-   tar_target_raw("pseudobulk_table_dispersion_gene_unlist", pseudobulk_table_dispersion_gene |> unlist() |>  quote(), iteration = "list"),
+   tar_target_raw(
+     "pseudobulk_table_dispersion_gene_unlist", 
+     pseudobulk_table_dispersion_gene |> unlist() |>  quote(), 
+     pattern = map(pseudobulk_table_dispersion_gene) |> quote(), 
+     iteration = "list"
+    ),
     
     # Analyse
     tar_target_raw(
