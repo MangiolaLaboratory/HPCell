@@ -15,8 +15,16 @@ tranform_assay.HPCell = function(input_hpc, fx = identity, target_input = "read_
   
   args_list$factory = function(tiers, target_input, target_output, external_path){
     
-    if(length(readRDS("temp_fx.rds"))==1) target_fx = tar_target_raw("transform", readRDS("temp_fx.rds") |> quote(), deployment = "main")
-    else target_fx = tar_target_raw("transform", readRDS("temp_fx.rds") |> quote(), iteration = "list", deployment = "main")
+    if(length(readRDS("temp_fx.rds"))==1) 
+      {
+      target_fx = tar_target_raw("transform", readRDS("temp_fx.rds") |> quote(), deployment = "main")
+      arguments_to_tier = NULL
+    }
+    else 
+      {
+        target_fx = tar_target_raw("transform", readRDS("temp_fx.rds") |> quote(), iteration = "list", deployment = "main")
+        arguments_to_tier ="transform"
+       }
     
     
     
@@ -30,6 +38,7 @@ tranform_assay.HPCell = function(input_hpc, fx = identity, target_input = "read_
           transform_utility(transform, e) |> 
           substitute(env = list(i=as.symbol(target_input), e = external_path)),
         tiers, 
+        arguments_to_tier = arguments_to_tier,
         other_arguments_to_tier = target_input,
         other_arguments_to_map = target_input,
         iteration = "list", 

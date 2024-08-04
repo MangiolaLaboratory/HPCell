@@ -480,7 +480,6 @@ library(crew.cluster)
 #   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
 #   
   
- pipeline_result = 
    dir("dev/CAQ_sce/", full.names = T) |> 
 
 
@@ -527,7 +526,7 @@ library(crew.cluster)
       )
   ) |> 
   
-  tranform_assay(fx = identity, target_output = "sce_transformed") |> 
+  tranform_assay(fx = purrr::map(1:16, ~identity), target_output = "sce_transformed") |> 
     
   # Remove empty outliers
   remove_empty_DropletUtils(target_input = "sce_transformed") |> 
