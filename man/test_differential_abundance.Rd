@@ -18,6 +18,8 @@
   prefix = "",
   action = "add",
   factor_of_interest = NULL,
+  target_input = "create_pseudobulk_sample",
+  target_output = "de",
   ...,
   significance_threshold = NULL,
   fill_missing_values = NULL,

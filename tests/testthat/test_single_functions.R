@@ -552,10 +552,9 @@ library(crew.cluster)
   
   calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "sce_transformed") |> 
   
-  test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts")
+  test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts") |> 
   #test_differential_abundance(~ age_days, .abundance="counts")
 
- # For the moment only available for single cell
-pipeline_result |> 
+  # For the moment only available for single cell
   get_single_cell(target_input = "sce_transformed")
 

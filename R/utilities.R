@@ -634,6 +634,8 @@ tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script")
     # Add suffix
     c("))") |> 
     
+    paste(collapse = " ") |> 
+    
     # Write
     write_lines(script, append = TRUE)
   
@@ -650,12 +652,12 @@ tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script")
 #' @importFrom readr write_lines
 #' @importFrom targets tar_config_get
 #' @noRd
-tar_script_append2 = function(code, script = targets::tar_config_get("script")){
+tar_script_append2 = function(code, script = targets::tar_config_get("script"), append = TRUE){
   code |>
     deparse() |>
     head(-1) |>
     tail(-1) |>
-    write_lines(script, append = TRUE)
+    write_lines(script, append = append)
 }
 
 #' Append Code to a Targets Script
@@ -700,6 +702,9 @@ append_chunk_fix = function(chunk, script = targets::tar_config_get("script")){
     
     # Add suffix
     c("))") |> 
+    
+    paste(collapse = " ") |> 
+    
     
     # Write
     write_lines(script, append = TRUE)
@@ -746,6 +751,8 @@ append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("sc
       
       # Add suffix
       c("))") |> 
+      
+      paste(collapse = " ") |> 
       
       # Write
       write_lines(script, append = TRUE)
@@ -2069,3 +2076,19 @@ remove_random_effects <- function(formula) {
   return(fixed_formula)
 }
 
+#' @examples
+#' # Example usage:
+#' # delete_lines_with_word("your_text_file.txt", "bla")
+#'
+#' @export
+delete_lines_with_word <- function(word, file_path) {
+  # Step 1: Read the file into R as a vector of lines
+  lines <- readLines(file_path)
+  
+  # Step 2: Filter out lines that contain the specified word
+  word = glue("target_output = \"{word}\"")
+  filtered_lines <- lines[!grepl(word, lines)]
+  
+  # Step 3: Write the modified content back to the file
+  writeLines(filtered_lines, file_path)
+}
