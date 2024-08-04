@@ -300,9 +300,10 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers, fa
     
    tar_target_raw(
      "pseudobulk_table_dispersion_gene_unlist", 
-     pseudobulk_table_dispersion_gene |> unlist() |>  quote(), 
-     pattern = map(pseudobulk_table_dispersion_gene) |> quote(), 
+     pseudobulk_table_dispersion_gene |> unlist() |> unlist() |> quote(),
      iteration = "list"
+     #, 
+     #pattern = map(pseudobulk_table_dispersion_gene) |> quote()
     ),
     
     # Analyse

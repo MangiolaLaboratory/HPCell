@@ -480,7 +480,8 @@ library(crew.cluster)
 #   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
 #   
   
-  dir("dev/CAQ_sce/", full.names = T) |> 
+ pipeline_result = 
+   dir("dev/CAQ_sce/", full.names = T) |> 
 
 
   # Initialise pipeline characteristics
@@ -532,27 +533,29 @@ library(crew.cluster)
   remove_empty_DropletUtils(target_input = "sce_transformed") |> 
   
   # Remove dead cells
-  remove_dead_scuttle() |> 
+  remove_dead_scuttle(target_input = "sce_transformed") |> 
   
   # Score cell cycle
-  score_cell_cycle_seurat() |> 
+  score_cell_cycle_seurat(target_input = "sce_transformed") |> 
   
   # Remove doublets
-  remove_doublets_scDblFinder() |> 
+  remove_doublets_scDblFinder(target_input = "sce_transformed") |> 
   
   # Annotation
-  annotate_cell_type() |> 
+  annotate_cell_type(target_input = "sce_transformed") |> 
   
   normalise_abundance_seurat_SCT(factors_to_regress = c(
     "subsets_Mito_percent", 
     "subsets_Ribo_percent", 
     "G2M.Score"
-  )) |> 
+  ), target_input = "sce_transformed") |> 
   
-  calculate_pseudobulk(group_by = "monaco_first.labels.fine") |> 
+  calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "sce_transformed") |> 
   
   test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts")
   #test_differential_abundance(~ age_days, .abundance="counts")
 
-
+ # For the moment only available for single cell
+pipeline_result |> 
+  get_single_cell(target_input = "sce_transformed")
 
