@@ -154,12 +154,12 @@ initialise_hpc <- function(input_hpc,
 
 # Define the generic function
 #' @export
-remove_empty_DropletUtils <- function(input_hpc, total_RNA_count_check = NULL, target_input = "read_file", target_output = "empty_droplets_tbl", ...) {
+remove_empty_DropletUtils <- function(input_hpc, total_RNA_count_check = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
   UseMethod("remove_empty_DropletUtils")
 }
 
 #' @export
-remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = NULL, target_input = "read_file", target_output = "empty_droplets_tbl", ...) {
+remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())
   
@@ -173,7 +173,7 @@ remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = N
 }
 
 #' @export
-remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, target_input = "read_file", target_output = "empty_droplets_tbl",...) {
+remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, target_input = "read_file", target_output = "empty_tbl",...) {
   
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
@@ -235,7 +235,7 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
 target_chunk_undefined_remove_empty_DropletUtils = function(input_hpc){
   append_chunk_tiers(
     { tar_target(
-      empty_droplets_tbl_TIER_PLACEHOLDER,
+      empty_tbl_TIER_PLACEHOLDER,
       read_file_list |> 
         read_data_container(container_type = data_container_type) |> as_tibble() |> select(.cell) |> mutate(empty_droplet = FALSE),
       pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ),
@@ -251,12 +251,12 @@ target_chunk_undefined_remove_empty_DropletUtils = function(input_hpc){
 
 # Define the generic function
 #' @export
-remove_dead_scuttle <- function(input_hpc, group_by = NULL, target_input = "read_file", target_output = "alive_identification_tbl") {
+remove_dead_scuttle <- function(input_hpc, group_by = NULL, target_input = "read_file", target_output = "alive_tbl") {
   UseMethod("remove_dead_scuttle")
 }
 
 #' @export
-remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL, target_input = "read_file", target_output = "alive_identification_tbl") {
+remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL, target_input = "read_file", target_output = "alive_tbl") {
   
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
@@ -273,14 +273,14 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL, target_input =
         i |> 
           read_data_container(container_type = data_container_type) |> 
           alive_identification(
-            empty_droplets_tbl,
-            annotation_label_transfer_tbl,
+            empty_tbl,
+            annotation_tbl,
             grouping_column
           ) |> 
           substitute(env = list(i=as.symbol(target_input))),
         tiers, 
-        other_arguments_to_tier = c(target_input, "empty_droplets_tbl", "annotation_label_transfer_tbl"), 
-        other_arguments_to_map = c(target_input, "empty_droplets_tbl", "annotation_label_transfer_tbl")
+        other_arguments_to_tier = c(target_input, "empty_tbl", "annotation_tbl"), 
+        other_arguments_to_map = c(target_input, "empty_tbl", "annotation_tbl")
       ),
       
       factory_collapse(
@@ -321,7 +321,7 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL, target_input =
 target_chunk_undefined_remove_dead_scuttle = function(input_hpc){
   append_chunk_tiers(
     { tar_target(
-      alive_identification_tbl_TIER_PLACEHOLDER, 
+      alive_tbl_TIER_PLACEHOLDER, 
       read_file_list |> 
         read_data_container(container_type = data_container_type) |> 
         as_tibble() |> 
@@ -341,12 +341,12 @@ target_chunk_undefined_remove_dead_scuttle = function(input_hpc){
 
 # Define the generic function
 #' @export
-score_cell_cycle_seurat <- function(input_hpc, target_input = "read_file", target_output = "cell_cycle_score_tbl",...) {
+score_cell_cycle_seurat <- function(input_hpc, target_input = "read_file", target_output = "cell_cycle_tbl",...) {
   UseMethod("score_cell_cycle_seurat")
 }
 
 #' @export
-score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "read_file", target_output = "cell_cycle_score_tbl", ...) {
+score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "read_file", target_output = "cell_cycle_tbl", ...) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
   
@@ -361,12 +361,12 @@ score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "read_file",
         i |> 
           read_data_container(container_type = data_container_type) |> 
           cell_cycle_scoring(
-            empty_droplets_tbl,  
+            empty_tbl,  
             gene_nomenclature = gene_nomenclature
           ) |> 
           substitute(env = list(i=as.symbol(target_input))),
         tiers, 
-        other_arguments_to_tier = c(target_input, "empty_droplets_tbl"), other_arguments_to_map = c(target_input, "empty_droplets_tbl")
+        other_arguments_to_tier = c(target_input, "empty_tbl"), other_arguments_to_map = c(target_input, "empty_tbl")
       ),
       
       factory_collapse(
@@ -404,7 +404,7 @@ score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "read_file",
 target_chunk_undefined_score_cell_cycle_seurat = function(input_hpc, target_input = "read_file"){
   append_chunk_tiers(
     { tar_target(
-      cell_cycle_score_tbl_TIER_PLACEHOLDER,
+      cell_cycle_tbl_TIER_PLACEHOLDER,
       NULL,
       pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ),
       iteration = "list",
@@ -419,12 +419,12 @@ target_chunk_undefined_score_cell_cycle_seurat = function(input_hpc, target_inpu
 
 # Define the generic function
 #' @export
-remove_doublets_scDblFinder <- function(input_hpc, target_input = "read_file", target_output = "doublet_identification_tbl") {
+remove_doublets_scDblFinder <- function(input_hpc, target_input = "read_file", target_output = "doublet_tbl") {
   UseMethod("remove_doublets_scDblFinder")
 }
 
 #' @export
-remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "read_file", target_output = "doublet_identification_tbl") {
+remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "read_file", target_output = "doublet_tbl") {
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
   
@@ -438,12 +438,12 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "read_fi
         i |> 
           read_data_container(container_type = data_container_type) |> 
           doublet_identification(
-            empty_droplets_tbl,
-            alive_identification_tbl
+            empty_tbl,
+            alive_tbl
           ) |> 
           substitute(env = list(i=as.symbol(target_input))),
         tiers, 
-        other_arguments_to_tier = c(target_input, "empty_droplets_tbl", "alive_identification_tbl"), other_arguments_to_map = c(target_input, "empty_droplets_tbl", "alive_identification_tbl")
+        other_arguments_to_tier = c(target_input, "empty_tbl", "alive_tbl"), other_arguments_to_map = c(target_input, "empty_tbl", "alive_tbl")
       ),
       
       factory_collapse(
@@ -481,7 +481,7 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "read_fi
 target_chunk_undefined_remove_doublets_scDblFinder = function(input_hpc){
   append_chunk_tiers(
     { tar_target(
-      doublet_identification_tbl_TIER_PLACEHOLDER, 
+      doublet_tbl_TIER_PLACEHOLDER, 
       read_file_list |> 
         read_data_container(container_type = data_container_type) |> as_tibble() |> select(.cell) |> mutate(scDblFinder.class="singlet"), 
       pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ), 
@@ -496,12 +496,12 @@ target_chunk_undefined_remove_doublets_scDblFinder = function(input_hpc){
 
 # Define the generic function
 #' @export
-annotate_cell_type <- function(input_hpc, target_input = "read_file", target_output = "annotation_label_transfer_tbl",...) {
+annotate_cell_type <- function(input_hpc, target_input = "read_file", target_output = "annotation_tbl",...) {
   UseMethod("annotate_cell_type")
 }
 
 #' @export
-annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target_input = "read_file", target_output = "annotation_label_transfer_tbl", ...) {
+annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target_input = "read_file", target_output = "annotation_tbl", ...) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
   
@@ -517,12 +517,12 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target
         i |> 
           read_data_container(container_type = data_container_type) |> 
           annotation_label_transfer(
-            empty_droplets_tbl,
+            empty_tbl,
             reference_read
           ) |> 
           substitute(env = list(i=as.symbol(target_input))),
         tiers, 
-        other_arguments_to_tier = c(target_input, "empty_droplets_tbl"), other_arguments_to_map = c(target_input, "empty_droplets_tbl") 
+        other_arguments_to_tier = c(target_input, "empty_tbl"), other_arguments_to_map = c(target_input, "empty_tbl") 
       ),
       
       factory_collapse(
@@ -562,7 +562,7 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target
 target_chunk_undefined_annotate_cell_type = function(input_hpc){
   append_chunk_tiers(
     { tar_target(
-      annotation_label_transfer_tbl_TIER_PLACEHOLDER, 
+      annotation_tbl_TIER_PLACEHOLDER, 
       NULL, 
       pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ), 
       iteration = "list", 
@@ -577,12 +577,12 @@ target_chunk_undefined_annotate_cell_type = function(input_hpc){
 
 # Define the generic function
 #' @export
-normalise_abundance_seurat_SCT <- function(input_hpc, target_input = "read_file", target_output = "non_batch_variation_removal_S", ...) {
+normalise_abundance_seurat_SCT <- function(input_hpc, target_input = "read_file", target_output = "sct_matrix", ...) {
   UseMethod("normalise_abundance_seurat_SCT")
 }
 
 #' @export
-normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress = NULL, target_input = "read_file", target_output = "non_batch_variation_removal_S", ...) {
+normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress = NULL, target_input = "read_file", target_output = "sct_matrix", ...) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
   
@@ -598,15 +598,15 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
         i |> 
           read_data_container(container_type = data_container_type) |> 
           non_batch_variation_removal(
-            empty_droplets_tbl,
-            alive_identification_tbl,
-            cell_cycle_score_tbl,
+            empty_tbl,
+            alive_tbl,
+            cell_cycle_tbl,
             factors_to_regress = factors_to_regress,
             external_path = e
           ) |> 
           substitute(env = list(i=as.symbol(target_input), e = external_path)),
         tiers, 
-        other_arguments_to_tier = c(target_input, "empty_droplets_tbl", "alive_identification_tbl", "cell_cycle_score_tbl"), other_arguments_to_map = c(target_input, "empty_droplets_tbl", "alive_identification_tbl", "cell_cycle_score_tbl")
+        other_arguments_to_tier = c(target_input, "empty_tbl", "alive_tbl", "cell_cycle_tbl"), other_arguments_to_map = c(target_input, "empty_tbl", "alive_tbl", "cell_cycle_tbl")
         
       )
       # ,
@@ -650,7 +650,7 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
 target_chunk_undefined_normalise_abundance_seurat_SCT = function(input_hpc){
   append_chunk_tiers(
     { tar_target(
-      non_batch_variation_removal_S_TIER_PLACEHOLDER, 
+      sct_matrix_TIER_PLACEHOLDER, 
       NULL, 
       pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ), 
       iteration = "list", 
@@ -664,12 +664,12 @@ target_chunk_undefined_normalise_abundance_seurat_SCT = function(input_hpc){
 
 # Define the generic function
 #' @export
-calculate_pseudobulk <- function(input_hpc, group_by = NULL, target_input = "read_file", target_output = "pseudobulk_gran_group") {
+calculate_pseudobulk <- function(input_hpc, group_by = NULL, target_input = "read_file", target_output = "pseudobulk_se") {
   UseMethod("calculate_pseudobulk")
 }
 
 #' @export
-calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input = "read_file", target_output = "pseudobulk_gran_group") {
+calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input = "read_file", target_output = "pseudobulk_se") {
   
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
@@ -688,11 +688,11 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input 
           read_data_container(container_type = data_container_type) |> 
           create_pseudobulk(
             sample_names, 
-            empty_droplets_tbl,
-            alive_identification_tbl,
-            cell_cycle_score_tbl,
-            annotation_label_transfer_tbl,
-            doublet_identification_tbl,
+            empty_tbl,
+            alive_tbl,
+            cell_cycle_tbl,
+            annotation_tbl,
+            doublet_tbl,
             
             x = pseudobulk_group_by, 
             external_path = e
@@ -700,17 +700,17 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input 
           substitute(env = list(e = external_path, i = as.symbol(target_input))),
         tiers, arguments_to_tier = c("sample_names"), 
         other_arguments_to_tier = c(target_input,
-                                    "empty_droplets_tbl",
-                                    "alive_identification_tbl",
-                                    "cell_cycle_score_tbl",
-                                    "annotation_label_transfer_tbl",
-                                    "doublet_identification_tbl"),
+                                    "empty_tbl",
+                                    "alive_tbl",
+                                    "cell_cycle_tbl",
+                                    "annotation_tbl",
+                                    "doublet_tbl"),
         other_arguments_to_map = c(target_input,
-                                   "empty_droplets_tbl",
-                                   "alive_identification_tbl",
-                                   "cell_cycle_score_tbl",
-                                   "annotation_label_transfer_tbl",
-                                   "doublet_identification_tbl")
+                                   "empty_tbl",
+                                   "alive_tbl",
+                                   "cell_cycle_tbl",
+                                   "annotation_tbl",
+                                   "doublet_tbl")
         
       ),
       factory_merge_pseudobulk(
@@ -759,12 +759,12 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input 
 
 # Define the generic function
 #' @export
-get_single_cell <- function(input_hpc, target_input = "read_file", target_output = "preprocessing_output_S",...) {
+get_single_cell <- function(input_hpc, target_input = "read_file", target_output = "single_cell",...) {
   UseMethod("get_single_cell")
 }
 
 #' @export
-get_single_cell.HPCell = function(input_hpc, factors_to_regress = NULL, target_input = "read_file", target_output = "preprocessing_output_S", ...) {
+get_single_cell.HPCell = function(input_hpc, factors_to_regress = NULL, target_input = "read_file", target_output = "single_cell", ...) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
   
@@ -778,28 +778,28 @@ get_single_cell.HPCell = function(input_hpc, factors_to_regress = NULL, target_i
         target_output, 
         i |> 
           read_data_container(container_type = data_container_type) |> 
-          preprocessing_output(empty_droplets_tbl,
-                               non_batch_variation_removal_S,
-                               alive_identification_tbl,
-                               cell_cycle_score_tbl,
-                               annotation_label_transfer_tbl,
-                               doublet_identification_tbl) |> 
+          preprocessing_output(empty_tbl,
+                               sct_matrix,
+                               alive_tbl,
+                               cell_cycle_tbl,
+                               annotation_tbl,
+                               doublet_tbl) |> 
           substitute(env = list(i=as.symbol(target_input))),
         tiers, 
         other_arguments_to_tier = c(target_input,
-                                    "empty_droplets_tbl",
-                                    "non_batch_variation_removal_S",
-                                    "alive_identification_tbl",
-                                    "cell_cycle_score_tbl",
-                                    "annotation_label_transfer_tbl",
-                                    "doublet_identification_tbl"),
+                                    "empty_tbl",
+                                    "sct_matrix",
+                                    "alive_tbl",
+                                    "cell_cycle_tbl",
+                                    "annotation_tbl",
+                                    "doublet_tbl"),
         other_arguments_to_map = c(target_input,
-                                   "empty_droplets_tbl",
-                                   "non_batch_variation_removal_S",
-                                   "alive_identification_tbl",
-                                   "cell_cycle_score_tbl",
-                                   "annotation_label_transfer_tbl",
-                                   "doublet_identification_tbl")
+                                   "empty_tbl",
+                                   "sct_matrix",
+                                   "alive_tbl",
+                                   "cell_cycle_tbl",
+                                   "annotation_tbl",
+                                   "doublet_tbl")
       ) 
       
     )
@@ -1033,17 +1033,17 @@ evaluate_hpc.HPCell = function(input_hpc) {
   if(input_hpc$last_call |> is.null() |> not())
     return(
       tar_meta(store = glue("{input_hpc$initialisation$store}")) |> 
-        filter(name |> str_detect("preprocessing_output_S_?.*$"), type=="pattern") |> 
+        filter(name |> str_detect("single_cell_?.*$"), type=="pattern") |> 
         pull(name) |> 
         map(tar_read_raw) |> 
         unlist() |> 
-        do.call(cbind, args = _)
+        do.call(cbind, args = _) 
     )
   
   else
     return(
       tar_meta(store = glue("{input_hpc$initialisation$store}")) |> 
-        filter(name |> str_detect("preprocessing_output_S_?.*$"), type=="pattern") 
+        filter(name |> str_detect("single_cell_?.*$"), type=="pattern") 
     )
 }
 

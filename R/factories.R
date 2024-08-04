@@ -207,7 +207,7 @@ factory_de_fix_effect = function(se_list_input, output_se, formula, method, tier
     
     
     tar_target_raw("chunk_tbl", 
-                   pseudobulk_gran_group |> 
+                   pseudobulk_se |> 
                      rownames() |> 
                      feature_chunks() |> 
                      quote()
@@ -216,7 +216,7 @@ factory_de_fix_effect = function(se_list_input, output_se, formula, method, tier
     
     tar_target_raw(
       "pseudobulk_group_list",
-      pseudobulk_gran_group |> 
+      pseudobulk_se |> 
         group_split(!!sym(pseudobulk_group_by)) |>  
         quote(),
       iteration = "list",
@@ -274,7 +274,7 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers, fa
     
     tar_target_raw(
       "pseudobulk_group_list",
-      pseudobulk_gran_group |> 
+      pseudobulk_se |> 
         group_split(!!sym(pseudobulk_group_by)) |>  
         quote(),
       iteration = "list",
