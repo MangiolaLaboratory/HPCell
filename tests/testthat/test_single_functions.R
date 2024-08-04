@@ -489,7 +489,7 @@ library(crew.cluster)
     data_container_type = "sce_hdf5",
     # tier = c("tier_1", "tier_2"),
     # 
-   #  debug_step = "pseudobulk_table_dispersion_gene",
+    # debug_step = "non_batch_variation_removal_S_1",
 
 
     # Default resourced 

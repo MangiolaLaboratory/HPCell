@@ -589,7 +589,7 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
-  args_list$factory = function(tiers, target_input, target_output){
+  args_list$factory = function(tiers, target_input, target_output, external_path){
     list(
       tar_target_raw("factors_to_regress", readRDS("factors_to_regress.rds") |> quote(), deployment = "main"),
       
@@ -601,9 +601,10 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
             empty_droplets_tbl,
             alive_identification_tbl,
             cell_cycle_score_tbl,
-            factors_to_regress = factors_to_regress
+            factors_to_regress = factors_to_regress,
+            external_path = e
           ) |> 
-          substitute(env = list(i=as.symbol(target_input))),
+          substitute(env = list(i=as.symbol(target_input), e = external_path)),
         tiers, 
         other_arguments_to_tier = c(target_input, "empty_droplets_tbl", "alive_identification_tbl", "cell_cycle_score_tbl"), other_arguments_to_map = c(target_input, "empty_droplets_tbl", "alive_identification_tbl", "cell_cycle_score_tbl")
         
@@ -633,6 +634,7 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
       tiers = input_hpc$initialisation$tier |> get_positions() ,
       target_input = target_input,
       target_output = target_output,
+      external_path = glue("{input_hpc$initialisation$store}/external"),
       script = glue("{input_hpc$initialisation$store}.R")
     )
   }
@@ -1031,7 +1033,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
   if(input_hpc$last_call |> is.null() |> not())
     return(
       tar_meta(store = glue("{input_hpc$initialisation$store}")) |> 
-        filter(name |> str_detect("preprocessing_output_S_?.*$")) |> 
+        filter(name |> str_detect("preprocessing_output_S_?.*$"), type=="pattern") |> 
         pull(name) |> 
         map(tar_read_raw) |> 
         unlist() |> 
@@ -1041,7 +1043,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
   else
     return(
       tar_meta(store = glue("{input_hpc$initialisation$store}")) |> 
-        filter(name |> str_detect("preprocessing_output_S_?.*$")) 
+        filter(name |> str_detect("preprocessing_output_S_?.*$"), type=="pattern") 
     )
 }
 
