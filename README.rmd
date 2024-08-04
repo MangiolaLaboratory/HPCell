@@ -58,6 +58,7 @@ Local parallel computing
 
 ```{r, eval= FALSE}
 library(HPCell)
+library(crew)
 
 input_hpc |> 
   

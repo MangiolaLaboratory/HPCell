@@ -10,7 +10,8 @@ non_batch_variation_removal(
   alive_identification_tbl,
   cell_cycle_score_tbl,
   assay = NULL,
-  factors_to_regress = NULL
+  factors_to_regress = NULL,
+  external_path
 )
 }
 \arguments{
