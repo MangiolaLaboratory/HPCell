@@ -692,7 +692,7 @@ append_chunk_fix = function(chunk, script = targets::tar_config_get("script")){
   # Add prefix
   "target_list = c(target_list, list(" |> 
     c(
-      substitute(chunk) |>  # cannot start with pipe
+      chunk |>  # cannot start with pipe
         deparse() |> 
         head(-1) |>
         tail(-1) 

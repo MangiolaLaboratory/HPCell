@@ -514,19 +514,6 @@ library(crew.cluster)
   #     verbose = T
   #   )
   # )
-
-  # computing_resources =
-  #   list(  crew_controller_local(
-  #     name = "tier_1",
-  #     workers = 2,
-  #     seconds_idle = 10
-  #   ),
-  #   crew_controller_local(
-  #     name = "tier_2",
-  #     workers = 2,
-  #     seconds_idle = 10
-  #   )
-  # )
     
   # #  Slurm resources
     computing_resources =
@@ -539,8 +526,10 @@ library(crew.cluster)
       )
   ) |> 
   
+  tranform_assay(fx = identity) |> 
+    
   # Remove empty outliers
-  remove_empty_DropletUtils() |> 
+  remove_empty_DropletUtils(target_input = "sce_transformed") |> 
   
   # Remove dead cells
   remove_dead_scuttle() |> 

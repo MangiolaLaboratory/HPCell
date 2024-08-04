@@ -75,9 +75,10 @@ expand_tiered_arguments <- function(command, tiers, tiered_args) {
 
 
 #' @importFrom stringr str_extract
+#' @export
 factory_split = function(
     name_output, command, tiers, arguments_to_tier = c(), other_arguments_to_tier = c(), 
-    other_arguments_to_map = c(), packages = targets::tar_option_get("packages") 
+    other_arguments_to_map = c(), packages = targets::tar_option_get("packages") , ...
   ){
   
   if(command |> deparse() |> str_detect("%>%") |> any()) 
@@ -123,7 +124,9 @@ factory_split = function(
     else 
       resources = tar_resources(crew = tar_resources_crew(.y)) 
     
-    
+    # # Process additional arguments in ... 
+    # additional_args <- list(...)
+    # 
     tar_target_raw(
       name = glue("{name_output}_{.y}") |> as.character(), 
       command = command |>  add_tier_inputs(other_arguments_to_tier, .y),
