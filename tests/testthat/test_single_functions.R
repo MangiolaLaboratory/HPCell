@@ -527,7 +527,7 @@ library(crew.cluster)
       )
   ) |> 
   
-  tranform_assay(fx = identity) |> 
+  tranform_assay(fx = identity, target_output = "sce_transformed") |> 
     
   # Remove empty outliers
   remove_empty_DropletUtils(target_input = "sce_transformed") |> 

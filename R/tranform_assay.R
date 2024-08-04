@@ -1,6 +1,6 @@
 # Define the generic function
 #' @export
-tranform_assay <- function(input_hpc, fx = "identity", target_input = "read_file", ...) {
+tranform_assay <- function(input_hpc, fx = "identity", target_input = "read_file", target_output = "sce_transformed", ...) {
   UseMethod("tranform_assay")
 }
 
