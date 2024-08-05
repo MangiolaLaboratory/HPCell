@@ -35,7 +35,7 @@ tranform_assay.HPCell = function(input_hpc, fx = identity, target_input = "read_
         target_output, 
         i |> 
           read_data_container(container_type = data_container_type) |> 
-          transform_utility(transform, e) |> 
+          transform_utility(transform, e, data_container_type) |> 
           substitute(env = list(i=as.symbol(target_input), e = external_path)),
         tiers, 
         arguments_to_tier = arguments_to_tier,
@@ -80,7 +80,7 @@ tranform_assay.HPCell = function(input_hpc, fx = identity, target_input = "read_
 #' @param i A SummarizedExperiment object to be transformed.
 #' @param transform A function to apply to the assay of the SummarizedExperiment object.
 #' @param external_path A character string specifying the directory path to save the transformed object.
-#'
+#' @param data_container_type A character vector specifying the output file type. Ideally it should match to the input file type.
 #' @return The function does not return an object. It saves the transformed SummarizedExperiment object to the specified path.
 #'
 #' @importFrom SummarizedExperiment assay assay<-
@@ -89,20 +89,28 @@ tranform_assay.HPCell = function(input_hpc, fx = identity, target_input = "read_
 #' @importFrom HDF5Array saveHDF5SummarizedExperiment
 #'
 #' @export
-transform_utility  = function(i, transform, external_path) {
+transform_utility  = function(i, transform, external_path, data_container_type) {
   #i = i |> read_data_container(container_type = data_container_type) 
   
   dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
   file_name = glue("{external_path}/{digest(i)}")
-  
   assay(i) = assay(i) |> transform()
   
   i |> 
-    saveHDF5SummarizedExperiment(
-      dir = file_name, 
-      replace=TRUE, 
-      as.sparse=TRUE
-    )
+    save_experiment_data(dir = file_name, 
+                         container_type = data_container_type )
+    # saveHDF5SummarizedExperiment(
+    #   dir = file_name, 
+    #   replace=TRUE, 
+    #   as.sparse=TRUE
+    # )
   
+  extension <- switch(data_container_type,
+                      "sce_rds" = ".rds",
+                      "seurat_rds" = ".rds",
+                      "seurat_h5" = ".h5Seurat",
+                      "anndata" = ".h5ad",
+                      "sce_hdf5" = "") 
+  file_name = paste0(file_name, extension)
   file_name
 }

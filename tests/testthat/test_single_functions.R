@@ -472,28 +472,26 @@ library(crew.cluster)
 
 
 # Define and execute the pipeline
-c("dev/input_seurat_treated_1_SCE.rds",
-  "dev/input_seurat_treated_2_SCE.rds",
-  "dev/input_seurat_UNtreated_1_SCE.rds",
-  "dev/input_seurat_UNtreated_2_SCE.rds") |>
-  purrr::map_chr(here::here) |> 
-   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
-  
+# c("dev/input_seurat_treated_1_SCE.rds",
+#   "dev/input_seurat_treated_2_SCE.rds",
+#   "dev/input_seurat_UNtreated_1_SCE.rds",
+#   "dev/input_seurat_UNtreated_2_SCE.rds") |>
+#   purrr::map_chr(here::here) |> 
+#    magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
+#   
    dir("dev/CAQ_sce/", full.names = T) |> 
-
 
   # Initialise pipeline characteristics
   initialise_hpc(
     gene_nomenclature = "symbol",
-    data_container_type = "sce_hdf5",
-    store = "~/scratch/Census/census_reanalysis/sample_test/",
-    tier = c("tier_1", "tier_1", "tier_2", "tier_2"),
+    data_container_type = "sce_rds",
+    store = "~/scratch/Census/temp/",
     # tier = c("tier_1", "tier_2"),
     # 
-    # debug_step = "non_batch_variation_removal_S_1",
+    debug_step = "annotation_tbl_1_cc5406fa48e92159",
 
     # Default resourced 
-  #  computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
+   computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
       
   #   computing_resources = list(
   # 
@@ -516,42 +514,42 @@ c("dev/input_seurat_treated_1_SCE.rds",
   # )
     
   # #  Slurm resources
-    computing_resources =
-      crew.cluster::crew_controller_slurm(
-        slurm_memory_gigabytes_per_cpu = 5,
-        workers = 500,
-        tasks_max = 5,
-        verbose = T,
-        slurm_cpus_per_task = 1
-      )
+    # computing_resources =
+    #   crew.cluster::crew_controller_slurm(
+    #     slurm_memory_gigabytes_per_cpu = 5,
+    #     workers = 500,
+    #     tasks_max = 5,
+    #     verbose = T,
+    #     slurm_cpus_per_task = 1
+    #   )
   ) |> 
   
   tranform_assay(fx = purrr::map(1:16, ~identity), target_output = "sce_transformed") |> 
     
   # Remove empty outliers
-  remove_empty_DropletUtils(target_input = "sce_transformed") |> 
+  remove_empty_DropletUtils(target_input = "sce_transformed") |>
   
   # Remove dead cells
-  remove_dead_scuttle(target_input = "sce_transformed") |> 
-  
+  remove_dead_scuttle(target_input = "sce_transformed") |>
+
   # Score cell cycle
-  score_cell_cycle_seurat(target_input = "sce_transformed") |> 
-  
+  score_cell_cycle_seurat(target_input = "sce_transformed") |>
+
   # Remove doublets
-  remove_doublets_scDblFinder(target_input = "sce_transformed") |> 
-  
+  remove_doublets_scDblFinder(target_input = "sce_transformed") |>
+
   # Annotation
-  annotate_cell_type(target_input = "sce_transformed") |> 
-  
+  annotate_cell_type(target_input = "sce_transformed") |>
+
   normalise_abundance_seurat_SCT(factors_to_regress = c(
-    "subsets_Mito_percent", 
-    "subsets_Ribo_percent", 
+    "subsets_Mito_percent",
+    "subsets_Ribo_percent",
     "G2M.Score"
-  ), target_input = "sce_transformed") |> 
-  
-  calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "sce_transformed") |> 
-  
-  test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts") |> 
+  ), target_input = "sce_transformed") |>
+
+  calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "sce_transformed") |>
+
+  test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts") |>
   #test_differential_abundance(~ age_days, .abundance="counts")
 
   # For the moment only available for single cell

@@ -52,6 +52,46 @@ read_data_container <- function(file,
          )
 }
 
+#' Save various types of single-cell data
+#' @param data A data object to save.
+#' @param dir A character vector of length one specifies the file path, or directory path.
+#' @param container_type A character vector of length one specifies the input data type.
+#' @return A `[Seurat::Seurat-class]` object
+#' @importFrom HDF5Array loadHDF5SummarizedExperiment saveHDF5SummarizedExperiment
+#' @export
+save_experiment_data <- function(data,
+                                 dir,
+                                 container_type = "anndata"){
+  
+  if (container_type == "seurat_h5") {
+    if (!requireNamespace("SeuratDisk", quietly = TRUE)) {
+      stop("HPCell says: You need to install the SeuratDisk package.")
+    }
+  }
+  
+  if (container_type == "anndata") {
+    if (!requireNamespace("zellkonverter", quietly = TRUE)) {
+      stop("HPCell says: You need to install the zellkonverter package.")
+    }
+  }
+  
+  switch(container_type,
+         "anndata" = zellkonverter::writeH5AD(data,
+                                              paste0(dir, ".h5ad"),
+                                              compression = "gzip"),
+         "sce_rds" = saveRDS(data, paste0(dir, ".rds")),
+         "seurat_rds" = saveRDS(data, paste0(dir, ".rds")),
+         "sce_hdf5" = saveHDF5SummarizedExperiment(data,
+                                                   dir,
+                                                   replace = TRUE,
+                                                   as.sparse = TRUE),
+         
+         "seurat_h5" = SeuratDisk::SaveH5Seurat(data,
+                                                paste0(dir, ".h5Seurat"),
+                                                overwrite = TRUE)
+  )
+}
+
 #' Gene name conversion using ensembl database
 #' 
 #' @param id Character vector of gene names
