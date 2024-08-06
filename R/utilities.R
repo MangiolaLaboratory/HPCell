@@ -56,7 +56,7 @@ read_data_container <- function(file,
 #' @param data A data object to save.
 #' @param dir A character vector of length one specifies the file path, or directory path.
 #' @param container_type A character vector of length one specifies the input data type.
-#' @return A `[Seurat::Seurat-class]` object
+#' @return An object stored in the defined path.
 #' @importFrom HDF5Array loadHDF5SummarizedExperiment saveHDF5SummarizedExperiment
 #' @export
 save_experiment_data <- function(data,

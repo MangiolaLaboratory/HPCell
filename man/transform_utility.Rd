@@ -4,7 +4,7 @@
 \alias{transform_utility}
 \title{Apply a transformation to an assay and save as HDF5}
 \usage{
-transform_utility(i, transform, external_path)
+transform_utility(i, transform, external_path, data_container_type)
 }
 \arguments{
 \item{i}{A SummarizedExperiment object to be transformed.}
@@ -12,6 +12,8 @@ transform_utility(i, transform, external_path)
 \item{transform}{A function to apply to the assay of the SummarizedExperiment object.}
 
 \item{external_path}{A character string specifying the directory path to save the transformed object.}
+
+\item{data_container_type}{A character vector specifying the output file type. Ideally it should match to the input file type.}
 }
 \value{
 The function does not return an object. It saves the transformed SummarizedExperiment object to the specified path.

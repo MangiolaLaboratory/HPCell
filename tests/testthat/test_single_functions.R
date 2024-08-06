@@ -486,32 +486,31 @@ library(crew.cluster)
     gene_nomenclature = "symbol",
     data_container_type = "sce_rds",
     store = "~/scratch/Census/temp/",
-    # tier = c("tier_1", "tier_2"),
+     tier = c("tier_1", "tier_2"),
     # 
-    debug_step = "annotation_tbl_1_cc5406fa48e92159",
+    #debug_step = "sct_matrix_1_a21dd363c1592363",
 
     # Default resourced 
-   computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
+   #computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
       
-  #   computing_resources = list(
-  # 
-  #   crew_controller_slurm(
-  #     name = "tier_1",
-  #     slurm_memory_gigabytes_per_cpu = 5,
-  #     slurm_cpus_per_task = 1,
-  #     workers = 50,
-  #     tasks_max = 5,
-  #     verbose = T
-  #   ),
-  #   crew_controller_slurm(
-  #     name = "tier_2",
-  #     slurm_memory_gigabytes_per_cpu = 10,
-  #     slurm_cpus_per_task = 1,
-  #     workers = 50,
-  #     tasks_max = 5,
-  #     verbose = T
-  #   )
-  # )
+    computing_resources = list(
+
+    crew_controller_slurm(
+      name = "tier_1",
+      slurm_memory_gigabytes_per_cpu = 5,
+      slurm_cpus_per_task = 1,
+      workers = 50,
+      tasks_max = 5,
+      verbose = T
+    ),
+    crew_controller_slurm(
+      name = "tier_2",
+      slurm_memory_gigabytes_per_cpu = 10,
+      slurm_cpus_per_task = 1,
+      workers = 50,
+      tasks_max = 5,
+      verbose = T
+    ))
     
   # #  Slurm resources
     # computing_resources =
@@ -549,9 +548,9 @@ library(crew.cluster)
 
   calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "sce_transformed") |>
 
-  test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts") |>
-  #test_differential_abundance(~ age_days, .abundance="counts")
-
-  # For the moment only available for single cell
-  get_single_cell(target_input = "sce_transformed")
+  # test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts") |>
+  # #test_differential_abundance(~ age_days, .abundance="counts")
+  # 
+  # # For the moment only available for single cell
+   get_single_cell(target_input = "sce_transformed")
 

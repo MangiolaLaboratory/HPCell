@@ -80,9 +80,10 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   }
   
   if (gene_nomenclature == "ensembl") {
-    blueprint <- celldex::BlueprintEncodeData(ensembl = TRUE)
+    blueprint <- celldex::BlueprintEncodeData(ensembl = TRUE, legacy = TRUE)
   } else if (gene_nomenclature == "symbol") {
-    blueprint <- celldex::BlueprintEncodeData()
+    blueprint <- celldex::BlueprintEncodeData(legacy = TRUE)
+    
   }
   
   data_annotated =
@@ -116,9 +117,9 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   gc()
   
   if (gene_nomenclature == "ensembl") {
-    MonacoImmuneData = celldex::MonacoImmuneData(ensembl = TRUE)
+    MonacoImmuneData = celldex::MonacoImmuneData(ensembl = TRUE, legacy = TRUE)
   } else if (gene_nomenclature == "symbol") {
-    MonacoImmuneData = celldex::MonacoImmuneData()
+    MonacoImmuneData = celldex::MonacoImmuneData(legacy = TRUE)
   }
 
   
@@ -740,8 +741,8 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   
   if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
-    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, 
-                                                              counts = assay) 
+    
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL) 
     
     # Rename assay
     assay_name_old = input_read_RNA_assay |> Assays() |> _[[1]]
@@ -751,9 +752,8 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
         new.assay.name = assay)
   }
   
-
-  input_read_RNA_assay =
-    input_read_RNA_assay |>
+  counts =
+    input_read_RNA_assay_transform |>
     left_join(empty_droplets_tbl, by = ".cell") |>
     filter(!empty_droplet) |>
     
@@ -764,7 +764,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
     ) 
   
   if(!is.null(cell_cycle_score_tbl)) 
-    input_read_RNA_assay = input_read_RNA_assay |>
+    counts = counts |>
     
     left_join(
       cell_cycle_score_tbl |>
@@ -782,19 +782,19 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   # Normalise RNA
   normalized_rna <- 
     Seurat::SCTransform(
-      input_read_RNA_assay, 
-    assay=assay,
-    return.only.var.genes=FALSE,
-    residual.features = NULL,
-    vars.to.regress = factors_to_regress,
-    vst.flavor = "v2",
-    scale_factor=2186,  
-    conserve.memory=T, 
-    min_cells=0,
-  )  |> 
+      counts, 
+      assay=assay,
+      return.only.var.genes=FALSE,
+      residual.features = NULL,
+      vars.to.regress = factors_to_regress,
+      vst.flavor = "v2",
+      scale_factor=2186,  
+      conserve.memory=T, 
+      min_cells=0,
+    )  |> 
     GetAssayData(assay="SCT")
   
-
+  
   if (class_input == "SingleCellExperiment") {
     dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
     
@@ -802,17 +802,17 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
     # Write the slice to the output HDF5 file
     normalized_rna |> 
       HDF5Array::writeHDF5Array(
-      filepath = glue("{external_path}/{digest(normalized_rna)}"),
-      name = "SCT",
-      as.sparse = TRUE
-    ) 
+        filepath = glue("{external_path}/{digest(normalized_rna)}"),
+        name = "SCT",
+        as.sparse = TRUE
+      ) 
     
   } else if (class_input ==  "Seurat") {
     
     normalized_rna 
     
   }
-
+  
   
   # # Normalise antibodies
   # if ( "ADT" %in% names(normalized_rna@assays)) {
@@ -828,7 +828,9 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   #     select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
   # }
   
-  #normalized_data[[my_assays]] 
+  
+  
+  
   
 }
 

@@ -192,7 +192,7 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
           empty_droplet_id(total_RNA_count_check,
                            gene_nomenclature = gene_nomenclature) |> 
           substitute(env = list(i=as.symbol(target_input))),  
-          #quote(),
+          #quote()
         tiers, 
         other_arguments_to_tier = target_input,
         other_arguments_to_map = target_input
@@ -446,12 +446,12 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "read_fi
 
             empty_tbl,
             alive_tbl,
-            annotation_label_transfer_tbl
+            annotation_tbl
           ) |> 
           substitute(env = list(i=as.symbol(target_input))),
         tiers, 
-        other_arguments_to_tier = c(target_input, "empty_tbl", "alive_tbl", "annotation_label_transfer_tbl"), 
-        other_arguments_to_map = c(target_input, "empty_tbl", "alive_tbl", "annotation_label_transfer_tbl")
+        other_arguments_to_tier = c(target_input, "empty_tbl", "alive_tbl", "annotation_tbl"), 
+        other_arguments_to_map = c(target_input, "empty_tbl", "alive_tbl", "annotation_tbl")
       ),
       
       factory_collapse(
@@ -615,7 +615,8 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
           ) |> 
           substitute(env = list(i=as.symbol(target_input), e = external_path)),
         tiers, 
-        other_arguments_to_tier = c(target_input, "empty_tbl", "alive_tbl", "cell_cycle_tbl"), other_arguments_to_map = c(target_input, "empty_tbl", "alive_tbl", "cell_cycle_tbl")
+        other_arguments_to_tier = c(target_input, "empty_tbl", "alive_tbl", "cell_cycle_tbl"), 
+        other_arguments_to_map = c(target_input, "empty_tbl", "alive_tbl", "cell_cycle_tbl")
         
       )
       # ,
@@ -847,7 +848,7 @@ get_single_cell.HPCell = function(input_hpc, factors_to_regress = NULL, target_i
 #'
 #' This function tests differential abundance for HPCell objects.
 #'
-#' @name test_differential_abundance,HPCell-method
+#' @name test_differential_abundance-HPCell-method
 #' @rdname test_differential_abundance
 #' @inherit tidybulk::test_differential_abundance
 #'
@@ -871,78 +872,78 @@ get_single_cell.HPCell = function(input_hpc, factors_to_regress = NULL, target_i
 #' @param .contrasts Contrasts parameter.
 #' @return The result of the differential abundance test.
 #'
-setMethod(
-  "test_differential_abundance",
-  signature(.data = "HPCell"),
-  function(.data, .formula, .sample = NULL, .transcript = NULL, 
-           .abundance = NULL, contrasts = NULL, method = "edgeR_quasi_likelihood", 
-           test_above_log2_fold_change = NULL, scaling_method = "TMM", 
-           omit_contrast_in_colnames = FALSE, prefix = "", action = "add", factor_of_interest = NULL,
-           target_input = "create_pseudobulk_sample", target_output = "de",
-           ..., significance_threshold = NULL, fill_missing_values = NULL, 
-           .contrasts = NULL) {
-    
-    # Capture all arguments including defaults
-    args_list <- as.list(environment())[-1]
-    
-    # Optionally, you can evaluate the arguments if they are expressions
-    args_list <- lapply(args_list, eval, envir = parent.frame())
-    
-    args_list$factory = function(tiers, .formula, factor_of_interest = NULL, .abundance = NULL, target_input, target_output){
-      
-      if(.formula |> deparse() |> str_detect("\\|"))
-        factory_de_random_effect(
-          se_list_input = target_input, 
-          output_se = target_output, 
-          formula=.formula,
-          #method="edger_robust_likelihood_ratio", 
-          tiers = tiers,
-          factor_of_interest = factor_of_interest,
-          .abundance = .abundance
-        )
-      
-      else
-        factory_de_fix_effect(
-          se_list_input = target_input, 
-          output_se = target_output, 
-          formula=.formula,
-          method="edger_robust_likelihood_ratio", 
-          tiers = tiers,
-          factor_of_interest = factor_of_interest,
-          .abundance = .abundance
-        )
-      
-    }
-    
-    # We don't want recursive when we call factory
-    if(.data |> length() > 0) {
-      
-      environment(.formula) <- new.env(parent = emptyenv())
-      
-      # Delete line with target in case the user execute the command, without calling initialise_hpc
-      target_output |>  delete_lines_with_word(glue("{.data$initialisation$store}.R"))
-      
-      
-      tar_tier_append(
-        quote(dummy_hpc |> test_differential_abundance() %$% test_differential_abundance %$% factory),
-        tiers = .data$initialisation$tier |> get_positions() ,
-        script = glue("{.data$initialisation$store}.R"),
-        .formula = .formula, 
-        factor_of_interest = factor_of_interest,
-        .abundance = .abundance,
-        target_input = target_input,
-        target_output = target_output
-      )
-      
-    }
-    
-    
-    .data |>
-      c(list(test_differential_abundance = args_list)) |>
-      add_class("HPCell")
-    
-  }
-)
+# setMethod(
+#   "test_differential_abundance",
+#   signature(.data = "HPCell"),
+#   function(.data, .formula, .sample = NULL, .transcript = NULL, 
+#            .abundance = NULL, contrasts = NULL, method = "edgeR_quasi_likelihood", 
+#            test_above_log2_fold_change = NULL, scaling_method = "TMM", 
+#            omit_contrast_in_colnames = FALSE, prefix = "", action = "add", factor_of_interest = NULL,
+#            target_input = "create_pseudobulk_sample", target_output = "de",
+#            ..., significance_threshold = NULL, fill_missing_values = NULL, 
+#            .contrasts = NULL) {
+#     
+#     # Capture all arguments including defaults
+#     args_list <- as.list(environment())[-1]
+#     
+#     # Optionally, you can evaluate the arguments if they are expressions
+#     args_list <- lapply(args_list, eval, envir = parent.frame())
+#     
+#     args_list$factory = function(tiers, .formula, factor_of_interest = NULL, .abundance = NULL, target_input, target_output){
+#       
+#       if(.formula |> deparse() |> str_detect("\\|"))
+#         factory_de_random_effect(
+#           se_list_input = target_input, 
+#           output_se = target_output, 
+#           formula=.formula,
+#           #method="edger_robust_likelihood_ratio", 
+#           tiers = tiers,
+#           factor_of_interest = factor_of_interest,
+#           .abundance = .abundance
+#         )
+#       
+#       else
+#         factory_de_fix_effect(
+#           se_list_input = target_input, 
+#           output_se = target_output, 
+#           formula=.formula,
+#           method="edger_robust_likelihood_ratio", 
+#           tiers = tiers,
+#           factor_of_interest = factor_of_interest,
+#           .abundance = .abundance
+#         )
+#       
+#     }
+#     
+#     # We don't want recursive when we call factory
+#     if(.data |> length() > 0) {
+#       
+#       environment(.formula) <- new.env(parent = emptyenv())
+#       
+#       # Delete line with target in case the user execute the command, without calling initialise_hpc
+#       target_output |>  delete_lines_with_word(glue("{.data$initialisation$store}.R"))
+#       
+#       
+#       tar_tier_append(
+#         quote(dummy_hpc |> test_differential_abundance() %$% test_differential_abundance %$% factory),
+#         tiers = .data$initialisation$tier |> get_positions() ,
+#         script = glue("{.data$initialisation$store}.R"),
+#         .formula = .formula, 
+#         factor_of_interest = factor_of_interest,
+#         .abundance = .abundance,
+#         target_input = target_input,
+#         target_output = target_output
+#       )
+#       
+#     }
+#     
+#     
+#     .data |>
+#       c(list(test_differential_abundance = args_list)) |>
+#       add_class("HPCell")
+#     
+#   }
+# )
 
 
 # Define the generic function
@@ -1045,7 +1046,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
       tar_meta(store = glue("{input_hpc$initialisation$store}")) |> 
         filter(name |> str_detect("single_cell_?.*$"), type=="pattern") |> 
         pull(name) |> 
-        map(tar_read_raw) |> 
+        tar_read_raw(store = glue("{input_hpc$initialisation$store}")) |>
         unlist() |> 
         do.call(cbind, args = _) 
     )
