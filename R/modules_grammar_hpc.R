@@ -104,7 +104,7 @@ initialise_hpc <- function(input_hpc,
       debug = readRDS("temp_debug_step.rds"), # Set the target you want to debug.
       # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
       controller = crew_controller_group ( readRDS("temp_computing_resources.rds") ), 
-      packages = c("HPCell")
+      packages = c("HPCell", "tidySingleCellExperiment")
     )
     
     target_list = list(
@@ -189,7 +189,8 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
         "empty_droplets_tbl", 
         read_file |> 
           read_data_container(container_type = data_container_type) |> 
-          empty_droplet_id(total_RNA_count_check) |> 
+          empty_droplet_id(total_RNA_count_check,
+                           gene_nomenclature = gene_nomenclature) |> 
           quote(),
         tiers, 
         arguments_to_tier = "read_file"
@@ -197,7 +198,7 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
       
       factory_collapse(
         "my_report",
-        bind_rows(empty_droplets_tbl) |> quote(),
+        do.call(bind_rows, empty_droplets_tbl) |> quote(),
         "empty_droplets_tbl",
         tiers, packages = c("dplyr")
       )
@@ -270,6 +271,7 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
             empty_droplets_tbl,
             annotation_label_transfer_tbl,
             grouping_column
+            # gene_nomenclature = gene_nomenclature
           ) |> quote(),
         tiers, arguments_to_tier = "read_file",
         other_arguments_to_tier = c("empty_droplets_tbl", "annotation_label_transfer_tbl"), 
@@ -412,10 +414,14 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc) {
           read_data_container(container_type = data_container_type) |> 
           doublet_identification(
             empty_droplets_tbl,
-            alive_identification_tbl
+            alive_identification_tbl,
+            annotation_label_transfer_tbl
           ) |> quote(),
         tiers, arguments_to_tier = "read_file",
-        other_arguments_to_tier = c("empty_droplets_tbl", "alive_identification_tbl"), other_arguments_to_map = c("empty_droplets_tbl", "alive_identification_tbl")
+        other_arguments_to_tier = c("empty_droplets_tbl", "alive_identification_tbl", 
+                                    "annotation_label_transfer_tbl"), 
+        other_arguments_to_map = c("empty_droplets_tbl", "alive_identification_tbl", 
+                                   "annotation_label_transfer_tbl")
       ),
       
       factory_collapse(
@@ -482,6 +488,7 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL) {
           annotation_label_transfer(
             empty_droplets_tbl,
             reference_read
+            # gene_nomenclature = gene_nomenclature
           ) |> quote(),
         tiers, arguments_to_tier = "read_file",
         other_arguments_to_tier = c("empty_droplets_tbl"), other_arguments_to_map = c("empty_droplets_tbl") 
@@ -656,22 +663,23 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
                                    "annotation_label_transfer_tbl",
                                    "doublet_identification_tbl")
         
-      ),
+      ), 
+      
       factory_merge_pseudobulk(
         se_list_input = "create_pseudobulk_sample",
-        "pseudobulk_gran_group", 
-        tiers, 
+        "pseudobulk_gran_group",
+        tiers,
         external_path = external_path
-      ) 
+      )
       
-      # ,
-      # 
-      # factory_collapse(
-      #   "my_report7",
-      #   bind_rows(create_pseudobulk_sample) |> quote(),
-      #   "create_pseudobulk_sample",
-      #   tiers
-      # )
+      ,
+
+      factory_collapse(
+        "my_report7",
+        bind_rows(create_pseudobulk_sample) |> quote(),
+        "create_pseudobulk_sample",
+        tiers
+      )
     )
     
   }
@@ -694,7 +702,6 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
     add_class("HPCell")
   
 }
-
 #' Test Differential Abundance for HPCell
 #'
 #' This function tests differential abundance for HPCell objects.
@@ -926,7 +933,8 @@ evaluate_hpc.HPCell = function(input_hpc) {
     "factors_to_regress.rds",
     "pseudobulk_group_by.rds",
     "temp_tiers.rds",
-    "temp_gene_nomenclature.rds"
+    "temp_gene_nomenclature.rds",
+    "data_container_type.rds"
   ) |> 
     remove_files_safely()
   

@@ -250,7 +250,7 @@ run_targets_pipeline <- function(
       
       # Identifying empty droplets
       tar_target(empty_droplets_tbl,
-                 empty_droplet_id(read_data_container(file_path, container_type = data_container_type_file), filter_empty_droplets),
+                 empty_droplet_id(read_data_container(file_path, container_type = data_container_type_file), filter_empty_droplets, gene_nomenclature = "symbol"),
                  pattern = map(file_path),
                  iteration = "list"),
       
