@@ -471,14 +471,13 @@ library(crew.cluster)
 # input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_2_SCE.rds")
 
 
-# # Define and execute the pipeline
-# c("dev/input_seurat_treated_1.rds", 
-#   "dev/input_seurat_treated_2.rds",
-#   "dev/input_seurat_UNtreated_1.rds",
-#   "dev/input_seurat_UNtreated_2.rds") |> 
-# purrr::map_chr(here::here) |> 
-#   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
-#   
+# Define and execute the pipeline
+c("dev/input_seurat_treated_1_SCE.rds",
+  "dev/input_seurat_treated_2_SCE.rds",
+  "dev/input_seurat_UNtreated_1_SCE.rds",
+  "dev/input_seurat_UNtreated_2_SCE.rds") |>
+  purrr::map_chr(here::here) |> 
+   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
   
   dir("dev/CAQ_sce/", full.names = T) |> 
 
@@ -486,12 +485,10 @@ library(crew.cluster)
   # Initialise pipeline characteristics
   initialise_hpc(
     gene_nomenclature = "symbol",
-    data_container_type = "sce_hdf5",
-    # tier = c("tier_1", "tier_2"),
-    # 
-   #  debug_step = "pseudobulk_table_dispersion_gene",
-
-
+    data_container_type = "sce_rds",
+     store = "~/scratch/Census/census_reanalysis/sample_test/",
+     tier = c("tier_1", "tier_1", "tier_2", "tier_2"),
+    
     # Default resourced 
   #  computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
       
