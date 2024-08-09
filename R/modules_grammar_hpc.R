@@ -16,6 +16,9 @@
 #' @param cell_type_annotation_column Column name for cell type annotation in input data
 #' @param gene_nomenclature Character vector indicating gene nomenclature in input_data
 #' @param data_container_type A character vector of length one specifies the input data type.
+#' @param target_error_option Character of length 1, what to do if the target stops and throws an error.
+#' This argument matches to how targets handles error. Details can be found:
+#' https://docs.ropensci.org/targets/reference/tar_option_set.html#arg-error
 #' The accepted input data type are: 
 #' sce_rds for `SingleCellExperiment` RDS,
 #' seurat_rds for `Seurat` RDS,
@@ -106,6 +109,7 @@ initialise_hpc <- function(input_hpc,
       tar_target(gene_nomenclature, readRDS("temp_gene_nomenclature.rds"), iteration = "list", deployment = "main"),
       tar_target(data_container_type, readRDS("data_container_type.rds"), deployment = "main")
       
+      
     )
     
     
@@ -149,7 +153,94 @@ initialise_hpc <- function(input_hpc,
 }
 
 
+# Define the generic function
+#' @export
+remove_empty_threshold <- function(input_hpc, RNA_count_threshold = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
+  UseMethod("remove_empty_threshold")
+}
 
+#' @export
+remove_empty_threshold.Seurat = function(input_hpc, RNA_count_threshold = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
+  # Capture all arguments including defaults
+  args_list <- as.list(environment())
+  
+  # Optionally, you can evaluate the arguments if they are expressions
+  args_list <- lapply(args_list, eval, envir = parent.frame())
+  
+  list(initialisation = list(input_hpc = input_hpc)) |>
+    add_class("HPCell") |>
+    remove_empty_threshold()
+  
+}
+
+#' @export
+remove_empty_threshold.HPCell = function(input_hpc, RNA_count_threshold = NULL, target_input = "read_file", target_output = "empty_tbl",...) {
+  
+  # Capture all arguments including defaults
+  args_list <- as.list(environment())[-1]
+  
+  # Optionally, you can evaluate the arguments if they are expressions
+  args_list <- lapply(args_list, eval, envir = parent.frame())
+  
+  args_list$factory = function(tiers, target_input, target_output){
+    list(
+      tar_target_raw("RNA_count_threshold", readRDS("RNA_count_threshold.rds") |> quote(), deployment = "main"),
+      
+      factory_split(
+        target_output, 
+        i |> 
+          read_data_container(container_type = data_container_type) |> 
+          empty_droplet_threshold(RNA_count_threshold,
+                           gene_nomenclature = gene_nomenclature) |> 
+          substitute(env = list(i=as.symbol(target_input))),  
+        tiers, 
+        other_arguments_to_tier = target_input,
+        other_arguments_to_map = target_input
+      )  
+    )
+  }
+  
+  # We don't want recursive when we call factory
+  if(input_hpc |> length() > 0) {
+    RNA_count_threshold |> saveRDS("RNA_count_threshold.rds")
+    
+    # Delete line with target in case the user execute the command, without calling initialise_hpc
+    target_output |>  delete_lines_with_word(glue("{input_hpc$initialisation$store}.R"))
+    
+    tar_tier_append(
+      fx = quote(dummy_hpc |> remove_empty_threshold() %$% remove_empty_threshold %$% factory),
+      tiers = input_hpc$initialisation$tier |> get_positions() ,
+      target_input = target_input,
+      target_output = target_output,
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+    
+  }
+  
+  
+  # Add pipeline step
+  input_hpc |>
+    c(list(remove_empty_threshold = args_list)) |>
+    add_class("HPCell")
+  
+  
+}
+
+target_chunk_undefined_remove_empty_threshold = function(input_hpc){
+  append_chunk_tiers(
+    { tar_target(
+      empty_tbl_TIER_PLACEHOLDER,
+      read_file_list |> 
+        read_data_container(container_type = data_container_type) |> as_tibble() |> select(.cell) |> mutate(empty_droplet = FALSE),
+      pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ),
+      iteration = "list", 
+      resources = RESOURCE_PLACEHOLDER,
+      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
+    ) }, 
+    tiers = input_hpc$initialisation$tier,
+    script = glue("{input_hpc$initialisation$store}.R")
+  )
+}
 
 
 # Define the generic function
@@ -162,61 +253,60 @@ remove_empty_DropletUtils <- function(input_hpc, total_RNA_count_check = NULL, t
 remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())
-  
+
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
-  
+
   list(initialisation = list(input_hpc = input_hpc)) |>
     add_class("HPCell") |>
     remove_empty_DropletUtils()
-  
+
 }
 
 #' @export
 remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, target_input = "read_file", target_output = "empty_tbl",...) {
-  
+
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
-  
+
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
-  
+
   args_list$factory = function(tiers, target_input, target_output){
     list(
       tar_target_raw("total_RNA_count_check", readRDS("total_RNA_count_check.rds") |> quote(), deployment = "main"),
-      
+
       factory_split(
-        target_output, 
-        i |> 
-          read_data_container(container_type = data_container_type) |> 
+        target_output,
+        i |>
+          read_data_container(container_type = data_container_type) |>
           empty_droplet_id(total_RNA_count_check,
-                           gene_nomenclature = gene_nomenclature) |> 
-          substitute(env = list(i=as.symbol(target_input))),  
+                           gene_nomenclature = gene_nomenclature) |>
+          substitute(env = list(i=as.symbol(target_input))),
           #quote()
-        tiers, 
+        tiers,
         other_arguments_to_tier = target_input,
         other_arguments_to_map = target_input
-      )  ,
-      
-      factory_collapse(
-        "my_report",
-        # do.call(bind_rows, empty_droplets_tbl) |> quote(),
-        # "empty_droplets_tbl",
-        bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))),
-        target_output,
-        tiers, packages = c("dplyr")
       )
+      # factory_collapse(
+      #   "my_report",
+      #   do.call(bind_rows, target_output) |> quote(),
+      #   # "empty_droplets_tbl",
+      #   #bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))),
+      #   target_output,
+      #   tiers, packages = c("dplyr")
+      # )
     )
-    
+
   }
-  
+
   # We don't want recursive when we call factory
   if(input_hpc |> length() > 0) {
     total_RNA_count_check |> saveRDS("total_RNA_count_check.rds")
-    
+
     # Delete line with target in case the user execute the command, without calling initialise_hpc
     target_output |>  delete_lines_with_word(glue("{input_hpc$initialisation$store}.R"))
-    
+
     tar_tier_append(
       fx = quote(dummy_hpc |> remove_empty_DropletUtils() %$% remove_empty_DropletUtils %$% factory),
       tiers = input_hpc$initialisation$tier |> get_positions() ,
@@ -224,29 +314,29 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
       target_output = target_output,
       script = glue("{input_hpc$initialisation$store}.R")
     )
-    
+
   }
-  
-  
+
+
   # Add pipeline step
   input_hpc |>
     c(list(remove_empty_DropletUtils = args_list)) |>
     add_class("HPCell")
-  
-  
+
+
 }
 
 target_chunk_undefined_remove_empty_DropletUtils = function(input_hpc){
   append_chunk_tiers(
     { tar_target(
       empty_tbl_TIER_PLACEHOLDER,
-      read_file_list |> 
+      read_file_list |>
         read_data_container(container_type = data_container_type) |> as_tibble() |> select(.cell) |> mutate(empty_droplet = FALSE),
       pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ),
-      iteration = "list", 
+      iteration = "list",
       resources = RESOURCE_PLACEHOLDER,
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    ) }, 
+    ) },
     tiers = input_hpc$initialisation$tier,
     script = glue("{input_hpc$initialisation$store}.R")
   )
@@ -286,14 +376,14 @@ remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL, target_input =
         tiers, 
         other_arguments_to_tier = c(target_input, "empty_tbl", "annotation_tbl"), 
         other_arguments_to_map = c(target_input, "empty_tbl", "annotation_tbl")
-      ),
-      
-      factory_collapse(
-        "my_report2",
-        bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))), 
-        target_output,
-        tiers, packages = c("dplyr")
       )
+      
+      # factory_collapse(
+      #   "my_report2",
+      #   bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))), 
+      #   target_output,
+      #   tiers, packages = c("dplyr")
+      # )
     )
     
   }
@@ -372,14 +462,14 @@ score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "read_file",
           substitute(env = list(i=as.symbol(target_input))),
         tiers, 
         other_arguments_to_tier = c(target_input, "empty_tbl"), other_arguments_to_map = c(target_input, "empty_tbl")
-      ),
-      
-      factory_collapse(
-        "my_report3",
-        bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))), 
-        target_output,
-        tiers, packages = c("dplyr")
       )
+      
+      # factory_collapse(
+      #   "my_report3",
+      #   bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))), 
+      #   target_output,
+      #   tiers, packages = c("dplyr")
+      # )
     )
     
   }
@@ -452,14 +542,14 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "read_fi
         tiers, 
         other_arguments_to_tier = c(target_input, "empty_tbl", "alive_tbl", "annotation_tbl"), 
         other_arguments_to_map = c(target_input, "empty_tbl", "alive_tbl", "annotation_tbl")
-      ),
-      
-      factory_collapse(
-        "my_report4",
-        bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))), 
-        target_output,
-        tiers, packages = c("dplyr")
       )
+      
+      # factory_collapse(
+      #   "my_report4",
+      #   bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))), 
+      #   target_output,
+      #   tiers, packages = c("dplyr")
+      # )
     )
     
   }
@@ -532,14 +622,14 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target
           substitute(env = list(i=as.symbol(target_input))),
         tiers, 
         other_arguments_to_tier = c(target_input, "empty_tbl"), other_arguments_to_map = c(target_input, "empty_tbl") 
-      ),
-      
-      factory_collapse(
-        "my_report5",
-        bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))), 
-        target_output,
-        tiers, packages = c("dplyr")
       )
+      
+      # factory_collapse(
+      #   "my_report5",
+      #   bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))), 
+      #   target_output,
+      #   tiers, packages = c("dplyr")
+      # )
     )
     
   }
@@ -961,8 +1051,11 @@ evaluate_hpc.HPCell = function(input_hpc) {
   # Empty droplets
   #-----------------------#
   
-  if(! "remove_empty_DropletUtils" %in% names(input_hpc))
-    target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
+  if(! "remove_empty_threshold" %in% names(input_hpc))
+    target_chunk_undefined_remove_empty_threshold(input_hpc)
+  
+  # if(! "remove_empty_DropletUtils" %in% names(input_hpc))
+  #   target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
   
   #-----------------------#
   # Annotate cell type
@@ -1030,6 +1123,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
     "temp_computing_resources.rds",
     "temp_debug_step.rds",
     "sample_names.rds",
+    "RNA_count_threshold.rds",
     "total_RNA_count_check.rds",
     "temp_group_by.rds",
     "factors_to_regress.rds",
@@ -1037,6 +1131,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
     "temp_tiers.rds",
     "temp_gene_nomenclature.rds",
     "data_container_type.rds"
+    
   ) |> 
     remove_files_safely()
   

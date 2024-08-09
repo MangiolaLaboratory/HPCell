@@ -94,7 +94,9 @@ transform_utility  = function(i, transform, external_path, data_container_type) 
   
   dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
   file_name = glue("{external_path}/{digest(i)}")
-  assay(i) = assay(i) |> transform()
+  #assay(i) = assay(i) |> transform()
+  i = i |> transform()
+  
   
   i |> 
     save_experiment_data(dir = file_name, 
@@ -114,3 +116,5 @@ transform_utility  = function(i, transform, external_path, data_container_type) 
   file_name = paste0(file_name, extension)
   file_name
 }
+  
+  

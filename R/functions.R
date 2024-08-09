@@ -742,7 +742,8 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
     
-    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL) 
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, 
+                                                              counts = assay) 
     
     # Rename assay
     assay_name_old = input_read_RNA_assay |> Assays() |> _[[1]]
@@ -1105,7 +1106,6 @@ pseudobulk_merge <- function(pseudobulk_list, ...) {
   output_path_sample <- pseudobulk_list |>
     # Add missing genes
     purrr::map(~{
-   
       missing_genes = all_genes |> setdiff(rownames(.x))
       
       if(missing_genes |> length() == 0) return(.x)

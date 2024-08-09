@@ -28,12 +28,7 @@ initialise_hpc(
 
 \item{gene_nomenclature}{Character vector indicating gene nomenclature in input_data}
 
-\item{data_container_type}{A character vector of length one specifies the input data type.
-The accepted input data type are:
-sce_rds for \code{SingleCellExperiment} RDS,
-seurat_rds for \code{Seurat} RDS,
-sce_hdf5 for \code{SingleCellExperiment} HDF5-based object
-seurat_h5 for \code{Seurat} HDF5-based object}
+\item{data_container_type}{A character vector of length one specifies the input data type.}
 
 \item{input_reference}{Optional reference data.}
 
@@ -44,6 +39,15 @@ seurat_h5 for \code{Seurat} HDF5-based object}
 \item{sample_column}{Column name for sample identification.}
 
 \item{cell_type_annotation_column}{Column name for cell type annotation in input data}
+
+\item{target_error_option}{Character of length 1, what to do if the target stops and throws an error.
+This argument matches to how targets handles error. Details can be found:
+https://docs.ropensci.org/targets/reference/tar_option_set.html#arg-error
+The accepted input data type are:
+sce_rds for \code{SingleCellExperiment} RDS,
+seurat_rds for \code{Seurat} RDS,
+sce_hdf5 for \code{SingleCellExperiment} HDF5-based object
+seurat_h5 for \code{Seurat} HDF5-based object}
 }
 \value{
 The output of the \code{targets} pipeline, typically a pre-processed data set.
