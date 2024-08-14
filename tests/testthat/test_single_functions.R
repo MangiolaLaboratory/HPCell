@@ -471,6 +471,12 @@ library(crew.cluster)
 # input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_2_SCE.rds")
 
 
+library(Azimuth)
+library(SeuratData)
+InstallData("pbmcsca")
+pbmcsca <- LoadData("pbmcsca") # save this to disk, so you can recall every time you execute HPCell
+
+
 # # Define and execute the pipeline
 # c("dev/input_seurat_treated_1.rds", 
 #   "dev/input_seurat_treated_2.rds",
@@ -541,7 +547,7 @@ library(crew.cluster)
   remove_doublets_scDblFinder(target_input = "sce_transformed") |> 
   
   # Annotation
-  annotate_cell_type(target_input = "sce_transformed") |> 
+  annotate_cell_type(target_input = "sce_transformed", azimuth_reference = pbmcsca) |> 
   
   normalise_abundance_seurat_SCT(factors_to_regress = c(
     "subsets_Mito_percent", 
