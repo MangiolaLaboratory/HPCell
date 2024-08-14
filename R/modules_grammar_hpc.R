@@ -181,16 +181,15 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
-  args_list$factory = function(tiers, target_input, target_output){
+  args_list$factory = function(tiers, target_input, target_output, total_RNA_count_check = NULL){
     list(
-      tar_target_raw("total_RNA_count_check", readRDS("total_RNA_count_check.rds") |> quote(), deployment = "main"),
-      
+
       factory_split(
         target_output, 
         i |> 
           read_data_container(container_type = data_container_type) |> 
-          empty_droplet_id(total_RNA_count_check) |> 
-          substitute(env = list(i=as.symbol(target_input))),
+          empty_droplet_id(t) |> 
+          substitute(env = list(i=as.symbol(target_input), t = total_RNA_count_check)),
         tiers, 
         other_arguments_to_tier = target_input,
         other_arguments_to_map = target_input
@@ -208,8 +207,7 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   
   # We don't want recursive when we call factory
   if(input_hpc |> length() > 0) {
-    total_RNA_count_check |> saveRDS("total_RNA_count_check.rds")
-    
+
     # Delete line with target in case the user execute the command, without calling initialise_hpc
     target_output |>  delete_lines_with_word(glue("{input_hpc$initialisation$store}.R"))
     
@@ -218,7 +216,8 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
       tiers = input_hpc$initialisation$tier |> get_positions() ,
       target_input = target_input,
       target_output = target_output,
-      script = glue("{input_hpc$initialisation$store}.R")
+      script = glue("{input_hpc$initialisation$store}.R"),
+      total_RNA_count_check = total_RNA_count_check
     )
     
   }
