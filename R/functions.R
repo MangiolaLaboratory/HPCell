@@ -690,7 +690,9 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
     CellCycleScoring(  
       s.features = s.features_tidy,
       g2m.features = g2m.features_tidy,
-      set.ident = FALSE 
+      set.ident = FALSE
+    # need to find a bin-free method. Relevant issue: https://github.com/satijalab/seurat/issues/7694
+     # nbin = 1
     ) |>
     
     as_tibble() |>
@@ -1086,6 +1088,7 @@ pseudobulk_merge <- function(pseudobulk_list, ...) {
   . = NULL 
 
   # Select only common columns
+  # investiagte common_columns, as data_source is not a common column in the pilot data
   common_columns =
     pseudobulk_list |>
     purrr::map(~ .x |> as_tibble() |> colnames()) |>
