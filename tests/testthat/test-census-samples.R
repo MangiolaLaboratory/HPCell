@@ -109,22 +109,17 @@ df <- samples |> left_join(sample_meta, by = "dataset_id") |> distinct(dataset_i
       if ((.x == "exp") && (max(counts) > 20)){
         scale_factor = 20/max(counts)
         counts = counts * scale_factor
-      }
-      
-      # Apply the transformation
-      counts <- transform_method(counts)
-      
-      while (TRUE) {
+        # Apply the transformation
+        counts <- transform_method(counts)
+        
         # Avoid majority of genes after transformation are 1, so substract by 1
         majority_gene_counts = names(which.max(table(as.vector(counts)))) |> as.numeric()
         
         #substract all counts by the majority_gene_counts if majority_gene_counts is not 0.
-        if (majority_gene_counts == 0) {
-          break
-        }
-        counts <- counts - majority_gene_counts
+        if (majority_gene_counts != transform_method(scale_factor)) counts <- counts - majority_gene_counts
       }
       
+
       # Avoid downstream failures negative counts
       if((counts[,1:min(10000, ncol(counts))] |> min()) < 0)
         counts[counts < 0] <- 0
@@ -160,22 +155,18 @@ files <- results |> mutate(sample_2 = basename(file_name) |> tools::file_path_sa
   select(-file_name.y, -cell_number.y, -file_size.y) |> rename(file_name = file_name.x,
                                                                cell_number = cell_number.x,
                                                                file_size = file_size.x)
- #files  |> head(10) |> pull(file_name) |>
- # c("/home/users/allstaff/shen.m/cellxgene_curated/census_samples/anndata/0024f909bf540734c021854ee1c758ca.h5ad") |>
-#files |> filter(cell_number %in% c(2505, 2105)) |> pull(file_name) |>
-c("/home/users/allstaff/shen.m/cellxgene_curated/census_samples/anndata/0063a5c025db1f4292c1875035cece1f.h5ad") |>
+files |> head(20) |> pull(file_name) |>
   initialise_hpc(
     gene_nomenclature = "ensembl",
     data_container_type = "anndata",
-    #store = "~/scratch/Census/census_reanalysis/census-run-20-samples/20samples/",
-    store = "~/scratch/Census/census_reanalysis/census-run-20-samples/20samples/fail_samples/",
+    store = "~/scratch/Census/census_reanalysis/census-run-20-samples/20samples/",
     #debug_step = "cell_cycle_tbl_tier_1_e0606bff6b731c54",  # problematic sample
     #debug_step = "cell_cycle_tbl_tier_1_ea6705b8ecef4374",
-    #tier =  files  |> head(10) |> pull(tier),
-    tier = "tier_1",
+    tier =  files |> head(20)  |> pull(tier),
+    #tier = "tier_1",
     #computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
     computing_resources = list(
-      
+
       crew_controller_slurm(
         name = "tier_1",
         slurm_memory_gigabytes_per_cpu = 15,
@@ -183,7 +174,7 @@ c("/home/users/allstaff/shen.m/cellxgene_curated/census_samples/anndata/0063a5c0
         workers = 50,
         tasks_max = 5,
         verbose = T,
-        slurm_time_minutes = 200
+        slurm_time_minutes = 120
       ),
       crew_controller_slurm(
         name = "tier_2",
@@ -192,7 +183,7 @@ c("/home/users/allstaff/shen.m/cellxgene_curated/census_samples/anndata/0063a5c0
         workers = 50,
         tasks_max = 5,
         verbose = T,
-        slurm_time_minutes = 200
+        slurm_time_minutes = 120
       ))
     
   ) |> 
@@ -201,8 +192,8 @@ c("/home/users/allstaff/shen.m/cellxgene_curated/census_samples/anndata/0063a5c0
   # tranform_assay(fx =  files |> filter(file_name == "/home/users/allstaff/shen.m/cellxgene_curated/census_samples/anndata/0024f909bf540734c021854ee1c758ca.h5ad") |> 
   #                  pull(transformation_function) |> _[[1]], 
   #                  target_output = "sce_transformed") |>
-  tranform_assay(fx =   files |> filter(cell_number == 2505)|>
-                   pull(transformation_function) |> _[[1]],
+  tranform_assay(fx =   files |> head(20) |>
+                   pull(transformation_function),
                  target_output = "sce_transformed") |>
   
   # Remove empty outliers based on RNA count threshold per cell
