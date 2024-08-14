@@ -449,6 +449,7 @@ library(crew.cluster)
 # library(tidySingleCellExperiment)
 # library(Seurat)
 # library(SeuratData)
+# InstallData("pbmc3k")
 # options(Seurat.object.assay.version = "v5")
 # input_seurat <-
 #   LoadData("pbmc3k") |>
@@ -471,22 +472,22 @@ library(crew.cluster)
 # input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_2_SCE.rds")
 
 
-library(Azimuth)
-library(SeuratData)
-InstallData("pbmcsca")
-pbmcsca <- LoadData("pbmcsca") # save this to disk, so you can recall every time you execute HPCell
+# library(Azimuth)
+# library(SeuratData)
+# InstallData("pbmcsca")
+# pbmcsca <- LoadData("pbmcsca") # save this to disk, so you can recall every time you execute HPCell
 
 
 # # Define and execute the pipeline
-# c("dev/input_seurat_treated_1.rds", 
-#   "dev/input_seurat_treated_2.rds",
-#   "dev/input_seurat_UNtreated_1.rds",
-#   "dev/input_seurat_UNtreated_2.rds") |> 
-# purrr::map_chr(here::here) |> 
-#   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
+c("dev/input_seurat_treated_1.rds",
+  "dev/input_seurat_treated_2.rds",
+  "dev/input_seurat_UNtreated_1.rds",
+  "dev/input_seurat_UNtreated_2.rds") |>
+purrr::map_chr(here::here) |>
+  magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |>
 #   
   
-   dir("dev/CAQ_sce/", full.names = T) |> 
+   # dir("dev/CAQ_sce/", full.names = T) |> 
 
 
   # Initialise pipeline characteristics
@@ -535,7 +536,7 @@ pbmcsca <- LoadData("pbmcsca") # save this to disk, so you can recall every time
   tranform_assay(fx = purrr::map(1:16, ~identity), target_output = "sce_transformed") |> 
     
   # Remove empty outliers
-  remove_empty_DropletUtils(target_input = "sce_transformed") |> 
+  remove_empty_DropletUtils( target_input = "sce_transformed") |> 
   
   # Remove dead cells
   remove_dead_scuttle(target_input = "sce_transformed") |> 

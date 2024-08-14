@@ -335,3 +335,72 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers, fa
     
   )
 }
+
+#' @export
+constructor_factory_internal = function(tiers, target_input, target_output, user_function, ...){
+  args <- list(...)  # Capture the ... arguments as a list
+  pipeline_expr <- substitute(
+    i |> read_data_container(container_type = data_container_type),
+    list(i = as.symbol(target_input))
+  )
+  # Replace the first argument of the user function with the pipeline expression
+  args <- c(list(pipeline_expr), args)
+  
+  # Construct the full call expression with the pipeline substituted into the function
+  fx_call <- as.call(c(user_function, args))
+  
+  
+  list(
+    
+    factory_split(
+      target_output, 
+      fx_call,
+      tiers, 
+      other_arguments_to_tier = target_input,
+      other_arguments_to_map = target_input
+    ) 
+    # ,
+    # 
+    # factory_collapse(
+    #   "my_report",
+    #   bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))),
+    #   target_output,
+    #   tiers, packages = c("dplyr")
+    # )
+  )
+  
+}
+
+
+#' @export
+constructor_factory = 
+  function(input_hpc, target_input = NULL, target_output = NULL, user_function = NULL, ...) {
+    
+    # Target script
+    target_script = glue("{input_hpc$initialisation$store}.R")
+    
+    # Capture all arguments including defaults
+    args_list <- as.list(environment())[-1]
+    
+
+    # Delete line with target in case the user execute the command, without calling initialise_hpc
+    target_output |>  delete_lines_with_word(target_script)
+    
+    tar_tier_append(
+      fx = constructor_factory_internal |> quote(),
+      tiers = input_hpc$initialisation$tier |> get_positions() ,
+      target_input = target_input,
+      target_output = target_output,
+      script = target_script,
+      user_function = user_function,
+      ...
+    )
+    
+    
+    # Add pipeline step
+    input_hpc |>
+      c(list(remove_empty_DropletUtils = args_list)) |>
+      add_class("HPCell")
+    
+    
+  }
