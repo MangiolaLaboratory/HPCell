@@ -78,7 +78,10 @@ expand_tiered_arguments <- function(command, tiers, tiered_args) {
 #' @export
 factory_split = function(
     name_output, command, tiers, arguments_to_tier = c(), other_arguments_to_tier = c(), 
-    other_arguments_to_map = c(), packages = targets::tar_option_get("packages") , ...
+    other_arguments_to_map = c(),
+    packages = targets::tar_option_get("packages") , 
+    deployment = targets::tar_option_get("deployment"), 
+    ...
   ){
   
   if(command |> deparse() |> str_detect("%>%") |> any()) 
@@ -133,7 +136,8 @@ factory_split = function(
       pattern = pattern,
       iteration = "list",
       resources = resources,
-      packages = packages
+      packages = packages, 
+      deployment = deployment
     )
   })
 }
@@ -337,38 +341,54 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers, fa
 }
 
 #' @export
-hpc_add_internal = function(tiers, target_output, user_function, ...){
-  args <- list(...)  # Capture the ... arguments as a list
-  # pipeline_expr <- substitute(
-  #   i |> read_data_container(container_type = data_container_type),
-  #   list(i = as.symbol(target_input))
-  # )
-  # # Replace the first argument of the user function with the pipeline expression
-  # args <- c(list(pipeline_expr), args)
+hpc_add_internal = function(
+    tiers = NULL, 
+    target_output, 
+    user_function,
+    arguments_to_tier = c(), 
+    other_arguments_to_tier = c(), 
+    other_arguments_to_map = c(), 
+    packages = targets::tar_option_get("packages") , 
+    deployment = targets::tar_option_get("deployment"),
+    ...
+  ){
   
+  args <- list(...)  # Capture the ... arguments as a list
+
   # Construct the full call expression with the pipeline substituted into the function
   fx_call <- as.call(c(user_function, args))
   
+  if(tiers |> is.null())
+    tar_target_raw(
+      name = target_output, 
+      command = fx_call,
+      packages = packages,
+      deployment = deployment
+    )
   
-  
-  list(
-    
-    factory_split(
-      target_output, 
-      fx_call,
-      tiers, 
-      other_arguments_to_tier = get_elements_with_name_class(args) ,
-      other_arguments_to_map = get_elements_with_name_class(args) 
-    ) 
-    # ,
-    # 
-    # factory_collapse(
-    #   "my_report",
-    #   bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))),
-    #   target_output,
-    #   tiers, packages = c("dplyr")
-    # )
-  )
+  else 
+    list(
+      
+      factory_split(
+        target_output, 
+        fx_call,
+        tiers, 
+        arguments_to_tier = arguments_to_tier,
+        other_arguments_to_tier = other_arguments_to_tier ,
+        other_arguments_to_map = other_arguments_to_map,
+        packages = packages,
+        deployment = deployment,
+        ...
+      ) 
+      # ,
+      # 
+      # factory_collapse(
+      #   "my_report",
+      #   bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))),
+      #   target_output,
+      #   tiers, packages = c("dplyr")
+      # )
+    )
   
 }
 
@@ -388,24 +408,81 @@ hpc_add_internal = function(tiers, target_output, user_function, ...){
 #' @importFrom glue glue
 #' @importFrom magrittr %>%
 #' @importFrom purrr set_names
-#' @importFrom targets tar_tier_append
+#' @importFrom targets tar_append
 #' @export
-hpc_add = 
+hpc_iterate = 
   function(input_hpc, target_output = NULL, user_function = NULL, ...) {
+    
+    # Check for argument consistency
+    check_for_name_value_conflicts(...)
     
     # Target script
     target_script = glue("{input_hpc$initialisation$store}.R")
     
-    # Capture all arguments including defaults
-    args_list <- as.list(environment())[-1]
+    # Delete line with target in case the user execute the command, without calling initialise_hpc
+    target_output |>  delete_lines_with_word(target_script)
+    
+    tar_append(
+      fx = hpc_add_internal |> quote(),
+      tiers = input_hpc$initialisation$tier |> get_positions() ,
+      target_output = target_output,
+      script = target_script,
+      user_function = user_function,
+      arguments_to_tier = list(...) |> get_arguments_to_tier(input_hpc),
+      other_arguments_to_tier = list(...) |> get_arguments_already_tiered(input_hpc) ,
+      other_arguments_to_map = list(...) |> get_arguments_already_tiered(input_hpc),
+      ...
+    )
+    
+    
+    # Add pipeline step
+    input_hpc |>
+      c(
+        as.list(environment())[-1] |> 
+          c(list(iterate = TRUE)) |> 
+        list() |> 
+        set_names(target_output) 
+        ) |>
+      add_class("HPCell")
+    
+    
+  }
+
+#' Add HPC step to pipeline
+#'
+#' This function adds a new step to the HPC pipeline by appending the appropriate
+#' targets to the target script. It allows the user to specify the input and output
+#' targets, as well as a custom user function to be applied.
+#'
+#' @param input_hpc The input HPC object.
+#' @param target_input The input target name (default: NULL).
+#' @param target_output The output target name (default: NULL).
+#' @param user_function A custom function provided by the user (default: NULL).
+#' @param ... Additional arguments to pass to the internal functions.
+#'
+#' @importFrom glue glue
+#' @importFrom magrittr %>%
+#' @importFrom purrr set_names
+#' @importFrom targets tar_append
+#' @export
+hpc_single = 
+  function(input_hpc, target_output = NULL, user_function = NULL, ...) {
+    
+    # tar_script_append2(script = glue("{store}.R"), append = FALSE)
     # 
+    # tar_target_raw(target_output, readRDS("input_reference.rds") |> quote()),
+    # 
+    # # Check for argument consistency
+    # check_for_name_value_conflicts(...)
+
+    # Target script
+    target_script = glue("{input_hpc$initialisation$store}.R")
 
     # Delete line with target in case the user execute the command, without calling initialise_hpc
     target_output |>  delete_lines_with_word(target_script)
     
-    tar_tier_append(
+    tar_append(
       fx = hpc_add_internal |> quote(),
-      tiers = input_hpc$initialisation$tier |> get_positions() ,
       target_output = target_output,
       script = target_script,
       user_function = user_function,
@@ -415,8 +492,14 @@ hpc_add =
     
     # Add pipeline step
     input_hpc |>
-      c(list(args_list) |> set_names(target_output)) |>
+      c(
+        as.list(environment())[-1] |> 
+          c(list(iterate = FALSE)) |> 
+          list() |> 
+          set_names(target_output)
+      ) |>
       add_class("HPCell")
     
     
   }
+

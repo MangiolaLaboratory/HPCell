@@ -4,14 +4,14 @@
 \alias{transform_utility}
 \title{Apply a transformation to an assay and save as HDF5}
 \usage{
-transform_utility(i, transform, external_path)
+transform_utility(input_read_RNA_assay, transform_fx, external_path)
 }
 \arguments{
-\item{i}{A SummarizedExperiment object to be transformed.}
-
-\item{transform}{A function to apply to the assay of the SummarizedExperiment object.}
+\item{input_read_RNA_assay}{A SummarizedExperiment object to be transformed.}
 
 \item{external_path}{A character string specifying the directory path to save the transformed object.}
+
+\item{transform}{A function to apply to the assay of the SummarizedExperiment object.}
 }
 \value{
 The function does not return an object. It saves the transformed SummarizedExperiment object to the specified path.

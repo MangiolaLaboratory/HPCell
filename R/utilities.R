@@ -593,26 +593,7 @@ tar_script_append = function(code, script = targets::tar_config_get("script")){
     write_lines(script, append = TRUE)
 }
 
-#' Append Code to a Targets Script
-#'
-#' @description
-#' Appends given code to a 'targets' package script.
-#'
-#' @param code Code to append.
-#' @param script Path to the script file.
-#'
-#' @importFrom readr write_lines
-#' @importFrom targets tar_config_get
-#' @noRd
-tar_append = function(code, script = targets::tar_config_get("script")){
-  substitute(code) |>
-    deparse() |>
-    head(-1) |>
-    tail(-1) |>
-    write_lines(script, append = TRUE)
-}
-
-tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script"), ...){
+tar_append = function(fx, tiers = NULL, script = targets::tar_config_get("script"), ...){
   
   # Deal with additional argument
   additional_args <- 
@@ -623,15 +604,24 @@ tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script")
     # triggered because they do not exist in the environment
     quote_name_classes()
   
+  arguments_to_pass  = c(fx)
+  
+  if(tiers |> is.null() |> not())
+    arguments_to_pass = arguments_to_pass |> c(list(tiers = tiers))
+  
+  if (length(additional_args) > 0)
+    arguments_to_pass = arguments_to_pass |> c(additional_args)
+  
   # Construct the call with substitute
-  if (length(additional_args) > 0) {
+  # if (length(additional_args) > 0) {
     call_expr = 
-      as.call(c(fx, list(tiers), additional_args)) |> 
+      as.call(arguments_to_pass) |> 
       deparse()
-  } else {
-    call_expr <- substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
-      deparse() 
-  }
+    
+  # } else {
+  #   call_expr <- substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
+  #     deparse() 
+  # }
   
   # Add prefix
   "target_list = c(target_list, list(" |> 
@@ -2192,19 +2182,33 @@ vector_to_code <- function(int_vector) {
 #' @noRd
 add_tier_inputs <- function(command, arguments_to_tier, i) {
   
+  if(i |> length() > 1) stop("HPCell says: argument i must be of length one")
+  
   if(length(arguments_to_tier)==0) return(command)
   
   command = command |> deparse() |> paste(collapse = "")  
-  input = command |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
   
   # Filter out arguments to be tiered from the input command
+  #input = command |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
   #arguments_to_tier <- arguments_to_tier |> str_subset(input, negate = TRUE)
   
   # Create a named vector for replacements
   replacement_regexp <- glue("{arguments_to_tier}_{i}") |> as.character() |> set_names(arguments_to_tier)
   
+  # Function to add word boundaries and perform the replacements
+  # This because we only replace WHOLE words
+  add_word_boundaries_and_replace <- function(command, replacements) {
+    for (pattern in names(replacements)) {
+      # Create the regex pattern with word boundaries
+      pattern_with_boundaries <- paste0("\\b", pattern, "\\b")
+      # Perform the replacement for each pattern
+      command <- str_replace(command, pattern_with_boundaries, replacements[pattern])
+    }
+    return(command)
+  }
+  
   # Replace the specified arguments in the command with their tiered versions
-  command |> str_replace_all(replacement_regexp) |>  rlang::parse_expr()
+  command |> add_word_boundaries_and_replace(replacement_regexp) |>  rlang::parse_expr()
   
 }
 
@@ -2323,15 +2327,71 @@ delete_lines_with_word <- function(word, file_path) {
   writeLines(filtered_lines, file_path)
 }
 
+#' Get elements with class 'name'
+#'
+#' This function takes a list and returns a character vector of elements
+#' that have the class 'name', converting them to their character equivalents.
+#'
+#' @param lst A list of elements to process.
+#' @return A character vector of elements with class 'name'.
+#' @noRd
 get_elements_with_name_class <- function(lst) {
-  # Use lapply to iterate over the list and get elements with class 'name'
-  elements_with_name_class <- lapply(lst, function(x) if ("name" %in% class(x)) as.character(x) else NULL)
+  lapply(lst, function(x) {
+    if ("name" %in% class(x)) as.character(x) else NULL
+  }) %>%
+    Filter(Negate(is.null), .) %>% # Remove NULL elements
+    unlist()
+}
+
+#' Get Arguments to Tier
+#'
+#' This function identifies elements from a list that have the class 'name',
+#' converts them to character strings using the `get_elements_with_name_class()` function,
+#' and then returns only those elements that are **not** present in the names of a specified input list (`input_hpc`).
+#'
+#' @param lst A list containing various elements, some of which may have the class 'name'.
+#' @param input_hpc A list whose names are used to filter the elements from `lst`.
+#' @return A character vector of elements from `lst` that have the class 'name'
+#'         and are **not** present in the names of `input_hpc`.
+#' @details
+#' This function is useful when you need to extract specific named arguments from a list 
+#' and ensure that they do not conflict with the names of another list (`input_hpc`). 
+#' It first identifies and converts elements of class 'name' to their character representations, 
+#' and then filters out those that are present in the `input_hpc` names.
+#' @noRd
+get_arguments_to_tier <- function(lst, input_hpc) {
+  # Use the internal function to get elements with class 'name'
+  elements_with_name_class <- get_elements_with_name_class(lst)
   
-  # Remove NULL elements from the list
-  elements_with_name_class <- elements_with_name_class[!sapply(elements_with_name_class, is.null)]
+  # Filter the elements that are NOT present in names(input_hpc)
+  elements_with_name_class[!elements_with_name_class %in% names(input_hpc)]
   
-  # Flatten the list to return a character vector
-  unlist(elements_with_name_class)
+}
+
+#' Get Arguments Already Tiered
+#'
+#' This function identifies elements from a list that have the class 'name',
+#' converts them to character strings using the `get_elements_with_name_class()` function,
+#' and then returns only those elements that are present in the names of a specified input list (`input_hpc`).
+#'
+#' @param lst A list containing various elements, some of which may have the class 'name'.
+#' @param input_hpc A list whose names are used to filter the elements from `lst`.
+#' @return A character vector of elements from `lst` that have the class 'name'
+#'         and are present in the names of `input_hpc`.
+#' @details
+#' This function is useful when you need to extract specific named arguments from a list
+#' that correspond to names already present in another list (`input_hpc`).
+#' It first identifies and converts elements of class 'name' to their character representations,
+#' and then filters for those that match the names in `input_hpc`.
+#' @noRd
+get_arguments_already_tiered <- function(lst, input_hpc) {
+  # Use the internal function to get elements with class 'name'
+  elements_with_name_class <- get_elements_with_name_class(lst)
+  
+  # Filter the elements that are present in names(input_hpc)
+  matching_elements <- elements_with_name_class[elements_with_name_class %in% names(input_hpc)]
+  
+  return(matching_elements)
 }
 
 #' Quote elements with class 'name'
@@ -2352,4 +2412,60 @@ quote_name_classes <- function(lst) {
       x  # Leave as is for other elements
     }
   })
+}
+
+#' Safe as.name Wrapper
+#'
+#' This function wraps `as.name()` to safely handle `NULL` input.
+#' If the input is `NULL`, the function returns `NULL`; otherwise,
+#' it returns the result of `as.name()`.
+#'
+#' @param input The input to be converted to a name. If `NULL`, the function returns `NULL`.
+#' @return The result of `as.name()` applied to the input, or `NULL` if the input is `NULL`.
+#' @noRd
+safe_as_name <- function(input) {
+  if (is.null(input)) {
+    return(NULL)
+  } else {
+    return(as.name(input))
+  }
+}
+
+#' Check for Name-Value Conflicts in Arguments
+#'
+#' This function checks if any argument names in a given function call are identical to their corresponding values.
+#' If such a conflict is found, an error is thrown. This is particularly useful for the resource tiering backend,
+#' ensuring that specific arguments are not unintentionally given names that match their values, which could lead
+#' to unexpected behavior in tiered resource management.
+#'
+#' @param ... Arguments to be checked for name-value conflicts.
+#' @return The function returns the input arguments as a list if no conflicts are found.
+#' @details The function iterates through each argument provided in `...`, comparing the name of the argument to its value.
+#'          If any argument name matches its value (after converting the value to a character string), an error is triggered.
+#'          This validation step is essential for maintaining consistency and avoiding conflicts in the resource tiering backend,
+#'          where argument names and values need to be distinct to prevent mismanagement of tiered resources.
+#' @importFrom glue glue
+#' @noRd
+check_for_name_value_conflicts <- function(...) {
+  # Capture the arguments passed to the function
+  args_list <- list(...)
+  
+  # Iterate through the list and check for name-value conflicts
+  for (arg_name in names(args_list)) {
+    arg_value <- args_list[[arg_name]]
+    
+    # Skip NULL values
+    if (is.null(arg_value)) next
+    
+    # Convert the argument value to a character string for comparison
+    arg_value_as_char <- as.character(arg_value)
+    
+    # Check if the argument name is the same as its value
+    if (arg_name == arg_value_as_char) {
+      stop(glue::glue("Error: Argument name '{arg_name}' cannot be the same as its value '{arg_value_as_char}'"))
+    }
+  }
+  
+  # If no conflicts, return the arguments as is or proceed with the function logic
+  return(args_list)
 }

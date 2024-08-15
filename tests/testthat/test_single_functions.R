@@ -472,28 +472,30 @@ library(crew.cluster)
 # input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_2_SCE.rds")
 
 
-# library(Azimuth)
+
 # library(SeuratData)
 # InstallData("pbmcsca")
 # pbmcsca <- LoadData("pbmcsca") # save this to disk, so you can recall every time you execute HPCell
 
 
 # # Define and execute the pipeline
-c("dev/input_seurat_treated_1.rds",
+file_list = 
+  c("dev/input_seurat_treated_1.rds",
   "dev/input_seurat_treated_2.rds",
   "dev/input_seurat_UNtreated_1.rds",
   "dev/input_seurat_UNtreated_2.rds") |>
 purrr::map_chr(here::here) |>
-  magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |>
+  magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) 
 #   
   
    # dir("dev/CAQ_sce/", full.names = T) |> 
 
 
   # Initialise pipeline characteristics
+file_list |> 
   initialise_hpc(
     gene_nomenclature = "symbol",
-    data_container_type = "sce_hdf5",
+    data_container_type = "seurat_rds",
     # tier = c("tier_1", "tier_2"),
     # 
     # debug_step = "non_batch_variation_removal_S_1",
@@ -523,44 +525,54 @@ purrr::map_chr(here::here) |>
   # )
     
   # #  Slurm resources
-    computing_resources =
-      crew.cluster::crew_controller_slurm(
-        slurm_memory_gigabytes_per_cpu = 5,
-        workers = 500,
-        tasks_max = 5,
-        verbose = T,
-        slurm_cpus_per_task = 1
-      )
+    # computing_resources =
+    #   crew.cluster::crew_controller_slurm(
+    #     slurm_memory_gigabytes_per_cpu = 5,
+    #     workers = 500,
+    #     tasks_max = 5,
+    #     verbose = T,
+    #     slurm_cpus_per_task = 1
+    #   )
   ) |> 
   
-  tranform_assay(fx = purrr::map(1:16, ~identity), target_output = "sce_transformed") |> 
-    
+  # ONLY APPLICABLE TO SCE FOR NOW
+   tranform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
+  
+  hpc_iterate(
+    target_output = "o", 
+    user_function = function(x, y){x |> dplyr::mutate(bla = y)}, 
+    x = read_file |> quote(),
+    y = "works"
+  ) |> 
+
   # Remove empty outliers
-  remove_empty_DropletUtils( target_input = "sce_transformed") |> 
-  
-  # Remove dead cells
-  remove_dead_scuttle(target_input = "sce_transformed") |> 
-  
-  # Score cell cycle
-  score_cell_cycle_seurat(target_input = "sce_transformed") |> 
-  
-  # Remove doublets
-  remove_doublets_scDblFinder(target_input = "sce_transformed") |> 
+  remove_empty_DropletUtils( target_input = "read_file") |> 
   
   # Annotation
-  annotate_cell_type(target_input = "sce_transformed", azimuth_reference = pbmcsca) |> 
+  annotate_cell_type(target_input = "read_file", azimuth_reference = pbmcsca) |> 
   
+  # Remove dead cells
+  remove_dead_scuttle(target_input = "read_file") |> 
+  
+  # Score cell cycle
+  score_cell_cycle_seurat(target_input = "read_file") |> 
+  
+  # Remove doublets
+  remove_doublets_scDblFinder(target_input = "read_file") |> 
+  
+
   normalise_abundance_seurat_SCT(factors_to_regress = c(
     "subsets_Mito_percent", 
     "subsets_Ribo_percent", 
     "G2M.Score"
-  ), target_input = "sce_transformed") |> 
+  ), 
+  target_input = "read_file") |> 
   
-  calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "sce_transformed") |> 
+  calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "read_file") |> 
   
   test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts") |> 
   #test_differential_abundance(~ age_days, .abundance="counts")
 
   # For the moment only available for single cell
-  get_single_cell(target_input = "sce_transformed")
+  get_single_cell(target_input = "read_file")
 
