@@ -471,13 +471,20 @@ library(crew.cluster)
 # input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_2_SCE.rds")
 
 
-# Define and execute the pipeline
-# c("dev/input_seurat_treated_1_SCE.rds",
-#   "dev/input_seurat_treated_2_SCE.rds",
-#   "dev/input_seurat_UNtreated_1_SCE.rds",
-#   "dev/input_seurat_UNtreated_2_SCE.rds") |>
-#   purrr::map_chr(here::here) |> 
-#    magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
+
+library(Azimuth)
+library(SeuratData)
+InstallData("pbmcsca")
+pbmcsca <- LoadData("pbmcsca") # save this to disk, so you can recall every time you execute HPCell
+
+
+# # Define and execute the pipeline
+# c("dev/input_seurat_treated_1.rds", 
+#   "dev/input_seurat_treated_2.rds",
+#   "dev/input_seurat_UNtreated_1.rds",
+#   "dev/input_seurat_UNtreated_2.rds") |> 
+# purrr::map_chr(here::here) |> 
+#   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
 #   
    dir("dev/CAQ_sce/", full.names = T) |> 
 
@@ -538,8 +545,8 @@ library(crew.cluster)
   remove_doublets_scDblFinder(target_input = "sce_transformed") |>
 
   # Annotation
-  annotate_cell_type(target_input = "sce_transformed") |>
-
+  annotate_cell_type(target_input = "sce_transformed", azimuth_reference = pbmcsca) |> 
+  
   normalise_abundance_seurat_SCT(factors_to_regress = c(
     "subsets_Mito_percent",
     "subsets_Ribo_percent",

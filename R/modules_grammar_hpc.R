@@ -182,7 +182,7 @@ remove_empty_threshold.HPCell = function(input_hpc, RNA_count_threshold = NULL, 
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
-  args_list$factory = function(tiers, target_input, target_output){
+  args_list$factory = function(tiers, target_input, target_output, total_RNA_count_check = NULL){
     list(
       tar_target_raw("RNA_count_threshold", readRDS("RNA_count_threshold.rds") |> quote(), deployment = "main"),
       tar_target_raw("RNA_feature_threshold", readRDS("RNA_feature_threshold.rds") |> quote(), deployment = "main"),
@@ -194,7 +194,7 @@ remove_empty_threshold.HPCell = function(input_hpc, RNA_count_threshold = NULL, 
           empty_droplet_threshold(gene_nomenclature = gene_nomenclature,
                                   RNA_count_threshold = RNA_count_threshold,
                                   RNA_feature_threshold = RNA_feature_threshold) |> 
-          substitute(env = list(i=as.symbol(target_input))),  
+          substitute(env = list(i=as.symbol(target_input))), 
         tiers, 
         other_arguments_to_tier = target_input,
         other_arguments_to_map = target_input
@@ -215,7 +215,8 @@ remove_empty_threshold.HPCell = function(input_hpc, RNA_count_threshold = NULL, 
       tiers = input_hpc$initialisation$tier |> get_positions() ,
       target_input = target_input,
       target_output = target_output,
-      script = glue("{input_hpc$initialisation$store}.R")
+      script = glue("{input_hpc$initialisation$store}.R"),
+      total_RNA_count_check = total_RNA_count_check
     )
     
   }
@@ -597,7 +598,7 @@ target_chunk_undefined_remove_doublets_scDblFinder = function(input_hpc){
 
 # Define the generic function
 #' @export
-annotate_cell_type <- function(input_hpc, target_input = "read_file", target_output = "annotation_tbl",...) {
+annotate_cell_type <- function(input_hpc, azimuth_reference = NULL, target_input = "read_file", target_output = "annotation_tbl",...) {
   UseMethod("annotate_cell_type")
 }
 
