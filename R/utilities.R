@@ -615,7 +615,13 @@ tar_append = function(code, script = targets::tar_config_get("script")){
 tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script"), ...){
   
   # Deal with additional argument
-  additional_args <- list(...)
+  additional_args <- 
+    list(...) |> 
+    
+    # I need this because otherwise the quotation of for example the function names 
+    # and the target names will be lost, so those object will be evaluated and 
+    # triggered because they do not exist in the environment
+    quote_name_classes()
   
   # Construct the call with substitute
   if (length(additional_args) > 0) {
@@ -2315,4 +2321,35 @@ delete_lines_with_word <- function(word, file_path) {
   
   # Step 3: Write the modified content back to the file
   writeLines(filtered_lines, file_path)
+}
+
+get_elements_with_name_class <- function(lst) {
+  # Use lapply to iterate over the list and get elements with class 'name'
+  elements_with_name_class <- lapply(lst, function(x) if ("name" %in% class(x)) as.character(x) else NULL)
+  
+  # Remove NULL elements from the list
+  elements_with_name_class <- elements_with_name_class[!sapply(elements_with_name_class, is.null)]
+  
+  # Flatten the list to return a character vector
+  unlist(elements_with_name_class)
+}
+
+#' Quote elements with class 'name'
+#'
+#' This function takes a list and returns a new list where any elements
+#' with the class 'name' are converted to their quoted equivalent using `quote()`.
+#' This is useful for preserving unevaluated expressions in the list.
+#'
+#' @param lst A list of elements to process.
+#' @return A list where elements with class 'name' are quoted.
+#' @noRd
+quote_name_classes <- function(lst) {
+  lapply(lst, function(x) {
+    if ("name" %in% class(x)) {
+      # Manually create the quoted expression
+      as.call(list(as.name("quote"), x))
+    } else {
+      x  # Leave as is for other elements
+    }
+  })
 }

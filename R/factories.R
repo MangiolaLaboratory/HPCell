@@ -95,7 +95,7 @@ factory_split = function(
     my_index = .x
     
     # Pattern
-    pattern = NULL
+    pattern = NULL 
     if(
       arguments_to_tier |> length() > 0 |
       other_arguments_to_map |> length() > 0
@@ -337,17 +337,18 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers, fa
 }
 
 #' @export
-constructor_factory_internal = function(tiers, target_input, target_output, user_function, ...){
+hpc_add_internal = function(tiers, target_output, user_function, ...){
   args <- list(...)  # Capture the ... arguments as a list
-  pipeline_expr <- substitute(
-    i |> read_data_container(container_type = data_container_type),
-    list(i = as.symbol(target_input))
-  )
-  # Replace the first argument of the user function with the pipeline expression
-  args <- c(list(pipeline_expr), args)
+  # pipeline_expr <- substitute(
+  #   i |> read_data_container(container_type = data_container_type),
+  #   list(i = as.symbol(target_input))
+  # )
+  # # Replace the first argument of the user function with the pipeline expression
+  # args <- c(list(pipeline_expr), args)
   
   # Construct the full call expression with the pipeline substituted into the function
   fx_call <- as.call(c(user_function, args))
+  
   
   
   list(
@@ -356,8 +357,8 @@ constructor_factory_internal = function(tiers, target_input, target_output, user
       target_output, 
       fx_call,
       tiers, 
-      other_arguments_to_tier = target_input,
-      other_arguments_to_map = target_input
+      other_arguments_to_tier = get_elements_with_name_class(args) ,
+      other_arguments_to_map = get_elements_with_name_class(args) 
     ) 
     # ,
     # 
@@ -372,24 +373,39 @@ constructor_factory_internal = function(tiers, target_input, target_output, user
 }
 
 
+#' Add HPC step to pipeline
+#'
+#' This function adds a new step to the HPC pipeline by appending the appropriate
+#' targets to the target script. It allows the user to specify the input and output
+#' targets, as well as a custom user function to be applied.
+#'
+#' @param input_hpc The input HPC object.
+#' @param target_input The input target name (default: NULL).
+#' @param target_output The output target name (default: NULL).
+#' @param user_function A custom function provided by the user (default: NULL).
+#' @param ... Additional arguments to pass to the internal functions.
+#'
+#' @importFrom glue glue
+#' @importFrom magrittr %>%
+#' @importFrom purrr set_names
+#' @importFrom targets tar_tier_append
 #' @export
-constructor_factory = 
-  function(input_hpc, target_input = NULL, target_output = NULL, user_function = NULL, ...) {
+hpc_add = 
+  function(input_hpc, target_output = NULL, user_function = NULL, ...) {
     
     # Target script
     target_script = glue("{input_hpc$initialisation$store}.R")
     
     # Capture all arguments including defaults
     args_list <- as.list(environment())[-1]
-    
+    # 
 
     # Delete line with target in case the user execute the command, without calling initialise_hpc
     target_output |>  delete_lines_with_word(target_script)
     
     tar_tier_append(
-      fx = constructor_factory_internal |> quote(),
+      fx = hpc_add_internal |> quote(),
       tiers = input_hpc$initialisation$tier |> get_positions() ,
-      target_input = target_input,
       target_output = target_output,
       script = target_script,
       user_function = user_function,
@@ -399,7 +415,7 @@ constructor_factory =
     
     # Add pipeline step
     input_hpc |>
-      c(list(remove_empty_DropletUtils = args_list)) |>
+      c(list(args_list) |> set_names(target_output)) |>
       add_class("HPCell")
     
     

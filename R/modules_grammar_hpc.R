@@ -117,7 +117,13 @@ initialise_hpc <- function(input_hpc,
   # Write tiering of the input
   "target_list = c(target_list, list(" |> 
     c(
-      factory_split("read_file",   quote(r),  t,  arguments_to_tier = "read_file_list",  deployment = "main" ) |> 
+      factory_split(
+        "read_file",  
+        r |> read_data_container(container_type = data_container_type) |> quote(), 
+        t, 
+        arguments_to_tier = "read_file_list", 
+        deployment = "main" 
+      ) |> 
         substitute(env = list(t = tiers, r = quote(read_file_list))) |> 
         deparse() 
     ) |> 
@@ -175,59 +181,13 @@ remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = N
 #' @export
 remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, target_input = "read_file", target_output = "empty_tbl",...) {
   
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
-  
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  args_list$factory = function(tiers, target_input, target_output, total_RNA_count_check = NULL){
-    list(
-
-      factory_split(
-        target_output, 
-        i |> 
-          read_data_container(container_type = data_container_type) |> 
-          empty_droplet_id(t) |> 
-          substitute(env = list(i=as.symbol(target_input), t = total_RNA_count_check)),
-        tiers, 
-        other_arguments_to_tier = target_input,
-        other_arguments_to_map = target_input
-      )  ,
-      
-      factory_collapse(
-        "my_report",
-        bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))),
-        target_output,
-        tiers, packages = c("dplyr")
-      )
-    )
-    
-  }
-  
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) {
-
-    # Delete line with target in case the user execute the command, without calling initialise_hpc
-    target_output |>  delete_lines_with_word(glue("{input_hpc$initialisation$store}.R"))
-    
-    tar_tier_append(
-      fx = quote(dummy_hpc |> remove_empty_DropletUtils() %$% remove_empty_DropletUtils %$% factory),
-      tiers = input_hpc$initialisation$tier |> get_positions() ,
-      target_input = target_input,
-      target_output = target_output,
-      script = glue("{input_hpc$initialisation$store}.R"),
+  input_hpc |> 
+    hpc_add(
+      target_output = target_output, 
+      user_function = empty_droplet_id |> quote() , 
+      input_read_RNA_assay = as.name(target_input),
       total_RNA_count_check = total_RNA_count_check
     )
-    
-  }
-  
-  
-  # Add pipeline step
-  input_hpc |>
-    c(list(remove_empty_DropletUtils = args_list)) |>
-    add_class("HPCell")
-  
   
 }
 
@@ -257,62 +217,72 @@ remove_dead_scuttle <- function(input_hpc, group_by = NULL, target_input = "read
 #' @export
 remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL, target_input = "read_file", target_output = "alive_tbl") {
   
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
-  
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  args_list$factory = function(tiers, target_input, target_output){
-    list(
-      tar_target_raw("grouping_column", readRDS("temp_group_by.rds") |> quote(), deployment = "main"),
-      
-      factory_split(
-        target_output, 
-        i |> 
-          read_data_container(container_type = data_container_type) |> 
-          alive_identification(
-            empty_tbl,
-            annotation_tbl,
-            grouping_column
-          ) |> 
-          substitute(env = list(i=as.symbol(target_input))),
-        tiers, 
-        other_arguments_to_tier = c(target_input, "empty_tbl", "annotation_tbl"), 
-        other_arguments_to_map = c(target_input, "empty_tbl", "annotation_tbl")
-      ),
-      
-      factory_collapse(
-        "my_report2",
-        bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))), 
-        target_output,
-        tiers, packages = c("dplyr")
-      )
+  input_hpc |> 
+    hpc_add(
+      target_input = target_input, 
+      target_output = target_output, 
+      user_function = alive_identification |> quote() |> quote(), 
+      empty_droplets_tbl = empty_tbl |> quote() |> quote(),
+      annotation_label_transfer_tbl = annotation_tbl |> quote() |> quote(),
+      annotation_column = group_by 
     )
-    
-  }
   
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) {
-    group_by |> saveRDS("temp_group_by.rds")
-    
-    # Delete line with target in case the user execute the command, without calling initialise_hpc
-    target_output |>  delete_lines_with_word(glue("{input_hpc$initialisation$store}.R"))
-    
-    
-    tar_tier_append(
-      quote(dummy_hpc |> remove_dead_scuttle() %$% remove_dead_scuttle %$% factory),
-      tiers = input_hpc$initialisation$tier |> get_positions() ,
-      target_input = target_input,
-      target_output = target_output,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
-  }
-  
-  
-  input_hpc |>
-    c(list(remove_dead_scuttle = args_list))  |>
-    add_class("HPCell")
+  # # Capture all arguments including defaults
+  # args_list <- as.list(environment())[-1]
+  # 
+  # # Optionally, you can evaluate the arguments if they are expressions
+  # args_list <- lapply(args_list, eval, envir = parent.frame())
+  # 
+  # args_list$factory = function(tiers, target_input, target_output){
+  #   list(
+  #     tar_target_raw("grouping_column", readRDS("temp_group_by.rds") |> quote(), deployment = "main"),
+  #     
+  #     factory_split(
+  #       target_output, 
+  #       i |> 
+  #         read_data_container(container_type = data_container_type) |> 
+  #         alive_identification(
+  #           empty_tbl,
+  #           annotation_tbl,
+  #           grouping_column
+  #         ) |> 
+  #         substitute(env = list(i=as.symbol(target_input))),
+  #       tiers, 
+  #       other_arguments_to_tier = c(target_input, "empty_tbl", "annotation_tbl"), 
+  #       other_arguments_to_map = c(target_input, "empty_tbl", "annotation_tbl")
+  #     ),
+  #     
+  #     factory_collapse(
+  #       "my_report2",
+  #       bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))), 
+  #       target_output,
+  #       tiers, packages = c("dplyr")
+  #     )
+  #   )
+  #   
+  # }
+  # 
+  # # We don't want recursive when we call factory
+  # if(input_hpc |> length() > 0) {
+  #   group_by |> saveRDS("temp_group_by.rds")
+  #   
+  #   # Delete line with target in case the user execute the command, without calling initialise_hpc
+  #   target_output |>  delete_lines_with_word(glue("{input_hpc$initialisation$store}.R"))
+  #   
+  #   
+  #   tar_tier_append(
+  #     quote(dummy_hpc |> remove_dead_scuttle() %$% remove_dead_scuttle %$% factory),
+  #     tiers = input_hpc$initialisation$tier |> get_positions() ,
+  #     target_input = target_input,
+  #     target_output = target_output,
+  #     script = glue("{input_hpc$initialisation$store}.R")
+  #   )
+  # }
+  # 
+  # 
+  # input_hpc |>
+  #   c(list(remove_dead_scuttle = args_list))  |>
+  #   add_class("HPCell")
   
 }
 
@@ -950,7 +920,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
   # Empty droplets
   #-----------------------#
   
-  if(! "remove_empty_DropletUtils" %in% names(input_hpc))
+  if(! "empty_tbl" %in% names(input_hpc))
     target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
   
   #-----------------------#
@@ -967,7 +937,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
   # Remove dead
   #-----------------------#
   
-  if(! "remove_dead_scuttle" %in% names(input_hpc))
+  if(! "alive_tbl" %in% names(input_hpc))
     target_chunk_undefined_remove_dead_scuttle(input_hpc)
   
   
