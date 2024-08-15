@@ -130,7 +130,9 @@ initialise_hpc <- function(input_hpc,
   
   
   input_hpc = 
-    list(initialisation = args_list) |>
+    list(initialisation = args_list ) |>
+    c(list(read_file_list = list(iterate = "tier")) ) |> 
+  
     add_class("HPCell")
   
   
@@ -389,67 +391,20 @@ normalise_abundance_seurat_SCT <- function(input_hpc, target_input = "read_file"
 
 #' @export
 normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress = NULL, target_input = "read_file", target_output = "sct_matrix", ...) {
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
   
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
+  input_hpc |> 
+  hpc_iterate(
+    target_output = target_output, 
+    user_function = non_batch_variation_removal |> quote() , 
+    input_read_RNA_assay = as.name(target_input), 
+    empty_droplets_tbl = empty_tbl |> quote() ,
+    alive_identification_tbl = alive_tbl |> quote(),
+    cell_cycle_score_tbl = cell_cycle_tbl |> quote(),
+    factors_to_regress = factors_to_regress,
+    external_path = glue("{input_hpc$initialisation$store}/external"),
+    ...
+  )
   
-  args_list$factory = function(tiers, target_input, target_output, external_path){
-    list(
-      tar_target_raw("factors_to_regress", readRDS("factors_to_regress.rds") |> quote(), deployment = "main"),
-      
-      factory_split(
-        target_output, 
-        i |> 
-          read_data_container(container_type = data_container_type) |> 
-          non_batch_variation_removal(
-            empty_tbl,
-            alive_tbl,
-            cell_cycle_tbl,
-            factors_to_regress = factors_to_regress,
-            external_path = e
-          ) |> 
-          substitute(env = list(i=as.symbol(target_input), e = external_path)),
-        tiers, 
-        other_arguments_to_tier = c(target_input, "empty_tbl", "alive_tbl", "cell_cycle_tbl"), other_arguments_to_map = c(target_input, "empty_tbl", "alive_tbl", "cell_cycle_tbl")
-        
-      )
-      # ,
-      # 
-      # factory_collapse(
-      #   "my_report6",
-      #   bind_rows(tibble()) |> quote(), 
-      #   target_output,
-      #   tiers, packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-      # )
-    )
-    
-  }
-  
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) {
-    factors_to_regress |> saveRDS("factors_to_regress.rds")
-    
-    # Delete line with target in case the user execute the command, without calling initialise_hpc
-    target_output |>  delete_lines_with_word(glue("{input_hpc$initialisation$store}.R"))
-    
-    
-    tar_append(
-      quote(dummy_hpc |> normalise_abundance_seurat_SCT() %$% normalise_abundance_seurat_SCT %$% factory),
-      tiers = input_hpc$initialisation$tier |> get_positions() ,
-      target_input = target_input,
-      target_output = target_output,
-      external_path = glue("{input_hpc$initialisation$store}/external"),
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
-  }
-  
-  
-  
-  input_hpc |>
-    c(list(normalise_abundance_seurat_SCT = args_list)) |>
-    add_class("HPCell")
   
 }
 
@@ -795,7 +750,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
   # SCT
   #-----------------------#
   
-  if(! "normalise_abundance_seurat_SCT" %in% names(input_hpc))
+  if(! "sct_matrix" %in% names(input_hpc))
     target_chunk_undefined_normalise_abundance_seurat_SCT(input_hpc)
   
   

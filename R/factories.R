@@ -428,9 +428,9 @@ hpc_iterate =
       target_output = target_output,
       script = target_script,
       user_function = user_function,
-      arguments_to_tier = list(...) |> get_arguments_to_tier(input_hpc),
-      other_arguments_to_tier = list(...) |> get_arguments_already_tiered(input_hpc) ,
-      other_arguments_to_map = list(...) |> get_arguments_already_tiered(input_hpc),
+      arguments_to_tier = list(...) |> arguments_to_action(input_hpc, "tier"), # This "tier" value is decided for each new target below. Usually just at the beginning of the piepline
+      other_arguments_to_tier = list(...) |> arguments_to_action(input_hpc, "tiered") , # This "tiered" value is decided for each new target below. Ususally every other list targets.
+      other_arguments_to_map = list(...) |> arguments_to_action(input_hpc, "tiered"), # This "tiered" value is decided for each new target below. Ususally every other list targets.
       ...
     )
     
@@ -439,7 +439,7 @@ hpc_iterate =
     input_hpc |>
       c(
         as.list(environment())[-1] |> 
-          c(list(iterate = TRUE)) |> 
+          c(list(iterate = "tiered")) |> 
         list() |> 
         set_names(target_output) 
         ) |>
@@ -494,7 +494,7 @@ hpc_single =
     input_hpc |>
       c(
         as.list(environment())[-1] |> 
-          c(list(iterate = FALSE)) |> 
+          c(list(iterate = "none")) |> 
           list() |> 
           set_names(target_output)
       ) |>

@@ -2343,56 +2343,44 @@ get_elements_with_name_class <- function(lst) {
     unlist()
 }
 
-#' Get Arguments to Tier
+#' Get Arguments to Tier Based on Iteration Settings
 #'
 #' This function identifies elements from a list that have the class 'name',
-#' converts them to character strings using the `get_elements_with_name_class()` function,
-#' and then returns only those elements that are **not** present in the names of a specified input list (`input_hpc`).
+#' converts them to character strings, and returns only those elements that are
+#' present in the names of a specified input list (`input_hpc`) and have the
+#' `iterate` field set to `"tier"`.
 #'
 #' @param lst A list containing various elements, some of which may have the class 'name'.
 #' @param input_hpc A list whose names are used to filter the elements from `lst`.
-#' @return A character vector of elements from `lst` that have the class 'name'
-#'         and are **not** present in the names of `input_hpc`.
-#' @details
-#' This function is useful when you need to extract specific named arguments from a list 
-#' and ensure that they do not conflict with the names of another list (`input_hpc`). 
-#' It first identifies and converts elements of class 'name' to their character representations, 
-#' and then filters out those that are present in the `input_hpc` names.
+#'                  The elements in `input_hpc` should include an `iterate` field with the value `"tier"`.
+#' @return A character vector of elements from `lst` that have the class 'name',
+#'         are present in the names of `input_hpc`, and have `iterate` set to `"tier"`.
 #' @noRd
-get_arguments_to_tier <- function(lst, input_hpc) {
-  # Use the internal function to get elements with class 'name'
-  elements_with_name_class <- get_elements_with_name_class(lst)
+arguments_to_action <- function(lst, input_hpc, value) {
+  matching_elements <- character()
   
-  # Filter the elements that are NOT present in names(input_hpc)
-  elements_with_name_class[!elements_with_name_class %in% names(input_hpc)]
-  
-}
-
-#' Get Arguments Already Tiered
-#'
-#' This function identifies elements from a list that have the class 'name',
-#' converts them to character strings using the `get_elements_with_name_class()` function,
-#' and then returns only those elements that are present in the names of a specified input list (`input_hpc`).
-#'
-#' @param lst A list containing various elements, some of which may have the class 'name'.
-#' @param input_hpc A list whose names are used to filter the elements from `lst`.
-#' @return A character vector of elements from `lst` that have the class 'name'
-#'         and are present in the names of `input_hpc`.
-#' @details
-#' This function is useful when you need to extract specific named arguments from a list
-#' that correspond to names already present in another list (`input_hpc`).
-#' It first identifies and converts elements of class 'name' to their character representations,
-#' and then filters for those that match the names in `input_hpc`.
-#' @noRd
-get_arguments_already_tiered <- function(lst, input_hpc) {
-  # Use the internal function to get elements with class 'name'
-  elements_with_name_class <- get_elements_with_name_class(lst)
-  
-  # Filter the elements that are present in names(input_hpc)
-  matching_elements <- elements_with_name_class[elements_with_name_class %in% names(input_hpc)]
+  for (arg_name in names(lst)) {
+    arg_value <- lst[[arg_name]]
+    
+    # Skip NULL values
+    if (is.null(arg_value)) next
+    
+    # Convert the argument value to a character string vector
+    arg_value_as_char <- as.character(arg_value)
+    
+    # Iterate over each element in arg_value_as_char
+    for (val in arg_value_as_char) {
+      # Check if the value exists in input_hpc and iterate is equal to the specified value
+      if (val %in% names(input_hpc) && input_hpc[[val]]$iterate == value) {
+        matching_elements <- c(matching_elements, val)
+      }
+    }
+  }
   
   return(matching_elements)
 }
+
+
 
 #' Quote elements with class 'name'
 #'
@@ -2447,25 +2435,25 @@ safe_as_name <- function(input) {
 #' @importFrom glue glue
 #' @noRd
 check_for_name_value_conflicts <- function(...) {
-  # Capture the arguments passed to the function
-  args_list <- list(...)
+# Capture the arguments passed to the function
+args_list <- list(...)
+
+# Iterate through the list and check for name-value conflicts
+for (arg_name in names(args_list)) {
+  arg_value <- args_list[[arg_name]]
   
-  # Iterate through the list and check for name-value conflicts
-  for (arg_name in names(args_list)) {
-    arg_value <- args_list[[arg_name]]
-    
-    # Skip NULL values
-    if (is.null(arg_value)) next
-    
-    # Convert the argument value to a character string for comparison
-    arg_value_as_char <- as.character(arg_value)
-    
-    # Check if the argument name is the same as its value
-    if (arg_name == arg_value_as_char) {
-      stop(glue::glue("Error: Argument name '{arg_name}' cannot be the same as its value '{arg_value_as_char}'"))
-    }
+  # Skip NULL values
+  if (is.null(arg_value)) next
+  
+  # Convert the argument value to a character string
+  arg_value_as_char <- as.character(arg_value)
+  
+  # Check if the argument name matches any of the values in arg_value_as_char
+  if (arg_name %in% arg_value_as_char) {
+    stop(glue::glue("HPCell says: Argument name '{arg_name}' cannot be the same as its value '{arg_value_as_char}'"))
   }
-  
-  # If no conflicts, return the arguments as is or proceed with the function logic
-  return(args_list)
+}
+
+# If no conflicts, return the arguments as is or proceed with the function logic
+return(args_list)
 }

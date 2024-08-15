@@ -536,7 +536,7 @@ file_list |>
   ) |> 
   
   # ONLY APPLICABLE TO SCE FOR NOW
-   tranform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
+  # tranform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
   
   hpc_iterate(
     target_output = "o", 
@@ -549,7 +549,10 @@ file_list |>
   remove_empty_DropletUtils( target_input = "read_file") |> 
   
   # Annotation
-  annotate_cell_type(target_input = "read_file", azimuth_reference = pbmcsca) |> 
+  annotate_cell_type(
+    target_input = "read_file"
+    # , azimuth_reference = pbmcsca
+  ) |> 
   
   # Remove dead cells
   remove_dead_scuttle(target_input = "read_file") |> 
