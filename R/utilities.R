@@ -52,6 +52,46 @@ read_data_container <- function(file,
          )
 }
 
+#' Save various types of single-cell data
+#' @param data A data object to save.
+#' @param dir A character vector of length one specifies the file path, or directory path.
+#' @param container_type A character vector of length one specifies the input data type.
+#' @return An object stored in the defined path.
+#' @importFrom HDF5Array loadHDF5SummarizedExperiment saveHDF5SummarizedExperiment
+#' @export
+save_experiment_data <- function(data,
+                                 dir,
+                                 container_type = "anndata"){
+  
+  if (container_type == "seurat_h5") {
+    if (!requireNamespace("SeuratDisk", quietly = TRUE)) {
+      stop("HPCell says: You need to install the SeuratDisk package.")
+    }
+  }
+  
+  if (container_type == "anndata") {
+    if (!requireNamespace("zellkonverter", quietly = TRUE)) {
+      stop("HPCell says: You need to install the zellkonverter package.")
+    }
+  }
+  
+  switch(container_type,
+         "anndata" = zellkonverter::writeH5AD(data,
+                                              paste0(dir, ".h5ad"),
+                                              compression = "gzip"),
+         "sce_rds" = saveRDS(data, paste0(dir, ".rds")),
+         "seurat_rds" = saveRDS(data, paste0(dir, ".rds")),
+         "sce_hdf5" = saveHDF5SummarizedExperiment(data,
+                                                   dir,
+                                                   replace = TRUE,
+                                                   as.sparse = TRUE),
+         
+         "seurat_h5" = SeuratDisk::SaveH5Seurat(data,
+                                                paste0(dir, ".h5Seurat"),
+                                                overwrite = TRUE)
+  )
+}
+
 #' Gene name conversion using ensembl database
 #' 
 #' @param id Character vector of gene names
@@ -77,6 +117,21 @@ convert_gene_names <- function(id,
                     return.type = "data.frame")   
   }
   edb_df
+}
+
+#' Transform counts to continous data
+#' @param counts A SummarizedExperiment object
+#' @importFrom tidyr pivot_longer
+#' @importFrom SummarizedExperiment assay
+#' @importFrom tibble as_tibble rownames_to_column
+#' @importFrom magrittr extract2
+get_count_per_gene_df <- function(counts) {
+  #assay_name = data@assays |> names() |> extract2(1)
+  #counts <- assay(data, assay_name) |> as.data.frame() |> rownames_to_column(var = "features")
+  counts_tidy <- counts |> as.data.frame() |> tibble::rownames_to_column(var = "features") |>
+    as_tibble() |> pivot_longer(!features, names_to = "cells",
+                                values_to = "counts")
+  counts_tidy
 }
 
 #' Identify Empty Droplets in Single-Cell RNA-seq Data
@@ -169,11 +224,11 @@ empty_droplet_id <- function(input_read_RNA_assay,
   
   # Calculate bar-codes ranks
   barcode_ranks <- barcodeRanks(filtered_counts)
-  
+
   # Set the minimum total RNA per cell for ambient RNA
   if(min(barcode_ranks$total) < 100) { lower = 100 } else {
     lower = quantile(barcode_ranks$total, 0.05)
-    
+
     # write_lines(
     #   glue("{input_path} has supposely empty droplets with a lot of RNAm maybe a lot of ambient RNA? Please investigate"),
     #   file = glue("{dirname(output_path_result)}/warnings_emptyDrops.txt"),
@@ -200,15 +255,15 @@ empty_droplet_id <- function(input_read_RNA_assay,
   } 
   
   # barcode ranks
-  barcode_table <- barcode_table |>
-    left_join(
-      barcode_ranks |>
-        as_tibble(rownames = ".cell") |>
-        mutate(
-          knee =  metadata(barcode_ranks)$knee,
-          inflection =  metadata(barcode_ranks)$inflection
-        )
-    )
+  # barcode_table <- barcode_table |>
+  #   left_join(
+  #     barcode_ranks |>
+  #       as_tibble(rownames = ".cell") |>
+  #       mutate(
+  #         knee =  metadata(barcode_ranks)$knee,
+  #         inflection =  metadata(barcode_ranks)$inflection
+  #       )
+  #   )
   
   
   # barcode_table |>  saveRDS(output_path_result)
@@ -241,6 +296,93 @@ empty_droplet_id <- function(input_read_RNA_assay,
   
   barcode_table
   # return(list(barcode_table, plot_barcode_ranks))
+}
+
+#' Identify Empty Droplets in Single-Cell RNA-seq Data
+#'
+#' @description
+#' `empty_droplet_id` distinguishes between empty and non-empty droplets using the DropletUtils package.
+#' It excludes mitochondrial and ribosomal genes, calculates barcode ranks, and optionally filters input data
+#' based on these criteria. The function returns a tibble containing log probabilities, FDR, and a classification
+#' indicating whether cells are empty droplets.
+#'
+#' @param input_read_RNA_assay SingleCellExperiment or Seurat object containing RNA assay data.
+#' @param filter_empty_droplets Logical value indicating whether to filter the input data.
+#'
+#' @return A tibble with columns: logProb, FDR, empty_droplet (classification of droplets).
+#'
+#' @importFrom AnnotationDbi mapIds
+#' @importFrom stringr str_subset
+#' @importFrom dplyr left_join mutate
+#' @importFrom tidyr replace_na
+#' @importFrom DropletUtils emptyDrops barcodeRanks
+#' @importFrom S4Vectors metadata
+#' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importFrom biomaRt useMart getBM
+#' 
+#' @export
+empty_droplet_threshold<- function(input_read_RNA_assay,
+                                   total_RNA_count_check  = -Inf,
+                                   assay = NULL,
+                                   gene_nomenclature){
+  #Fix GChecks 
+  FDR = NULL 
+  .cell = NULL 
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  
+  # Check if empty droplets have been identified
+  nFeature_name <- paste0("nFeature_", assay)
+  
+  filter_empty_droplets <- "TRUE"
+  
+  significance_threshold = 0.001
+  RNA_feature_count_threshold = 200
+  RNA_count_threshold = 100 
+  # Genes to exclude
+  if (gene_nomenclature == "symbol") {
+    location <- mapIds(
+      EnsDb.Hsapiens.v86,
+      keys=rownames(input_read_RNA_assay),
+      column="SEQNAME",
+      keytype="SYMBOL"
+    )
+    mitochondrial_genes = which(location=="MT") |> names()
+    ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
+    
+  } else if (gene_nomenclature == "ensembl") {
+    # all_genes are saved in data/all_genes.rda to avoid recursively accessing biomaRt backend for potential timeout error
+    data(ensembl_genes_biomart)
+    all_mitochondrial_genes <- ensembl_genes_biomart[grep("MT", ensembl_genes_biomart$chromosome_name), ] 
+    all_ribosome_genes <- ensembl_genes_biomart[grep("^(RPL|RPS)", ensembl_genes_biomart$external_gene_name), ]
+    
+    mitochondrial_genes <- all_mitochondrial_genes |> 
+      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+    ribosome_genes <- all_ribosome_genes |> 
+      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+  }
+  
+  # Get counts
+  if (inherits(input_read_RNA_assay, "Seurat")) {
+    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+  } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    counts <- assay(input_read_RNA_assay, assay)
+  }
+  filtered_counts <- counts[!(rownames(counts) %in% c(mitochondrial_genes, ribosome_genes)),, drop=FALSE ]
+  
+  # filter based on RNA_count_threshold
+  result <- colSums(filtered_counts) |> enframe(name = ".cell", value = "RNA_count") |>
+    mutate(empty_droplet = RNA_count < RNA_count_threshold) |>
+    select(.cell, empty_droplet)
+  
+  result
+  # rosums(…) |> enframe(value…, name…) |> mutate(rowSums(filtered_counts) > 
+  #                                                 RNA_count_threshold)
+  # 
+  # #|> select(-row_sum_column_whatever_that_name_is)
+  
+  #the result should be a two column tibble, with .cell anf empty_drople columkn names
 }
 
 
@@ -657,6 +799,8 @@ tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script")
     # Add suffix
     c("))") |> 
     
+    paste(collapse = " ") |> 
+    
     # Write
     write_lines(script, append = TRUE)
   
@@ -673,12 +817,12 @@ tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script")
 #' @importFrom readr write_lines
 #' @importFrom targets tar_config_get
 #' @noRd
-tar_script_append2 = function(code, script = targets::tar_config_get("script")){
+tar_script_append2 = function(code, script = targets::tar_config_get("script"), append = TRUE){
   code |>
     deparse() |>
     head(-1) |>
     tail(-1) |>
-    write_lines(script, append = TRUE)
+    write_lines(script, append = append)
 }
 
 #' Append Code to a Targets Script
@@ -715,7 +859,7 @@ append_chunk_fix = function(chunk, script = targets::tar_config_get("script")){
   # Add prefix
   "target_list = c(target_list, list(" |> 
     c(
-      substitute(chunk) |>  # cannot start with pipe
+      chunk |>  # cannot start with pipe
         deparse() |> 
         head(-1) |>
         tail(-1) 
@@ -723,6 +867,9 @@ append_chunk_fix = function(chunk, script = targets::tar_config_get("script")){
     
     # Add suffix
     c("))") |> 
+    
+    paste(collapse = " ") |> 
+    
     
     # Write
     write_lines(script, append = TRUE)
@@ -769,6 +916,8 @@ append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("sc
       
       # Add suffix
       c("))") |> 
+      
+      paste(collapse = " ") |> 
       
       # Write
       write_lines(script, append = TRUE)
@@ -2025,26 +2174,27 @@ feature_chunks = function(features, chunk_size = 100){
   
 }
 
+
+
 add_missingh_genes_to_se = function(se, all_genes, missing_genes){
   
   missing_matrix = matrix(rep(0, length(missing_genes) * ncol(se)), ncol = ncol(se))
   
   rownames(missing_matrix) = missing_genes
   colnames(missing_matrix) = colnames(se)
+
+  new_se = SummarizedExperiment(assays = list(count = missing_matrix |> DelayedArray::DelayedArray() ),
+                                colData = colData(se))
+
   
-  new_se = SummarizedExperiment(assay = list(count = missing_matrix))
-  colData(new_se) = colData(se)
+  empty_rowdata = DataFrame(matrix(NA, ncol = ncol(rowData(se)), nrow = length(missing_genes)),
+            row.names = missing_genes)
+  names(empty_rowdata) <- names(rowData(se))
+  rowData(new_se) = empty_rowdata
   
-  empty_rowdata = 
-    rowData(se)[seq_len(nrow(new_se)),,drop=FALSE] |> 
-    as_tibble() |> 
-    mutate(across(everything(), ~ replace(., TRUE, NA))) |> 
-    DataFrame(row.names = missing_genes)
-  
-  rowData(new_se) =  empty_rowdata
-  
+  se = SummarizedExperiment(assays = assays(se), colData = colData(se), rowData = rowData(se))
   se = se |> rbind(new_se)
-  
+
   se[all_genes,]
   
 }
@@ -2092,3 +2242,19 @@ remove_random_effects <- function(formula) {
   return(fixed_formula)
 }
 
+#' @examples
+#' # Example usage:
+#' # delete_lines_with_word("your_text_file.txt", "bla")
+#'
+#' @export
+delete_lines_with_word <- function(word, file_path) {
+  # Step 1: Read the file into R as a vector of lines
+  lines <- readLines(file_path)
+  
+  # Step 2: Filter out lines that contain the specified word
+  word = glue("target_output = \"{word}\"")
+  filtered_lines <- lines[!grepl(word, lines)]
+  
+  # Step 3: Write the modified content back to the file
+  writeLines(filtered_lines, file_path)
+}

@@ -78,9 +78,10 @@ expand_tiered_arguments <- function(command, tiers, tiered_args) {
 
 
 #' @importFrom stringr str_extract
+#' @export
 factory_split = function(
     name_output, command, tiers, arguments_to_tier = c(), other_arguments_to_tier = c(), 
-    other_arguments_to_map = c(), packages = targets::tar_option_get("packages") 
+    other_arguments_to_map = c(), packages = targets::tar_option_get("packages") , ...
   ){
   
   if(command |> deparse() |> str_detect("%>%") |> any()) 
@@ -126,7 +127,9 @@ factory_split = function(
     else 
       resources = tar_resources(crew = tar_resources_crew(.y)) 
     
-    
+    # # Process additional arguments in ... 
+    # additional_args <- list(...)
+    # 
     tar_target_raw(
       name = glue("{name_output}_{.y}") |> as.character(), 
       command = command |>  add_tier_inputs(other_arguments_to_tier, .y),
@@ -207,7 +210,7 @@ factory_de_fix_effect = function(se_list_input, output_se, formula, method, tier
     
     
     tar_target_raw("chunk_tbl", 
-                   pseudobulk_gran_group |> 
+                   pseudobulk_se |> 
                      rownames() |> 
                      feature_chunks() |> 
                      quote()
@@ -216,7 +219,7 @@ factory_de_fix_effect = function(se_list_input, output_se, formula, method, tier
     
     tar_target_raw(
       "pseudobulk_group_list",
-      pseudobulk_gran_group |> 
+      pseudobulk_se |> 
         group_split(!!sym(pseudobulk_group_by)) |>  
         quote(),
       iteration = "list",
@@ -274,7 +277,7 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers, fa
     
     tar_target_raw(
       "pseudobulk_group_list",
-      pseudobulk_gran_group |> 
+      pseudobulk_se |> 
         group_split(!!sym(pseudobulk_group_by)) |>  
         quote(),
       iteration = "list",
@@ -298,7 +301,13 @@ factory_de_random_effect = function(se_list_input, output_se, formula, tiers, fa
       packages = c("tidySummarizedExperiment", "S4Vectors", "purrr", "dplyr" ,"tidybulk", "HPCell")
     ), 
     
-   tar_target_raw("pseudobulk_table_dispersion_gene_unlist", pseudobulk_table_dispersion_gene |> unlist() |>  quote(), iteration = "list"),
+   tar_target_raw(
+     "pseudobulk_table_dispersion_gene_unlist", 
+     pseudobulk_table_dispersion_gene |> unlist() |> unlist() |> quote(),
+     iteration = "list"
+     #, 
+     #pattern = map(pseudobulk_table_dispersion_gene) |> quote()
+    ),
     
     # Analyse
     tar_target_raw(
