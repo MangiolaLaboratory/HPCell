@@ -155,12 +155,12 @@ initialise_hpc <- function(input_hpc,
 
 # Define the generic function
 #' @export
-remove_empty_threshold <- function(input_hpc, RNA_count_threshold = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
+remove_empty_threshold <- function(input_hpc, RNA_count_threshold = NULL, RNA_feature_threshold = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
   UseMethod("remove_empty_threshold")
 }
 
 #' @export
-remove_empty_threshold.Seurat = function(input_hpc, RNA_count_threshold = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
+remove_empty_threshold.Seurat = function(input_hpc, RNA_count_threshold = NULL, RNA_feature_threshold = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())
   
@@ -174,7 +174,7 @@ remove_empty_threshold.Seurat = function(input_hpc, RNA_count_threshold = NULL, 
 }
 
 #' @export
-remove_empty_threshold.HPCell = function(input_hpc, RNA_count_threshold = NULL, target_input = "read_file", target_output = "empty_tbl",...) {
+remove_empty_threshold.HPCell = function(input_hpc, RNA_count_threshold = NULL, RNA_feature_threshold = NULL, target_input = "read_file", target_output = "empty_tbl",...) {
   
   # Capture all arguments including defaults
   args_list <- as.list(environment())[-1]
@@ -185,13 +185,15 @@ remove_empty_threshold.HPCell = function(input_hpc, RNA_count_threshold = NULL, 
   args_list$factory = function(tiers, target_input, target_output){
     list(
       tar_target_raw("RNA_count_threshold", readRDS("RNA_count_threshold.rds") |> quote(), deployment = "main"),
+      tar_target_raw("RNA_feature_threshold", readRDS("RNA_feature_threshold.rds") |> quote(), deployment = "main"),
       
       factory_split(
         target_output, 
         i |> 
           read_data_container(container_type = data_container_type) |> 
-          empty_droplet_threshold(RNA_count_threshold,
-                           gene_nomenclature = gene_nomenclature) |> 
+          empty_droplet_threshold(gene_nomenclature = gene_nomenclature,
+                                  RNA_count_threshold = RNA_count_threshold,
+                                  RNA_feature_threshold = RNA_feature_threshold) |> 
           substitute(env = list(i=as.symbol(target_input))),  
         tiers, 
         other_arguments_to_tier = target_input,
@@ -203,6 +205,7 @@ remove_empty_threshold.HPCell = function(input_hpc, RNA_count_threshold = NULL, 
   # We don't want recursive when we call factory
   if(input_hpc |> length() > 0) {
     RNA_count_threshold |> saveRDS("RNA_count_threshold.rds")
+    RNA_feature_threshold |> saveRDS("RNA_feature_threshold.rds")
     
     # Delete line with target in case the user execute the command, without calling initialise_hpc
     target_output |>  delete_lines_with_word(glue("{input_hpc$initialisation$store}.R"))
@@ -1124,13 +1127,15 @@ evaluate_hpc.HPCell = function(input_hpc) {
     "temp_debug_step.rds",
     "sample_names.rds",
     "RNA_count_threshold.rds",
+    "RNA_feature_threshold.rds",
     "total_RNA_count_check.rds",
     "temp_group_by.rds",
     "factors_to_regress.rds",
     "pseudobulk_group_by.rds",
     "temp_tiers.rds",
     "temp_gene_nomenclature.rds",
-    "data_container_type.rds"
+    "data_container_type.rds",
+    "temp_fx.rds"
     
   ) |> 
     remove_files_safely()
