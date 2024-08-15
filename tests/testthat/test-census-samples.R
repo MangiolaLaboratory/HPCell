@@ -106,31 +106,24 @@ df <- samples |> left_join(sample_meta, by = "dataset_id") |> distinct(dataset_i
       if (mode_value < 0 )  counts <- counts + abs(mode_value)
       
       # Scale max counts to 20 to avoid any downstream failure
-      if ((.x == "exp") && (max(counts) > 20)){
-        scale_factor = 20/max(counts)
-        counts = counts * scale_factor
-        # Apply the transformation
-        counts <- transform_method(counts)
-        
-        # Avoid majority of genes after transformation are 1, so substract by 1
-        majority_gene_counts = names(which.max(table(as.vector(counts)))) |> as.numeric()
-        
-        #substract all counts by the majority_gene_counts if majority_gene_counts is not 0.
-        if (majority_gene_counts != transform_method(scale_factor)) counts <- counts - majority_gene_counts
+      if ((.x == "exp") &&
+          (max(counts) > 20)) {
+        scale_factor = 20 / max(counts)
+        counts <- counts * scale_factor
       }
       
-
+      counts <- transform_method(counts)
+      majority_gene_counts = names(which.max(table(as.vector(counts)))) |> as.numeric()
+      if (majority_gene_counts != 0) {
+        counts <- counts - majority_gene_counts
+      }
+      
       # Avoid downstream failures negative counts
       if((counts[,1:min(10000, ncol(counts))] |> min()) < 0)
         counts[counts < 0] <- 0
       
       col_sums <- colSums(counts)
-      # Cap large values
-      if(max(col_sums) > 1e100) {
-        temp <- counts[, sample(1:ncol(data), size = 10000, replace = TRUE), drop = TRUE]
-        q <- quantile(temp[temp > 0], 0.9)
-        counts[counts > 1e100] <- q
-      }
+
       # Drop all zero cells
       data <- data[, col_sums > 0]
       
