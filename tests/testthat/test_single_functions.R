@@ -440,6 +440,17 @@ process_seurat_object <- function(input_a, assay = NULL) {
 
 assay<- process_seurat_object(input_seurat_list[[1]])
 
+# library(SeuratData)
+# # devtools::install_github("satijalab/azimuth")
+# library(Azimuth)
+# library(Seurat)
+# options(Seurat.object.assay.version = "v5")
+# obj <- LoadData("pbmcsca") |>
+#   UpdateSeuratObject() |> 
+#   RunAzimuth(reference = "pbmcref") |>
+#   SCTransform()
+# obj |> saveRDS("dev/reference_azimuth.rds")
+
 
 library(HPCell)
 library(crew)
@@ -480,30 +491,42 @@ library(crew.cluster)
 
 # # Define and execute the pipeline
 file_list = 
-  c("dev/input_seurat_treated_1.rds",
-  "dev/input_seurat_treated_2.rds",
-  "dev/input_seurat_UNtreated_1.rds",
-  "dev/input_seurat_UNtreated_2.rds") |>
-purrr::map_chr(here::here) |>
-  magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) 
+#   c("dev/input_seurat_treated_1.rds",
+#   "dev/input_seurat_treated_2.rds",
+#   "dev/input_seurat_UNtreated_1.rds",
+#   "dev/input_seurat_UNtreated_2.rds") |>
+#   purrr::map_chr(here::here) |>
+#   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) 
 #   
   
-   # dir("dev/CAQ_sce/", full.names = T) |> 
+    dir("dev/CAQ_sce/", full.names = T) 
 
 
   # Initialise pipeline characteristics
 file_list |> 
   initialise_hpc(
     gene_nomenclature = "symbol",
-    data_container_type = "seurat_rds",
-    # tier = c("tier_1", "tier_2"),
+    data_container_type = "sce_hdf5",
+     tier = rep(c("tier_1", "tier_2"), times = 6),
     # 
     # debug_step = "non_batch_variation_removal_S_1",
 
 
     # Default resourced 
-  #  computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
+   # computing_resources = crew_controller_local(workers = 12), #resource_tuned_slurm
       
+   computing_resources = list(
+     
+     crew_controller_local(
+       name = "tier_1",
+       workers = 12
+     ),
+     crew_controller_local(
+       name = "tier_2",
+       workers = 12
+     )
+   )
+   
   #   computing_resources = list(
   # 
   #   crew_controller_slurm(
@@ -536,14 +559,14 @@ file_list |>
   ) |> 
   
   # ONLY APPLICABLE TO SCE FOR NOW
-  # tranform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
+  tranform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
   
-  hpc_iterate(
-    target_output = "o", 
-    user_function = function(x, y){x |> dplyr::mutate(bla = y)}, 
-    x = read_file |> quote(),
-    y = "works"
-  ) |> 
+  # hpc_iterate(
+  #   target_output = "o", 
+  #   user_function = function(x, y){x |> dplyr::mutate(bla = y)}, 
+  #   x = read_file |> quote(),
+  #   y = "works"
+  # ) |> 
 
   # Remove empty outliers
   remove_empty_DropletUtils( target_input = "read_file") |> 

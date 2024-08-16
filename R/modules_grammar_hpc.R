@@ -132,7 +132,8 @@ initialise_hpc <- function(input_hpc,
   input_hpc = 
     list(initialisation = args_list ) |>
     c(list(read_file_list = list(iterate = "tier")) ) |> 
-  
+    c(list(sample_names = list(iterate = "tier")) ) |> 
+    
     add_class("HPCell")
   
   
@@ -432,89 +433,34 @@ calculate_pseudobulk <- function(input_hpc, group_by = NULL, target_input = "rea
 #' @export
 calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input = "read_file", target_output = "pseudobulk_se") {
   
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
+  pseudobulk_sample = glue("{target_output}_iterated")
   
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  args_list$factory = function(tiers, external_path, pseudobulk_group_by = "", target_input, target_output){
+  input_hpc |> 
     
-    list(
-      tar_target_raw("pseudobulk_group_by", pseudobulk_group_by, deployment = "main") ,
-      
-      factory_split(
-        "create_pseudobulk_sample", 
-        i |> 
-          read_data_container(container_type = data_container_type) |> 
-          create_pseudobulk(
-            sample_names, 
-            empty_tbl,
-            alive_tbl,
-            cell_cycle_tbl,
-            annotation_tbl,
-            doublet_tbl,
-            
-            x = pseudobulk_group_by, 
-            external_path = e
-          ) |> 
-          substitute(env = list(e = external_path, i = as.symbol(target_input))),
-        tiers, arguments_to_tier = c("sample_names"), 
-        other_arguments_to_tier = c(target_input,
-                                    "empty_tbl",
-                                    "alive_tbl",
-                                    "cell_cycle_tbl",
-                                    "annotation_tbl",
-                                    "doublet_tbl"),
-        other_arguments_to_map = c(target_input,
-                                   "empty_tbl",
-                                   "alive_tbl",
-                                   "cell_cycle_tbl",
-                                   "annotation_tbl",
-                                   "doublet_tbl")
-        
-      ),
-      factory_merge_pseudobulk(
-        se_list_input = "create_pseudobulk_sample",
-        target_output, 
-        tiers, 
-        external_path = external_path
-      ) 
-      
-      # ,
-      # 
-      # factory_collapse(
-      #   "my_report7",
-      #   bind_rows(create_pseudobulk_sample) |> quote(),
-      #   "create_pseudobulk_sample",
-      #   tiers
-      # )
-    )
+    # aggregate each
+    hpc_iterate(
+      target_output = pseudobulk_sample, 
+      user_function = create_pseudobulk |> quote() , 
+      input_read_RNA_assay = as.name(target_input), 
+      sample_names_vec = sample_names |> quote(),
+      empty_droplets_tbl = empty_tbl |> quote() ,
+      alive_identification_tbl = alive_tbl |> quote(),
+      cell_cycle_score_tbl = cell_cycle_tbl |> quote(),
+      annotation_label_transfer_tbl = annotation_tbl |> quote(),
+      doublet_identification_tbl = doublet_tbl |> quote(),
+      x = group_by,
+      external_path = glue("{input_hpc$initialisation$store}/external")
+    ) |> 
     
-  }
-  
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) {
-    
-    # Delete line with target in case the user execute the command, without calling initialise_hpc
-    target_output |>  delete_lines_with_word(glue("{input_hpc$initialisation$store}.R"))
-    
-    
-    tar_append(
-      quote(dummy_hpc |> calculate_pseudobulk() %$% calculate_pseudobulk %$% factory),
-      input_hpc$initialisation$tier |> get_positions() ,
-      script = glue("{input_hpc$initialisation$store}.R"), 
+    # merge
+    hpc_merge(
+      target_output = target_output, 
+      user_function = pseudobulk_merge |> quote(), 
       external_path = glue("{input_hpc$initialisation$store}/external"),
-      pseudobulk_group_by = group_by,
-      target_input = target_input,
-      target_output = target_output
+      pseudobulk_list = pseudobulk_sample |> as.name(),
+      packages = c("tidySummarizedExperiment", "HPCell")
     )
-  }
   
-  
-  input_hpc |>
-    c(list(calculate_pseudobulk = args_list)) |>
-    add_class("HPCell")
   
 }
 
@@ -547,7 +493,7 @@ get_single_cell.HPCell = function(input_hpc, factors_to_regress = NULL, target_i
                                doublet_tbl) |> 
           substitute(env = list(i=as.symbol(target_input))),
         tiers, 
-        other_arguments_to_tier = c(target_input,
+        arguments_already_tiered = c(target_input,
                                     "empty_tbl",
                                     "sct_matrix",
                                     "alive_tbl",

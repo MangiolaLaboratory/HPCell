@@ -2372,7 +2372,7 @@ arguments_to_action <- function(lst, input_hpc, value) {
     for (val in arg_value_as_char) {
       # Check if the value exists in input_hpc and iterate is equal to the specified value
       if (val %in% names(input_hpc) && input_hpc[[val]]$iterate == value) {
-        matching_elements <- c(matching_elements, val)
+        matching_elements <- c(matching_elements, val |> set_names(arg_name))
       }
     }
   }
@@ -2421,17 +2421,27 @@ safe_as_name <- function(input) {
 
 #' Check for Name-Value Conflicts in Arguments
 #'
-#' This function checks if any argument names in a given function call are identical to their corresponding values.
-#' If such a conflict is found, an error is thrown. This is particularly useful for the resource tiering backend,
-#' ensuring that specific arguments are not unintentionally given names that match their values, which could lead
-#' to unexpected behavior in tiered resource management.
+#' This function checks if any argument names in a given function call are identical
+#' to any of their corresponding values. If such a conflict is found, an error is thrown.
+#' This validation step is crucial for ensuring that arguments do not unintentionally
+#' share the same name as their value, which could lead to unexpected behavior or errors
+#' in downstream processes.
 #'
 #' @param ... Arguments to be checked for name-value conflicts.
 #' @return The function returns the input arguments as a list if no conflicts are found.
-#' @details The function iterates through each argument provided in `...`, comparing the name of the argument to its value.
-#'          If any argument name matches its value (after converting the value to a character string), an error is triggered.
-#'          This validation step is essential for maintaining consistency and avoiding conflicts in the resource tiering backend,
-#'          where argument names and values need to be distinct to prevent mismanagement of tiered resources.
+#' @details 
+#' The `check_for_name_value_conflicts()` function is designed to catch cases where the name of an argument matches one of its values. For example, if you pass an argument like `sample_id = "sample_id"`, this function will detect that the name and value are identical and throw an error. Such conflicts can cause confusion or unintended behavior in your code, especially in complex workflows or pipelines where argument names are often used to identify specific data or parameters.
+#' 
+#' The function works by iterating over all arguments passed via `...`, converting each argument's value to a character string, and then checking if the argument's name appears in this string. If a match is found, an error is raised with a clear message indicating the problematic argument.
+#' 
+#' This function is particularly useful in contexts like data processing pipelines where arguments may be dynamically generated or modified. Ensuring that no argument name matches its value helps maintain clarity and prevent errors in such scenarios.
+#'
+#' @examples
+#' check_for_name_value_conflicts(sample_id = "sample_001", group = "control")
+#' 
+#' # This will throw an error:
+#' # check_for_name_value_conflicts(sample_id = "sample_id")
+#' 
 #' @importFrom glue glue
 #' @noRd
 check_for_name_value_conflicts <- function(...) {
@@ -2456,4 +2466,77 @@ for (arg_name in names(args_list)) {
 
 # If no conflicts, return the arguments as is or proceed with the function logic
 return(args_list)
+}
+
+#' Expand Tiered Arguments in a List
+#'
+#' This function takes a list of arguments (`lst`), identifies a specific argument to replace (`argument_to_replace`),
+#' and expands it into a list of quoted tiered values. This is particularly useful when you need to dynamically generate
+#' tiered versions of an argument within a list structure.
+#'
+#' @param lst A list of arguments where one argument will be replaced by a list of tiered versions.
+#' @param tiers A vector of tiers (e.g., `c("1", "2")`) used to generate the tiered versions of the argument.
+#' @param argument_to_replace The name of the argument in `lst` that should be replaced by the tiered versions.
+#' @param tiered_args The base name used to create the tiered versions. The tiers will be appended to this base name.
+#' @return The modified list where the specified argument is replaced by a list of quoted tiered values.
+#' @details 
+#' The `expand_tiered_arguments()` function is designed to dynamically generate tiered versions of an argument
+#' in a list. For example, if you have an argument `pseudobulk_list` in `lst` that you want to replace with tiered
+#' versions like `pseudobulk_se_merge_within_tier_1` and `pseudobulk_se_merge_within_tier_2`, this function will 
+#' create those versions, quote them (to prevent evaluation), and replace the original argument in `lst` with a 
+#' list of these quoted expressions. This is useful in contexts where arguments need to be programmatically 
+#' generated and passed to functions that expect lists of unevaluated symbols.
+#'
+#' The function works by first checking if the `argument_to_replace` exists in the `lst`. If it does, it constructs 
+#' the tiered versions by iterating over the `tiers` vector, creating symbols for each tier, and wrapping each 
+#' symbol in a `quote()` to prevent immediate evaluation. The result is a list of quoted expressions that replace 
+#' the original argument in `lst`.
+#' 
+#' @examples
+#' args_list <- list(
+#'   external_path = "_targets/external",
+#'   pseudobulk_list = "pseudobulk_se_iterated",
+#'   packages = c("tidySummarizedExperiment", "HPCell")
+#' )
+#' 
+#' name_target_intermediate <- "pseudobulk_se_merge_within_tier"
+#' 
+#' result <- expand_tiered_arguments(
+#'   lst = args_list, 
+#'   tiers = c("1", "2"), 
+#'   argument_to_replace = "pseudobulk_list",
+#'   tiered_args = name_target_intermediate
+#' )
+#' 
+#' # The output will be:
+#' # $external_path
+#' # [1] "_targets/external"
+#' #
+#' # $pseudobulk_list
+#' # list(quote(pseudobulk_se_merge_within_tier_1), quote(pseudobulk_se_merge_within_tier_2))
+#' #
+#' # $packages
+#' # [1] "tidySummarizedExperiment" "HPCell"
+#' 
+#' @importFrom stats substitute
+#' @noRd
+expand_tiered_arguments <- function(lst, tiers, argument_to_replace, tiered_args) {
+  # Check if the argument to replace exists in the list
+  if (argument_to_replace %in% names(lst)) {
+    # Fetch the correct value of the tiered argument from the list
+    tiered_base <- lst[[argument_to_replace]]
+    
+    # Create a vector of tiered values by combining tiered_base with tiers
+    tiered_values <- lapply(tiers, function(tier) {
+      as.name(paste0(tiered_base, "_", tier))
+    })
+    
+    # Construct the c(...) call with the tiered values
+    c_call <- as.call(c(as.name("c"), tiered_values))
+    
+    # Wrap the entire c(...) call with quote(quote(...))
+    lst[[argument_to_replace]] <- substitute(quote(quote(expr)), list(expr = c_call))
+  }
+  
+  return(lst)
 }
