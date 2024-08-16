@@ -272,7 +272,8 @@ hpc_add_internal = function(
       name = target_output, 
       command = fx_call,
       packages = packages,
-      deployment = deployment
+      deployment = deployment, 
+      iteration = "list"
     )
   
   else 
@@ -331,24 +332,41 @@ hpc_iterate =
     # Delete line with target in case the user execute the command, without calling initialise_hpc
     target_output |>  delete_lines_with_word(target_script)
     
+    # please, because sometime we set up list target that do not depend on any other ones
+    # if tiers is set to NULL, then the target will not acquire the _<tier> suffix
+    # I HAVE TO MAKE THIS MORE ELEGANT, AND NOT RELY ON tiers ARGUMENT
+    if(
+      list(...) |> arguments_to_action(input_hpc, "tiered") |> length() == 0 &
+      list(...) |> arguments_to_action(input_hpc, "tier") |> length() == 0
+    ){
+      iterate_value = "tier"
+      tiers_value = NULL
+    } else {
+      iterate_value = "tiered"
+      tiers_value = input_hpc$initialisation$tier |> get_positions()
+    }
+
     tar_append(
       fx = hpc_add_internal |> quote(),
-      tiers = input_hpc$initialisation$tier |> get_positions() ,
+      tiers = tiers_value ,
       target_output = target_output,
       script = target_script,
       user_function = user_function,
-      arguments_to_tier = list(...) |> arguments_to_action(input_hpc, "tier")  , # This "tier" value is decided for each new target below. Usually just at the beginning of the piepline
-      arguments_already_tiered = list(...) |> arguments_to_action(input_hpc, "tiered") , # This "tiered" value is decided for each new target below. Ususally every other list targets.
-      other_arguments_to_map = list(...) |> arguments_to_action(input_hpc, "tiered"), # This "tiered" value is decided for each new target below. Ususally every other list targets.
+      
+      # I HAVE TO IMPROVE the fact that I have to convert to character 
+      # because arguments_to_action is also used in expand_tiered_arguments, which needs a named vector
+      arguments_to_tier = list(...) |> arguments_to_action(input_hpc, "tier") |> as.character()  , # This "tier" value is decided for each new target below. Usually just at the beginning of the piepline
+      arguments_already_tiered = list(...) |> arguments_to_action(input_hpc, "tiered") |> as.character(), # This "tiered" value is decided for each new target below. Ususally every other list targets.
+      other_arguments_to_map = list(...) |> arguments_to_action(input_hpc, "tiered") |> as.character(), # This "tiered" value is decided for each new target below. Ususally every other list targets.
       ...
     )
-    
-    
+  
+      
     # Add pipeline step
     input_hpc |>
       c(
         as.list(environment())[-1] |> 
-          c(list(iterate = "tiered")) |> 
+          c(list(iterate = iterate_value)) |> 
           list() |> 
           set_names(target_output) 
       ) |>

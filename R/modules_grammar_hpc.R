@@ -410,6 +410,7 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
 }
 
 target_chunk_undefined_normalise_abundance_seurat_SCT = function(input_hpc){
+  
   append_chunk_tiers(
     { tar_target(
       sct_matrix_TIER_PLACEHOLDER, 
@@ -471,72 +472,24 @@ get_single_cell <- function(input_hpc, target_input = "read_file", target_output
 }
 
 #' @export
-get_single_cell.HPCell = function(input_hpc, factors_to_regress = NULL, target_input = "read_file", target_output = "single_cell", ...) {
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
+get_single_cell.HPCell = function(input_hpc, target_input = "read_file", target_output = "single_cell", ...) {
   
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  args_list$factory = function(tiers, target_input = "read_file", target_output){
+  input_hpc |> 
     
-    list(
-      factory_split(
-        target_output, 
-        i |> 
-          read_data_container(container_type = data_container_type) |> 
-          preprocessing_output(empty_tbl,
-                               sct_matrix,
-                               alive_tbl,
-                               cell_cycle_tbl,
-                               annotation_tbl,
-                               doublet_tbl) |> 
-          substitute(env = list(i=as.symbol(target_input))),
-        tiers, 
-        arguments_already_tiered = c(target_input,
-                                    "empty_tbl",
-                                    "sct_matrix",
-                                    "alive_tbl",
-                                    "cell_cycle_tbl",
-                                    "annotation_tbl",
-                                    "doublet_tbl"),
-        other_arguments_to_map = c(target_input,
-                                   "empty_tbl",
-                                   "sct_matrix",
-                                   "alive_tbl",
-                                   "cell_cycle_tbl",
-                                   "annotation_tbl",
-                                   "doublet_tbl")
-      ) 
+    # aggregate each
+    hpc_iterate(
+      target_output = target_output, 
+      user_function = preprocessing_output |> quote() , 
+      input_read_RNA_assay = as.name(target_input), 
       
+      empty_droplets_tbl = empty_tbl |> quote() ,
+      non_batch_variation_removal_S = sct_matrix |> quote(), 
+      alive_identification_tbl = alive_tbl |> quote(),
+      cell_cycle_score_tbl = cell_cycle_tbl |> quote(),
+      annotation_label_transfer_tbl = annotation_tbl |> quote(),
+      doublet_identification_tbl = doublet_tbl |> quote()
     )
-    
-  }
   
-  
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) {
-    factors_to_regress |> saveRDS("factors_to_regress.rds")
-    
-    # Delete line with target in case the user execute the command, without calling initialise_hpc
-    target_output |>  delete_lines_with_word(glue("{input_hpc$initialisation$store}.R"))
-    
-    
-    tar_append(
-      quote(dummy_hpc |> get_single_cell() %$% get_single_cell %$% factory),
-      tiers = input_hpc$initialisation$tier |> get_positions() ,
-      target_input = target_input,
-      target_output = target_output,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
-    
-    
-  }
-  
-  
-  input_hpc |>
-    c(list(get_single_cell = args_list, last_call = "get_single_cell")) |>
-    add_class("HPCell")
   
 }
 

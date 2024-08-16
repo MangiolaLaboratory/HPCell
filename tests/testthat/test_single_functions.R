@@ -446,7 +446,7 @@ assay<- process_seurat_object(input_seurat_list[[1]])
 # library(Seurat)
 # options(Seurat.object.assay.version = "v5")
 # obj <- LoadData("pbmcsca") |>
-#   UpdateSeuratObject() |> 
+#   UpdateSeuratObject() |>
 #   RunAzimuth(reference = "pbmcref") |>
 #   SCTransform()
 # obj |> saveRDS("dev/reference_azimuth.rds")
@@ -573,8 +573,8 @@ file_list |>
   
   # Annotation
   annotate_cell_type(
-    target_input = "read_file"
-    # , azimuth_reference = pbmcsca
+    target_input = "read_file",
+    azimuth_reference = readRDS("dev/reference_azimuth.rds")
   ) |> 
   
   # Remove dead cells
