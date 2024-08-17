@@ -14,8 +14,6 @@ hpc_iterate(input_hpc, target_output = NULL, user_function = NULL, ...)
 \item{user_function}{A custom function provided by the user (default: NULL).}
 
 \item{...}{Additional arguments to pass to the internal functions.}
-
-\item{target_input}{The input target name (default: NULL).}
 }
 \description{
 This function adds a new step to the HPC pipeline by appending the appropriate

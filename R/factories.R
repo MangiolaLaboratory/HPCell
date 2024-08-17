@@ -62,32 +62,6 @@ factory_split = function(
   
   map2(tiers, names(tiers), ~ {
     
-    my_index = .x
-    
-    # Pattern
-    pattern = NULL 
-    if(
-      arguments_to_tier |> length() > 0 |
-      other_arguments_to_map |> length() > 0
-    ){
-      
-      pattern = as.name("map")
-      
-      if(arguments_to_tier |> length() > 0)
-        pattern = pattern |> c(
-          arguments_to_tier |>
-            map(~ substitute(slice(input, index  = arg ), list(input = as.symbol(.x), arg=my_index)) )
-        )
-      
-      if(other_arguments_to_map |> length() > 0)
-        pattern = pattern |> c(glue("{other_arguments_to_map}_{.y}") |> lapply(as.name))
-      
-      pattern = as.call(pattern)
-      
-    }
-    
-    
-    
     # Resources
     if(length(tiers) == 1)
       resources = targets::tar_option_get("resources")
@@ -100,7 +74,11 @@ factory_split = function(
     tar_target_raw(
       name = glue("{name_output}_{.y}") |> as.character(), 
       command = command |>  add_tier_inputs(arguments_already_tiered, .y),
-      pattern = pattern,
+      pattern = build_pattern(
+        other_arguments_to_map = glue("{other_arguments_to_map}_{.y}"), 
+        arguments_to_tier = arguments_to_tier, 
+        index = .x
+      ) ,
       iteration = "list",
       resources = resources,
       packages = packages, 
@@ -267,14 +245,21 @@ hpc_add_internal = function(
   # Construct the full call expression with the pipeline substituted into the function
   fx_call <- as.call(c(user_function, args))
   
-  if(tiers |> is.null())
-    tar_target_raw(
-      name = target_output, 
-      command = fx_call,
-      packages = packages,
-      deployment = deployment, 
-      iteration = "list"
-    )
+  if(tiers |> is.null()){
+    
+      tar_target_raw(
+        name = target_output, 
+        command = fx_call,
+        packages = packages,
+        deployment = deployment, 
+        iteration = "list", 
+        
+        # This is in case I am not tiering (e.g. DE analyses) but I need to map
+        pattern = build_pattern(other_arguments_to_map = other_arguments_to_map)
+      )
+      
+  }
+
   
   else 
     list(
@@ -310,7 +295,6 @@ hpc_add_internal = function(
 #' targets, as well as a custom user function to be applied.
 #'
 #' @param input_hpc The input HPC object.
-#' @param target_input The input target name (default: NULL).
 #' @param target_output The output target name (default: NULL).
 #' @param user_function A custom function provided by the user (default: NULL).
 #' @param ... Additional arguments to pass to the internal functions.
@@ -318,7 +302,6 @@ hpc_add_internal = function(
 #' @importFrom glue glue
 #' @importFrom magrittr %>%
 #' @importFrom purrr set_names
-#' @importFrom targets tar_append
 #' @export
 hpc_iterate = 
   function(input_hpc, target_output = NULL, user_function = NULL, ...) {
@@ -357,7 +340,7 @@ hpc_iterate =
       # because arguments_to_action is also used in expand_tiered_arguments, which needs a named vector
       arguments_to_tier = list(...) |> arguments_to_action(input_hpc, "tier") |> as.character()  , # This "tier" value is decided for each new target below. Usually just at the beginning of the piepline
       arguments_already_tiered = list(...) |> arguments_to_action(input_hpc, "tiered") |> as.character(), # This "tiered" value is decided for each new target below. Ususally every other list targets.
-      other_arguments_to_map = list(...) |> arguments_to_action(input_hpc, "tiered") |> as.character(), # This "tiered" value is decided for each new target below. Ususally every other list targets.
+      other_arguments_to_map = list(...) |> arguments_to_action(input_hpc, c("tiered", "map")) |> as.character(), # This "tiered" value is decided for each new target below. Ususally every other list targets.
       ...
     )
   
@@ -382,7 +365,6 @@ hpc_iterate =
 #' targets, as well as a custom user function to be applied.
 #'
 #' @param input_hpc The input HPC object.
-#' @param target_input The input target name (default: NULL).
 #' @param target_output The output target name (default: NULL).
 #' @param user_function A custom function provided by the user (default: NULL).
 #' @param ... Additional arguments to pass to the internal functions.
@@ -390,10 +372,9 @@ hpc_iterate =
 #' @importFrom glue glue
 #' @importFrom magrittr %>%
 #' @importFrom purrr set_names
-#' @importFrom targets tar_append
 #' @export
 hpc_single = 
-  function(input_hpc, target_output = NULL, user_function = NULL, ...) {
+  function(input_hpc, target_output = NULL, user_function = NULL, iterate = "none", ...) {
     
     # tar_script_append2(script = glue("{store}.R"), append = FALSE)
     # 
@@ -421,7 +402,7 @@ hpc_single =
     input_hpc |>
       c(
         as.list(environment())[-1] |> 
-          c(list(iterate = "none")) |> 
+          c(list(iterate = iterate)) |> 
           list() |> 
           set_names(target_output)
       ) |>
@@ -437,7 +418,6 @@ hpc_single =
 #' targets, as well as a custom user function to be applied.
 #'
 #' @param input_hpc The input HPC object.
-#' @param target_input The input target name (default: NULL).
 #' @param target_output The output target name (default: NULL).
 #' @param user_function A custom function provided by the user (default: NULL).
 #' @param ... Additional arguments to pass to the internal functions.
@@ -445,7 +425,6 @@ hpc_single =
 #' @importFrom glue glue
 #' @importFrom magrittr %>%
 #' @importFrom purrr set_names
-#' @importFrom targets tar_append
 #' @export
 hpc_merge = 
   function(input_hpc, target_output = NULL, user_function = NULL, ...) {

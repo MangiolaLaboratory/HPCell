@@ -1528,4 +1528,5 @@ annotation_consensus = function(single_cell_data, .sample_column, .cell_type, .a
 }
 
 
-
+#' @export
+is_target = function(x) as.name(x) 

@@ -200,4 +200,23 @@ map_de = function(se, my_formula, assay, method, max_rows_for_matrix_multiplicat
   
 }
 
-
+#' @export
+#' @noRd
+internal_de_function = function(x, fi, a, f, m){
+  
+  # Skip if not enough samples
+  if(x |> ncol() < 3) warning("HPCell says: your dataset has less than 3 samples, the differential expression analysis was skipped")
+  if(x |> ncol() < 3) return(NULL)
+  
+  x |>
+    keep_abundant(factor_of_interest = fi, .abundance = !!sym(a)) |> 
+    test_differential_abundance(f, .abundance = !!sym(a),  method = m) |> 
+    pivot_transcript() |> 
+    
+    # This because fi can be NULL. 
+    # But I have to modify TIDYBULK to just accept character for factor_of_interest
+    # And should replace .abundance accepting enquo, with assay accepting character
+    # This code will simplify a lot
+    
+    substitute(env = list(fi = fi)) |> eval()
+}

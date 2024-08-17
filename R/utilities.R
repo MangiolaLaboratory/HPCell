@@ -2362,19 +2362,48 @@ arguments_to_action <- function(lst, input_hpc, value) {
   for (arg_name in names(lst)) {
     arg_value <- lst[[arg_name]]
     
-    # Skip NULL values
-    if (is.null(arg_value)) next
+    # Skip NULL and complex values, because they cannot be a name of a target
+    if (
+      arg_value |> length() == 0 |
+      is.null(arg_value) | !(
+      arg_value |> is("character") | 
+      arg_value |> is("name") | 
+      arg_value |> is("list")
+    )) next
     
     # Convert the argument value to a character string vector
-    arg_value_as_char <- as.character(arg_value)
+    # arg_value_as_char <- as.character(arg_value)
     
-    # Iterate over each element in arg_value_as_char
-    for (val in arg_value_as_char) {
-      # Check if the value exists in input_hpc and iterate is equal to the specified value
-      if (val %in% names(input_hpc) && input_hpc[[val]]$iterate == value) {
-        matching_elements <- c(matching_elements, val |> set_names(arg_name))
+    # This because I cannot loop over a single "name" class, while I can loop over a single "character" class
+    # NOT SO ELEGANT 
+    if(arg_value |> length() == 1){
+      
+      if (
+        (arg_value |> is("character") | arg_value |> is("name")) &&
+        as.character(arg_value) %in% names(input_hpc) && 
+        input_hpc[[arg_value]]$iterate %in% value
+      ) 
+        matching_elements <- c(matching_elements, as.character(arg_value) |> set_names(arg_name))
+       
+    }
+      
+    else{
+      # Iterate over each element in arg_value_as_char
+      for (val in arg_value) {
+        
+        # Again, skip if the list include complex elements
+        if (is.null(arg_value) | !(
+          arg_value |> is("character") | 
+          arg_value |> is("name") 
+        )) next
+        
+        # Check if the value exists in input_hpc and iterate is equal to the specified value
+        if (val %in% names(input_hpc) && input_hpc[[val]]$iterate == value) 
+          matching_elements <- c(matching_elements, as.character(arg_value) |> set_names(arg_name))
+        
       }
     }
+
   }
   
   return(matching_elements)
@@ -2451,15 +2480,15 @@ args_list <- list(...)
 # Iterate through the list and check for name-value conflicts
 for (arg_name in names(args_list)) {
   arg_value <- args_list[[arg_name]]
-  
+
   # Skip NULL values
   if (is.null(arg_value)) next
   
   # Convert the argument value to a character string
-  arg_value_as_char <- as.character(arg_value)
+  # arg_value_as_char <- as.character(arg_value)
   
   # Check if the argument name matches any of the values in arg_value_as_char
-  if (arg_name %in% arg_value_as_char) {
+  if (arg_name %in% c(arg_value)) {
     stop(glue::glue("HPCell says: Argument name '{arg_name}' cannot be the same as its value '{arg_value_as_char}'"))
   }
 }
@@ -2540,3 +2569,41 @@ expand_tiered_arguments <- function(lst, tiers, argument_to_replace, tiered_args
   
   return(lst)
 }
+
+
+build_pattern = function(arguments_to_tier = c(), other_arguments_to_map = c(), index = c()){
+  
+  pattern = NULL 
+  
+  if(
+    arguments_to_tier |> length() > 0 |
+    other_arguments_to_map |> length() > 0
+  ){
+    
+    pattern = as.name("map")
+    
+    if(arguments_to_tier |> length() > 0)
+      pattern = pattern |> c(
+        arguments_to_tier |>
+          map(
+            ~ substitute(
+              slice(input, index  = arg ), 
+              list(input = as.symbol(.x), arg=index)
+            ) 
+          )
+      )
+    
+    if(other_arguments_to_map |> length() > 0){
+      
+        pattern = pattern |> c(other_arguments_to_map |> lapply(as.name))
+      
+    }
+      
+    pattern = as.call(pattern)
+    
+  }
+  
+  pattern
+  
+}
+
