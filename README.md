@@ -1,13 +1,13 @@
 HPCell
 ================
 
-Simple to compose, but incredibly scalable single-cell/spatial
-pipelines.
+Compose single-cell and spatial analyses with pipes (\|\>) and leave
+HPCell scale them on high-performance and cloud, or locally.
 
-HPCell is a grammar that allows to compose pipe-friendly single-cell and
-spatial pipelines, that are converted to fully integrated,
-dependency-based parallelised workflow, that can be easily deployed to
-HPC with no setup, and easily to cloud-computing.
+HPCell is a grammar and workflow composer that allows to compose
+pipe-friendly single-cell and spatial pipelines, that are converted to
+fully integrated, dependency-based parallelised workflow, that can be
+easily deployed to HPC with no setup, and easily to cloud-computing.
 
 <img src="man/figures/hpcell_cover.png" width="70%" />
 
@@ -50,100 +50,74 @@ The key features of HPCell include:
 ## Installation
 
 ``` r
-remote::install_github("stemangiola/HPCell")
+remote::install_github("MangiolaLaboratory/HPCell")
 ```
 
-## Pipeline
+## The input
+
+The pipeline accepts a vector of file paths. If this vector is named,
+those names will be used for the reports. HPCell accepts a variety of
+data containers, including on-disk (which we recomend).
+
+- seurat_rds
+- seurat_h5
+- sce_rds
+- anndata
+- sce_hdf5
 
 ``` r
-library(magrittr)
 library(Seurat)
-```
-
-    ## Loading required package: SeuratObject
-
-    ## Loading required package: sp
-
-    ## 
-    ## Attaching package: 'SeuratObject'
-
-    ## The following objects are masked from 'package:base':
-    ## 
-    ##     intersect, t
-
-``` r
 library(SeuratData)
-```
 
-    ## ── Installed datasets ──────────────────────────────── SeuratData v0.2.2.9001 ──
-
-    ## ✔ pbmc3k 3.1.4
-
-    ## ────────────────────────────────────── Key ─────────────────────────────────────
-
-    ## ✔ Dataset loaded successfully
-    ## ❯ Dataset built with a newer version of Seurat than installed
-    ## ❓ Unknown version of Seurat installed
-
-``` r
 options(Seurat.object.assay.version = "v5")
 input_seurat <- 
   LoadData("pbmc3k") |>
   _[,1:500] 
-```
 
-    ## Validating object structure
-
-    ## Updating object slots
-
-    ## Ensuring keys are in the proper structure
-
-    ## Warning: Assay RNA changing from Assay to Assay
-
-    ## Ensuring keys are in the proper structure
-
-    ## Ensuring feature names don't have underscores or pipes
-
-    ## Updating slots in RNA
-
-    ## Validating object structure for Assay 'RNA'
-
-    ## Object representation is consistent with the most current Seurat version
-
-    ## Warning: Assay RNA changing from Assay to Assay5
-
-``` r
 file_path = tempfile()
 
 input_seurat |> saveRDS(file_path)
 
 # Let's pretend we have two samples
-input_hpc =
-  c(file_path, file_path) |> 
-  magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2"))
+input_hpc =  c(file_path, file_path, file_path) 
 ```
 
-Local parallel computing
+## Pipeline
 
-`computing_resources = crew_controller_local(workers = 10)`
+The power of HPCell is that despite you can compose your pipeline simply
+using the pipe (\|\>), it is evaluated as a dependency graph by `target`
+workflow manager. This has several advantages:
+
+- It has automatic report rendering for each step
+- It can parallelise across samples and across steps, improving
+  performances
+- It can accept growing sample set, and runs analyses only on the new
+  samples. This is ideal for continuous integration
+- It can accept new analysis steps, and just runs the needed
+  dependencies
+- When parameters of an analysis step are changed (e.g. a threshold),
+  `HPCell` only runs the affected dependencies downstream. This is
+  helpful when a change of parameters can affect downstream analyses,
+  which are re-run automatically
+- The pipeline can be easily extended with the modules by the community
 
 ``` r
 library(HPCell)
+library(crew)
 
 input_hpc |> 
   
   # Initialise pipeline characteristics
   initialise_hpc(
     gene_nomenclature = "symbol",
-    data_container_type = "seurat_rds",
-    computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
+    data_container_type = "seurat_rds"
   ) |> 
   
   remove_empty_DropletUtils() |>          # Remove empty outliers
   remove_dead_scuttle() |>                # Remove dead cells
   score_cell_cycle_seurat() |>            # Score cell cycle
   remove_doublets_scDblFinder() |>        # Remove doublets
-  annotate_cell_type() |>                 # Annotation
+  annotate_cell_type() |>                 # Annotation across SingleR and Seurat Azimuth
   normalise_abundance_seurat_SCT(factors_to_regress = c(
     "subsets_Mito_percent", 
     "subsets_Ribo_percent", 
@@ -152,122 +126,77 @@ input_hpc |>
   calculate_pseudobulk(group_by = "monaco_first.labels.fine")
 ```
 
-SLURM HPC parallel computing
+## Deployment
 
-`computing_resources =       crew.cluster::crew_controller_slurm(         slurm_memory_gigabytes_per_cpu = 5,         workers = 50,         tasks_max = 5,         verbose = T       )`
+### Local parallel computing
+
+Your pipeline can be deployed locally using multiple cores. You can
+specify the resource allocation as `computing_resources` in
+`initialise_hpc()`
 
 ``` r
-library(HPCell)
+computing_resources = crew_controller_local(workers = 10)
+```
 
-input_hpc |> 
-  
-  # Initialise pipeline characteristics
-  initialise_hpc(
-    gene_nomenclature = "symbol",
-    data_container_type = "seurat_rds",
-    computing_resources =
+### SLURM HPC parallel computing
+
+This resource interfaces with SLURM without the need of complex setups
+
+``` r
+library(crew.cluster)
+
+computing_resources =
       crew.cluster::crew_controller_slurm(
         slurm_memory_gigabytes_per_cpu = 5,
-        workers = 50,
-        tasks_max = 5,
-        verbose = T
-      )  ) |> 
-  
-  remove_empty_DropletUtils() |>          # Remove empty outliers
-  remove_dead_scuttle() |>                # Remove dead cells
-  score_cell_cycle_seurat() |>            # Score cell cycle
-  remove_doublets_scDblFinder() |>        # Remove doublets
-  annotate_cell_type() |>                 # Annotation
-  normalise_abundance_seurat_SCT(factors_to_regress = c(
-    "subsets_Mito_percent", 
-    "subsets_Ribo_percent", 
-    "G2M.Score"
-  )) |> 
-  calculate_pseudobulk(group_by = "monaco_first.labels.fine")
+        workers = 100, # max 100 jobs at the time are launched to the cluster
+        tasks_max = 5 # Shots a worker after 5 tasks.
+      )
 ```
 
-Optimised tiered SLURM HPC parallel computing. This is helpful when
-large scale analysis are performed on news, data sources, where there is
-a large difference difference between the smallest and the largest data
-set. with a tearing strategy, we can allocate the right resources, for
-example, memory, to the right samples, incredibly increasing the
-efficiency of the pipeline.
+### Resource tiering
 
-Beyond defining computing resources argument
+For large-scale analyses, where datasets vary in size, using a unique
+resource set can be inefficient. For example, few very large datasets
+might require 50 Gb of memory, while the majority might only require
+5Gb. Asking 50Gb for all jobs would be inefficient (would lead to
+maximum usage per user, and limit the parallelisation), while asking 5Gb
+would lead to job failure.
 
-\`computing_resources = list(
-
-    crew_controller_slurm(
-      name = "tier_1",
-      slurm_memory_gigabytes_per_cpu = 5,
-      slurm_cpus_per_task = 1,
-      workers = 50,
-      tasks_max = 5,
-      verbose = T
-    ),
-    crew_controller_slurm(
-      name = "tier_2",
-      slurm_memory_gigabytes_per_cpu = 10,
-      slurm_cpus_per_task = 1,
-      workers = 50,
-      tasks_max = 5,
-      verbose = T
-    )
-
-)\`
-
-we to define a tiers argument. For example for two samples
-
-`tier = c("tier_1", "tier_2")`
-
-Where the name of the worker used is the same as the name of the tears
-used.
+You can provide an array of tier labels (of the same length as sample
+input vector), and the resources linked with those labels
 
 ``` r
-library(HPCell)
-
+# For two samples
 input_hpc |> 
   
   # Initialise pipeline characteristics
   initialise_hpc(
     gene_nomenclature = "symbol",
-    data_container_type = "seurat_rds",
-    tier = c("tier_1", "tier_2"),
+    
+    # We have three samples, to which we give two different resources
+    data_container_type = "seurat_rds", tier = c("tier_1", "tier_1", "tier_2"), 
+    
+    # We specify the two resources
     computing_resources = list(
-    crew_controller_slurm(
-      name = "tier_1",
-      slurm_memory_gigabytes_per_cpu = 5,
-      slurm_cpus_per_task = 1,
-      workers = 50,
-      tasks_max = 5,
-      verbose = T
-    ),
-    crew_controller_slurm(
-      name = "tier_2",
-      slurm_memory_gigabytes_per_cpu = 10,
-      slurm_cpus_per_task = 1,
-      workers = 50,
-      tasks_max = 5,
-      verbose = T
-    )
-  )  ) |> 
-  
-  remove_empty_DropletUtils() |>          # Remove empty outliers
-  remove_dead_scuttle() |>                # Remove dead cells
-  score_cell_cycle_seurat() |>            # Score cell cycle
-  remove_doublets_scDblFinder() |>        # Remove doublets
-  annotate_cell_type() |>                 # Annotation
-  normalise_abundance_seurat_SCT(factors_to_regress = c(
-    "subsets_Mito_percent", 
-    "subsets_Ribo_percent", 
-    "G2M.Score"
-  )) |> 
-  calculate_pseudobulk(group_by = "monaco_first.labels.fine")
+
+      crew_controller_slurm(
+        name = "tier_1",
+        slurm_memory_gigabytes_per_cpu = 5,
+        workers = 50,
+        tasks_max = 5
+      ),
+      crew_controller_slurm(
+        name = "tier_2",
+        slurm_memory_gigabytes_per_cpu = 50,
+        workers = 10,
+        tasks_max = 5
+      )
+  )
 ```
 
-# Documentation about the steps of the pipeline
+## Prebuilt steps for several popular methods
 
-## STEP 1: Filtering out empty droplets (function `empty_droplet_id`)
+### Filtering out empty droplets
 
 *Parameters* 1. input_read_RNA_assay SingleCellExperiment object
 containing RNA assay data. 2. filter_empty_droplets Logical value
@@ -287,7 +216,7 @@ cells with RNA counts below this threshold
 HPCell::empty_droplet_id(input_read, filter_empty_droplets)
 ```
 
-### 1. Filtering mitochondrial and ribosomal genes based on EnsDb.Hsapiens.v8 reference dataset
+#### 1. Filtering mitochondrial and ribosomal genes based on EnsDb.Hsapiens.v8 reference dataset
 
 Mitochondrial and ribosomal genes exhibit expression patterns in
 single-cell RNA sequencing (scRNA-seq) data that are distinct from the
@@ -307,7 +236,7 @@ mitochondrial_genes = BiocGenerics::which(location=="MT") |> names()
 ribosome_genes = BiocGenerics::rownames(input_read_RNA_assay) |> stringr::str_subset("^RPS|^RPL")
 ```
 
-### 2. Ranking droplets
+#### 2. Ranking droplets
 
 From the one with highest amount of mRNA, to the lowest amount of mRNA.
 For this we use the function `barcodeRanks()`
@@ -316,7 +245,7 @@ For this we use the function `barcodeRanks()`
 DropletUtils::barcodeRanks(GetAssayData(input_read_RNA_assay, assay, slot = "counts"))
 ```
 
-### 3. Set min threshold
+#### 3. Set min threshold
 
 A minimum threshold cutoff ‘lower’ is set to exclude cells with low RNA
 counts If the minimum total count is greater than 100, we exclude the
@@ -327,19 +256,19 @@ if(min(barcode_ranks$total) < 100) { lower = 100 } else {
     lower = quantile(barcode_ranks$total, 0.05)}
 ```
 
-### 4. Remove cells with low RNA counts
+#### 4. Remove cells with low RNA counts
 
 (This step will not be executed if the filter_empty_droplets argument is
 set to FALSE, in which case all cells will be retained)
 
-#### .cell column
+##### .cell column
 
 - The emptyDrops() function from dropletUtils is applied to the filtered
   data set with the lower bound set to ‘lower’ as defined earlier
 - True, non-empty cells are assigned to a column named ‘.cell’ in the
   output tibble “barcode_table”
 
-#### empty_droplet column
+##### empty_droplet column
 
 - Column empty_droplet is added by flagging droplets as empty
   (empty_droplet = TRUE) if their False Discovery Rate (FDR) from the
@@ -359,7 +288,7 @@ significance_threshold = 0.001
   mutate( empty_droplet = FALSE)
 ```
 
-### 5. Knee and inflection points are added to to barcode_table
+#### 5. Knee and inflection points are added to to barcode_table
 
 (to assisted with plotting barcode rank plot)
 
@@ -371,7 +300,7 @@ barcode_table <- ... |>
     )
 ```
 
-## STEP 2: Assign cell cycle scores based on expression of G2/M and S phase markers (function: `cell_cycle_scoring`)
+### Assign cell cycle scores (function: `cell_cycle_scoring`)
 
 *Parameters* 1. input_read_RNA_assay: SingleCellExperiment object
 containing RNA assay data. 2. empty_droplets_tbl: A tibble identifying
@@ -387,7 +316,7 @@ HPCell::cell_cycle_scoring(input_read,
                    empty_droplets_tbl)
 ```
 
-### 1. normalization:
+#### 1. normalization:
 
 Normalize the data using the `NormalizeData` function from Seurat to
 make the expression levels of genes across different cells more
@@ -398,7 +327,7 @@ comparable
   NormalizeData()
 ```
 
-### 2. cell cycle scoring:
+#### 2. cell cycle scoring:
 
 Using the `CellCycleScoring` function to assign cell cycle scores of
 each cell based on its expression of G2/M and S phase markers. Stores S
@@ -414,7 +343,7 @@ of each cell in either G2M, S or G1 phase
     ) 
 ```
 
-## STEP 3: Filtering dead cells (function `alive_identification`)
+### Filtering dead cells (function `alive_identification`)
 
 *Parameters* 1. input_read_RNA_assay: SingleCellExperiment object
 containing RNA assay data. 2. empty_droplets_tbl: A tibble identifying
@@ -438,7 +367,7 @@ HPCell::alive_identification(input_read,
                      annotation_label_transfer_tbl)
 ```
 
-### 1. Identifying chromosomal location of each read:
+#### 1. Identifying chromosomal location of each read:
 
 We retrieves the chromosome locations for genes based on their gene
 symbols. - The `mapIds` function from the `AnnotationDbi` package is
@@ -454,7 +383,7 @@ location <- AnnotationDbi::mapIds(
   )
 ```
 
-### 2. identifying mitochondrial genes:
+#### 2. identifying mitochondrial genes:
 
 Identify the mitochondrial genes based on their symbol (starting with
 “MT”)
@@ -463,7 +392,7 @@ Identify the mitochondrial genes based on their symbol (starting with
 which_mito = rownames(input_read_RNA_assay) |> stringr::str_which("^MT")
 ```
 
-### 3. Extracting raw `Assay` (e.g., RNA) count data
+#### 3. Extracting raw `Assay` (e.g., RNA) count data
 
 Raw count data from the the “RNA” assay is extracted using the
 `GetAssayData` function from `Seurat` and stored in the “rna_counts”
@@ -474,7 +403,7 @@ normalization, scaling, identification of variable genes, etc.,
 rna_counts <- Seurat::GetAssayData(input_read_RNA_assay, layer = "counts", assay=assay)
 ```
 
-### 4. Compute per-cell QC metrics
+#### 4. Compute per-cell QC metrics
 
 Quality control metrics are calculated using the `perCellQCMetrics`
 function from the `scater` package. Metrics include sum of counts
@@ -485,7 +414,7 @@ qc_metrics <- scuttle::perCellQCMetrics(rna_counts, subsets=list(Mito=which_mito
   dplyr::select(-sum, -detected)
 ```
 
-### 5. Determine high mitochondrion content
+#### 5. Determine high mitochondrion content
 
 - High Mitochondrial content is identified by applying the `isOutlier`
   function from `scuttle` to the subsets_Mito_percent column. - Outliers
@@ -498,7 +427,7 @@ mitochondrion <- ... |>
          high_mitochondrion = as.logical(high_mitochondrion))))
 ```
 
-### 6. Identify cells with unusually high ribosomal content
+#### 6. Identify cells with unusually high ribosomal content
 
 `PercentageFeatureSet` from `Seurat` is used to compute the proportion
 of counts corresponding to ribosomal genes
@@ -518,7 +447,7 @@ ribosome = ... |>
   mutate(high_ribosome = as.logical(high_ribosome)) 
 ```
 
-## STEP 4 Identifying doublets (function: `doublet_identification`)
+### Identifying doublets (function: `doublet_identification`)
 
 *Parameters*: 1. input_read_RNA_assay `SingleCellExperiment` object
 containing RNA assay data. 2. `empty_droplets_tbl` A tibble identifying
@@ -560,7 +489,7 @@ filter_empty_droplets <- ... |>
   scDblFinder::scDblFinder(clusters = NULL) 
 ```
 
-## STEP 5: Add annotation labelling to data set (function `annotation_label_transfer`)
+### Annotate cell identity (function `annotation_label_transfer`)
 
 *Parameters* 1. input_read_RNA_assay: `SingleCellExperiment` object
 containing RNA assay data. 2. empty_droplets_tbl: A tibble identifying
@@ -582,7 +511,7 @@ HPCell::annotation_label_transfer(input_read,
                                   reference_read)
 ```
 
-### 1. Filtering and normalisation
+#### 1. Filtering and normalisation
 
 - Cells flagged as empty_droplet are removed from the dataset using the
   `filter` function from dplyr.
@@ -596,7 +525,7 @@ sce = ... |>
   scuttle::logNormCounts()
 ```
 
-### 2. Reference data loading
+#### 2. Reference data loading
 
 Load cell type reference data from `BlueprintEncodeData` and
 `MonacoImmuneData` provided by the `celldex` package for cell annotation
@@ -607,7 +536,7 @@ blueprint <- celldex::BlueprintEncodeData()
 MonacoImmuneData = celldex::MonacoImmuneData()
 ```
 
-### 3. Cell Type Annotation with `MonacoImmuneData` for Fine and Coarse Labels
+#### 3. Cell Type Annotation with `MonacoImmuneData` for Fine and Coarse Labels
 
 (depending on the tissue type selected by the user)
 
@@ -638,7 +567,7 @@ data_annotated =
   rename( blueprint_first.labels.coarse = labels))
 ```
 
-### 4.Cell Type Annotation with `BlueprintEncodeData` for Fine and Coarse Labels
+#### 4.Cell Type Annotation with `BlueprintEncodeData` for Fine and Coarse Labels
 
 - Performs cell type annotation using `SingleR` with the `blueprint`
   reference with fine-grained cell type labels and coarse-grained
@@ -664,7 +593,7 @@ data_annotated = ... |>
         ) 
 ```
 
-## STEP 6 Data normalisation (function: `non_batch_variation_removal`)
+### Data normalisation (function: `non_batch_variation_removal`)
 
 Regressing out variations due to mitochondrial content, ribosomal
 content, and cell cycle effects.
@@ -687,7 +616,7 @@ data normalization with `SCTransform` and normalization with
                                      cell_cycle_score_tbl)
 ```
 
-### 1. Construction of `counts` data frame:
+#### 1. Construction of `counts` data frame:
 
 We construct the `counts` data frame by aggregating outputs from
 empty_droplets_tbl, alive_identification_tbl and cell_cycle_score_tbl. -
@@ -712,7 +641,7 @@ counts = ... |>
     )
 ```
 
-### 2. Data normalization with `SCTransform`:
+#### 2. Data normalization with `SCTransform`:
 
 We apply the `SCTransform` function to apply variance-stabilizing
 transformation (VST) to `counts` which normalizes and scales the data
@@ -733,7 +662,7 @@ normalized_rna <- Seurat::SCTransform(
   )
 ```
 
-### 3. Normalization with `NormalizeData`:
+#### 3. Normalization with `NormalizeData`:
 
 If the `ADT` assay is present, we further normalize our `counts` data
 using the centered log ratio (CLR) normalization method. This mitigates
@@ -746,7 +675,7 @@ the effects of varying total protein expression across cells. If the
   Seurat::NormalizeData(normalization.method = 'CLR', margin = 2, assay="ADT") 
 ```
 
-## STEP 7 Creating individual pseudo bulk samples (function: `create_pseudobulk`)
+### Creating individual pseudo bulk samples (function: `create_pseudobulk`)
 
 *Parameters* 1. pre-processing_output_S: Processed dataset from
 preprocessing 2. assays: assay used, default = “RNA” 3. x: User defined
@@ -778,7 +707,7 @@ need to ensure that each feature (whether it’s an RNA-measured gene or
 an ADT-measured protein) has a unique identifier. Thus we apply these
 data manipulation steps:
 
-### 1.Cell aggregation by tissue and cell type
+#### 1.Cell aggregation by tissue and cell type
 
 Cells are aggregated based on the `Tissue` and
 `Cell_type_in_each_tissue` columns. By summarizing single-cell data into
@@ -789,87 +718,4 @@ ability to dissect biological variability at a finer resolution
 # Aggregate cells
 ... |> 
   tidySingleCellExperiment::aggregate_cells(!!x, slot = "data", assays=assays) 
-```
-
-## High-performance single-cell, pseudobulk random-effect modelling
-
-### One datasets/cell-type
-
-The interface is intuitive and consistent with `tidybulk`
-`test_differential_abundance()`. By default `HPCell` uses
-`test_differential_abundance(..., method = "glmmSeq_lme4")`
-
-<!-- ```{r} -->
-<!-- # Setup your job submission system -->
-<!-- slurm = crew.cluster::crew_controller_slurm( -->
-<!--   name = "slurm", -->
-<!--   slurm_memory_gigabytes_per_cpu = 5, -->
-<!--   slurm_cpus_per_task = 1, -->
-<!--   workers = 200, -->
-<!--   verbose = T -->
-<!-- ) -->
-<!-- # Perform the analyses.  -->
-<!-- tidySummarizedExperiment::se |> -->
-<!--   keep_abundant(factor_of_interest = dex) |> -->
-<!--   # Spread the workload onto 200 workers and collects the results seamlessly -->
-<!--   test_differential_abundance_hpc( -->
-<!--     ~ dex + (1 | cell) -->
-<!--   ) -->
-<!-- ``` -->
-
-### Many datasets/cell-types
-
-Sometime we do pseudobulk analyses for each cell type. HPCell allows to
-scale all those, in a coherent paralleisation to the HPC.
-
-This would be the input dataset
-
-``` r
-# A tibble: 22 × 3
-   cell_type_harmonised data            formula  
-   <chr>                <list>          <list>   
- 1 b memory             <SmmrzdEx[,35]> <formula>
- 2 b naive              <SmmrzdEx[,35]> <formula>
- 3 plasma               <SmmrzdEx[,35]> <formula>
- 4 ilc                  <SmmrzdEx[,38]> <formula>
- 5 cd4 th1              <SmmrzdEx[,37]> <formula>
- 6 cd4 th2              <SmmrzdEx[,40]> <formula>
- 7 mait                 <SmmrzdEx[,26]> <formula>
- 8 cd8 naive            <SmmrzdEx[,28]> <formula>
- 9 cd8 tcm              <SmmrzdEx[,36]> <formula>
-10 macrophage           <SmmrzdEx[,21]> <formula>
-# ℹ 12 more rows
-# ℹ Use `print(n = ...)` to see more rows
-```
-
-And here the call to the `map` version of
-`test_differential_abundance_hpc`
-
-``` r
-nested_se |>
-      mutate(data = map2_test_differential_abundance_hpc(
-        data,
-        formula ,
-        computing_resources = slurm
-      ))
-```
-
-This is the output
-
-``` r
-# A tibble: 22 × 3
-   cell_type_harmonised data            formula  
-   <chr>                <list>          <list>   
- 1 b memory             <SmmrzdEx[,35]> <formula>
- 2 b naive              <SmmrzdEx[,35]> <formula>
- 3 plasma               <SmmrzdEx[,35]> <formula>
- 4 ilc                  <SmmrzdEx[,38]> <formula>
- 5 cd4 th1              <SmmrzdEx[,37]> <formula>
- 6 cd4 th2              <SmmrzdEx[,40]> <formula>
- 7 mait                 <SmmrzdEx[,26]> <formula>
- 8 cd8 naive            <SmmrzdEx[,28]> <formula>
- 9 cd8 tcm              <SmmrzdEx[,36]> <formula>
-10 macrophage           <SmmrzdEx[,21]> <formula>
-# ℹ 12 more rows
-# ℹ Use `print(n = ...)` to see more rows
 ```
