@@ -1083,6 +1083,7 @@ pseudobulk_merge <- function(pseudobulk_list, external_path, ...) {
   
   
   se <- pseudobulk_list |>
+    
     # Add missing genes
     purrr::map(~{
    

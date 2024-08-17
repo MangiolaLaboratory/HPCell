@@ -2556,10 +2556,9 @@ expand_tiered_arguments <- function(lst, tiers, argument_to_replace, tiered_args
     tiered_base <- lst[[argument_to_replace]]
     
     # Create a vector of tiered values by combining tiered_base with tiers
-    tiered_values <- lapply(tiers, function(tier) {
-      as.name(paste0(tiered_base, "_", tier))
-    })
-    
+    # If no tier do not add the suffix
+    tiered_values <- lapply(tiers, function(tier) paste0(tiered_base, "_", tier) |> as.name() )
+
     # Construct the c(...) call with the tiered values
     c_call <- as.call(c(as.name("c"), tiered_values))
     

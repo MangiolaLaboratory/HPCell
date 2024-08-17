@@ -38,147 +38,9 @@ parse_function_call <- function(command) {
 }
 
 
-#' @importFrom tidybulk test_differential_abundance
-#' 
-#' 
-#' @export
-factory_de_fix_effect = function(se_list_input, output_se, formula, method, tiers, factor_of_interest = NULL, .abundance = NULL){
-  
-  list(
-    
-    
-    tar_target_raw("chunk_tbl", 
-                   pseudobulk_se |> 
-                     rownames() |> 
-                     feature_chunks() |> 
-                     quote()
-                   
-    ),
-    
-    tar_target_raw(
-      "pseudobulk_group_list",
-      pseudobulk_se |> 
-        group_split(!!sym(pseudobulk_group_by)) |>  
-        quote(),
-      iteration = "list",
-      packages = c("tidySummarizedExperiment", "S4Vectors", "targets")
-    ),
-    
-    
-    # Analyse
-    tar_target_raw(
-      output_se,
-      pseudobulk_group_list |> 
-        keep_abundant(factor_of_interest = i, .abundance = a) |> 
-        test_differential_abundance(
-          f,
-          .abundance = !!sym(a),
-          method = m
-        ) |> 
-        pivot_transcript() |> 
-        substitute(
-          env = list(
-            f=as.formula(formula), a = .abundance, m=method, 
-            i = factor_of_interest
-          )),
-      pattern = map(pseudobulk_group_list) |> quote(), 
-      packages="tidybulk"
-    )
-    
-    
-    # factory_collapse(
-    #   "pseudobulk_joined", 
-    #   command = bind_rows(create_pseudobulk_sample) |> left_join(chunk_tbl) |> quote(),
-    #   tiered_input = "create_pseudobulk_sample", 
-    #   tiers = tiers, 
-    #   packages = c("dplyr") #, pattern = map(create_pseudobulk_sample) |> quote()
-    # )
-  )
-}
-
-#' @importFrom rlang sym
-#' @importFrom dplyr left_join
-#' @importFrom dplyr nest
-#' @importFrom dplyr group_by
-#' @importFrom dplyr mutate
-#' @importFrom dplyr unnest
-#' @importFrom purrr map
-#' @importFrom S4Vectors split
-#' @importFrom purrr compact
-#' @importFrom purrr map
-#' 
-#' @export
-factory_de_random_effect = function(se_list_input, output_se, formula, tiers, factor_of_interest = NULL, .abundance = NULL){
-  
-  
-  list(
-    
-    tar_target_raw(
-      "pseudobulk_group_list",
-      pseudobulk_se |> 
-        group_split(!!sym(pseudobulk_group_by)) |>  
-        quote(),
-      iteration = "list",
-      packages = c("tidySummarizedExperiment", "S4Vectors", "targets", "rlang")
-    ),
-    
-    tar_target_raw(
-      "pseudobulk_table_dispersion_gene",
-      pseudobulk_group_list  |> 
-        keep_abundant(factor_of_interest = i, .abundance = a, minimum_proportion = 0.2, minimum_counts = 1,) |> 
-        scale_abundance() |> 
-        se_add_dispersion(f, a ) |> 
-        split_summarized_experiment(chunk_size = 10) |> 
-        substitute(env = list(
-          f=as.formula(formula), 
-          a = glue("{.abundance}_scaled"),
-          i = factor_of_interest 
-        )), 
-      pattern = map(pseudobulk_group_list) |> quote(), 
-      iteration = "list",
-      packages = c("tidySummarizedExperiment", "S4Vectors", "purrr", "dplyr" ,"tidybulk", "HPCell")
-    ), 
-    
-    tar_target_raw(
-      "pseudobulk_table_dispersion_gene_unlist", 
-      pseudobulk_table_dispersion_gene |> unlist() |> unlist() |> quote(),
-      iteration = "list"
-      #, 
-      #pattern = map(pseudobulk_table_dispersion_gene) |> quote()
-    ),
-    
-    # Analyse
-    tar_target_raw(
-      "de_split",
-      pseudobulk_table_dispersion_gene_unlist |> 
-        map_de( f, a, 
-                "glmmseq_lme4", 
-                max_rows_for_matrix_multiplication = 10000, 
-                cores = 1,
-                .scaling_factor = !!sym(s),
-                .group_by = !!sym(pseudobulk_group_by)
-        ) |> 
-        
-        substitute(env = list(f=as.formula(formula), a = .abundance, s = "TMM")),
-      pattern = map(pseudobulk_table_dispersion_gene_unlist) |> quote(),
-      iteration = "list",
-      packages = c("rlang")
-    ),
-    
-    tar_target_raw(output_se, 
-                   de_split |>
-                     compact() |> 
-                     bind_rows() |>
-                     nest(summary = -!!sym(pseudobulk_group_by)) |>
-                     quote(), 
-                   packages = c("tidyr", "dplyr", "purrr")
-    )
-    
-  )
-}
 
 #' @export
-hpc_add_internal = function(
+hpc_internal = function(
     tiers = NULL, 
     target_output, 
     user_function,
@@ -195,17 +57,20 @@ hpc_add_internal = function(
   # Construct the full call expression with the pipeline substituted into the function
   fx_call <- as.call(c(user_function, args))
   
-  if(tiers |> is.null()){
+  if(tiers |> is.null() || tiers |> length() < 2){
     
       tar_target_raw(
-        name = target_output, 
+        name = target_output |> as.character(), 
         command = fx_call,
-        packages = packages,
-        deployment = deployment, 
-        iteration = "list", 
         
         # This is in case I am not tiering (e.g. DE analyses) but I need to map
-        pattern = build_pattern(other_arguments_to_map = other_arguments_to_map)
+        pattern = build_pattern(other_arguments_to_map = other_arguments_to_map),
+        
+        iteration = "list", 
+        packages = packages,
+        deployment = deployment
+
+
       )
       
   }
@@ -221,28 +86,24 @@ hpc_add_internal = function(
       arguments_already_tiered <- arguments_already_tiered |> str_subset(paste(arguments_to_tier, collapse = "|"), negate = TRUE)
     
     map2(tiers, names(tiers), ~ {
-      
-      # Resources
-      if(length(tiers) == 1)
-        resources = targets::tar_option_get("resources")
-      else 
-        resources = tar_resources(crew = tar_resources_crew(.y)) 
-      
-      # # Process additional arguments in ... 
-      # additional_args <- list(...)
-      # 
+    
       tar_target_raw(
-        name = glue("{target_output}_{.y}") |> as.character(), 
+        name = 
+          glue("{target_output}_{.y}") |> 
+          
+          # This is needed because using glue
+          as.character() , 
         command = fx_call |>  add_tier_inputs(arguments_already_tiered, .y),
-        pattern = build_pattern(
-          other_arguments_to_map = glue("{other_arguments_to_map}_{.y}"), 
-          arguments_to_tier = arguments_to_tier, 
-          index = .x
-        ) ,
+        pattern = 
+          build_pattern(
+            other_arguments_to_map = glue("{other_arguments_to_map}_{.y}"), 
+            arguments_to_tier = arguments_to_tier, 
+            index = .x
+          ) ,
         iteration = "list",
-        resources = resources,
         packages = packages, 
-        deployment = deployment
+        deployment = deployment,
+        resources = tar_resources(crew = tar_resources_crew(.y)) 
       )
     })
     
@@ -281,7 +142,12 @@ hpc_iterate =
     # please, because sometime we set up list target that do not depend on any other ones
     # if tiers is set to NULL, then the target will not acquire the _<tier> suffix
     # I HAVE TO MAKE THIS MORE ELEGANT, AND NOT RELY ON tiers ARGUMENT
-    if(
+    if(input_hpc$initialisation$tier |> get_positions() |> length() < 2){
+      iterate_value = "map"
+      tiers_value = NULL
+    }
+      
+    else if(
       list(...) |> arguments_to_action(input_hpc, "tiered") |> length() == 0 &
       list(...) |> arguments_to_action(input_hpc, "tier") |> length() == 0
     ){
@@ -293,7 +159,7 @@ hpc_iterate =
     }
 
     tar_append(
-      fx = hpc_add_internal |> quote(),
+      fx = hpc_internal |> quote(),
       tiers = tiers_value ,
       target_output = target_output,
       script = target_script,
@@ -339,13 +205,6 @@ hpc_iterate =
 hpc_single = 
   function(input_hpc, target_output = NULL, user_function = NULL, iterate = "none", ...) {
     
-    # tar_script_append2(script = glue("{store}.R"), append = FALSE)
-    # 
-    # tar_target_raw(target_output, readRDS("input_reference.rds") |> quote()),
-    # 
-    # # Check for argument consistency
-    # check_for_name_value_conflicts(...)
-    
     # Target script
     target_script = glue("{input_hpc$initialisation$store}.R")
     
@@ -353,13 +212,12 @@ hpc_single =
     target_output |>  delete_lines_with_word(target_script)
     
     tar_append(
-      fx = hpc_add_internal |> quote(),
+      fx = hpc_internal |> quote(),
       target_output = target_output,
       script = target_script,
       user_function = user_function,
       ...
     )
-    
     
     # Add pipeline step
     input_hpc |>
@@ -404,7 +262,7 @@ hpc_merge =
     # name_target_intermediate = glue("{target_output}_merge_within_tier")
     
     # tar_append(
-    #   fx = hpc_add_internal |> quote(),
+    #   fx = hpc_internal |> quote(),
     #   tiers = input_hpc$initialisation$tier |> get_positions() ,
     #   target_output = name_target_intermediate,
     #   script = target_script,
@@ -413,25 +271,40 @@ hpc_merge =
     #   ...
     # )
     
-    modified_args = 
-      list(...) |> 
-      expand_tiered_arguments(
-        tiers = input_hpc$initialisation$tier |> get_positions() |> names(), 
-        argument_to_replace = list(...) |> arguments_to_action(input_hpc, "tiered") |> names(),
-        tiered_args = list(...) |> arguments_to_action(input_hpc, "tiered") |> names()
-      )
     
-    # this is needed because I cannot use ellipse (...) anymore, I have to use do.call.
-    do.call(tar_append, c(
-      list(
-        fx = hpc_add_internal |> quote() |> quote(),
-        #tiers = input_hpc$initialisation$tier |> get_positions(),
-        target_output = t |> substitute(env = list(t = target_output)) ,
-        script = target_script,
-        user_function = u |> quote() |> substitute(env = list(u = user_function))
-      ),
-      modified_args
-    ))
+    # If no tiers
+    if(input_hpc$initialisation$tier |> get_positions() |> length() < 2)
+      tar_append(
+          fx = hpc_internal |> quote(),
+          target_output = target_output,
+          script = target_script,
+          user_function = user_function,
+          ...
+      )
+      
+    else{
+      
+      args = 
+        list(...)  |> 
+        expand_tiered_arguments(
+          tiers = input_hpc$initialisation$tier |> get_positions() |> names(), 
+          argument_to_replace = list(...) |> arguments_to_action(input_hpc, "tiered") |> names(),
+          tiered_args = list(...) |> arguments_to_action(input_hpc, "tiered") |> names()
+        )
+      
+      # this is needed because I cannot use ellipse (...) anymore, I have to use do.call.
+      do.call(tar_append, c(
+        list(
+          fx = hpc_internal |> quote() |> quote(),
+          #tiers = input_hpc$initialisation$tier |> get_positions(),
+          target_output = t |> substitute(env = list(t = target_output)) ,
+          script = target_script,
+          user_function = u |> quote() |> substitute(env = list(u = user_function))
+        ),
+        args
+      ))
+    }
+
     
     
     

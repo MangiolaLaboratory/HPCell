@@ -100,9 +100,6 @@ initialise_hpc <- function(input_hpc,
     )
     
     target_list = list(
-      
-      
-      tar_files(read_file_list, readRDS("input_file.rds") , iteration = "list", deployment = "main"),
       tar_target(gene_nomenclature, readRDS("temp_gene_nomenclature.rds"), iteration = "list", deployment = "main"),
       tar_target(data_container_type, readRDS("data_container_type.rds"), deployment = "main")
       
@@ -112,36 +109,37 @@ initialise_hpc <- function(input_hpc,
     } |> 
     substitute(env = list(d = debug_step)) |> 
     tar_script_append2(script = glue("{store}.R"), append = FALSE)
-  
- 
-  
-  # Set sample names
-  tar_script_append2(
-    substitute({
-      
-      target_list = 
-        target_list |> c(list(
-          tar_target(sample_names, readRDS("sample_names.rds"))
-        ))
-      
-    }),
-    script = glue("{store}.R")
-  )
-  
+
   
   input_hpc = 
     list(initialisation = args_list ) |>
-    c(list(read_file_list = list(iterate = "tier")) ) |> 
-    c(list(sample_names = list(iterate = "tier")) ) |> 
+    c(list(sample_names = list(iterate = "map")) ) |> 
     
     add_class("HPCell")
   
   
   input_hpc |> 
+    
+    hpc_single(
+      target_output = "sample_names", 
+      user_function = readRDS |> quote(),
+      file = "sample_names.rds", 
+      deployment = "main", 
+      iterate = "map"
+    ) |> 
+    
+    hpc_single(
+      target_output = "read_file_list", 
+      user_function = readRDS |> quote(),
+      file = "input_file.rds", 
+      deployment = "main", 
+      iterate = "map"
+    ) |> 
+  
     hpc_iterate(
       target_output = "data_object", 
       user_function = read_data_container |> quote() ,
-      file  = read_file_list |> quote(),
+      file  = "read_file_list" |> is_target(),
       container_type = data_container_type
     )
   
@@ -399,7 +397,11 @@ calculate_pseudobulk <- function(input_hpc, group_by = NULL, target_input = "dat
 #' @export
 calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input = "data_object", target_output = "pseudobulk_se") {
   
-  pseudobulk_sample = glue("{target_output}_iterated")
+  pseudobulk_sample = 
+    glue("{target_output}_iterated") |> 
+    
+    # This is important otherwise targets fails with glue
+    as.character()
   
   input_hpc |> 
     
