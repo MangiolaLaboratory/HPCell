@@ -1,6 +1,6 @@
 # Define the generic function
 #' @export
-tranform_assay <- function(input_hpc, fx = input_hpc$initialisation$input_hpc |> map(~identity), target_input = "read_file", target_output = "sce_transformed", ...) {
+tranform_assay <- function(input_hpc, fx = input_hpc$initialisation$input_hpc |> map(~identity), target_input = "data_object", target_output = "sce_transformed", ...) {
   UseMethod("tranform_assay")
 }
 
@@ -12,7 +12,7 @@ tranform_assay.HPCell = function(
     
     # This might be carrying the environment
     fx = input_hpc$initialisation$input_hpc |> map(~identity), 
-    target_input = "read_file", 
+    target_input = "data_object", 
     target_output = "sce_transformed", 
     ...
   ) {

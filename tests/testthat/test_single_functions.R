@@ -564,28 +564,28 @@ file_list |>
   hpc_iterate(
     target_output = "o",
     user_function = function(x, y){x |> dplyr::mutate(bla = y)},
-    x = "read_file" |> is_target(),
+    x = "data_object" |> is_target(),
     y = "works"
   ) |>
 
   # Remove empty outliers
-  remove_empty_DropletUtils( target_input = "read_file") |> 
+  remove_empty_DropletUtils( target_input = "data_object") |> 
   
   # Annotation
   annotate_cell_type(
-    target_input = "read_file"
+    target_input = "data_object"
     # ,
     # azimuth_reference = readRDS("dev/reference_azimuth.rds")
   ) |> 
   
   # Remove dead cells
-  remove_dead_scuttle(target_input = "read_file") |> 
+  remove_dead_scuttle(target_input = "data_object") |> 
   
   # Score cell cycle
-  score_cell_cycle_seurat(target_input = "read_file") |> 
+  score_cell_cycle_seurat(target_input = "data_object") |> 
   
   # Remove doublets
-  remove_doublets_scDblFinder(target_input = "read_file") |> 
+  remove_doublets_scDblFinder(target_input = "data_object") |> 
   
 
   normalise_abundance_seurat_SCT(factors_to_regress = c(
@@ -593,13 +593,13 @@ file_list |>
     "subsets_Ribo_percent", 
     "G2M.Score"
   ), 
-  target_input = "read_file") |> 
+  target_input = "data_object") |> 
   
-  calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "read_file") |> 
+  calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "data_object") |> 
   
   # test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts") |> 
    test_differential_abundance(~ age_days, .abundance="counts", group_by_column = "monaco_first.labels.fine") |> 
 
   # For the moment only available for single cell
-  get_single_cell(target_input = "read_file")
+  get_single_cell(target_input = "data_object")
 

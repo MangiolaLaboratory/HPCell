@@ -139,7 +139,7 @@ initialise_hpc <- function(input_hpc,
   
   input_hpc |> 
     hpc_iterate(
-      target_output = "read_file", 
+      target_output = "data_object", 
       user_function = read_data_container |> quote() ,
       file  = read_file_list |> quote(),
       container_type = data_container_type
@@ -153,12 +153,12 @@ initialise_hpc <- function(input_hpc,
 
 # Define the generic function
 #' @export
-remove_empty_DropletUtils <- function(input_hpc, total_RNA_count_check = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
+remove_empty_DropletUtils <- function(input_hpc, total_RNA_count_check = NULL, target_input = "data_object", target_output = "empty_tbl", ...) {
   UseMethod("remove_empty_DropletUtils")
 }
 
 #' @export
-remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
+remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = NULL, target_input = "data_object", target_output = "empty_tbl", ...) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())
   
@@ -172,7 +172,7 @@ remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = N
 }
 
 #' @export
-remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, target_input = "read_file", target_output = "empty_tbl",...) {
+remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, target_input = "data_object", target_output = "empty_tbl",...) {
   
   input_hpc |> 
     hpc_iterate(
@@ -185,19 +185,15 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
 }
 
 target_chunk_undefined_remove_empty_DropletUtils = function(input_hpc){
-  append_chunk_tiers(
-    { tar_target(
-      empty_tbl_TIER_PLACEHOLDER,
-      read_file_list |> 
-        read_data_container(container_type = data_container_type) |> as_tibble() |> select(.cell) |> mutate(empty_droplet = FALSE),
-      pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ),
-      iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER,
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = "empty_tbl", 
+      user_function = (function(x) x |> as_tibble() |>  select(.cell) |> mutate(empty_droplet = FALSE)) |> quote() , 
+      x = "data_object" |> is_target(),
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    ) }, 
-    tiers = input_hpc$initialisation$tier,
-    script = glue("{input_hpc$initialisation$store}.R")
-  )
+    )
+  
 }
 
 
@@ -206,7 +202,7 @@ target_chunk_undefined_remove_empty_DropletUtils = function(input_hpc){
 remove_dead_scuttle <- function(input_hpc, 
                                 group_by = NULL, 
                                 target_output = "alive_tbl",
-                                target_input = "read_file", 
+                                target_input = "data_object", 
                                 target_empty_droplets = "empty_tbl",
                                 target_annotation = NULL) {
   UseMethod("remove_dead_scuttle")
@@ -217,7 +213,7 @@ remove_dead_scuttle.HPCell = function(
     input_hpc, 
     group_by = NULL, 
     target_output = "alive_tbl",
-    target_input = "read_file", 
+    target_input = "data_object", 
     target_empty_droplets = "empty_tbl",
     target_annotation = NULL
     
@@ -237,34 +233,27 @@ remove_dead_scuttle.HPCell = function(
 
 #' @importFrom dplyr mutate
 target_chunk_undefined_remove_dead_scuttle = function(input_hpc){
-  append_chunk_tiers(
-    { tar_target(
-      alive_tbl_TIER_PLACEHOLDER, 
-      read_file_list |> 
-        read_data_container(container_type = data_container_type) |> 
-        as_tibble() |> 
-        dplyr::select(.cell) |> 
-        mutate(alive = TRUE), 
-      pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ), 
-      iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER,
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = "alive_tbl", 
+      user_function = (function(x) x |> as_tibble() |>  select(.cell) |> mutate(alive = TRUE)) |> quote() , 
+      x = "data_object" |> is_target(),
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    ) }, 
-    tiers = input_hpc$initialisation$tier,
-    script = glue("{input_hpc$initialisation$store}.R")
-  )
+    )
+  
 }
 
 
 
 # Define the generic function
 #' @export
-score_cell_cycle_seurat <- function(input_hpc, target_input = "read_file", target_output = "cell_cycle_tbl",...) {
+score_cell_cycle_seurat <- function(input_hpc, target_input = "data_object", target_output = "cell_cycle_tbl",...) {
   UseMethod("score_cell_cycle_seurat")
 }
 
 #' @export
-score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "read_file", target_output = "cell_cycle_tbl", ...) {
+score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "data_object", target_output = "cell_cycle_tbl", ...) {
   
   input_hpc |> 
     hpc_iterate(
@@ -277,30 +266,26 @@ score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "read_file",
   
 }
 
-target_chunk_undefined_score_cell_cycle_seurat = function(input_hpc, target_input = "read_file"){
-  append_chunk_tiers(
-    { tar_target(
-      cell_cycle_tbl_TIER_PLACEHOLDER,
-      NULL,
-      pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ),
-      iteration = "list",
-      resources = RESOURCE_PLACEHOLDER,
-      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    ) }, 
-    tiers = input_hpc$initialisation$tier,
-    script = glue("{input_hpc$initialisation$store}.R")
-  )
+target_chunk_undefined_score_cell_cycle_seurat = function(input_hpc, target_input = "data_object"){
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = "cell_cycle_tbl", 
+      user_function = function(x) NULL  , 
+      x = "read_file_list" |> is_target()
+    )
+  
 }
 
 
 # Define the generic function
 #' @export
-remove_doublets_scDblFinder <- function(input_hpc, target_input = "read_file", target_output = "doublet_tbl") {
+remove_doublets_scDblFinder <- function(input_hpc, target_input = "data_object", target_output = "doublet_tbl") {
   UseMethod("remove_doublets_scDblFinder")
 }
 
 #' @export
-remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "read_file", target_output = "doublet_tbl") {
+remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "data_object", target_output = "doublet_tbl") {
   
   input_hpc |> 
     hpc_iterate(
@@ -314,29 +299,25 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "read_fi
 }
 
 target_chunk_undefined_remove_doublets_scDblFinder = function(input_hpc){
-  append_chunk_tiers(
-    { tar_target(
-      doublet_tbl_TIER_PLACEHOLDER, 
-      read_file_list |> 
-        read_data_container(container_type = data_container_type) |> as_tibble() |> select(.cell) |> mutate(scDblFinder.class="singlet"), 
-      pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ), 
-      iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER,
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = "doublet_tbl", 
+      user_function = (function(x) x |> as_tibble() |>  select(.cell) |> mutate(scDblFinder.class="singlet")) |> quote() , 
+      x = "data_object" |> is_target(),
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    ) }, 
-    tiers = input_hpc$initialisation$tier,
-    script = glue("{input_hpc$initialisation$store}.R")
-  )
+    )
+  
 }
 
 # Define the generic function
 #' @export
-annotate_cell_type <- function(input_hpc, azimuth_reference = NULL, target_input = "read_file", target_output = "annotation_tbl",...) {
+annotate_cell_type <- function(input_hpc, azimuth_reference = NULL, target_input = "data_object", target_output = "annotation_tbl",...) {
   UseMethod("annotate_cell_type")
 }
 
 #' @export
-annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target_input = "read_file", target_output = "annotation_tbl", ...) {
+annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target_input = "data_object", target_output = "annotation_tbl", ...) {
   
   
   azimuth_reference |> saveRDS("input_reference.rds")
@@ -368,30 +349,18 @@ target_chunk_undefined_annotate_cell_type = function(input_hpc){
       x = read_file_list |> quote()
     )
   
-  # 
-  # append_chunk_tiers(
-  #   { tar_target(
-  #     annotation_tbl_TIER_PLACEHOLDER, 
-  #     NULL, 
-  #     pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ), 
-  #     iteration = "list", 
-  #     resources = RESOURCE_PLACEHOLDER,
-  #     packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-  #   ) }, 
-  #   tiers = input_hpc$initialisation$tier,
-  #   script = glue("{input_hpc$initialisation$store}.R")
-  # )
+ 
 }
 
 
 # Define the generic function
 #' @export
-normalise_abundance_seurat_SCT <- function(input_hpc, target_input = "read_file", target_output = "sct_matrix", ...) {
+normalise_abundance_seurat_SCT <- function(input_hpc, target_input = "data_object", target_output = "sct_matrix", ...) {
   UseMethod("normalise_abundance_seurat_SCT")
 }
 
 #' @export
-normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress = NULL, target_input = "read_file", target_output = "sct_matrix", ...) {
+normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress = NULL, target_input = "data_object", target_output = "sct_matrix", ...) {
   
   input_hpc |> 
   hpc_iterate(
@@ -411,28 +380,24 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
 
 target_chunk_undefined_normalise_abundance_seurat_SCT = function(input_hpc){
   
-  append_chunk_tiers(
-    { tar_target(
-      sct_matrix_TIER_PLACEHOLDER, 
-      NULL, 
-      pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ), 
-      iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER,
-      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    ) }, 
-    tiers = input_hpc$initialisation$tier,
-    script = glue("{input_hpc$initialisation$store}.R")
-  )
+  input_hpc |> 
+    hpc_iterate(
+      target_output = "sct_matrix", 
+      user_function = function(x) NULL ,
+      x = read_file_list |> quote()
+    )
+  
+
 }
 
 # Define the generic function
 #' @export
-calculate_pseudobulk <- function(input_hpc, group_by = NULL, target_input = "read_file", target_output = "pseudobulk_se") {
+calculate_pseudobulk <- function(input_hpc, group_by = NULL, target_input = "data_object", target_output = "pseudobulk_se") {
   UseMethod("calculate_pseudobulk")
 }
 
 #' @export
-calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input = "read_file", target_output = "pseudobulk_se") {
+calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input = "data_object", target_output = "pseudobulk_se") {
   
   pseudobulk_sample = glue("{target_output}_iterated")
   
@@ -467,12 +432,12 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input 
 
 # Define the generic function
 #' @export
-get_single_cell <- function(input_hpc, target_input = "read_file", target_output = "single_cell",...) {
+get_single_cell <- function(input_hpc, target_input = "data_object", target_output = "single_cell",...) {
   UseMethod("get_single_cell")
 }
 
 #' @export
-get_single_cell.HPCell = function(input_hpc, target_input = "read_file", target_output = "single_cell", ...) {
+get_single_cell.HPCell = function(input_hpc, target_input = "data_object", target_output = "single_cell", ...) {
   
   input_hpc |> 
     

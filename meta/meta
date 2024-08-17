@@ -23,7 +23,7 @@ non_batch_variation_removal_S_2405b948|branch|ce183af41f977b88|fe9c434b5c1f2e9f|
 preprocessing_output_S|pattern|5d27a4b100e4ee75|258639e4385855e6||46538738||||22870055|qs|local|list||preprocessing_output_S_269c823b|0.273||
 preprocessing_output_S_269c823b|branch|97b4d10365fad9bd|258639e4385855e6|1c6188711c5cbe71|-2034187342||t19697.8994787965s|ad6422af65e871c0|22870055|qs|local|list|preprocessing_output_S||0.273||
 pseudobulk_preprocessing_SE|stem|9351bf90de1319f4|5659bdc37ee17bd6|dd2d30e8ac595c99|647724283||t19697.899555706s|ca0fd45832ad8bd8|207105|qs|local|vector|||5.571|Key originalexp_ taken, using rna_ instead. Key originalexp_ taken, using rna_ instead|
-read_file|stem|de6cc79c370c44ae|5a0bb3630c52f9fd|ef46db3751d8e999|-355275297||t19697.8966741961s|8a2d295a6f6be5b7|61|qs|local|vector||read_file_3b879ae1|0.001||
+data_object|stem|de6cc79c370c44ae|5a0bb3630c52f9fd|ef46db3751d8e999|-355275297||t19697.8966741961s|8a2d295a6f6be5b7|61|qs|local|vector||read_file_3b879ae1|0.001||
 reference_file|stem|6dd71d12008128c1|c3689936a5c436fe|ef46db3751d8e999|-505379189||t19697.8965949718s|de1c6d017cb4e8a8|38|qs|local|vector|||0.576||
 reference_label_coarse|stem|47d778ae3c351e14|356a370377b0dfc0|b27a9324d11b2897|1988768850||t19697.8966644045s|1d635f53cb385f1d|65|qs|local|vector|||0||
 reference_label_fine|stem|6b5e6dd280940374|0f0c7019782f3d6f|b27a9324d11b2897|2112238395||t19697.8966542772s|b2c2d69496a0fbf4|63|qs|local|vector|||0.001||
