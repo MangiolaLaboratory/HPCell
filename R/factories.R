@@ -38,56 +38,6 @@ parse_function_call <- function(command) {
 }
 
 
-
-
-
-#' @importFrom stringr str_extract
-#' @export
-factory_split = function(
-    name_output, command, tiers, arguments_to_tier = c(), arguments_already_tiered = c(), 
-    other_arguments_to_map = c(),
-    packages = targets::tar_option_get("packages") , 
-    deployment = targets::tar_option_get("deployment"), 
-    ...
-){
-  
-  if(command |> deparse() |> str_detect("%>%") |> any()) 
-    stop("HPCell says: no \"%>%\" allowed in the command, please use \"|>\" ")
-  
-  #input = command |> deparse() |> paste(collapse = "") |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
-  
-  # Filter out arguments to be tiered from the input command
-  if(arguments_to_tier |> length() > 0)
-    arguments_already_tiered <- arguments_already_tiered |> str_subset(paste(arguments_to_tier, collapse = "|"), negate = TRUE)
-  
-  map2(tiers, names(tiers), ~ {
-    
-    # Resources
-    if(length(tiers) == 1)
-      resources = targets::tar_option_get("resources")
-    else 
-      resources = tar_resources(crew = tar_resources_crew(.y)) 
-    
-    # # Process additional arguments in ... 
-    # additional_args <- list(...)
-    # 
-    tar_target_raw(
-      name = glue("{name_output}_{.y}") |> as.character(), 
-      command = command |>  add_tier_inputs(arguments_already_tiered, .y),
-      pattern = build_pattern(
-        other_arguments_to_map = glue("{other_arguments_to_map}_{.y}"), 
-        arguments_to_tier = arguments_to_tier, 
-        index = .x
-      ) ,
-      iteration = "list",
-      resources = resources,
-      packages = packages, 
-      deployment = deployment
-    )
-  })
-}
-
-
 #' @importFrom tidybulk test_differential_abundance
 #' 
 #' 
@@ -261,30 +211,43 @@ hpc_add_internal = function(
   }
 
   
-  else 
-    list(
+  else {
+    
+    if(fx_call |> deparse() |> str_detect("%>%") |> any()) 
+      stop("HPCell says: no \"%>%\" allowed in the command, please use \"|>\" ")
+    
+    # Filter out arguments to be tiered from the input command
+    if(arguments_to_tier |> length() > 0)
+      arguments_already_tiered <- arguments_already_tiered |> str_subset(paste(arguments_to_tier, collapse = "|"), negate = TRUE)
+    
+    map2(tiers, names(tiers), ~ {
       
-      factory_split(
-        target_output, 
-        fx_call,
-        tiers, 
-        arguments_to_tier = arguments_to_tier,
-        arguments_already_tiered = arguments_already_tiered ,
-        other_arguments_to_map = other_arguments_to_map,
-        packages = packages,
-        deployment = deployment,
-        ...
-      ) 
-      # ,
+      # Resources
+      if(length(tiers) == 1)
+        resources = targets::tar_option_get("resources")
+      else 
+        resources = tar_resources(crew = tar_resources_crew(.y)) 
+      
+      # # Process additional arguments in ... 
+      # additional_args <- list(...)
       # 
-      # factory_collapse(
-      #   "my_report",
-      #   bind_rows(o) |> substitute(env = list(o = as.symbol(target_output))),
-      #   target_output,
-      #   tiers, packages = c("dplyr")
-      # )
-    )
-  
+      tar_target_raw(
+        name = glue("{target_output}_{.y}") |> as.character(), 
+        command = fx_call |>  add_tier_inputs(arguments_already_tiered, .y),
+        pattern = build_pattern(
+          other_arguments_to_map = glue("{other_arguments_to_map}_{.y}"), 
+          arguments_to_tier = arguments_to_tier, 
+          index = .x
+        ) ,
+        iteration = "list",
+        resources = resources,
+        packages = packages, 
+        deployment = deployment
+      )
+    })
+    
+  }
+   
 }
 
 
