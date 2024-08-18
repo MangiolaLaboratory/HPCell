@@ -182,7 +182,7 @@ HPCell offer module constructor that allow users and developers to build new mod
 
 For example, let's create a toy module, where we normalise the seurat datasets
 
-```{r}
+```{r, eval=FALSE}
 
 input_hpc |> 
   
@@ -193,15 +193,47 @@ input_hpc |>
   ) |> 
   
   hpc_iterate(
-    user_function = NormalizeData |> quote(), 
-    object = "data_object" |> is_target(),
-    target_output = "seurat_normalised", 
-    packages = "Seurat"
+    user_function = NormalizeData |> quote(), # The function, quoted to not be evaluated on the spot
+    object = "data_object" |> is_target(), # The argument to the function. `is_target()` declares the dependency.
+    # Other arguments that are not a dependency can also be used
+    target_output = "seurat_normalised", # The name of the output dependency
+    packages = "Seurat" # Software packages needed for the execution
   )
 
 tar_read(seurat_normalised)
 ```
 
+Now let's create a more complex module, where we accept both single-cell experiment and Seurat objects
+
+```{r, eval=FALSE}
+
+input_hpc |> 
+  
+  # Initialise pipeline characteristics
+  initialise_hpc(
+    gene_nomenclature = "symbol",
+    data_container_type = "seurat_rds"
+  ) |> 
+  
+  hpc_iterate(
+    user_function = (function(x){
+      
+      if(x |> is("SingleCellExperiment"))
+        x |> as.Seurat() |> NormalizeData()
+      
+      else if(x |> is("Seurat"))
+        x |> NormalizeData()
+      
+      else warning("Data format noe accepted")
+      
+    }) |> quote(), # The function, quoted to not be evaluated on the spot
+    x = "data_object" |> is_target(), # The argument to the function. `is_target()` declares the dependency.
+    target_output = "seurat_normalised", # The name of the output dependency
+    packages = "Seurat" # Software packages needed for the execution
+  )
+
+tar_read(seurat_normalised)
+```
 
 ## Details on prebuilt steps for several popular methods 
 

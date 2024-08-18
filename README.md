@@ -74,7 +74,7 @@ input_seurat <-
   LoadData("pbmc3k") |>
   _[,1:500] 
 
-file_path = tempfile()
+file_path = "~/temp_seurat.rds"
 
 input_seurat |> saveRDS(file_path)
 
@@ -90,7 +90,14 @@ workflow manager. This has several advantages:
 
 - It has automatic report rendering for each step
 - It can parallelise across samples and across steps, improving
-  performances
+  performances. Our provided modules were designed to minimise
+  dependencies between analyses. For example, doublet inference and
+  reference-based cell annotations are run independently, while the
+  filtering happens downstream.
+- Our provided medules, never save the whole object if not necessary,
+  this optimise the use of on-disk memory. For example, the empty
+  droplet, doublet and cell annotation labels, are stored in a data
+  frame and integrated downstream, when needed.
 - It can accept growing sample set, and runs analyses only on the new
   samples. This is ideal for continuous integration
 - It can accept new analysis steps, and just runs the needed
@@ -194,7 +201,67 @@ input_hpc |>
   )
 ```
 
-## Prebuilt steps for several popular methods
+## Extend HPCell and create new modules
+
+HPCell offer module constructor that allow users and developers to build
+new models on the fly and/or contribute to the ecosystem.
+
+For example, let’s create a toy module, where we normalise the seurat
+datasets
+
+``` r
+input_hpc |> 
+  
+  # Initialise pipeline characteristics
+  initialise_hpc(
+    gene_nomenclature = "symbol",
+    data_container_type = "seurat_rds"
+  ) |> 
+  
+  hpc_iterate(
+    user_function = NormalizeData |> quote(), # The function, quoted to not be evaluated on the spot
+    object = "data_object" |> is_target(), # The argument to the function. `is_target()` declares the dependency.
+    # Other arguments that are not a dependency can also be used
+    target_output = "seurat_normalised", # The name of the output dependency
+    packages = "Seurat" # Software packages needed for the execution
+  )
+
+tar_read(seurat_normalised)
+```
+
+Now let’s create a more complex module, where we accept both single-cell
+experiment and Seurat objects
+
+``` r
+input_hpc |> 
+  
+  # Initialise pipeline characteristics
+  initialise_hpc(
+    gene_nomenclature = "symbol",
+    data_container_type = "seurat_rds"
+  ) |> 
+  
+  hpc_iterate(
+    user_function = (function(x){
+      
+      if(x |> is("SingleCellExperiment"))
+        x |> as.Seurat() |> NormalizeData()
+      
+      else if(x |> is("Seurat"))
+        x |> NormalizeData()
+      
+      else warning("Data format noe accepted")
+      
+    }) |> quote(), # The function, quoted to not be evaluated on the spot
+    x = "data_object" |> is_target(), # The argument to the function. `is_target()` declares the dependency.
+    target_output = "seurat_normalised", # The name of the output dependency
+    packages = "Seurat" # Software packages needed for the execution
+  )
+
+tar_read(seurat_normalised)
+```
+
+## Details on prebuilt steps for several popular methods
 
 ### Filtering out empty droplets
 
