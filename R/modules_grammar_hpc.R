@@ -94,7 +94,7 @@ initialise_hpc <- function(input_hpc,
       garbage_collection = TRUE,
       storage = "worker",
       retrieval = "worker",
-      #error = "continue",
+     # error = "continue",
       format = "qs",
       debug = d, # Set the target you want to debug.
       # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
@@ -151,97 +151,6 @@ initialise_hpc <- function(input_hpc,
   list(initialisation = args_list) |>
     add_class("HPCell")
 }
-
-
-# Define the generic function
-#' @export
-remove_empty_threshold <- function(input_hpc, RNA_count_threshold = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
-  UseMethod("remove_empty_threshold")
-}
-
-#' @export
-remove_empty_threshold.Seurat = function(input_hpc, RNA_count_threshold = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())
-  
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  list(initialisation = list(input_hpc = input_hpc)) |>
-    add_class("HPCell") |>
-    remove_empty_threshold()
-  
-}
-
-#' @export
-remove_empty_threshold.HPCell = function(input_hpc, RNA_count_threshold = NULL, target_input = "read_file", target_output = "empty_tbl",...) {
-  
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
-  
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  args_list$factory = function(tiers, target_input, target_output){
-    list(
-      tar_target_raw("RNA_count_threshold", readRDS("RNA_count_threshold.rds") |> quote(), deployment = "main"),
-      
-      factory_split(
-        target_output, 
-        i |> 
-          read_data_container(container_type = data_container_type) |> 
-          empty_droplet_threshold(RNA_count_threshold,
-                           gene_nomenclature = gene_nomenclature) |> 
-          substitute(env = list(i=as.symbol(target_input))),  
-        tiers, 
-        other_arguments_to_tier = target_input,
-        other_arguments_to_map = target_input
-      )  
-    )
-  }
-  
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) {
-    RNA_count_threshold |> saveRDS("RNA_count_threshold.rds")
-    
-    # Delete line with target in case the user execute the command, without calling initialise_hpc
-    target_output |>  delete_lines_with_word(glue("{input_hpc$initialisation$store}.R"))
-    
-    tar_tier_append(
-      fx = quote(dummy_hpc |> remove_empty_threshold() %$% remove_empty_threshold %$% factory),
-      tiers = input_hpc$initialisation$tier |> get_positions() ,
-      target_input = target_input,
-      target_output = target_output,
-      script = glue("{input_hpc$initialisation$store}.R")
-    )
-    
-  }
-  
-  
-  # Add pipeline step
-  input_hpc |>
-    c(list(remove_empty_threshold = args_list)) |>
-    add_class("HPCell")
-  
-  
-}
-
-target_chunk_undefined_remove_empty_threshold = function(input_hpc){
-  append_chunk_tiers(
-    { tar_target(
-      empty_tbl_TIER_PLACEHOLDER,
-      read_file_list |> 
-        read_data_container(container_type = data_container_type) |> as_tibble() |> select(.cell) |> mutate(empty_droplet = FALSE),
-      pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ),
-      iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER,
-      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    ) }, 
-    tiers = input_hpc$initialisation$tier,
-    script = glue("{input_hpc$initialisation$store}.R")
-  )
-}
-
 
 # Define the generic function
 #' @export
@@ -342,6 +251,93 @@ target_chunk_undefined_remove_empty_DropletUtils = function(input_hpc){
   )
 }
 
+# Define the generic function
+#' @export
+remove_empty_threshold <- function(input_hpc, RNA_feature_threshold = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
+  UseMethod("remove_empty_threshold")
+}
+
+#' @export
+remove_empty_threshold.Seurat = function(input_hpc, RNA_feature_threshold = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
+  # Capture all arguments including defaults
+  args_list <- as.list(environment())
+  
+  # Optionally, you can evaluate the arguments if they are expressions
+  args_list <- lapply(args_list, eval, envir = parent.frame())
+  
+  list(initialisation = list(input_hpc = input_hpc)) |>
+    add_class("HPCell") |>
+    remove_empty_threshold()
+  
+}
+
+#' @export
+remove_empty_threshold.HPCell = function(input_hpc, RNA_feature_threshold = NULL, target_input = "read_file", target_output = "empty_tbl",...) {
+  
+  # Capture all arguments including defaults
+  args_list <- as.list(environment())[-1]
+  
+  # Optionally, you can evaluate the arguments if they are expressions
+  args_list <- lapply(args_list, eval, envir = parent.frame())
+  
+  args_list$factory = function(tiers, target_input, target_output){
+    list(
+      tar_target_raw("RNA_feature_threshold", readRDS("RNA_feature_threshold.rds") |> quote(), deployment = "main"),
+      factory_split(
+        target_output, 
+        i |> 
+          read_data_container(container_type = data_container_type) |> 
+          empty_droplet_threshold(gene_nomenclature = gene_nomenclature,
+                                  RNA_feature_threshold = RNA_feature_threshold) |> 
+          substitute(env = list(i=as.symbol(target_input))),  
+        tiers, 
+        other_arguments_to_tier = target_input,
+        other_arguments_to_map = target_input
+      )  
+    )
+  }
+  
+  # We don't want recursive when we call factory
+  if(input_hpc |> length() > 0) {
+    RNA_feature_threshold |> saveRDS("RNA_feature_threshold.rds")
+    
+    # Delete line with target in case the user execute the command, without calling initialise_hpc
+    target_output |>  delete_lines_with_word(glue("{input_hpc$initialisation$store}.R"))
+    
+    tar_tier_append(
+      fx = quote(dummy_hpc |> remove_empty_threshold() %$% remove_empty_threshold %$% factory),
+      tiers = input_hpc$initialisation$tier |> get_positions() ,
+      target_input = target_input,
+      target_output = target_output,
+      script = glue("{input_hpc$initialisation$store}.R")
+    )
+    
+  }
+  
+  
+  # Add pipeline step
+  input_hpc |>
+    c(list(remove_empty_threshold = args_list)) |>
+    add_class("HPCell")
+  
+  
+}
+
+target_chunk_undefined_remove_empty_threshold = function(input_hpc){
+  append_chunk_tiers(
+    { tar_target(
+      empty_tbl_TIER_PLACEHOLDER,
+      read_file_list |> 
+        read_data_container(container_type = data_container_type) |> as_tibble() |> select(.cell) |> mutate(empty_droplet = FALSE),
+      pattern = slice(read_file_list, index  = SLICE_PLACEHOLDER ),
+      iteration = "list", 
+      resources = RESOURCE_PLACEHOLDER,
+      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
+    ) }, 
+    tiers = input_hpc$initialisation$tier,
+    script = glue("{input_hpc$initialisation$store}.R")
+  )
+}
 
 # Define the generic function
 #' @export
@@ -965,73 +961,73 @@ get_single_cell.HPCell = function(input_hpc, factors_to_regress = NULL, target_i
 # setMethod(
 #   "test_differential_abundance",
 #   signature(.data = "HPCell"),
-#   function(.data, .formula, .sample = NULL, .transcript = NULL, 
-#            .abundance = NULL, contrasts = NULL, method = "edgeR_quasi_likelihood", 
-#            test_above_log2_fold_change = NULL, scaling_method = "TMM", 
+#   function(.data, .formula, .sample = NULL, .transcript = NULL,
+#            .abundance = NULL, contrasts = NULL, method = "edgeR_quasi_likelihood",
+#            test_above_log2_fold_change = NULL, scaling_method = "TMM",
 #            omit_contrast_in_colnames = FALSE, prefix = "", action = "add", factor_of_interest = NULL,
 #            target_input = "create_pseudobulk_sample", target_output = "de",
-#            ..., significance_threshold = NULL, fill_missing_values = NULL, 
+#            ..., significance_threshold = NULL, fill_missing_values = NULL,
 #            .contrasts = NULL) {
-#     
+# 
 #     # Capture all arguments including defaults
 #     args_list <- as.list(environment())[-1]
-#     
+# 
 #     # Optionally, you can evaluate the arguments if they are expressions
 #     args_list <- lapply(args_list, eval, envir = parent.frame())
-#     
+# 
 #     args_list$factory = function(tiers, .formula, factor_of_interest = NULL, .abundance = NULL, target_input, target_output){
-#       
+# 
 #       if(.formula |> deparse() |> str_detect("\\|"))
 #         factory_de_random_effect(
-#           se_list_input = target_input, 
-#           output_se = target_output, 
+#           se_list_input = target_input,
+#           output_se = target_output,
 #           formula=.formula,
-#           #method="edger_robust_likelihood_ratio", 
+#           #method="edger_robust_likelihood_ratio",
 #           tiers = tiers,
 #           factor_of_interest = factor_of_interest,
 #           .abundance = .abundance
 #         )
-#       
+# 
 #       else
 #         factory_de_fix_effect(
-#           se_list_input = target_input, 
-#           output_se = target_output, 
+#           se_list_input = target_input,
+#           output_se = target_output,
 #           formula=.formula,
-#           method="edger_robust_likelihood_ratio", 
+#           method="edger_robust_likelihood_ratio",
 #           tiers = tiers,
 #           factor_of_interest = factor_of_interest,
 #           .abundance = .abundance
 #         )
-#       
+# 
 #     }
-#     
+# 
 #     # We don't want recursive when we call factory
 #     if(.data |> length() > 0) {
-#       
+# 
 #       environment(.formula) <- new.env(parent = emptyenv())
-#       
+# 
 #       # Delete line with target in case the user execute the command, without calling initialise_hpc
 #       target_output |>  delete_lines_with_word(glue("{.data$initialisation$store}.R"))
-#       
-#       
+# 
+# 
 #       tar_tier_append(
 #         quote(dummy_hpc |> test_differential_abundance() %$% test_differential_abundance %$% factory),
 #         tiers = .data$initialisation$tier |> get_positions() ,
 #         script = glue("{.data$initialisation$store}.R"),
-#         .formula = .formula, 
+#         .formula = .formula,
 #         factor_of_interest = factor_of_interest,
 #         .abundance = .abundance,
 #         target_input = target_input,
 #         target_output = target_output
 #       )
-#       
+# 
 #     }
-#     
-#     
+# 
+# 
 #     .data |>
 #       c(list(test_differential_abundance = args_list)) |>
 #       add_class("HPCell")
-#     
+# 
 #   }
 # )
 
@@ -1123,14 +1119,15 @@ evaluate_hpc.HPCell = function(input_hpc) {
     "temp_computing_resources.rds",
     "temp_debug_step.rds",
     "sample_names.rds",
-    "RNA_count_threshold.rds",
+    "RNA_feature_threshold.rds",
     "total_RNA_count_check.rds",
     "temp_group_by.rds",
     "factors_to_regress.rds",
     "pseudobulk_group_by.rds",
     "temp_tiers.rds",
     "temp_gene_nomenclature.rds",
-    "data_container_type.rds"
+    "data_container_type.rds",
+    "temp_fx.rds"
     
   ) |> 
     remove_files_safely()

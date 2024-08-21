@@ -8,20 +8,23 @@ empty_droplet_threshold(
   input_read_RNA_assay,
   total_RNA_count_check = -Inf,
   assay = NULL,
-  gene_nomenclature
+  gene_nomenclature,
+  RNA_feature_threshold = 200
 )
 }
 \arguments{
 \item{input_read_RNA_assay}{SingleCellExperiment or Seurat object containing RNA assay data.}
 
+\item{RNA_feature_threshold}{An optional integer for the number of feature count. Default is 200}
+
 \item{filter_empty_droplets}{Logical value indicating whether to filter the input data.}
 }
 \value{
-A tibble with columns: logProb, FDR, empty_droplet (classification of droplets).
+A tibble with columns: Cell, nFeature_RNA, empty_droplet (classification of droplets).
 }
 \description{
-\code{empty_droplet_id} distinguishes between empty and non-empty droplets using the DropletUtils package.
-It excludes mitochondrial and ribosomal genes, calculates barcode ranks, and optionally filters input data
-based on these criteria. The function returns a tibble containing log probabilities, FDR, and a classification
-indicating whether cells are empty droplets.
+\code{empty_droplet_threshold} distinguishes between empty and non-empty droplets by threshold.
+It excludes mitochondrial and ribosomal genes, and filters input data
+based on defined values of \code{nCount_RNA} and \code{nFeature_RNA}
+The function returns a tibble containing RNA count, RNA feature count indicating whether cells are empty droplets.
 }

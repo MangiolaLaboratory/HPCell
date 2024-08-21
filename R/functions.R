@@ -55,21 +55,23 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
+  if (!is.null(empty_droplets_tbl)) {
+    filtered_counts =
+      input_read_RNA_assay |>
+      left_join(empty_droplets_tbl, by=".cell") |>
+      dplyr::filter(!empty_droplet)
+  } else if (is.null(empty_droplets_tbl)) {return(NULL)}
+  
   # SingleR
   if (inherits(input_read_RNA_assay, "Seurat")) {
     sce =
-      input_read_RNA_assay |>
-      # Filter empty
-      left_join(empty_droplets_tbl, by = ".cell") |>
-      dplyr::filter(!empty_droplet) |>
+      filtered_counts |>
       as.SingleCellExperiment() |>
       logNormCounts(assay.type = assay)
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")){
     sce =
-      input_read_RNA_assay |>
       # Filter empty
-      left_join(empty_droplets_tbl, by = ".cell") |>
-      dplyr::filter(!empty_droplet) |>
+      filtered_counts|>
       logNormCounts(assay.type = assay)
   }
 
@@ -79,12 +81,10 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     colnames(sce)[2]= "dummy___"
   }
   
-  if (gene_nomenclature == "ensembl") {
-    blueprint <- celldex::BlueprintEncodeData(ensembl = TRUE, legacy = TRUE)
-  } else if (gene_nomenclature == "symbol") {
-    blueprint <- celldex::BlueprintEncodeData(legacy = TRUE)
-    
-  }
+  blueprint <- celldex::BlueprintEncodeData(
+    ensembl = gene_nomenclature == "ensembl", 
+    legacy = TRUE
+  )
   
   data_annotated =
     
@@ -115,13 +115,11 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   
   rm(blueprint)
   gc()
-  
-  if (gene_nomenclature == "ensembl") {
-    MonacoImmuneData = celldex::MonacoImmuneData(ensembl = TRUE, legacy = TRUE)
-  } else if (gene_nomenclature == "symbol") {
-    MonacoImmuneData = celldex::MonacoImmuneData(legacy = TRUE)
-  }
 
+  MonacoImmuneData <- celldex::MonacoImmuneData(
+    ensembl = gene_nomenclature == "ensembl", 
+    legacy = TRUE
+  )
   
   data_annotated =
     data_annotated |>
@@ -355,10 +353,12 @@ alive_identification <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
+  if (!is.null(empty_droplets_tbl)) {
   input_read_RNA_assay =
     input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by=".cell") |>
     dplyr::filter(!empty_droplet)
+  } else if (is.null(empty_droplets_tbl)) {return(NULL)}
   
   # Calculate nFeature_RNA and nCount_RNA if not exist in the data
   nFeature_name <- paste0("nFeature_", assay)
@@ -583,6 +583,8 @@ doublet_identification <- function(input_read_RNA_assay,
       Seurat::as.SingleCellExperiment() 
   } 
   
+  if (!is.null(empty_droplets_tbl)) { 
+  
   filter_empty_droplets <- input_read_RNA_assay |>
     # Filtering empty
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
@@ -590,7 +592,8 @@ doublet_identification <- function(input_read_RNA_assay,
     
     # Filter dead
     left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
-    filter(alive) 
+    filter(alive)
+  } else if (is.null(empty_droplets_tbl)) {return(NULL)} 
   
   # Condition as scDblFinder only accept assay "counts"
   if (!"counts" %in% (SummarizedExperiment::assays(filter_empty_droplets) |> names())){
@@ -675,28 +678,26 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
     g2m.features_tidy = Seurat::cc.genes$g2m.genes
   }
   
+  # avoid small number of cells 
+  if (!is.null(empty_droplets_tbl)) {
+    filtered_counts <- input_read_RNA_assay |>
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      dplyr::filter(!empty_droplet)
+  } else if (is.null(empty_droplets_tbl)) {return(NULL)}
   
-  counts <-
-    input_read_RNA_assay |>
-    left_join(empty_droplets_tbl, by = ".cell") |>
-    dplyr::filter(!empty_droplet) |>
-    
+  counts <- filtered_counts |>
     # Normalise needed
     NormalizeData() |>
     
-    # Assign cell cycle scores of each cell 
+    # Assign cell cycle scores of each cell
     # Based on its expression of G2/M and S phase markers
     #Stores S and G2/M scores in object meta data along with predicted classification of each cell in either G2M, S or G1 phase
-    CellCycleScoring(  
-      s.features = s.features_tidy,
-      g2m.features = g2m.features_tidy,
-      set.ident = FALSE
-    # need to find a bin-free method. Relevant issue: https://github.com/satijalab/seurat/issues/7694
-     # nbin = 1
-    ) |>
+    CellCycleScoring(s.features = s.features_tidy,
+                     g2m.features = g2m.features_tidy,
+                     set.ident = FALSE) |>
     
     as_tibble() |>
-    select(.cell,  S.Score, G2M.Score, Phase) 
+    select(.cell, S.Score, G2M.Score, Phase) 
   
   counts
   
@@ -755,11 +756,15 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
         new.assay.name = assay)
   }
   
+  # avoid small number of cells 
+  if (!is.null(empty_droplets_tbl)) {
+    filtered_counts <- input_read_RNA_assay_transform |>
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      dplyr::filter(!empty_droplet)
+  } else if (is.null(empty_droplets_tbl)) {return(NULL)}
+  
   counts =
-    input_read_RNA_assay_transform |>
-    left_join(empty_droplets_tbl, by = ".cell") |>
-    filter(!empty_droplet) |>
-    
+    filtered_counts |>
     left_join(
       alive_identification_tbl |>
         select(.cell, any_of(factors_to_regress)),
@@ -879,11 +884,14 @@ preprocessing_output <- function(input_read_RNA_assay,
   scDblFinder.class <- NULL
   predicted.celltype.l2 <- NULL
   
-  if(empty_droplets_tbl |> is.null() |> not())
+  if (empty_droplets_tbl |> is.null() |> not()) {
     input_read_RNA_assay =
       input_read_RNA_assay |>
       left_join(empty_droplets_tbl, by = ".cell") |>
-      filter(!empty_droplet) 
+      filter(!empty_droplet)
+  } else if (empty_droplets_tbl |> is.null()) {
+    return(NULL)
+  }
   
   # Add normalisation
   if(!is.null(non_batch_variation_removal_S)){

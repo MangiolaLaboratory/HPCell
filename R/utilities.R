@@ -179,8 +179,6 @@ empty_droplet_id <- function(input_read_RNA_assay,
     # }
   
   significance_threshold = 0.001
-  RNA_feature_count_threshold = 200
-  RNA_count_threshold = 100 
   # Genes to exclude
   if (gene_nomenclature == "symbol") {
     location <- mapIds(
@@ -218,9 +216,6 @@ empty_droplet_id <- function(input_read_RNA_assay,
     counts <- assay(input_read_RNA_assay, assay)
   }
   filtered_counts <- counts[!(rownames(counts) %in% c(mitochondrial_genes, ribosome_genes)),, drop=FALSE ]
-  
-  # filter based on RNA_count_threshold
-  filtered_counts <- filtered_counts[rowSums(filtered_counts) > RNA_count_threshold, ]
   
   # Calculate bar-codes ranks
   barcode_ranks <- barcodeRanks(filtered_counts)
@@ -301,15 +296,16 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' Identify Empty Droplets in Single-Cell RNA-seq Data
 #'
 #' @description
-#' `empty_droplet_id` distinguishes between empty and non-empty droplets using the DropletUtils package.
-#' It excludes mitochondrial and ribosomal genes, calculates barcode ranks, and optionally filters input data
-#' based on these criteria. The function returns a tibble containing log probabilities, FDR, and a classification
-#' indicating whether cells are empty droplets.
+#' `empty_droplet_threshold` distinguishes between empty and non-empty droplets by threshold. 
+#' It excludes mitochondrial and ribosomal genes, and filters input data
+#' based on defined values of `nCount_RNA` and `nFeature_RNA`
+#' The function returns a tibble containing RNA count, RNA feature count indicating whether cells are empty droplets.
 #'
 #' @param input_read_RNA_assay SingleCellExperiment or Seurat object containing RNA assay data.
 #' @param filter_empty_droplets Logical value indicating whether to filter the input data.
+#' @param RNA_feature_threshold An optional integer for the number of feature count. Default is 200
 #'
-#' @return A tibble with columns: logProb, FDR, empty_droplet (classification of droplets).
+#' @return A tibble with columns: Cell, nFeature_RNA, empty_droplet (classification of droplets).
 #'
 #' @importFrom AnnotationDbi mapIds
 #' @importFrom stringr str_subset
@@ -324,7 +320,8 @@ empty_droplet_id <- function(input_read_RNA_assay,
 empty_droplet_threshold<- function(input_read_RNA_assay,
                                    total_RNA_count_check  = -Inf,
                                    assay = NULL,
-                                   gene_nomenclature){
+                                   gene_nomenclature,
+                                   RNA_feature_threshold = 200){
   #Fix GChecks 
   FDR = NULL 
   .cell = NULL 
@@ -338,8 +335,6 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
   filter_empty_droplets <- "TRUE"
   
   significance_threshold = 0.001
-  RNA_feature_count_threshold = 200
-  RNA_count_threshold = 100 
   # Genes to exclude
   if (gene_nomenclature == "symbol") {
     location <- mapIds(
@@ -371,18 +366,17 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
   }
   filtered_counts <- counts[!(rownames(counts) %in% c(mitochondrial_genes, ribosome_genes)),, drop=FALSE ]
   
-  # filter based on RNA_count_threshold
-  result <- colSums(filtered_counts) |> enframe(name = ".cell", value = "RNA_count") |>
-    mutate(empty_droplet = RNA_count < RNA_count_threshold) |>
-    select(.cell, empty_droplet)
+  # filter based on nCount_RNA and nFeature_RNA
+  result <- colSums(filtered_counts > 0 ) |> enframe(name = ".cell", value = "nFeature_RNA") |> 
+    #left_join(colSums(filtered_counts) |> enframe(name = ".cell", value = "nCount_RNA"), by = ".cell") |>
+    mutate(empty_droplet = nFeature_RNA < RNA_feature_threshold)
+  
+  # Discard samples with nFeature_RNA density mode < threshold, avoid potential downstream error
+  density_est = result |> pull(nFeature_RNA) |> density()
+  density_value = density_est$x[which.max(density_est$y)]
+  if (density_value < RNA_feature_threshold) return(NULL)
   
   result
-  # rosums(…) |> enframe(value…, name…) |> mutate(rowSums(filtered_counts) > 
-  #                                                 RNA_count_threshold)
-  # 
-  # #|> select(-row_sum_column_whatever_that_name_is)
-  
-  #the result should be a two column tibble, with .cell anf empty_drople columkn names
 }
 
 
