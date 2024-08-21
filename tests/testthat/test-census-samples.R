@@ -102,12 +102,6 @@ df <- samples |> left_join(sample_meta, by = "dataset_id") |> distinct(dataset_i
         counts[counts < 0] <- 0
       
       col_sums <- colSums(counts)
-      # # Cap large values
-      # if(max(col_sums) > 1e100) {
-      #   temp <- counts[, sample(1:ncol(data), size = 10000, replace = TRUE), drop = TRUE]
-      #   q <- quantile(temp[temp > 0], 0.9)
-      #   counts[counts > 1e100] <- q
-      # }
       # Drop all zero cells
       data <- data[, col_sums > 0]
       

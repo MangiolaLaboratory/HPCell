@@ -152,6 +152,7 @@ initialise_hpc <- function(input_hpc,
     add_class("HPCell")
 }
 
+
 # Define the generic function
 #' @export
 remove_empty_DropletUtils <- function(input_hpc, total_RNA_count_check = NULL, target_input = "read_file", target_output = "empty_tbl", ...) {
@@ -590,7 +591,7 @@ target_chunk_undefined_remove_doublets_scDblFinder = function(input_hpc){
 
 # Define the generic function
 #' @export
-annotate_cell_type <- function(input_hpc, target_input = "read_file", target_output = "annotation_tbl",...) {
+annotate_cell_type <- function(input_hpc, azimuth_reference = NULL, target_input = "read_file", target_output = "annotation_tbl",...) {
   UseMethod("annotate_cell_type")
 }
 

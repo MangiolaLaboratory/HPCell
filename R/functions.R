@@ -194,13 +194,6 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     #print("Start Seurat")
     
-    # Load reference PBMC
-    # reference_azimuth <- LoadH5Seurat("data//pbmc_multimodal.h5seurat")
-    # reference_azimuth |> saveRDS("analysis/annotation_label_transfer/reference_azimuth.rds")
-    
-    #reference_azimuth = readRDS(reference_azimuth_path)
-    
-    
     # Reading input
     input_read_RNA_assay =
       input_read_RNA_assay |>
@@ -208,90 +201,16 @@ annotation_label_transfer <- function(input_read_RNA_assay,
       left_join(empty_droplets_tbl, by = ".cell") |>
       filter(!empty_droplet)
     
-    
-    # Subset
-    RNA_assay = input_read_RNA_assay[rownames(input_read_RNA_assay[[assay]]) %in% rownames(reference_azimuth[["SCT"]]),][[assay]]
-    #RNA_assay <- input_read_RNA_assay@assays$RNA[["counts"]][rownames(input_read_RNA_assay@assays$RNA[["counts"]])%in% rownames(reference_azimuth[["SCT"]]),]
-    #ADT_assay = input_read_RNA_assay[["ADT"]][rownames(input_read_RNA_assay[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
-    input_read_RNA_assay <- CreateSeuratObject( counts = RNA_assay)
-    
-    if("ADT" %in% names(input_read_RNA_assay@assays) ) {
-      ADT_assay = input_read_RNA_assay[["ADT"]][rownames(input_read_RNA_assay[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
-      if("ADT" %in% names(input_read_RNA_assay@assays) ) 
-        input_read_RNA_assay[["ADT"]] = ADT_assay |> CreateAssayObject()
-    }
-    
-    # Normalise RNA
-    input_read_RNA_assay =
-      input_read_RNA_assay |>
-      
-      # Normalise RNA - not informed by smartly selected variable genes
-      SCTransform(assay=assay) |>
+    azimuth_annotation = input_read_RNA_assay |>  RunAzimuth(reference = reference_azimuth) |> 
+      SCTransform(assay = assay) |> 
       ScaleData(assay = "SCT") |>
-      RunPCA(assay = "SCT")
-    
-    if("ADT" %in% names(input_read_RNA_assay@assays) ){
-      Seurat::VariableFeatures(input_read_RNA_assay, assay="ADT") <- rownames(input_read_RNA_assay[["ADT"]])
-      input_read_RNA_assay =
-        input_read_RNA_assay |>
-        NormalizeData(normalization.method = 'CLR', margin = 2, assay="ADT") |>
-        ScaleData(assay="ADT") |>
-        RunPCA(assay = "ADT", reduction.name = 'apca')
-    }
-    
-    
-    # input_file =
-    #   input_file |>
-    #   FindMultiModalNeighbors(
-    #     reduction.list = list("pca", "apca"),
-    #     dims.list = list(1:30, 1:18),
-    #     modality.weight.name = "RNA.weight"
-    #   ) |>
-    #   RunUMAP(
-    #     nn.name = "weighted.nn",
-    #     reduction.name = "wnn.umap",
-    #     reduction.key = "wnnUMAP_"
-    #   )
-    
-    # Define common anchors
-    anchors <- Seurat::FindTransferAnchors(
-      reference = reference_azimuth,
-      query = input_read_RNA_assay,
-      normalization.method = "SCT",
-      reference.reduction = "spca",
-      dims = 1:50
-    )
-    
-    # Mapping
-    
-    azimuth_annotation =
-      tryCatch(
-        expr = {
-          Seurat::MapQuery(
-            anchorset = anchors,
-            query = input_read_RNA_assay,
-            reference = reference_azimuth ,
-            refdata = list(
-              celltype.l1 = "celltype.l1",
-              celltype.l2 = "celltype.l2",
-              predicted_ADT = "ADT"
-            ),
-            reference.reduction = "spca",
-            reduction.model = "wnn.umap",
-            query.dims = 1:2
-          )
-        },
-        error = function(e){
-          print(e)
-          input_read_RNA_assay |> as_tibble() |> select(.cell)
-        }
-      ) |>
+      RunPCA(assay = "SCT") |>
       as_tibble() |>
       select(.cell, any_of(c("predicted.celltype.l1", "predicted.celltype.l2")), contains("refUMAP"))
     
     # Save
     modified_data <- data_annotated  |>
-      left_join(azimuth_annotation, by = dplyr::join_by(.cell)	) 
+      left_join(azimuth_annotation, by = dplyr::join_by(.cell)	)
     
     return(modified_data)
   }
