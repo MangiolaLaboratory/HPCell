@@ -37,6 +37,8 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(c("."))
 #' @importFrom magrittr extract2
 #' @importFrom SummarizedExperiment assay
 #' @importFrom SummarizedExperiment assay<-
+#' @importFrom Azimuth RunAzimuth
+#' @import Seurat
 #' 
 #' @export
 annotation_label_transfer <- function(input_read_RNA_assay,
@@ -195,18 +197,37 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     #print("Start Seurat")
     
     # Reading input
-    input_read_RNA_assay =
-      input_read_RNA_assay |>
-      # Filter empty
-      left_join(empty_droplets_tbl, by = ".cell") |>
-      filter(!empty_droplet)
     
-    azimuth_annotation = input_read_RNA_assay |>  RunAzimuth(reference = reference_azimuth) |> 
-      SCTransform(assay = assay) |> 
+    if (!is.null(empty_droplets_tbl)) {
+      input_read_RNA_assay =
+        input_read_RNA_assay |>
+        # Filter empty
+        left_join(empty_droplets_tbl, by = ".cell") |>
+        filter(!empty_droplet)
+    } else if (is.null(empty_droplets_tbl)) {return(NULL)}
+    
+    library(Seurat)
+    azimuth_annotation = input_read_RNA_assay |> RenameAssays(assay.name = assay, 
+                                                              new.assay.name = "RNA") |> 
+      Azimuth::RunAzimuth(reference = reference_azimuth, assay = "RNA", umap.name = "refUMAP") |> 
+      SCTransform(assay = "RNA") |> 
       ScaleData(assay = "SCT") |>
       RunPCA(assay = "SCT") |>
       as_tibble() |>
-      select(.cell, any_of(c("predicted.celltype.l1", "predicted.celltype.l2")), contains("refUMAP"))
+      select(.cell, any_of(
+        c(
+          "predicted.celltype.l1",
+          "predicted.celltype.l2",
+          "predicted.celltype.l3",
+          "predicted.celltype.l1.score",
+          "predicted.celltype.l2.score",
+          "predicted.celltype.l3.score"
+        )
+      ), matches("umap|UMAP")) |> 
+      nest(azimuth_scores_celltype = c(ends_with("score"), matches("umap|UMAP"))) |>
+      dplyr::rename(azimuth_predicted.celltype.l1 = predicted.celltype.l1,
+                    azimuth_predicted.celltype.l2 = predicted.celltype.l2,
+                    azimuth_predicted.celltype.l3 = predicted.celltype.l3)
     
     # Save
     modified_data <- data_annotated  |>
@@ -375,14 +396,15 @@ alive_identification <- function(input_read_RNA_assay,
     as_tibble(rownames = ".cell") %>%
     dplyr::select(-sum, -detected)
   
+  # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
+  percentage_output = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)
+  percentage_output = percentage_output[!duplicated(names(percentage_output))]
   # Compute ribosome statistics
   ribosome =
     input_read_RNA_assay |>
     select(.cell) |>
     #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
-    
-    # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
-    mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay))
+    mutate(subsets_Ribo_percent = percentage_output)
   
   # Add cell type labels and determine high mitochondrion content, if annotation_label_transfer_tbl is provided
   if(annotation_column |> is.null() |> not()) {

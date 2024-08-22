@@ -605,7 +605,7 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target
   
   args_list$factory = function(tiers, target_input, target_output){
     list(
-      tar_target_raw("reference_read", readRDS("input_reference.rds") |> quote()),
+      tar_target_raw("azimuth_reference", readRDS("input_reference.rds") |> quote()),
       
       factory_split(
         target_output, 
@@ -613,7 +613,7 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target
           read_data_container(container_type = data_container_type) |> 
           annotation_label_transfer(
             empty_tbl,
-            reference_read,
+            reference_azimuth = azimuth_reference,
             gene_nomenclature = gene_nomenclature
           ) |> 
           substitute(env = list(i=as.symbol(target_input))),

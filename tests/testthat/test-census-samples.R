@@ -126,16 +126,18 @@ files <- results |> mutate(sample_2 = basename(file_name) |> tools::file_path_sa
   select(-file_name.y, -cell_number.y, -file_size.y) |> rename(file_name = file_name.x,
                                                                cell_number = cell_number.x,
                                                                file_size = file_size.x)
-files |> slice(21:50) |> pull(file_name) |>
-#files |> filter(cell_number == 306) |> pull(file_name) |>
+
+
+#files |> slice(21:50) |> pull(file_name) |>
+files |>head(5) |> pull(file_name) |>
   initialise_hpc(
     gene_nomenclature = "ensembl",
     data_container_type = "anndata",
-    store = "~/scratch/Census/census_reanalysis/census-run-samples/50samples_null_empty_tbl_method/",
-    #store = "~/scratch/Census/census_reanalysis/census-run-samples/fail_sample/",
-    #debug_step = "cell_cycle_tbl_tier_1_907f2d141bc50b9e",
-    #tier = files |> filter(cell_number == 306)|> pull(tier),
-    tier = files |> slice(21:50) |> pull(tier),
+    #store = "~/scratch/Census/census_reanalysis/census-run-samples/50samples_null_empty_tbl_method/",
+    store = "~/scratch/Census/census_reanalysis/census-run-samples/try_azimuth_5samples/",
+    #debug_step = "alive_tbl_tier_1_365e6e7d163ec2b9",
+    tier = files |> head(5) |> pull(tier),
+    #tier = files |> slice(21:50) |> pull(tier),
     #computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
     computing_resources = list(
 
@@ -166,7 +168,7 @@ files |> slice(21:50) |> pull(file_name) |>
     
   ) |> 
   #tranform_assay(fx =  purrr::map(1:20, ~identity), target_output = "sce_transformed") |> 
-  tranform_assay(fx = files |> slice(21:50) |>
+  tranform_assay(fx = files |> head(5) |>
                    pull(transformation_function),
                  target_output = "sce_transformed") |>
   
@@ -186,7 +188,7 @@ files |> slice(21:50) |> pull(file_name) |>
   remove_doublets_scDblFinder(target_input = "sce_transformed") |>
   
   # Annotation
-  annotate_cell_type(target_input = "sce_transformed") |>
+  annotate_cell_type(target_input = "sce_transformed", azimuth_reference = "pbmcref") |>
   
   normalise_abundance_seurat_SCT(factors_to_regress = c(
     "subsets_Mito_percent",
