@@ -250,7 +250,7 @@ input_hpc |>
       else if(x |> is("Seurat"))
         x |> NormalizeData()
       
-      else warning("Data format noe accepted")
+      else warning("Data format not accepted")
       
     }) |> quote(), # The function, quoted to not be evaluated on the spot
     x = "data_object" |> is_target(), # The argument to the function. `is_target()` declares the dependency.
