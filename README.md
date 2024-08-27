@@ -206,6 +206,8 @@ input_hpc |>
 HPCell offer module constructor that allow users and developers to build
 new models on the fly and/or contribute to the ecosystem.
 
+### Simple module
+
 For example, let’s create a toy module, where we normalise the seurat
 datasets
 
@@ -228,6 +230,8 @@ input_hpc |>
 
 tar_read(seurat_normalised)
 ```
+
+### Complex module
 
 Now let’s create a more complex module, where we accept both single-cell
 experiment and Seurat objects
@@ -259,6 +263,33 @@ input_hpc |>
   )
 
 tar_read(seurat_normalised)
+```
+
+### Reports module
+
+`HPCell` allows you to create reports of any combination of analysis
+results, that will be rendered once the necessary analyses will be
+completed.
+
+Here we provide a toy example
+
+``` r
+input_hpc |> 
+  
+  # Initialise pipeline characteristics
+  initialise_hpc(
+    gene_nomenclature = "symbol",
+    data_container_type = "seurat_rds"
+  ) |> 
+  
+  hpc_report(
+    "empty_report", # The name of the report output
+    rmd_path = paste0(system.file(package = "HPCell"), "/rmd/test.Rmd"), # The path to the Rmd. In this case it is stored within the package
+    empty_list = "empty_tbl" |> is_target(), # The results and targets needed for the report
+    sample_names = "sample_names" |> is_target() # The results and targets needed for the report
+  ) 
+
+tar_read(empty_report)
 ```
 
 ## Details on prebuilt steps for several popular methods
