@@ -37,297 +37,435 @@ parse_function_call <- function(command) {
   return(result)
 }
 
-#' Parse a Function Call String and Expand Tiered Arguments
-#'
-#' This function takes a string representing a function call, parses it into
-#' its constituent parts (function name and arguments), and expands the specified
-#' tiered arguments based on the provided tier labels.
-#'
-#' @param command A character string representing a function call, e.g., "report(empty_droplets_tbl, arg1)".
-#' @param tiers A character vector indicating the tier labels for the specified tiered arguments, e.g., c("_1", "_2", "_3").
-#' @param tiered_args A character vector specifying which arguments should be tiered, e.g., c("empty_droplets_tbl").
-#' 
-#' @return A character string representing the modified function call with tiered arguments expanded.
-#'
-#' @importFrom rlang parse_expr
-#'
-#' @examples
-#' # Example usage:
-#' input_string <- "report(empty_droplets_tbl, arg1)"
-#' tiers <- c("_1", "_2", "_3")
-#' tiered_args <- c("empty_droplets_tbl", "another_arg")
-#' output <- expand_tiered_arguments(input_string, tiers, tiered_args)
-#' print(output)
-#'
-#' @export
-expand_tiered_arguments <- function(command, tiers, tiered_args) {
-  # Parse the input command to get function name and arguments
-  command_character = command |> deparse() 
-  
-  for(t in tiered_args){
-    command_character = command_character |> str_replace(t, paste0(t, "_", tiers) |> paste(collapse = ", "))
-  } 
-  
-  command_character |> rlang::parse_expr()
 
+
+#' @export
+hpc_internal = function(
+    tiers = NULL, 
+    target_output, 
+    user_function,
+    arguments_to_tier = c(), 
+    arguments_already_tiered = c(), 
+    other_arguments_to_map = c(), 
+    packages = targets::tar_option_get("packages") , 
+    deployment = targets::tar_option_get("deployment"),
+    ...
+){
+  
+  args <- list(...)  # Capture the ... arguments as a list
+  
+  # Construct the full call expression with the pipeline substituted into the function
+  fx_call <- as.call(c(user_function, args))
+  
+  if(tiers |> is.null() || tiers |> length() < 2){
+    
+      tar_target_raw(
+        name = target_output |> as.character(), 
+        command = fx_call,
+        
+        # This is in case I am not tiering (e.g. DE analyses) but I need to map
+        pattern = build_pattern(other_arguments_to_map = other_arguments_to_map),
+        
+        iteration = "list", 
+        packages = packages,
+        deployment = deployment
+
+
+      )
+      
+  }
+
+  
+  else {
+    
+    if(fx_call |> deparse() |> str_detect("%>%") |> any()) 
+      stop("HPCell says: no \"%>%\" allowed in the command, please use \"|>\" ")
+    
+    # Filter out arguments to be tiered from the input command
+    if(arguments_to_tier |> length() > 0)
+      arguments_already_tiered <- arguments_already_tiered |> str_subset(paste(arguments_to_tier, collapse = "|"), negate = TRUE)
+    
+    map2(tiers, names(tiers), ~ {
+    
+      tar_target_raw(
+        name = 
+          glue("{target_output}_{.y}") |> 
+          
+          # This is needed because using glue
+          as.character() , 
+        command = fx_call |>  add_tier_inputs(arguments_already_tiered, .y),
+        pattern = 
+          build_pattern(
+            other_arguments_to_map = glue("{other_arguments_to_map}_{.y}"), 
+            arguments_to_tier = arguments_to_tier, 
+            index = .x
+          ) ,
+        iteration = "list",
+        packages = packages, 
+        deployment = deployment,
+        resources = tar_resources(crew = tar_resources_crew(.y)) 
+      )
+    })
+    
+  }
+   
 }
 
+#' @export
+hpc_internal_report = function(
+    tiers = NULL, 
+    target_output, 
+    rmd_path,
+    render_arguments = quote(list()),
+    output_file = NULL,
+    arguments_to_tier = c(), 
+    arguments_already_tiered = c(), 
+    other_arguments_to_map = c(), 
+    packages = targets::tar_option_get("packages") , 
+    deployment = targets::tar_option_get("deployment"),
+    ...
+){
+  
 
+  if(tiers |> is.null() || tiers |> length() < 2){
+    
+    tar_render_raw(
+      name = target_output |> as.character(), 
+      path = rmd_path,
+      output_file = output_file,
+      render_arguments = render_arguments,
+      # This is in case I am not tiering (e.g. DE analyses) but I need to map
+      # pattern = build_pattern(other_arguments_to_map = other_arguments_to_map),
+      
+      # iteration = "list", 
+      packages = packages,
+      deployment = deployment
+      
+      
+    )
+    
+  }
+  
+  
+  else {
+    
+    # Filter out arguments to be tiered from the input command
+    if(arguments_to_tier |> length() > 0)
+      arguments_already_tiered <- arguments_already_tiered |> str_subset(paste(arguments_to_tier, collapse = "|"), negate = TRUE)
+    
+    map2(tiers, names(tiers), ~ {
+      
+      tar_render_raw(
+        name = 
+          glue("{target_output}_{.y}") |> 
+          
+          # This is needed because using glue
+          as.character() , 
+        pattern = 
+          build_pattern(
+            other_arguments_to_map = glue("{other_arguments_to_map}_{.y}"), 
+            arguments_to_tier = arguments_to_tier, 
+            index = .x
+          ) ,
+        # iteration = "list",
+        packages = packages, 
+        deployment = deployment,
+        resources = tar_resources(crew = tar_resources_crew(.y)) 
+      )
+    })
+    
+  }
+  
+}
 
-#' @importFrom stringr str_extract
-factory_split = function(
-    name_output, command, tiers, arguments_to_tier = c(), other_arguments_to_tier = c(), 
-    other_arguments_to_map = c(), packages = targets::tar_option_get("packages") 
-  ){
-  
-  if(command |> deparse() |> str_detect("%>%") |> any()) 
-    stop("HPCell says: no \"%>%\" allowed in the command, please use \"|>\" ")
-  
-  #input = command |> deparse() |> paste(collapse = "") |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
-  
-  # Filter out arguments to be tiered from the input command
-  if(arguments_to_tier |> length() > 0)
-    other_arguments_to_tier <- other_arguments_to_tier |> str_subset(paste(arguments_to_tier, collapse = "|"), negate = TRUE)
-  
-  map2(tiers, names(tiers), ~ {
+#' Add HPC step to pipeline
+#'
+#' This function adds a new step to the HPC pipeline by appending the appropriate
+#' targets to the target script. It allows the user to specify the input and output
+#' targets, as well as a custom user function to be applied.
+#'
+#' @param input_hpc The input HPC object.
+#' @param target_output The output target name (default: NULL).
+#' @param user_function A custom function provided by the user (default: NULL).
+#' @param ... Additional arguments to pass to the internal functions.
+#'
+#' @importFrom glue glue
+#' @importFrom magrittr %>%
+#' @importFrom purrr set_names
+#' @export
+hpc_iterate = 
+  function(input_hpc, target_output = NULL, user_function = NULL, ...) {
     
-    my_index = .x
+    # Check for argument consistency
+    check_for_name_value_conflicts(...)
     
-    # Pattern
-    pattern = NULL
-    if(
-      arguments_to_tier |> length() > 0 |
-      other_arguments_to_map |> length() > 0
+    # Target script
+    target_script = glue("{input_hpc$initialisation$store}.R")
+    
+    # Delete line with target in case the user execute the command, without calling initialise_hpc
+    target_output |>  delete_lines_with_word(target_script)
+    
+    # please, because sometime we set up list target that do not depend on any other ones
+    # if tiers is set to NULL, then the target will not acquire the _<tier> suffix
+    # I HAVE TO MAKE THIS MORE ELEGANT, AND NOT RELY ON tiers ARGUMENT
+    if(input_hpc$initialisation$tier |> get_positions() |> length() < 2){
+      iterate_value = "map"
+      tiers_value = NULL
+    }
+      
+    else if(
+      list(...) |> arguments_to_action(input_hpc, "tiered") |> length() == 0 &
+      list(...) |> arguments_to_action(input_hpc, "tier") |> length() == 0
     ){
+      iterate_value = "tier"
+      tiers_value = NULL
+    } else {
+      iterate_value = "tiered"
+      tiers_value = input_hpc$initialisation$tier |> get_positions()
+    }
+
+    tar_append(
+      fx = hpc_internal |> quote(),
+      tiers = tiers_value ,
+      target_output = target_output,
+      script = target_script,
+      user_function = user_function,
       
-      pattern = as.name("map")
+      # I HAVE TO IMPROVE the fact that I have to convert to character 
+      # because arguments_to_action is also used in expand_tiered_arguments, which needs a named vector
+      arguments_to_tier = list(...) |> arguments_to_action(input_hpc, "tier") |> as.character()  , # This "tier" value is decided for each new target below. Usually just at the beginning of the piepline
+      arguments_already_tiered = list(...) |> arguments_to_action(input_hpc, "tiered") |> as.character(), # This "tiered" value is decided for each new target below. Ususally every other list targets.
+      other_arguments_to_map = list(...) |> arguments_to_action(input_hpc, c("tiered", "map")) |> as.character(), # This "tiered" value is decided for each new target below. Ususally every other list targets.
+      ...
+    )
+  
       
-      if(arguments_to_tier |> length() > 0)
-        pattern = pattern |> c(
-          arguments_to_tier |>
-            map(~ substitute(slice(input, index  = arg ), list(input = as.symbol(.x), arg=my_index)) )
+    # Add pipeline step
+    input_hpc |>
+      c(
+        as.list(environment())[-1] |> 
+          c(list(iterate = iterate_value)) |> 
+          list() |> 
+          set_names(target_output) 
+      ) |>
+      add_class("HPCell")
+    
+    
+  }
+
+#' Add HPC step to pipeline
+#'
+#' This function adds a new step to the HPC pipeline by appending the appropriate
+#' targets to the target script. It allows the user to specify the input and output
+#' targets, as well as a custom user function to be applied.
+#'
+#' @param input_hpc The input HPC object.
+#' @param target_output The output target name (default: NULL).
+#' @param user_function A custom function provided by the user (default: NULL).
+#' @param ... Additional arguments to pass to the internal functions.
+#'
+#' @importFrom glue glue
+#' @importFrom magrittr %>%
+#' @importFrom purrr set_names
+#' @export
+hpc_single = 
+  function(input_hpc, target_output = NULL, user_function = NULL, iterate = "none", ...) {
+    
+    # Target script
+    target_script = glue("{input_hpc$initialisation$store}.R")
+    
+    # Delete line with target in case the user execute the command, without calling initialise_hpc
+    target_output |>  delete_lines_with_word(target_script)
+    
+    tar_append(
+      fx = hpc_internal |> quote(),
+      target_output = target_output,
+      script = target_script,
+      user_function = user_function,
+      ...
+    )
+    
+    # Add pipeline step
+    input_hpc |>
+      c(
+        as.list(environment())[-1] |> 
+          c(list(iterate = iterate)) |> 
+          list() |> 
+          set_names(target_output)
+      ) |>
+      add_class("HPCell")
+    
+    
+  }
+
+#' Add HPC step to pipeline
+#'
+#' This function adds a new step to the HPC pipeline by appending the appropriate
+#' targets to the target script. It allows the user to specify the input and output
+#' targets, as well as a custom user function to be applied.
+#'
+#' @param input_hpc The input HPC object.
+#' @param target_output The output target name (default: NULL).
+#' @param user_function A custom function provided by the user (default: NULL).
+#' @param ... Additional arguments to pass to the internal functions.
+#'
+#' @importFrom glue glue
+#' @importFrom magrittr %>%
+#' @importFrom purrr set_names
+#' @export
+hpc_merge = 
+  function(input_hpc, target_output = NULL, user_function = NULL, ...) {
+    
+    # Check for argument consistency
+    check_for_name_value_conflicts(...)
+    
+    # Target script
+    target_script = glue("{input_hpc$initialisation$store}.R")
+    
+    # Delete line with target in case the user execute the command, without calling initialise_hpc
+    target_output |>  delete_lines_with_word(target_script)
+    
+    # name_target_intermediate = glue("{target_output}_merge_within_tier")
+    
+    # tar_append(
+    #   fx = hpc_internal |> quote(),
+    #   tiers = input_hpc$initialisation$tier |> get_positions() ,
+    #   target_output = name_target_intermediate,
+    #   script = target_script,
+    #   user_function = user_function,
+    #   arguments_already_tiered = list(...) |> arguments_to_action(input_hpc, "tiered") , # This "tiered" value is decided for each new target below. Ususally every other list targets.
+    #   ...
+    # )
+    
+    
+    # If no tiers
+    if(input_hpc$initialisation$tier |> get_positions() |> length() < 2)
+      tar_append(
+          fx = hpc_internal |> quote(),
+          target_output = target_output,
+          script = target_script,
+          user_function = user_function,
+          ...
+      )
+      
+    else{
+      
+      args = 
+        list(...)  |> 
+        expand_tiered_arguments(
+          tiers = input_hpc$initialisation$tier |> get_positions() |> names(), 
+          argument_to_replace = list(...) |> arguments_to_action(input_hpc, "tiered") |> names(),
+          tiered_args = list(...) |> arguments_to_action(input_hpc, "tiered") |> names()
         )
       
-      if(other_arguments_to_map |> length() > 0)
-        pattern = pattern |> c(glue("{other_arguments_to_map}_{.y}") |> lapply(as.name))
-      
-      pattern = as.call(pattern)
-      
+      # this is needed because I cannot use ellipse (...) anymore, I have to use do.call.
+      do.call(tar_append, c(
+        list(
+          fx = hpc_internal |> quote() |> quote(),
+          #tiers = input_hpc$initialisation$tier |> get_positions(),
+          target_output = t |> substitute(env = list(t = target_output)) ,
+          script = target_script,
+          user_function = u |> quote() |> substitute(env = list(u = user_function))
+        ),
+        args
+      ))
     }
 
     
     
-    # Resources
-    if(length(tiers) == 1)
-      resources = targets::tar_option_get("resources")
-    else 
-      resources = tar_resources(crew = tar_resources_crew(.y)) 
+    
+    # Add pipeline step
+    input_hpc |>
+      c(
+        as.list(environment())[-1] |> 
+          c(list(iterate = "single")) |> 
+          list() |> 
+          set_names(target_output) 
+      ) |>
+      add_class("HPCell")
     
     
-    tar_target_raw(
-      name = glue("{name_output}_{.y}") |> as.character(), 
-      command = command |>  add_tier_inputs(other_arguments_to_tier, .y),
-      pattern = pattern,
-      iteration = "list",
-      resources = resources,
-      packages = packages
-    )
-  })
-}
+  }
 
-factory_collapse = function(name_output, command, tiered_input, tiers, ...){
-  
-  command = command |> expand_tiered_arguments(names(tiers), tiered_input)
-  
-  tar_target_raw(name_output, command, ...) 
-}
-
-# factory_tiering = function(preparation, tiering, collapsing, tiers){
-#   
-#   t1 = tar_target_raw(preparation[[1]], preparation[[2]])
-#   t2 = factory_split(
-#     tiering[[1]], 
-#     tiering[[2]], 
-#     tiers,
-#     tiering[[3]]
-#   )
-#   t3 = factory_collapse(
-#     collapsing[[1]],
-#     collapsing[[2]],
-#     collapsing[[3]],
-#     tiers
-#     
-#   )
-#   
-#   list(t1, t2, t3)
-# }
-
-
-factory_merge_pseudobulk = function(se_list_input, output_se, tiers, external_path){
-  
-  dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
-  
-  list(
-    factory_split(
-      name_output = "pseudobulk_group", 
-      command = i |> pseudobulk_merge() |> 
-        substitute(env = list(i = as.name(se_list_input))), 
-      tiers = tiers, 
-      arguments_to_tier = c(), 
-      other_arguments_to_tier = c(se_list_input), 
-      packages = c("tidySummarizedExperiment")
-    ) ,
-    
-    factory_collapse(
-      name_output = output_se, 
-      command =
-        cbind(pseudobulk_group) |>
-        
-        # Conver to monolytic H5 cebause otherwise the memory blows up
-        saveHDF5SummarizedExperiment(dir = f, replace=TRUE, as.sparse=TRUE) |> 
-        substitute(env = list(f = glue("{external_path}/output_se"))), 
-      tiers = tiers, 
-      tiered_input = "pseudobulk_group",
-      packages = c("HDF5Array")
-    )
-  )
-}
-
-
-
-#' @importFrom tidybulk test_differential_abundance
+#' Add HPC step to pipeline
+#'
+#' This function adds a new step to the HPC pipeline by appending the appropriate
+#' targets to the target script. It allows the user to specify the input and output
+#' targets, as well as a custom user function to be applied.
+#'
+#' @param input_hpc The input HPC object.
+#' @param target_output The output target name (default: NULL).
+#' @param user_function A custom function provided by the user (default: NULL).
+#' @param ... Additional arguments to pass to the internal functions.
+#'
+#' @importFrom glue glue
+#' @importFrom magrittr %>%
+#' @importFrom purrr set_names
+#' @importFrom here here
 #' 
 #' 
 #' @export
-factory_de_fix_effect = function(se_list_input, output_se, formula, method, tiers, factor_of_interest = NULL, .abundance = NULL){
-  list(
+hpc_report = 
+  function(input_hpc, target_output = NULL, rmd_path = NULL, ...) {
+    
+    # # Check for argument consistency
+    # check_for_name_value_conflicts(...)
+    # 
+    # Target script
+    target_script = glue("{input_hpc$initialisation$store}.R")
+    
+    # Delete line with target in case the user execute the command, without calling initialise_hpc
+    target_output |>  delete_lines_with_word(target_script)
+    
+    external_dir = glue("{input_hpc$initialisation$store}/external") |> as.character() |> here()
+    dir.create(external_dir, showWarnings = FALSE, recursive = TRUE)
+    
+    # If no tiers
+    if(input_hpc$initialisation$tier |> get_positions() |> length() < 2)
+      tar_append(
+        fx = hpc_internal_report |> quote(),
+        target_output = target_output,
+        script = target_script,
+        rmd_path = rmd_path,
+        output_file = glue("{external_dir}/{target_output}") |> as.character(),
+        render_arguments = substitute(quote(expr), list(expr = list(params = list(...)))) # Add quotation
+      )
+    
+    else{
+      
+      args = 
+        list(...)  |> 
+        expand_tiered_arguments(
+          tiers = input_hpc$initialisation$tier |> get_positions() |> names(), 
+          argument_to_replace = list(...) |> arguments_to_action(input_hpc, "tiered") |> names(),
+          tiered_args = list(...) |> arguments_to_action(input_hpc, "tiered") |> names()
+        )
+      
+      # this is needed because I cannot use ellipse (...) anymore, I have to use do.call.
+      do.call(tar_append, c(
+        list(
+          fx = hpc_internal |> quote() |> quote(),
+          #tiers = input_hpc$initialisation$tier |> get_positions(),
+          target_output = t |> substitute(env = list(t = target_output)) ,
+          script = target_script,
+          user_function = u |> quote() |> substitute(env = list(u = user_function))
+        ),
+        args
+      ))
+    }
     
     
-    tar_target_raw("chunk_tbl", 
-                   pseudobulk_gran_group |> 
-                     rownames() |> 
-                     feature_chunks() |> 
-                     quote()
-                   
-    ),
-    
-    tar_target_raw(
-      "pseudobulk_group_list",
-      pseudobulk_gran_group |> 
-        group_split(!!sym(pseudobulk_group_by)) |>  
-        quote(),
-      iteration = "list",
-      packages = c("tidySummarizedExperiment", "S4Vectors", "targets")
-    ),
     
     
-    # Analyse
-    tar_target_raw(
-      output_se,
-      pseudobulk_group_list |> 
-        keep_abundant(factor_of_interest = i, .abundance = a) |> 
-        test_differential_abundance(
-          f,
-          .abundance = !!sym(a),
-          method = m
-        ) |> 
-        pivot_transcript() |> 
-        substitute(
-          env = list(
-            f=as.formula(formula), a = .abundance, m=method, 
-            i = factor_of_interest
-          )),
-      pattern = map(pseudobulk_group_list) |> quote(), 
-      packages="tidybulk"
-    )
+    # Add pipeline step
+    input_hpc |>
+      c(
+        as.list(environment())[-1] |> 
+          c(list(iterate = "single")) |> 
+          list() |> 
+          set_names(target_output) 
+      ) |>
+      add_class("HPCell")
     
     
-    # factory_collapse(
-    #   "pseudobulk_joined", 
-    #   command = bind_rows(create_pseudobulk_sample) |> left_join(chunk_tbl) |> quote(),
-    #   tiered_input = "create_pseudobulk_sample", 
-    #   tiers = tiers, 
-    #   packages = c("dplyr") #, pattern = map(create_pseudobulk_sample) |> quote()
-    # )
-  )
-}
-
-#' @importFrom rlang sym
-#' @importFrom dplyr left_join
-#' @importFrom dplyr nest
-#' @importFrom dplyr group_by
-#' @importFrom dplyr mutate
-#' @importFrom dplyr unnest
-#' @importFrom purrr map
-#' @importFrom S4Vectors split
-#' @importFrom purrr compact
-#' @importFrom purrr map
-#' 
-#' @export
-factory_de_random_effect = function(se_list_input, output_se, formula, tiers, factor_of_interest = NULL, .abundance = NULL){
-  
-  
-  list(
-    
-    tar_target_raw(
-      "pseudobulk_group_list",
-      pseudobulk_gran_group |> 
-        group_split(!!sym(pseudobulk_group_by)) |>  
-        quote(),
-      iteration = "list",
-      packages = c("tidySummarizedExperiment", "S4Vectors", "targets", "rlang")
-    ),
-    
-    tar_target_raw(
-      "pseudobulk_table_dispersion_gene",
-      pseudobulk_group_list  |> 
-        keep_abundant(factor_of_interest = i, .abundance = a, minimum_proportion = 0.2, minimum_counts = 1,) |> 
-        scale_abundance() |> 
-        se_add_dispersion(f, a ) |> 
-        split_summarized_experiment(chunk_size = 10) |> 
-        substitute(env = list(
-          f=as.formula(formula), 
-          a = glue("{.abundance}_scaled"),
-          i = factor_of_interest 
-          )), 
-      pattern = map(pseudobulk_group_list) |> quote(), 
-      iteration = "list",
-      packages = c("tidySummarizedExperiment", "S4Vectors", "purrr", "dplyr" ,"tidybulk", "HPCell")
-    ), 
-    
-   tar_target_raw(
-     "pseudobulk_table_dispersion_gene_unlist", 
-     pseudobulk_table_dispersion_gene |> unlist() |>  quote(), 
-     pattern = map(pseudobulk_table_dispersion_gene) |> quote(), 
-     iteration = "list"
-    ),
-    
-    # Analyse
-    tar_target_raw(
-      "de_split",
-      pseudobulk_table_dispersion_gene_unlist |> 
-        map_de( f, a, 
-          "glmmseq_lme4", 
-          max_rows_for_matrix_multiplication = 10000, 
-          cores = 1,
-          .scaling_factor = !!sym(s),
-          .group_by = !!sym(pseudobulk_group_by)
-        ) |> 
-
-        substitute(env = list(f=as.formula(formula), a = .abundance, s = "TMM")),
-      pattern = map(pseudobulk_table_dispersion_gene_unlist) |> quote(),
-      iteration = "list",
-      packages = c("rlang")
-    ),
-   
-   tar_target_raw(output_se, 
-                  de_split |>
-                    compact() |> 
-                    bind_rows() |>
-                    nest(summary = -!!sym(pseudobulk_group_by)) |>
-                    quote(), 
-                  packages = c("tidyr", "dplyr", "purrr")
-                )
-    
-  )
-}
+  }

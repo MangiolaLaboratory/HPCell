@@ -57,18 +57,13 @@ initialise_hpc <- function(input_hpc,
   
   input_hpc |> names() |> saveRDS("sample_names.rds")
   #cell_count |> saveRDS("cell_count.rds")
-
+  
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
   # Write targets
   dir.create(store, showWarnings = FALSE, recursive = TRUE)
   data_file_names = glue("{store}/{names(input_hpc)}.rds")
-  # map2(
-  #   input_hpc,
-  #   data_file_names,
-  #   ~ .x |> saveRDS(.y)
-  # )
   
   input_hpc |> as.list() |>  saveRDS("input_file.rds")
   gene_nomenclature |> saveRDS("temp_gene_nomenclature.rds")
@@ -80,11 +75,8 @@ initialise_hpc <- function(input_hpc,
   tiers |> 
     saveRDS("temp_tiers.rds")
   
-  #sample_column |> saveRDS("sample_column.rds")
-  debug_step |> saveRDS("temp_debug_step.rds")
-  
   # Write pipeline to a file
-  tar_script({
+  {
     library(HPCell)
     library(dplyr)
     library(magrittr)
@@ -101,51 +93,56 @@ initialise_hpc <- function(input_hpc,
       retrieval = "worker",
       #error = "continue",
       format = "qs",
-      debug = readRDS("temp_debug_step.rds"), # Set the target you want to debug.
+      debug = d, # Set the target you want to debug.
       # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
       controller = crew_controller_group ( readRDS("temp_computing_resources.rds") ), 
       packages = c("HPCell")
     )
     
     target_list = list(
-      tar_files(read_file,readRDS("input_file.rds") , iteration = "list", deployment = "main"),
-      #tar_target(read_file, readRDS("input_file.rds"), format = "file", iteration = "list"),
       tar_target(gene_nomenclature, readRDS("temp_gene_nomenclature.rds"), iteration = "list", deployment = "main"),
       tar_target(data_container_type, readRDS("data_container_type.rds"), deployment = "main")
-    
+      
     )
     
-    target_list = 
-      target_list |> c(list(
-        
-        # # Reading input files
-        # tar_target(
-        #   input_read,
-        #   readRDS(read_file),
-        #   pattern = map(read_file),
-        #   iteration = "list"
-        # ) ,
-        tar_target(tiers, readRDS("temp_tiers.rds"), deployment = "main")
-      ))
     
-  }, script = glue("{store}.R"), ask = FALSE)
+    } |> 
+    substitute(env = list(d = debug_step)) |> 
+    tar_script_append2(script = glue("{store}.R"), append = FALSE)
+
   
-  # Set sample names
-  tar_script_append2(
-    substitute({
-      
-      target_list = 
-        target_list |> c(list(
-          tar_target(sample_names, readRDS("sample_names.rds"))
-        ))
-      
-    }),
-    script = glue("{store}.R")
-  )
-  
-  
-  list(initialisation = args_list) |>
+  input_hpc = 
+    list(initialisation = args_list ) |>
+    c(list(sample_names = list(iterate = "map")) ) |> 
+    
     add_class("HPCell")
+  
+  
+  input_hpc |> 
+    
+    hpc_single(
+      target_output = "sample_names", 
+      user_function = readRDS |> quote(),
+      file = "sample_names.rds", 
+      deployment = "main", 
+      iterate = "map"
+    ) |> 
+    
+    hpc_single(
+      target_output = "read_file_list", 
+      user_function = readRDS |> quote(),
+      file = "input_file.rds", 
+      deployment = "main", 
+      iterate = "map"
+    ) |> 
+  
+    hpc_iterate(
+      target_output = "data_object", 
+      user_function = read_data_container |> quote() ,
+      file  = "read_file_list" |> is_target(),
+      container_type = data_container_type
+    )
+  
 }
 
 
@@ -154,12 +151,12 @@ initialise_hpc <- function(input_hpc,
 
 # Define the generic function
 #' @export
-remove_empty_DropletUtils <- function(input_hpc, total_RNA_count_check = NULL, ...) {
+remove_empty_DropletUtils <- function(input_hpc, total_RNA_count_check = NULL, target_input = "data_object", target_output = "empty_tbl", ...) {
   UseMethod("remove_empty_DropletUtils")
 }
 
 #' @export
-remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = NULL, ...) {
+remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = NULL, target_input = "data_object", target_output = "empty_tbl", ...) {
   # Capture all arguments including defaults
   args_list <- as.list(environment())
   
@@ -173,527 +170,295 @@ remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = N
 }
 
 #' @export
-remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, ...) {
+remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, target_input = "data_object", target_output = "empty_tbl",...) {
   
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
-  
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  args_list$factory = function(tiers){
-    list(
-      tar_target_raw("total_RNA_count_check", readRDS("total_RNA_count_check.rds") |> quote(), deployment = "main"),
-      
-      factory_split(
-        "empty_droplets_tbl", 
-        read_file |> 
-          read_data_container(container_type = data_container_type) |> 
-          empty_droplet_id(total_RNA_count_check) |> 
-          quote(),
-        tiers, 
-        arguments_to_tier = "read_file"
-      )  ,
-      
-      factory_collapse(
-        "my_report",
-        bind_rows(empty_droplets_tbl) |> quote(),
-        "empty_droplets_tbl",
-        tiers, packages = c("dplyr")
-      )
+  input_hpc |> 
+    hpc_iterate(
+      target_output = target_output, 
+      user_function = empty_droplet_id |> quote() , 
+      input_read_RNA_assay = target_input |> is_target(),
+      total_RNA_count_check = total_RNA_count_check
     )
-    
-  }
-  
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) {
-    total_RNA_count_check |> saveRDS("total_RNA_count_check.rds")
-    
-    tar_tier_append(
-      quote(dummy_hpc |> remove_empty_DropletUtils() %$% remove_empty_DropletUtils %$% factory),
-      input_hpc$initialisation$tier |> get_positions() ,
-      glue("{input_hpc$initialisation$store}.R")
-    )
-    
-  }
-
-  
-  # Add pipeline step
-  input_hpc |>
-    c(list(remove_empty_DropletUtils = args_list)) |>
-    add_class("HPCell")
-  
   
 }
 
 target_chunk_undefined_remove_empty_DropletUtils = function(input_hpc){
-  append_chunk_tiers(
-    { tar_target(
-      empty_droplets_tbl_TIER_PLACEHOLDER,
-      read_file |> 
-        read_data_container(container_type = data_container_type) |> as_tibble() |> select(.cell) |> mutate(empty_droplet = FALSE),
-      pattern = slice(read_file, index  = SLICE_PLACEHOLDER ),
-      iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER,
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = "empty_tbl", 
+      user_function = (function(x) x |> as_tibble() |>  select(.cell) |> mutate(empty_droplet = FALSE)) |> quote() , 
+      x = "data_object" |> is_target(),
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    ) }, 
-    tiers = input_hpc$initialisation$tier,
-    script = glue("{input_hpc$initialisation$store}.R")
-  )
+    )
+  
 }
 
 
 # Define the generic function
 #' @export
-remove_dead_scuttle <- function(input_hpc, group_by = NULL) {
+remove_dead_scuttle <- function(input_hpc, 
+                                group_by = NULL, 
+                                target_output = "alive_tbl",
+                                target_input = "data_object", 
+                                target_empty_droplets = "empty_tbl",
+                                target_annotation = NULL) {
   UseMethod("remove_dead_scuttle")
 }
 
 #' @export
-remove_dead_scuttle.HPCell = function(input_hpc, group_by = NULL) {
-  
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
-  
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  args_list$factory = function(tiers){
-    list(
-      tar_target_raw("grouping_column", readRDS("temp_group_by.rds") |> quote(), deployment = "main"),
-      
-      factory_split(
-        "alive_identification_tbl", 
-        read_file |> 
-          read_data_container(container_type = data_container_type) |> 
-          alive_identification(
-            empty_droplets_tbl,
-            annotation_label_transfer_tbl,
-            grouping_column
-          ) |> quote(),
-        tiers, arguments_to_tier = "read_file",
-        other_arguments_to_tier = c("empty_droplets_tbl", "annotation_label_transfer_tbl"), 
-        other_arguments_to_map = c("empty_droplets_tbl", "annotation_label_transfer_tbl")
-      ),
-      
-      factory_collapse(
-        "my_report2",
-        bind_rows(alive_identification_tbl) |> quote(), 
-        "alive_identification_tbl",
-        tiers, packages = c("dplyr")
-      )
-    )
+remove_dead_scuttle.HPCell = function(
+    input_hpc, 
+    group_by = NULL, 
+    target_output = "alive_tbl",
+    target_input = "data_object", 
+    target_empty_droplets = "empty_tbl",
+    target_annotation = NULL
     
-  }
+  ) {
   
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) {
-    group_by |> saveRDS("temp_group_by.rds")
-    
-    tar_tier_append(
-      quote(dummy_hpc |> remove_dead_scuttle() %$% remove_dead_scuttle %$% factory),
-      input_hpc$initialisation$tier |> get_positions() ,
-      glue("{input_hpc$initialisation$store}.R")
+  input_hpc |> 
+    hpc_iterate(
+      target_output = target_output, 
+      user_function = alive_identification |> quote() , 
+      input_read_RNA_assay = target_input |> safe_as_name(), 
+      empty_droplets_tbl = target_empty_droplets |> safe_as_name() ,
+      annotation_label_transfer_tbl = target_annotation |> safe_as_name() ,
+      annotation_column = group_by 
     )
-  }
-
-  
-  input_hpc |>
-    c(list(remove_dead_scuttle = args_list))  |>
-    add_class("HPCell")
   
 }
 
 #' @importFrom dplyr mutate
 target_chunk_undefined_remove_dead_scuttle = function(input_hpc){
-  append_chunk_tiers(
-    { tar_target(
-      alive_identification_tbl_TIER_PLACEHOLDER, 
-      read_file |> 
-        read_data_container(container_type = data_container_type) |> as_tibble() |> dplyr::select(.cell) |> mutate(alive = TRUE), 
-      pattern = slice(read_file, index  = SLICE_PLACEHOLDER ), 
-      iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER,
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = "alive_tbl", 
+      user_function = (function(x) x |> as_tibble() |>  select(.cell) |> mutate(alive = TRUE)) |> quote() , 
+      x = "data_object" |> is_target(),
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    ) }, 
-    tiers = input_hpc$initialisation$tier,
-    script = glue("{input_hpc$initialisation$store}.R")
-  )
+    )
+  
 }
 
 
 
 # Define the generic function
 #' @export
-score_cell_cycle_seurat <- function(input_hpc, ...) {
+score_cell_cycle_seurat <- function(input_hpc, target_input = "data_object", target_output = "cell_cycle_tbl",...) {
   UseMethod("score_cell_cycle_seurat")
 }
 
 #' @export
-score_cell_cycle_seurat.HPCell = function(input_hpc) {
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
+score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "data_object", target_output = "cell_cycle_tbl", ...) {
   
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  # Add pipeline step
-  args_list$factory = function(tiers){
-    list(
-      factory_split(
-        "cell_cycle_score_tbl", read_file |> 
-          read_data_container(container_type = data_container_type) |> 
-          cell_cycle_scoring(
-            empty_droplets_tbl,  
-            gene_nomenclature = gene_nomenclature
-          ) |> quote(),
-        tiers, arguments_to_tier = "read_file",
-        other_arguments_to_tier = c("empty_droplets_tbl"), other_arguments_to_map = c("empty_droplets_tbl")
-      ),
-      
-      factory_collapse(
-        "my_report3",
-        bind_rows(cell_cycle_score_tbl) |> quote(), 
-        "cell_cycle_score_tbl",
-        tiers, packages = c("dplyr")
-      )
+  input_hpc |> 
+    hpc_iterate(
+      target_output = target_output, 
+      user_function = cell_cycle_scoring |> quote() , 
+      input_read_RNA_assay = target_input |> is_target(), 
+      empty_droplets_tbl = "empty_tbl" |> is_target() ,
+      gene_nomenclature = input_hpc$initialisation$gene_nomenclature
     )
-    
-  }
-  
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) 
-    tar_tier_append(
-      quote(dummy_hpc |> score_cell_cycle_seurat() %$% score_cell_cycle_seurat %$% factory),
-      input_hpc$initialisation$tier |> get_positions() ,
-      glue("{input_hpc$initialisation$store}.R")
-    )
-  
-  input_hpc |>
-    c(list(score_cell_cycle_seurat = args_list)) |>
-    add_class("HPCell")
   
 }
 
-target_chunk_undefined_score_cell_cycle_seurat = function(input_hpc){
-  append_chunk_tiers(
-    { tar_target(
-      cell_cycle_score_tbl_TIER_PLACEHOLDER,
-      NULL,
-      pattern = slice(read_file, index  = SLICE_PLACEHOLDER ),
-      iteration = "list",
-      resources = RESOURCE_PLACEHOLDER,
-      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    ) }, 
-    tiers = input_hpc$initialisation$tier,
-    script = glue("{input_hpc$initialisation$store}.R")
-  )
+target_chunk_undefined_score_cell_cycle_seurat = function(input_hpc, target_input = "data_object"){
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = "cell_cycle_tbl", 
+      user_function = function(x) NULL  , 
+      x = "read_file_list" |> is_target()
+    )
+  
 }
 
 
 # Define the generic function
 #' @export
-remove_doublets_scDblFinder <- function(input_hpc) {
+remove_doublets_scDblFinder <- function(input_hpc, target_input = "data_object", target_output = "doublet_tbl") {
   UseMethod("remove_doublets_scDblFinder")
 }
 
 #' @export
-remove_doublets_scDblFinder.HPCell = function(input_hpc) {
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
+remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "data_object", target_output = "doublet_tbl") {
   
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  args_list$factory = function(tiers){
-    list(
-      factory_split(
-        "doublet_identification_tbl", read_file |> 
-          read_data_container(container_type = data_container_type) |> 
-          doublet_identification(
-            empty_droplets_tbl,
-            alive_identification_tbl
-          ) |> quote(),
-        tiers, arguments_to_tier = "read_file",
-        other_arguments_to_tier = c("empty_droplets_tbl", "alive_identification_tbl"), other_arguments_to_map = c("empty_droplets_tbl", "alive_identification_tbl")
-      ),
-      
-      factory_collapse(
-        "my_report4",
-        bind_rows(doublet_identification_tbl) |> quote(), 
-        "doublet_identification_tbl",
-        tiers, packages = c("dplyr")
-      )
+  input_hpc |> 
+    hpc_iterate(
+      target_output = target_output, 
+      user_function = doublet_identification |> quote() , 
+      input_read_RNA_assay = target_input |> is_target(), 
+      empty_droplets_tbl = "empty_tbl" |> is_target() ,
+      alive_identification_tbl = "alive_tbl" |> is_target()
     )
-    
-  }
-  
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) 
-    tar_tier_append(
-      quote(dummy_hpc |> remove_doublets_scDblFinder() %$% remove_doublets_scDblFinder %$% factory),
-      input_hpc$initialisation$tier |> get_positions() ,
-      glue("{input_hpc$initialisation$store}.R")
-    )
-  
-  input_hpc |>
-    c(list(remove_doublets_scDblFinder = args_list)) |>
-    add_class("HPCell")
   
 }
 
 target_chunk_undefined_remove_doublets_scDblFinder = function(input_hpc){
-  append_chunk_tiers(
-    { tar_target(
-      doublet_identification_tbl_TIER_PLACEHOLDER, 
-      read_file |> 
-        read_data_container(container_type = data_container_type) |> as_tibble() |> select(.cell) |> mutate(scDblFinder.class="singlet"), 
-      pattern = slice(read_file, index  = SLICE_PLACEHOLDER ), 
-      iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER,
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = "doublet_tbl", 
+      user_function = (function(x) x |> as_tibble() |>  select(.cell) |> mutate(scDblFinder.class="singlet")) |> quote() , 
+      x = "data_object" |> is_target(),
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    ) }, 
-    tiers = input_hpc$initialisation$tier,
-    script = glue("{input_hpc$initialisation$store}.R")
-  )
+    )
+  
 }
 
 # Define the generic function
 #' @export
-annotate_cell_type <- function(input_hpc, ...) {
+annotate_cell_type <- function(input_hpc, azimuth_reference = NULL, target_input = "data_object", target_output = "annotation_tbl",...) {
   UseMethod("annotate_cell_type")
 }
 
 #' @export
-annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL) {
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
+annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target_input = "data_object", target_output = "annotation_tbl", ...) {
   
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
   
-  args_list$factory = function(tiers){
-    list(
-      tar_target_raw("reference_read", readRDS("input_reference.rds") |> quote()),
-      
-      factory_split(
-        "annotation_label_transfer_tbl", read_file |> 
-          read_data_container(container_type = data_container_type) |> 
-          annotation_label_transfer(
-            empty_droplets_tbl,
-            reference_read
-          ) |> quote(),
-        tiers, arguments_to_tier = "read_file",
-        other_arguments_to_tier = c("empty_droplets_tbl"), other_arguments_to_map = c("empty_droplets_tbl") 
-      ),
-      
-      factory_collapse(
-        "my_report5",
-        bind_rows(annotation_label_transfer_tbl) |> quote(), 
-        "annotation_label_transfer_tbl",
-        tiers, packages = c("dplyr")
-      )
+  azimuth_reference |> saveRDS("input_reference.rds")
+  
+  input_hpc |> 
+    
+    hpc_single(
+      target_output = "reference_read", 
+      user_function = readRDS |> quote(),
+      file = "input_reference.rds" 
+    ) |> 
+  
+    hpc_iterate(
+      target_output = target_output, 
+      user_function = annotation_label_transfer |> quote() , 
+      input_read_RNA_assay = target_input |> is_target(), 
+      empty_droplets_tbl = "empty_tbl" |> is_target() ,
+      reference_azimuth = reference_read |> quote()
     )
-    
-  }
-  
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) {
-    azimuth_reference |> saveRDS("input_reference.rds")
-    
-    tar_tier_append(
-      quote(dummy_hpc |> annotate_cell_type() %$% annotate_cell_type %$% factory),
-      input_hpc$initialisation$tier |> get_positions() ,
-      glue("{input_hpc$initialisation$store}.R")
-    )
-  }
-    
-  
-  input_hpc |>
-    c(list(annotate_cell_type = args_list)) |>
-    add_class("HPCell")
   
 }
 
 target_chunk_undefined_annotate_cell_type = function(input_hpc){
-  append_chunk_tiers(
-    { tar_target(
-      annotation_label_transfer_tbl_TIER_PLACEHOLDER, 
-      NULL, 
-      pattern = slice(read_file, index  = SLICE_PLACEHOLDER ), 
-      iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER,
-      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    ) }, 
-    tiers = input_hpc$initialisation$tier,
-    script = glue("{input_hpc$initialisation$store}.R")
-  )
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = "annotation_tbl", 
+      user_function = function(x) NULL ,
+      x = read_file_list |> quote()
+    )
+  
+ 
 }
 
 
 # Define the generic function
 #' @export
-normalise_abundance_seurat_SCT <- function(input_hpc, ...) {
+normalise_abundance_seurat_SCT <- function(input_hpc, target_input = "data_object", target_output = "sct_matrix", ...) {
   UseMethod("normalise_abundance_seurat_SCT")
 }
 
 #' @export
-normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress = NULL) {
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
+normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress = NULL, target_input = "data_object", target_output = "sct_matrix", ...) {
   
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
+  input_hpc |> 
+  hpc_iterate(
+    target_output = target_output, 
+    user_function = non_batch_variation_removal |> quote() , 
+    input_read_RNA_assay = target_input |> is_target(), 
+    empty_droplets_tbl = "empty_tbl" |> is_target() ,
+    alive_identification_tbl = "alive_tbl" |> is_target(),
+    cell_cycle_score_tbl = "cell_cycle_tbl" |> is_target(),
+    factors_to_regress = factors_to_regress,
+    external_path = glue("{input_hpc$initialisation$store}/external"),
+    ...
+  )
   
-  args_list$factory = function(tiers){
-    list(
-      tar_target_raw("factors_to_regress", readRDS("factors_to_regress.rds") |> quote(), deployment = "main"),
-      
-      factory_split(
-        "non_batch_variation_removal_S", read_file |> 
-          read_data_container(container_type = data_container_type) |> 
-          non_batch_variation_removal(
-            empty_droplets_tbl,
-            alive_identification_tbl,
-            cell_cycle_score_tbl,
-            factors_to_regress = factors_to_regress
-          ) |> quote(),
-        tiers, arguments_to_tier = "read_file",
-        other_arguments_to_tier = c("empty_droplets_tbl", "alive_identification_tbl", "cell_cycle_score_tbl"), other_arguments_to_map = c("empty_droplets_tbl", "alive_identification_tbl", "cell_cycle_score_tbl")
-        
-      )
-      # ,
-      # 
-      # factory_collapse(
-      #   "my_report6",
-      #   bind_rows(tibble()) |> quote(), 
-      #   "non_batch_variation_removal_S",
-      #   tiers, packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-      # )
-    )
-    
-  }
-  
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) {
-    factors_to_regress |> saveRDS("factors_to_regress.rds")
-    
-    tar_tier_append(
-      quote(dummy_hpc |> normalise_abundance_seurat_SCT() %$% normalise_abundance_seurat_SCT %$% factory),
-      input_hpc$initialisation$tier |> get_positions() ,
-      glue("{input_hpc$initialisation$store}.R")
-    )
-  }
-
-  
-
-  input_hpc |>
-    c(list(normalise_abundance_seurat_SCT = args_list)) |>
-    add_class("HPCell")
   
 }
 
 target_chunk_undefined_normalise_abundance_seurat_SCT = function(input_hpc){
-  append_chunk_tiers(
-    { tar_target(
-      non_batch_variation_removal_S_TIER_PLACEHOLDER, 
-      NULL, 
-      pattern = slice(read_file, index  = SLICE_PLACEHOLDER ), 
-      iteration = "list", 
-      resources = RESOURCE_PLACEHOLDER,
-      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    ) }, 
-    tiers = input_hpc$initialisation$tier,
-    script = glue("{input_hpc$initialisation$store}.R")
-  )
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = "sct_matrix", 
+      user_function = function(x) NULL ,
+      x = read_file_list |> quote()
+    )
+  
+
 }
 
 # Define the generic function
 #' @export
-calculate_pseudobulk <- function(input_hpc, group_by = NULL) {
+calculate_pseudobulk <- function(input_hpc, group_by = NULL, target_input = "data_object", target_output = "pseudobulk_se") {
   UseMethod("calculate_pseudobulk")
 }
 
 #' @export
-calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
+calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input = "data_object", target_output = "pseudobulk_se") {
   
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
-  
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  args_list$factory = function(tiers, external_path, pseudobulk_group_by = ""){
+  pseudobulk_sample = 
+    glue("{target_output}_iterated") |> 
     
-    list(
-      tar_target_raw("pseudobulk_group_by", pseudobulk_group_by, deployment = "main") ,
-
-      factory_split(
-        "create_pseudobulk_sample", 
-        read_file |> 
-          read_data_container(container_type = data_container_type) |> 
-          create_pseudobulk(
-            sample_names, 
-            empty_droplets_tbl,
-            alive_identification_tbl,
-            cell_cycle_score_tbl,
-            annotation_label_transfer_tbl,
-            doublet_identification_tbl,
-            
-            x = pseudobulk_group_by, 
-            external_path = e
-          ) |> 
-          substitute(env = list(e = external_path)),
-        tiers, arguments_to_tier = c("read_file", "sample_names"), 
-        other_arguments_to_tier = c("empty_droplets_tbl",
-                                    "alive_identification_tbl",
-                                    "cell_cycle_score_tbl",
-                                    "annotation_label_transfer_tbl",
-                                    "doublet_identification_tbl"),
-        other_arguments_to_map = c("empty_droplets_tbl",
-                                   "alive_identification_tbl",
-                                   "cell_cycle_score_tbl",
-                                   "annotation_label_transfer_tbl",
-                                   "doublet_identification_tbl")
-        
-      ),
-      factory_merge_pseudobulk(
-        se_list_input = "create_pseudobulk_sample",
-        "pseudobulk_gran_group", 
-        tiers, 
-        external_path = external_path
-      ) 
-      
-      # ,
-      # 
-      # factory_collapse(
-      #   "my_report7",
-      #   bind_rows(create_pseudobulk_sample) |> quote(),
-      #   "create_pseudobulk_sample",
-      #   tiers
-      # )
-    )
+    # This is important otherwise targets fails with glue
+    as.character()
+  
+  input_hpc |> 
     
-  }
-   
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) {
-
-    tar_tier_append(
-      quote(dummy_hpc |> calculate_pseudobulk() %$% calculate_pseudobulk %$% factory),
-      input_hpc$initialisation$tier |> get_positions() ,
-      script = glue("{input_hpc$initialisation$store}.R"), 
+    # aggregate each
+    hpc_iterate(
+      target_output = pseudobulk_sample, 
+      user_function = create_pseudobulk |> quote() , 
+      input_read_RNA_assay = target_input |> is_target(), 
+      sample_names_vec = "sample_names" |> is_target(),
+      empty_droplets_tbl = "empty_tbl" |> is_target() ,
+      alive_identification_tbl = "alive_tbl" |> is_target(),
+      cell_cycle_score_tbl = "cell_cycle_tbl" |> is_target(),
+      annotation_label_transfer_tbl = "annotation_tbl" |> is_target(),
+      doublet_identification_tbl = "doublet_tbl" |> is_target(),
+      x = group_by,
+      external_path = glue("{input_hpc$initialisation$store}/external")
+    ) |> 
+    
+    # merge
+    hpc_merge(
+      target_output = target_output, 
+      user_function = pseudobulk_merge |> quote(), 
       external_path = glue("{input_hpc$initialisation$store}/external"),
-      pseudobulk_group_by = group_by
+      pseudobulk_list = pseudobulk_sample |> is_target(),
+      packages = c("tidySummarizedExperiment", "HPCell")
     )
-  }
   
-  
-  input_hpc |>
-    c(list(calculate_pseudobulk = args_list)) |>
-    add_class("HPCell")
   
 }
+
+# Define the generic function
+#' @export
+get_single_cell <- function(input_hpc, target_input = "data_object", target_output = "single_cell",...) {
+  UseMethod("get_single_cell")
+}
+
+#' @export
+get_single_cell.HPCell = function(input_hpc, target_input = "data_object", target_output = "single_cell", ...) {
+  
+  input_hpc |> 
+    
+    # aggregate each
+    hpc_iterate(
+      target_output = target_output, 
+      user_function = preprocessing_output |> quote() , 
+      input_read_RNA_assay = target_input |> is_target(), 
+      empty_droplets_tbl = "empty_tbl" |> is_target() ,
+      non_batch_variation_removal_S = sct_matrix |> quote(), 
+      alive_identification_tbl = "alive_tbl" |> is_target(),
+      cell_cycle_score_tbl = "cell_cycle_tbl" |> is_target(),
+      annotation_label_transfer_tbl = "annotation_tbl" |> is_target(),
+      doublet_identification_tbl = "doublet_tbl" |> is_target()
+    )
+  
+  
+}
+
 
 #' Test Differential Abundance for HPCell
 #'
@@ -730,21 +495,14 @@ setMethod(
            .abundance = NULL, contrasts = NULL, method = "edgeR_quasi_likelihood", 
            test_above_log2_fold_change = NULL, scaling_method = "TMM", 
            omit_contrast_in_colnames = FALSE, prefix = "", action = "add", factor_of_interest = NULL,
+           target_input = "pseudobulk_se", target_output = "de", group_by_column = NULL,
            ..., significance_threshold = NULL, fill_missing_values = NULL, 
            .contrasts = NULL) {
     
-    # Capture all arguments including defaults
-    args_list <- as.list(environment())[-1]
-    
-    # Optionally, you can evaluate the arguments if they are expressions
-    args_list <- lapply(args_list, eval, envir = parent.frame())
-    
-    args_list$factory = function(tiers, .formula, factor_of_interest = NULL, .abundance = NULL){
-        
       if(.formula |> deparse() |> str_detect("\\|"))
         factory_de_random_effect(
-          se_list_input = "create_pseudobulk_sample", 
-          output_se = "de", 
+          se_list_input = target_input, 
+          output_se = target_output, 
           formula=.formula,
           #method="edger_robust_likelihood_ratio", 
           tiers = tiers,
@@ -753,79 +511,42 @@ setMethod(
         )
       
       else
-        factory_de_fix_effect(
-          se_list_input = "create_pseudobulk_sample", 
-          output_se = "de", 
-          formula=.formula,
-          method="edger_robust_likelihood_ratio", 
-          tiers = tiers,
-          factor_of_interest = factor_of_interest,
-          .abundance = .abundance
-        )
-      
-    }
-    
-    # We don't want recursive when we call factory
-    if(.data |> length() > 0) {
-      
-      environment(.formula) <- new.env(parent = emptyenv())
-      
-      tar_tier_append(
-        quote(dummy_hpc |> test_differential_abundance() %$% test_differential_abundance %$% factory),
-        tiers = .data$initialisation$tier |> get_positions() ,
-        script = glue("{.data$initialisation$store}.R"),
-        .formula = .formula, 
-        factor_of_interest = factor_of_interest,
-        .abundance = .abundance
-      )
-      
-    }
-    
-    
-    .data |>
-      c(list(test_differential_abundance = args_list)) |>
-      add_class("HPCell")
-    
-  }
-)
+       
+        .data |> 
+          
+          hpc_single(
+            target_output = "chunk_tbl", 
+            user_function = function(x){ x |> rownames() |> feature_chunks()} |> quote(),
+            x = "pseudobulk_se" |> is_target() 
+          ) |> 
+        
+          hpc_single(
+            target_output = "pseudobulk_group_list", 
+            user_function = group_split |> quote(),
+            .tbl  = target_input  |> is_target(),
+            gr = as.name(gr) |> substitute(env = list(gr = group_by_column)),
+            packages = c("tidySummarizedExperiment", "S4Vectors", "targets"), 
+            
+            # I need this because targets does not know the output 
+            # is a list I need to iterate on outside the tiers
+            iterate = "map"
+          ) |> 
+          
 
-
-#' @export
-preprocessing_output_factory = function(tiers){
-  
-  
-  
-  list(
-    factory_split(
-      "preprocessing_output_S", 
-      read_file |> 
-        read_data_container(container_type = data_container_type) |> 
-        preprocessing_output(empty_droplets_tbl,
-                             non_batch_variation_removal_S,
-                             alive_identification_tbl,
-                             cell_cycle_score_tbl,
-                             annotation_label_transfer_tbl,
-                             doublet_identification_tbl) |> 
-        quote(),
-      tiers, 
-      arguments_to_tier = "read_file", 
-      other_arguments_to_tier = c("empty_droplets_tbl",
-                                  "non_batch_variation_removal_S",
-                                  "alive_identification_tbl",
-                                  "cell_cycle_score_tbl",
-                                  "annotation_label_transfer_tbl",
-                                  "doublet_identification_tbl"),
-      other_arguments_to_map = c("empty_droplets_tbl",
-                                 "non_batch_variation_removal_S",
-                                 "alive_identification_tbl",
-                                 "cell_cycle_score_tbl",
-                                 "annotation_label_transfer_tbl",
-                                 "doublet_identification_tbl")
-    ) 
-    
-  )
-  
-}
+          hpc_iterate(
+            target_output = target_output, 
+            user_function = internal_de_function |> quote() , 
+            x = "pseudobulk_group_list" |> is_target(),
+            fi = factor_of_interest,
+            a = .abundance,
+            f = .formula,
+            m = method,
+            packages="tidybulk"
+          ) 
+        
+      
+        
+})
 
 
 # Define the generic function
@@ -843,7 +564,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
   # Empty droplets
   #-----------------------#
   
-  if(! "remove_empty_DropletUtils" %in% names(input_hpc))
+  if(! "empty_tbl" %in% names(input_hpc))
     target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
   
   #-----------------------#
@@ -851,48 +572,39 @@ evaluate_hpc.HPCell = function(input_hpc) {
   #-----------------------#
   
   if(
-    !("annotate_cell_type" %in% names(input_hpc) |
-    ( "remove_dead_scuttle" %in% names(input_hpc) & !is.null(input_hpc$remove_dead_scuttle$group_by))
-  ))
-      target_chunk_undefined_annotate_cell_type(input_hpc)
+    !("annotation_tbl" %in% names(input_hpc) |
+      ( "alive_tbl" %in% names(input_hpc) & !is.null(input_hpc$remove_dead_scuttle$group_by))
+    ))
+    target_chunk_undefined_annotate_cell_type(input_hpc)
   
   #-----------------------#
   # Remove dead
   #-----------------------#
   
-  if(! "remove_dead_scuttle" %in% names(input_hpc))
-      target_chunk_undefined_remove_dead_scuttle(input_hpc)
+  if(! "alive_tbl" %in% names(input_hpc))
+    target_chunk_undefined_remove_dead_scuttle(input_hpc)
   
   
   #-----------------------#
   # score cell cycle
   #-----------------------#
-  if(! "score_cell_cycle_seurat" %in% names(input_hpc))
-      target_chunk_undefined_score_cell_cycle_seurat(input_hpc)
+  if(! "cell_cycle_tbl" %in% names(input_hpc))
+    target_chunk_undefined_score_cell_cycle_seurat(input_hpc)
   
   #-----------------------#
   # Doublets
   #-----------------------#
   
-  if(! "remove_doublets_scDblFinder" %in% names(input_hpc))
-     target_chunk_undefined_remove_doublets_scDblFinder(input_hpc)
+  if(! "doublet_tbl" %in% names(input_hpc))
+    target_chunk_undefined_remove_doublets_scDblFinder(input_hpc)
   
   #-----------------------#
   # SCT
   #-----------------------#
   
-  if(! "normalise_abundance_seurat_SCT" %in% names(input_hpc))
+  if(! "sct_matrix" %in% names(input_hpc))
     target_chunk_undefined_normalise_abundance_seurat_SCT(input_hpc)
   
-  #-----------------------#
-  # Create single cell output
-  #-----------------------#
-  
-  tar_tier_append(
-    quote(preprocessing_output_factory),
-    input_hpc$initialisation$tier |> get_positions() ,
-    glue("{input_hpc$initialisation$store}.R")
-  )
   
   #-----------------------#
   # Close pipeline
@@ -903,7 +615,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
     target_list
   }, script = glue("{input_hpc$initialisation$store}.R"))
   
-  if(readRDS("temp_debug_step.rds") |> is.null())
+  if(input_hpc$initialisation$debug_step |> is.null())
     my_callr_function =  callr::r
   else
     my_callr_function =  NULL
@@ -930,10 +642,22 @@ evaluate_hpc.HPCell = function(input_hpc) {
   ) |> 
     remove_files_safely()
   
-  return(
-    tar_meta(store = glue("{input_hpc$initialisation$store}")) |> 
-      filter(name |> str_detect("preprocessing_output_S_?.*$")) 
-  )
+  # If get_single_cell is called then return the object 
+  if(input_hpc$last_call |> is.null() |> not())
+    return(
+      tar_meta(store = glue("{input_hpc$initialisation$store}")) |> 
+        filter(name |> str_detect("single_cell_?.*$"), type=="pattern") |> 
+        pull(name) |> 
+        map(tar_read_raw) |> 
+        unlist() |> 
+        do.call(cbind, args = _) 
+    )
+  
+  else
+    return(
+      tar_meta(store = glue("{input_hpc$initialisation$store}")) |> 
+        filter(name |> str_detect("single_cell_?.*$"), type=="pattern") 
+    )
 }
 
 #' @importFrom methods show

@@ -5,7 +5,7 @@ sample_column_file|stem|sample_column_file|0|skipped
 sample_column|stem|sample_column|0|skipped
 tissue|stem|tissue|0|skipped
 reference_label_fine|stem|reference_label_fine|0|skipped
-read_file|stem|read_file|0|skipped
+data_object|stem|data_object|0|skipped
 input_read_58a1fafa|branch|input_read|0|skipped
 input_read|pattern|input_read|1|skipped
 file|stem|file|0|skipped
