@@ -557,6 +557,14 @@ file_list |>
     #   )
   ) |> 
   
+  
+  hpc_report(
+    "empty_report", 
+    rmd_path = paste0(system.file(package = "HPCell"), "/rmd/test.Rmd"), 
+    empty_list = "empty_tbl" |> is_target(),
+    sample_names = "sample_names" |> is_target()
+  ) |> 
+  
   # ONLY APPLICABLE TO SCE FOR NOW
   tranform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
   
@@ -600,5 +608,5 @@ file_list |>
    test_differential_abundance(~ age_days, .abundance="counts", group_by_column = "monaco_first.labels.fine") |> 
 
   # For the moment only available for single cell
-  get_single_cell(target_input = "data_object")
+  get_single_cell(target_input = "data_object") 
 
