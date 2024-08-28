@@ -40,7 +40,6 @@ Imports:
   SingleR,
   celldex,
   scuttle,
-  CellChat,
   gridGraphics,
   scDblFinder,
   magrittr,
