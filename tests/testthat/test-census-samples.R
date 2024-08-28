@@ -129,14 +129,14 @@ files <- results |> mutate(sample_2 = basename(file_name) |> tools::file_path_sa
 
 
 #files |> slice(21:50) |> pull(file_name) |>
-files |>head(5) |> pull(file_name) |>
+files |> head(3) |> pull(file_name) |>
   initialise_hpc(
     gene_nomenclature = "ensembl",
     data_container_type = "anndata",
     #store = "~/scratch/Census/census_reanalysis/census-run-samples/50samples_null_empty_tbl_method/",
-    store = "~/scratch/Census/census_reanalysis/census-run-samples/try_azimuth_5samples/",
-    #debug_step = "alive_tbl_tier_1_365e6e7d163ec2b9",
-    tier = files |> head(5) |> pull(tier),
+    store = "~/scratch/Census/census_reanalysis/census-run-samples/pilot/",
+    #debug_step = "annotation_tbl_tier_1_dcafa11e20d45e82",
+    tier = files |> head(3) |> pull(tier),
     #tier = files |> slice(21:50) |> pull(tier),
     #computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
     computing_resources = list(
@@ -168,7 +168,7 @@ files |>head(5) |> pull(file_name) |>
     
   ) |> 
   #tranform_assay(fx =  purrr::map(1:20, ~identity), target_output = "sce_transformed") |> 
-  tranform_assay(fx = files |> head(5) |>
+  tranform_assay(fx = files |> head(3) |>
                    pull(transformation_function),
                  target_output = "sce_transformed") |>
   

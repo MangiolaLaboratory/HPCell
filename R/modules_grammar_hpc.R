@@ -1124,6 +1124,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
     "total_RNA_count_check.rds",
     "temp_group_by.rds",
     "factors_to_regress.rds",
+    "input_reference.rds",
     "pseudobulk_group_by.rds",
     "temp_tiers.rds",
     "temp_gene_nomenclature.rds",

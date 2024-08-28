@@ -207,27 +207,32 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     } else if (is.null(empty_droplets_tbl)) {return(NULL)}
     
     library(Seurat)
-    azimuth_annotation = input_read_RNA_assay |> RenameAssays(assay.name = assay, 
-                                                              new.assay.name = "RNA") |> 
-      Azimuth::RunAzimuth(reference = reference_azimuth, assay = "RNA", umap.name = "refUMAP") |> 
-      SCTransform(assay = "RNA") |> 
-      ScaleData(assay = "SCT") |>
-      RunPCA(assay = "SCT") |>
-      as_tibble() |>
-      select(.cell, any_of(
-        c(
-          "predicted.celltype.l1",
-          "predicted.celltype.l2",
-          "predicted.celltype.l3",
-          "predicted.celltype.l1.score",
-          "predicted.celltype.l2.score",
-          "predicted.celltype.l3.score"
-        )
-      ), matches("umap|UMAP")) |> 
-      nest(azimuth_scores_celltype = c(ends_with("score"), matches("umap|UMAP"))) |>
-      dplyr::rename(azimuth_predicted.celltype.l1 = predicted.celltype.l1,
-                    azimuth_predicted.celltype.l2 = predicted.celltype.l2,
-                    azimuth_predicted.celltype.l3 = predicted.celltype.l3)
+    azimuth_annotation = 
+      tryCatch({input_read_RNA_assay |> RenameAssays(assay.name = assay, 
+                                                     new.assay.name = "RNA") |> 
+          Azimuth::RunAzimuth(reference = reference_azimuth, assay = "RNA", umap.name = "refUMAP") |> 
+          SCTransform(assay = "RNA") |> 
+          ScaleData(assay = "SCT") |>
+          RunPCA(assay = "SCT") |>
+          as_tibble() |>
+          select(.cell, any_of(
+            c(
+              "predicted.celltype.l1",
+              "predicted.celltype.l2",
+              "predicted.celltype.l3",
+              "predicted.celltype.l1.score",
+              "predicted.celltype.l2.score",
+              "predicted.celltype.l3.score"
+            )
+          ), matches("umap|UMAP")) |> 
+          nest(azimuth_scores_celltype = c(ends_with("score"), matches("umap|UMAP"))) |>
+          dplyr::rename(azimuth_predicted.celltype.l1 = predicted.celltype.l1,
+                        azimuth_predicted.celltype.l2 = predicted.celltype.l2,
+                        azimuth_predicted.celltype.l3 = predicted.celltype.l3)},
+          error = function(e) {
+            print(e)
+            input_read_RNA_assay |> as_tibble() |> select(.cell)
+          })
     
     # Save
     modified_data <- data_annotated  |>
