@@ -488,6 +488,50 @@ library(crew.cluster)
 # InstallData("pbmcsca")
 # pbmcsca <- LoadData("pbmcsca") # save this to disk, so you can recall every time you execute HPCell
 
+computing_resources = crew_controller_local(workers = 8) #resource_tuned_slurm
+
+# tier = rep(c("tier_1", "tier_2"), times = 6),
+# computing_resources = list(
+#   
+#   crew_controller_local(
+#     name = "tier_1",
+#     workers = 4
+#   ),
+#   crew_controller_local(
+#     name = "tier_2",
+#     workers = 4
+#   )
+# )
+
+#   computing_resources = list(
+# 
+#   crew_controller_slurm(
+#     name = "tier_1",
+#     slurm_memory_gigabytes_per_cpu = 5,
+#     slurm_cpus_per_task = 1,
+#     workers = 50,
+#     tasks_max = 5,
+#     verbose = T
+#   ),
+#   crew_controller_slurm(
+#     name = "tier_2",
+#     slurm_memory_gigabytes_per_cpu = 10,
+#     slurm_cpus_per_task = 1,
+#     workers = 50,
+#     tasks_max = 5,
+#     verbose = T
+#   )
+# )
+
+# #  Slurm resources
+# computing_resources =
+#   crew.cluster::crew_controller_slurm(
+#     slurm_memory_gigabytes_per_cpu = 5,
+#     workers = 500,
+#     tasks_max = 5,
+#     verbose = T,
+#     slurm_cpus_per_task = 1
+#   )
 
 # # Define and execute the pipeline
 file_list = 
@@ -504,59 +548,19 @@ file_list =
 
   # Initialise pipeline characteristics
 file_list |> 
+  head(2) |> 
   initialise_hpc(
     gene_nomenclature = "symbol",
     data_container_type = "sce_hdf5",
-    
+    computing_resources = computing_resources
     # debug_step = "non_batch_variation_removal_S_1",
 
     # Default resourced 
-   computing_resources = crew_controller_local(workers = 8), #resource_tuned_slurm
-  
-   # tier = rep(c("tier_1", "tier_2"), times = 6),
-   # computing_resources = list(
-   #   
-   #   crew_controller_local(
-   #     name = "tier_1",
-   #     workers = 4
-   #   ),
-   #   crew_controller_local(
-   #     name = "tier_2",
-   #     workers = 4
-   #   )
-   # )
    
-  #   computing_resources = list(
-  # 
-  #   crew_controller_slurm(
-  #     name = "tier_1",
-  #     slurm_memory_gigabytes_per_cpu = 5,
-  #     slurm_cpus_per_task = 1,
-  #     workers = 50,
-  #     tasks_max = 5,
-  #     verbose = T
-  #   ),
-  #   crew_controller_slurm(
-  #     name = "tier_2",
-  #     slurm_memory_gigabytes_per_cpu = 10,
-  #     slurm_cpus_per_task = 1,
-  #     workers = 50,
-  #     tasks_max = 5,
-  #     verbose = T
-  #   )
-  # )
-    
-  # #  Slurm resources
-    # computing_resources =
-    #   crew.cluster::crew_controller_slurm(
-    #     slurm_memory_gigabytes_per_cpu = 5,
-    #     workers = 500,
-    #     tasks_max = 5,
-    #     verbose = T,
-    #     slurm_cpus_per_task = 1
-    #   )
   ) |> 
   
+  # ONLY APPLICABLE TO SCE FOR NOW
+  tranform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
   
   hpc_report(
     "empty_report", 
@@ -565,9 +569,7 @@ file_list |>
     sample_names = "sample_names" |> is_target()
   ) |> 
   
-  # ONLY APPLICABLE TO SCE FOR NOW
-  tranform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
-  
+
   hpc_iterate(
     target_output = "o",
     user_function = function(x, y){x |> dplyr::mutate(bla = y)},

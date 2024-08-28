@@ -21,10 +21,13 @@ tranform_assay.HPCell = function(
   
   input_hpc |> 
     
+    # Track the file
+    hpc_single("transform_file", "temp_fx.rds", format = "file") |> 
+  
     hpc_iterate(
       target_output = "transform", 
       user_function = readRDS |> quote() ,
-      file = "temp_fx.rds"
+      file = "transform_file" |> is_target()
       # ,
       # iteration = "list", 
       # deployment = "main"

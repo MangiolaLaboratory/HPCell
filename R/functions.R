@@ -1530,4 +1530,10 @@ annotation_consensus = function(single_cell_data, .sample_column, .cell_type, .a
 
 
 #' @export
-is_target = function(x) as.name(x) 
+is_target = function(x) {
+  
+  if(x |> is("character") |> not())
+    stop("HPCell says: the input to `is_target` must be a character")
+  
+  as.name(x) 
+} 

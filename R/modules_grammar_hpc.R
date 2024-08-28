@@ -56,8 +56,7 @@ initialise_hpc <- function(input_hpc,
     input_hpc = input_hpc |> set_names(seq_len(length(input_hpc)))
   
   input_hpc |> names() |> saveRDS("sample_names.rds")
-  #cell_count |> saveRDS("cell_count.rds")
-  
+
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
@@ -72,8 +71,6 @@ initialise_hpc <- function(input_hpc,
   computing_resources |> saveRDS("temp_computing_resources.rds")
   tiers = tier |> 
     get_positions() 
-  tiers |> 
-    saveRDS("temp_tiers.rds")
   
   # Write pipeline to a file
   {
@@ -99,12 +96,7 @@ initialise_hpc <- function(input_hpc,
       packages = c("HPCell")
     )
     
-    target_list = list(
-      tar_target(gene_nomenclature, readRDS("temp_gene_nomenclature.rds"), iteration = "list", deployment = "main"),
-      tar_target(data_container_type, readRDS("data_container_type.rds"), deployment = "main")
-      
-    )
-    
+    target_list = list(  )
     
     } |> 
     substitute(env = list(d = debug_step)) |> 
@@ -113,25 +105,50 @@ initialise_hpc <- function(input_hpc,
   
   input_hpc = 
     list(initialisation = args_list ) |>
-    c(list(sample_names = list(iterate = "map")) ) |> 
-    
+
     add_class("HPCell")
   
   
   input_hpc |> 
     
+    # Nomenclature
+    hpc_single("temp_gene_nomenclature_file", "temp_gene_nomenclature.rds", format = "file") |> 
+    
+    hpc_single(
+      target_output = "gene_nomenclature", 
+      user_function = readRDS |> quote(),
+      file = "temp_gene_nomenclature_file" |> is_target(), 
+      deployment = "main"
+    ) |>
+    
+    # Container class
+    hpc_single("data_container_type_file", "data_container_type.rds", format = "file") |> 
+    
+    hpc_single(
+      target_output = "data_container_type", 
+      user_function = readRDS |> quote(),
+      file = "data_container_type_file" |> is_target(), 
+      deployment = "main"
+    ) |>
+    
+    # Sample names
+    hpc_single("sample_names_file", "sample_names.rds", format = "file") |> 
+    
     hpc_single(
       target_output = "sample_names", 
       user_function = readRDS |> quote(),
-      file = "sample_names.rds", 
+      file = "sample_names_file" |> is_target(), 
       deployment = "main", 
       iterate = "map"
     ) |> 
     
+    # Files
+    hpc_single("read_file_list_file", "input_file.rds", format = "file") |> 
+    
     hpc_single(
       target_output = "read_file_list", 
       user_function = readRDS |> quote(),
-      file = "input_file.rds", 
+      file = "read_file_list_file" |> is_target(), 
       deployment = "main", 
       iterate = "map"
     ) |> 
@@ -612,7 +629,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
   
   # Call final list
   tar_script_append({
-    target_list
+    target_list 
   }, script = glue("{input_hpc$initialisation$store}.R"))
   
   if(input_hpc$initialisation$debug_step |> is.null())
@@ -637,7 +654,6 @@ evaluate_hpc.HPCell = function(input_hpc) {
     "temp_group_by.rds",
     "factors_to_regress.rds",
     "pseudobulk_group_by.rds",
-    "temp_tiers.rds",
     "temp_gene_nomenclature.rds"
   ) |> 
     remove_files_safely()

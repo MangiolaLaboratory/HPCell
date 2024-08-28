@@ -49,26 +49,32 @@ hpc_internal = function(
     other_arguments_to_map = c(), 
     packages = targets::tar_option_get("packages") , 
     deployment = targets::tar_option_get("deployment"),
+    format = targets::tar_option_get("format"),
     ...
 ){
   
   args <- list(...)  # Capture the ... arguments as a list
   
-  # Construct the full call expression with the pipeline substituted into the function
-  fx_call <- as.call(c(user_function, args))
+  
+  # If format is file just pass the argument
+  if(format != "file")
+    
+    # Construct the full call expression with the pipeline substituted into the function
+    user_function <- as.call(c(user_function, args))
   
   if(tiers |> is.null() || tiers |> length() < 2){
     
       tar_target_raw(
         name = target_output |> as.character(), 
-        command = fx_call,
+        command = user_function,
         
         # This is in case I am not tiering (e.g. DE analyses) but I need to map
         pattern = build_pattern(other_arguments_to_map = other_arguments_to_map),
         
         iteration = "list", 
         packages = packages,
-        deployment = deployment
+        deployment = deployment,
+        format = format
 
 
       )
@@ -78,7 +84,7 @@ hpc_internal = function(
   
   else {
     
-    if(fx_call |> deparse() |> str_detect("%>%") |> any()) 
+    if(user_function |> deparse() |> str_detect("%>%") |> any()) 
       stop("HPCell says: no \"%>%\" allowed in the command, please use \"|>\" ")
     
     # Filter out arguments to be tiered from the input command
@@ -93,7 +99,7 @@ hpc_internal = function(
           
           # This is needed because using glue
           as.character() , 
-        command = fx_call |>  add_tier_inputs(arguments_already_tiered, .y),
+        command = user_function |>  add_tier_inputs(arguments_already_tiered, .y),
         pattern = 
           build_pattern(
             other_arguments_to_map = glue("{other_arguments_to_map}_{.y}"), 
@@ -103,7 +109,8 @@ hpc_internal = function(
         iteration = "list",
         packages = packages, 
         deployment = deployment,
-        resources = tar_resources(crew = tar_resources_crew(.y)) 
+        resources = tar_resources(crew = tar_resources_crew(.y)) ,
+        format = format
       )
     })
     
