@@ -768,16 +768,8 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   
 
   if (class_input == "SingleCellExperiment") {
-    dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
     
-    
-    # Write the slice to the output HDF5 file
-    normalized_rna |> 
-      HDF5Array::writeHDF5Array(
-      filepath = glue("{external_path}/{digest(normalized_rna)}"),
-      name = "SCT",
-      as.sparse = TRUE
-    ) 
+    write_HDF5_array_safe(normalized_rna, "SCT", external_path)
     
   } else if (class_input ==  "Seurat") {
     

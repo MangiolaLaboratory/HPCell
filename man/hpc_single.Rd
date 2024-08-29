@@ -8,6 +8,7 @@ hpc_single(
   input_hpc,
   target_output = NULL,
   user_function = NULL,
+  user_function_source_path = NULL,
   iterate = "none",
   ...
 )

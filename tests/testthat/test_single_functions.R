@@ -533,6 +533,11 @@ computing_resources = crew_controller_local(workers = 8) #resource_tuned_slurm
 #     slurm_cpus_per_task = 1
 #   )
 
+{ foo_function = function(x, y){x |> dplyr::mutate(foo = y)} } |> 
+  substitute() |> 
+  deparse() |> 
+  readr::write_lines("dev/my_custom_script.R")
+
 # # Define and execute the pipeline
 file_list = 
 #   c("dev/input_seurat_treated_1.rds",
@@ -543,7 +548,8 @@ file_list =
 #   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) 
 #   
   
-    dir("dev/CAQ_sce/", full.names = T) 
+    dir("dev/CAQ_sce/", full.names = T) |> 
+  head(3)
 
 
   # Initialise pipeline characteristics
@@ -551,8 +557,8 @@ file_list |>
   initialise_hpc(
     gene_nomenclature = "symbol",
     data_container_type = "sce_hdf5",
-    computing_resources = computing_resources
-    # debug_step = "non_batch_variation_removal_S_1",
+    computing_resources = computing_resources,
+    # debug_step = "empty_report",
 
     # Default resourced 
    
@@ -570,12 +576,20 @@ file_list |>
   
 
   hpc_iterate(
-    target_output = "o",
-    user_function = function(x, y){x |> dplyr::mutate(bla = y)},
+    target_output = "bar",
+    user_function = function(x, y){x |> dplyr::mutate(bar = y)},
     x = "data_object" |> is_target(),
     y = "works"
   ) |>
 
+  hpc_iterate(
+    target_output = "foo",
+    user_function = foo_function |> quote(),
+    x = "data_object" |> is_target(),
+    y = "works", 
+    user_function_source_path = "dev/my_custom_script.R" |> here::here()
+  ) |>
+  
   # Remove empty outliers
   remove_empty_DropletUtils( target_input = "sce_transformed") |> 
   
@@ -606,7 +620,7 @@ file_list |>
   calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "data_object") |> 
   
   # test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts") |> 
-   test_differential_abundance(~ age_days, .abundance="counts", group_by_column = "monaco_first.labels.fine") |> 
+  test_differential_abundance(~ age_days, .abundance="counts", group_by_column = "monaco_first.labels.fine") |> 
 
   # For the moment only available for single cell
   get_single_cell(target_input = "data_object") 

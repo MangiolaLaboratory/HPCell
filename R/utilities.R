@@ -2606,3 +2606,39 @@ build_pattern = function(arguments_to_tier = c(), other_arguments_to_map = c(), 
   
 }
 
+write_source = function(user_function_source_path, target_script){
+  if(user_function_source_path |> is.null() |> not())
+    
+    source(s) |> 
+      substitute(env = list(s =user_function_source_path )) |> 
+      deparse() |> 
+      write_lines(target_script, append = TRUE)
+}
+
+target_append <- function(list_var, ...) {
+  list_var <<- c(list_var, list(...))
+}
+
+write_HDF5_array_safe = function(normalized_rna, name, directory){
+  
+  dir.create(directory, showWarnings = FALSE, recursive = TRUE)
+  
+  hash = digest(normalized_rna)
+  file_name = glue("{directory}/{hash}")
+  
+  if (
+    file.exists(file_name) &&
+    name %in% rhdf5::h5ls(file_name)$name
+  ) {
+    names_to_drop = rhdf5::h5ls(file_name)$name |> str_subset(name)
+    names_to_drop |> map(~rhdf5::h5delete(file_name, .x))
+  }
+  
+  normalized_rna |> 
+    HDF5Array::writeHDF5Array(
+      filepath = file_name,
+      name = name,
+      as.sparse = TRUE
+    ) 
+  
+}

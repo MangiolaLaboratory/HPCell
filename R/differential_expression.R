@@ -202,7 +202,7 @@ map_de = function(se, my_formula, assay, method, max_rows_for_matrix_multiplicat
 
 #' @export
 #' @noRd
-internal_de_function = function(x, fi, a, f, m){
+internal_de_function = function(x, fi, a, formul, m){
   
   # Skip if not enough samples
   if(x |> ncol() < 3) warning("HPCell says: your dataset has less than 3 samples, the differential expression analysis was skipped")
@@ -210,7 +210,7 @@ internal_de_function = function(x, fi, a, f, m){
   
   x |>
     keep_abundant(factor_of_interest = fi, .abundance = !!sym(a)) |> 
-    test_differential_abundance(f, .abundance = !!sym(a),  method = m) |> 
+    test_differential_abundance(formul, .abundance = !!sym(a),  method = m) |> 
     pivot_transcript() |> 
     
     # This because fi can be NULL. 

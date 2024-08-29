@@ -201,7 +201,13 @@ hpc_internal_report = function(
 #' @importFrom purrr set_names
 #' @export
 hpc_iterate = 
-  function(input_hpc, target_output = NULL, user_function = NULL, ...) {
+  function(
+    input_hpc, 
+    target_output = NULL, 
+    user_function = NULL, 
+    user_function_source_path = NULL,
+    ...
+  ) {
     
     # Check for argument consistency
     check_for_name_value_conflicts(...)
@@ -212,6 +218,9 @@ hpc_iterate =
     # Delete line with target in case the user execute the command, without calling initialise_hpc
     target_output |>  delete_lines_with_word(target_script)
     
+    # Append source if any
+    write_source(user_function_source_path, target_script)
+      
     # please, because sometime we set up list target that do not depend on any other ones
     # if tiers is set to NULL, then the target will not acquire the _<tier> suffix
     # I HAVE TO MAKE THIS MORE ELEGANT, AND NOT RELY ON tiers ARGUMENT
@@ -276,13 +285,23 @@ hpc_iterate =
 #' @importFrom purrr set_names
 #' @export
 hpc_single = 
-  function(input_hpc, target_output = NULL, user_function = NULL, iterate = "none", ...) {
+  function(
+    input_hpc, 
+    target_output = NULL, 
+    user_function = NULL, 
+    user_function_source_path = NULL,
+    iterate = "none", 
+    ...) {
     
     # Target script
     target_script = glue("{input_hpc$initialisation$store}.R")
     
     # Delete line with target in case the user execute the command, without calling initialise_hpc
     target_output |>  delete_lines_with_word(target_script)
+    
+    # Append source if any
+    write_source(user_function_source_path, target_script)
+    
     
     tar_append(
       fx = hpc_internal |> quote(),
@@ -321,7 +340,13 @@ hpc_single =
 #' @importFrom purrr set_names
 #' @export
 hpc_merge = 
-  function(input_hpc, target_output = NULL, user_function = NULL, ...) {
+  function(
+    input_hpc, 
+    target_output = NULL, 
+    user_function = NULL, 
+    user_function_source_path = NULL,
+    ...
+  ) {
     
     # Check for argument consistency
     check_for_name_value_conflicts(...)
@@ -332,17 +357,8 @@ hpc_merge =
     # Delete line with target in case the user execute the command, without calling initialise_hpc
     target_output |>  delete_lines_with_word(target_script)
     
-    # name_target_intermediate = glue("{target_output}_merge_within_tier")
-    
-    # tar_append(
-    #   fx = hpc_internal |> quote(),
-    #   tiers = input_hpc$initialisation$tier |> get_positions() ,
-    #   target_output = name_target_intermediate,
-    #   script = target_script,
-    #   user_function = user_function,
-    #   arguments_already_tiered = list(...) |> arguments_to_action(input_hpc, "tiered") , # This "tiered" value is decided for each new target below. Ususally every other list targets.
-    #   ...
-    # )
+    # Append source if any
+    write_source(user_function_source_path, target_script)
     
     
     # If no tiers

@@ -556,7 +556,7 @@ setMethod(
             x = "pseudobulk_group_list" |> is_target(),
             fi = factor_of_interest,
             a = .abundance,
-            f = .formula,
+            formul = .formula,
             m = method,
             packages="tidybulk"
           ) 

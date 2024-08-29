@@ -4,7 +4,13 @@
 \alias{hpc_iterate}
 \title{Add HPC step to pipeline}
 \usage{
-hpc_iterate(input_hpc, target_output = NULL, user_function = NULL, ...)
+hpc_iterate(
+  input_hpc,
+  target_output = NULL,
+  user_function = NULL,
+  user_function_source_path = NULL,
+  ...
+)
 }
 \arguments{
 \item{input_hpc}{The input HPC object.}
