@@ -548,7 +548,6 @@ file_list =
 
   # Initialise pipeline characteristics
 file_list |> 
-  head(2) |> 
   initialise_hpc(
     gene_nomenclature = "symbol",
     data_container_type = "sce_hdf5",
@@ -578,7 +577,7 @@ file_list |>
   ) |>
 
   # Remove empty outliers
-  remove_empty_DropletUtils( target_input = "data_object") |> 
+  remove_empty_DropletUtils( target_input = "sce_transformed") |> 
   
   # Annotation
   annotate_cell_type(

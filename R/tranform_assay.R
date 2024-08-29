@@ -38,7 +38,7 @@ tranform_assay.HPCell = function(
       user_function = transform_utility |> quote() , 
       input_read_RNA_assay = as.name(target_input), 
       transform_fx = transform |> quote() ,
-      external_path = glue("{input_hpc$initialisation$store}/external")
+      external_path = glue("{input_hpc$initialisation$store}/external") |> as.character()
     )
   
 }
@@ -75,5 +75,4 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path)
       as.sparse=TRUE
     )
   
-  file_name
 }
