@@ -509,7 +509,7 @@ alive_identification <- function(input_read_RNA_assay,
 doublet_identification <- function(input_read_RNA_assay, 
                                    empty_droplets_tbl, 
                                    alive_identification_tbl, 
-                                   annotation_label_transfer_tbl, 
+                                   #annotation_label_transfer_tbl, 
                                    #reference_label_fine,
                                    assay = NULL){
   
@@ -549,7 +549,7 @@ doublet_identification <- function(input_read_RNA_assay,
   }
   # Annotate
   filter_empty_droplets <- filter_empty_droplets |> 
-    left_join(annotation_label_transfer_tbl, by = ".cell")|>
+    #left_join(annotation_label_transfer_tbl, by = ".cell")|>
     #scDblFinder(clusters = ifelse(reference_label_fine=="none", TRUE, reference_label_fine)) |>
     scDblFinder(clusters = NULL) 
   
@@ -936,7 +936,8 @@ preprocessing_output <- function(input_read_RNA_assay,
 #' @export
 
 # Create pseudobulk for each sample 
-create_pseudobulk <- function(input_read_RNA_assay, sample_names, 
+create_pseudobulk <- function(input_read_RNA_assay, 
+                              sample_names_vec, 
                               empty_droplets_tbl,
                               alive_identification_tbl,
                               cell_cycle_score_tbl,
@@ -953,13 +954,15 @@ create_pseudobulk <- function(input_read_RNA_assay, sample_names,
   dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
   
   preprocessing_output_S = 
-    preprocessing_output(input_read_RNA_assay,
+    preprocessing_output(
+        input_read_RNA_assay,
          empty_droplets_tbl,
          non_batch_variation_removal_S = NULL, 
          alive_identification_tbl, 
          cell_cycle_score_tbl, 
          annotation_label_transfer_tbl, 
-         doublet_identification_tbl)
+         doublet_identification_tbl
+        )
 
   
   if(assays |> is.null()){
@@ -975,7 +978,7 @@ create_pseudobulk <- function(input_read_RNA_assay, sample_names,
     preprocessing_output_S |> 
     
     # Add sample
-    mutate(sample_hpc = sample_names) |> 
+    mutate(sample_hpc = sample_names_vec) |> 
     
     # Aggregate
     tidySingleCellExperiment::aggregate_cells(c(sample_hpc, !!sym(x)), 
@@ -1037,7 +1040,11 @@ create_pseudobulk <- function(input_read_RNA_assay, sample_names,
 #' 
 #' @export
 #' 
-pseudobulk_merge <- function(pseudobulk_list, ...) {
+pseudobulk_merge <- function(pseudobulk_list, external_path, ...) {
+  
+  dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
+  
+  
   # Fix GCHECKS 
   . = NULL 
 
@@ -1060,7 +1067,8 @@ pseudobulk_merge <- function(pseudobulk_list, ...) {
     as.character()
   
   
-  output_path_sample <- pseudobulk_list |>
+  se <- pseudobulk_list |>
+    
     # Add missing genes
     purrr::map(~{
       missing_genes = all_genes |> setdiff(rownames(.x))
@@ -1073,10 +1081,18 @@ pseudobulk_merge <- function(pseudobulk_list, ...) {
     
     purrr::map(~ .x |> dplyr::select(any_of(common_columns)))   %>%
     
-    do.call(S4Vectors::cbind, .)
+    do.call(S4Vectors::cbind, .) 
+  
+  
+  file_name = glue("{external_path}/{digest(se)}")
+
+  se = 
+    se |> 
+  
+    saveHDF5SummarizedExperiment(dir = file_name, replace=TRUE, as.sparse=TRUE) 
   
   # Return the pseudobulk data for this single sample
-  return(output_path_sample)
+  return(se)
 }
 
 
@@ -1497,4 +1513,11 @@ annotation_consensus = function(single_cell_data, .sample_column, .cell_type, .a
 }
 
 
-
+#' @export
+is_target = function(x) {
+  
+  if(x |> is("character") |> not())
+    stop("HPCell says: the input to `is_target` must be a character")
+  
+  as.name(x) 
+} 

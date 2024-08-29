@@ -1,6 +1,6 @@
 Package: HPCell
 Title: Massively-parallel R native pipeline for single-cell analysis
-Version: 0.2.1
+Version: 0.3.2
 Authors@R: c(person("Stefano", "Mangiola", email = "mangiolastefano@gmail.com",
                   role = c("aut", "cre")),
                   person("Jiayi", "Si", email = "si.j@wehi.edu.au",
@@ -44,7 +44,6 @@ Imports:
   SingleR,
   celldex,
   scuttle,
-  CellChat,
   gridGraphics,
   scDblFinder,
   magrittr,

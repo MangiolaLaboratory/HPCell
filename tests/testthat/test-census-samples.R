@@ -128,17 +128,15 @@ files <- results |> mutate(sample_2 = basename(file_name) |> tools::file_path_sa
                                                                file_size = file_size.x)
 
 
+file_list = files |> slice(21:50)
 #files |> slice(21:50) |> pull(file_name) |>
-files |> head(3) |> pull(file_name) |>
+file_list |> pull(file_name) |>
   initialise_hpc(
     gene_nomenclature = "ensembl",
     data_container_type = "anndata",
-    #store = "~/scratch/Census/census_reanalysis/census-run-samples/50samples_null_empty_tbl_method/",
     store = "~/scratch/Census/census_reanalysis/census-run-samples/pilot/",
-    #debug_step = "annotation_tbl_tier_1_dcafa11e20d45e82",
-    tier = files |> head(3) |> pull(tier),
-    #tier = files |> slice(21:50) |> pull(tier),
-    #computing_resources = crew_controller_local(workers = 10) #resource_tuned_slurm
+    debug_step = "annotation_tbl_tier_1_2c972bb65c135dbb",
+    tier = file_list |> pull(tier),
     computing_resources = list(
 
       crew_controller_slurm(
@@ -168,35 +166,35 @@ files |> head(3) |> pull(file_name) |>
     
   ) |> 
   #tranform_assay(fx =  purrr::map(1:20, ~identity), target_output = "sce_transformed") |> 
-  tranform_assay(fx = files |> head(3) |>
+  tranform_assay(fx = file_list |>
                    pull(transformation_function),
                  target_output = "sce_transformed") |>
   
   # Remove empty outliers based on RNA count threshold per cell
-  remove_empty_threshold(target_input = "sce_transformed", RNA_feature_threshold = 200 ) |>
+  remove_empty_threshold(target_input = "data_object", RNA_feature_threshold = 200 ) |>
   
   # Remove empty outliers
-  #remove_empty_DropletUtils(target_input = "sce_transformed") |>
+  #remove_empty_DropletUtils(target_input = "data_object") |>
   
   # Remove dead cells
-  remove_dead_scuttle(target_input = "sce_transformed") |>
+  remove_dead_scuttle(target_input = "data_object") |>
   
   # Score cell cycle
-  score_cell_cycle_seurat(target_input = "sce_transformed") |>
+  score_cell_cycle_seurat(target_input = "data_object") |>
   
   # Remove doublets
-  remove_doublets_scDblFinder(target_input = "sce_transformed") |>
+  remove_doublets_scDblFinder(target_input = "data_object") |>
   
   # Annotation
-  annotate_cell_type(target_input = "sce_transformed", azimuth_reference = "pbmcref") |>
+  annotate_cell_type(target_input = "data_object", azimuth_reference = "pbmcref") |>
   
   normalise_abundance_seurat_SCT(factors_to_regress = c(
     "subsets_Mito_percent",
     "subsets_Ribo_percent",
     "G2M.Score"
-  ), target_input = "sce_transformed")
+  ), target_input = "data_object")
   
-  # calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "sce_transformed") |>
+# calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "sce_transformed") |>
    # 
    # # test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts") |>
    # # #test_differential_abundance(~ age_days, .abundance="counts")
