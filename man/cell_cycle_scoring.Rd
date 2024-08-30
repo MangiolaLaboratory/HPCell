@@ -6,7 +6,7 @@
 \usage{
 cell_cycle_scoring(
   input_read_RNA_assay,
-  empty_droplets_tbl,
+  empty_droplets_tbl = NULL,
   gene_nomenclature,
   assay = NULL
 )

@@ -260,7 +260,6 @@ target_chunk_undefined_remove_dead_scuttle = function(input_hpc){
 }
 
 
-
 # Define the generic function
 #' @export
 score_cell_cycle_seurat <- function(input_hpc, target_input = "data_object", target_output = "cell_cycle_tbl",...) {
@@ -295,20 +294,26 @@ target_chunk_undefined_score_cell_cycle_seurat = function(input_hpc, target_inpu
 
 # Define the generic function
 #' @export
-remove_doublets_scDblFinder <- function(input_hpc, target_input = "data_object", target_output = "doublet_tbl") {
+remove_doublets_scDblFinder <- function(
+    input_hpc, target_input = "data_object", target_output = "doublet_tbl",  
+    target_empry_droplets = "empty_tbl", target_alive = "alive_tbl"
+  ) {
   UseMethod("remove_doublets_scDblFinder")
 }
 
 #' @export
-remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "data_object", target_output = "doublet_tbl") {
+remove_doublets_scDblFinder.HPCell = function(
+    input_hpc, target_input = "data_object", target_output = "doublet_tbl", 
+    target_empry_droplets = "empty_tbl", target_alive = "alive_tbl"
+  ) {
   
   input_hpc |> 
     hpc_iterate(
       target_output = target_output, 
       user_function = doublet_identification |> quote() , 
       input_read_RNA_assay = target_input |> is_target(), 
-      empty_droplets_tbl = "empty_tbl" |> is_target() ,
-      alive_identification_tbl = "alive_tbl" |> is_target()
+      empty_droplets_tbl = target_empry_droplets |> is_target() ,
+      alive_identification_tbl = target_alive |> is_target()
     )
   
 }
@@ -577,52 +582,52 @@ evaluate_hpc <- function(input_hpc) {
 #' @export
 evaluate_hpc.HPCell = function(input_hpc) {
   
-  #-----------------------#
-  # Empty droplets
-  #-----------------------#
-  
-  if(! "empty_tbl" %in% names(input_hpc))
-    target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
-  
-  #-----------------------#
-  # Annotate cell type
-  #-----------------------#
-  
-  if(
-    !("annotation_tbl" %in% names(input_hpc) |
-      ( "alive_tbl" %in% names(input_hpc) & !is.null(input_hpc$remove_dead_scuttle$group_by))
-    ))
-    target_chunk_undefined_annotate_cell_type(input_hpc)
-  
-  #-----------------------#
-  # Remove dead
-  #-----------------------#
-  
-  if(! "alive_tbl" %in% names(input_hpc))
-    target_chunk_undefined_remove_dead_scuttle(input_hpc)
-  
-  
-  #-----------------------#
-  # score cell cycle
-  #-----------------------#
-  if(! "cell_cycle_tbl" %in% names(input_hpc))
-    target_chunk_undefined_score_cell_cycle_seurat(input_hpc)
-  
-  #-----------------------#
-  # Doublets
-  #-----------------------#
-  
-  if(! "doublet_tbl" %in% names(input_hpc))
-    target_chunk_undefined_remove_doublets_scDblFinder(input_hpc)
-  
-  #-----------------------#
-  # SCT
-  #-----------------------#
-  
-  if(! "sct_matrix" %in% names(input_hpc))
-    target_chunk_undefined_normalise_abundance_seurat_SCT(input_hpc)
-  
-  
+  # #-----------------------#
+  # # Empty droplets
+  # #-----------------------#
+  # 
+  # if(! "empty_tbl" %in% names(input_hpc))
+  #   target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
+  # 
+  # #-----------------------#
+  # # Annotate cell type
+  # #-----------------------#
+  # 
+  # if(
+  #   !("annotation_tbl" %in% names(input_hpc) |
+  #     ( "alive_tbl" %in% names(input_hpc) & !is.null(input_hpc$remove_dead_scuttle$group_by))
+  #   ))
+  #   target_chunk_undefined_annotate_cell_type(input_hpc)
+  # 
+  # #-----------------------#
+  # # Remove dead
+  # #-----------------------#
+  # 
+  # if(! "alive_tbl" %in% names(input_hpc))
+  #   target_chunk_undefined_remove_dead_scuttle(input_hpc)
+  # 
+  # 
+  # #-----------------------#
+  # # score cell cycle
+  # #-----------------------#
+  # if(! "cell_cycle_tbl" %in% names(input_hpc))
+  #   target_chunk_undefined_score_cell_cycle_seurat(input_hpc)
+  # 
+  # #-----------------------#
+  # # Doublets
+  # #-----------------------#
+  # 
+  # if(! "doublet_tbl" %in% names(input_hpc))
+  #   target_chunk_undefined_remove_doublets_scDblFinder(input_hpc)
+  # 
+  # #-----------------------#
+  # # SCT
+  # #-----------------------#
+  # 
+  # if(! "sct_matrix" %in% names(input_hpc))
+  #   target_chunk_undefined_normalise_abundance_seurat_SCT(input_hpc)
+  # 
+  # 
   #-----------------------#
   # Close pipeline
   #-----------------------#
