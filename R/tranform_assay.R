@@ -33,15 +33,6 @@ tranform_assay.HPCell = function(
       # deployment = "main"
     ) |> 
     
-    # # Load data container type
-    # hpc_single("data_container_type_file", "data_container_type.rds", format = "file") |>
-    # 
-    # hpc_single(
-    #   target_output = "data_type",
-    #   user_function = readRDS |> quote(),
-    #   file = "data_container_type_file" |> is_target()
-    # ) |>
-    
     hpc_iterate(
       target_output = target_output, 
       user_function = transform_utility |> quote() , 
@@ -95,7 +86,8 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
                       "anndata" = ".h5ad",
                       "sce_hdf5" = "")
   file_name = paste0(file_name, extension)
-  file_name
+  # Return data as target instead of file_name pointer
+  input_read_RNA_assay
 }
   
   

@@ -16,15 +16,15 @@ library(targets)
 library(stringr)
 directory = "~/cellxgene_curated/census_samples/anndata"
 store = "~/scratch/Census/census_reanalysis/census-run-samples"
-files <- dir(glue("{directory}"), full.names = T) |> head(50)
+files <- dir(glue("{directory}"), full.names = T)
 # results <- purrr::map_dfr(files, function(file_path) {
 #   data <- zellkonverter::readH5AD(file_path, use_hdf5 = TRUE, reader = "R", verbose = TRUE)
 # 
 #   cell_number <- length(colnames(data))
 # 
 # 
-#   file_size <- file.info(file_path)$size / 1073741824
-#   
+#   file_size <- file.info(file_path)$size / 1024^3
+# 
 #   # nFeature_threshold
 # 
 #   tibble(file_name = file_path,
@@ -32,15 +32,17 @@ files <- dir(glue("{directory}"), full.names = T) |> head(50)
 #          file_size = file_size)
 # })
 
-#results |> saveRDS(glue("{store}/sample_tiers.rds"))
-results <- readRDS(glue("{store}/sample_tiers.rds"))
+#results <- readRDS(glue("{store}/sample_tiers.rds"))
+results <- tar_read(results, store = glue("{store}/sample_tiers_dataframe_targets"))
 
 tiers_dataframe <- results |>
   mutate(file_name = file_name,
          file_size = round(file_size, 3),
          tier = case_when(cell_number < 6000 ~ "tier_1",
-                          cell_number > 6000 & cell_number < 10000 ~ "tier_2",
-                          cell_number > 10000 & cell_number < 20000 ~ "tier_3"),
+                          cell_number > 6000 & cell_number <= 10000 ~ "tier_2",
+                          cell_number > 10000 & cell_number < 20000 ~ "tier_3",
+                          cell_number > 20000 & cell_number < 40000 ~ "tier_4",
+                          cell_number > 40000 ~ "tier_5"),
          set_names = basename(file_name) |> stringr::str_remove("\\.h5ad$"))
 
 result_directory = "/vast/projects/cellxgene_curated/metadata_cellxgenedp_Apr_2024"
@@ -121,27 +123,27 @@ df <- samples |> left_join(sample_meta, by = "dataset_id") |> distinct(dataset_i
   ))
 
 
-files <- results |> mutate(sample_2 = basename(file_name) |> tools::file_path_sans_ext()) |> 
+files <- results |> mutate(sample_2 = basename(file_name) |> stringr::str_remove("\\.h5ad$")) |> 
   left_join(df, by = "sample_2") |> left_join(tiers_dataframe, by = c("sample_2"= "set_names")) |> 
   select(-file_name.y, -cell_number.y, -file_size.y) |> rename(file_name = file_name.x,
                                                                cell_number = cell_number.x,
                                                                file_size = file_size.x)
 
 
-file_list = files |> slice(21:50)
-#files |> slice(21:50) |> pull(file_name) |>
+file_list = files |> head(100)
+
 file_list |> pull(file_name) |>
   initialise_hpc(
     gene_nomenclature = "ensembl",
     data_container_type = "anndata",
-    store = "~/scratch/Census/census_reanalysis/census-run-samples/pilot/",
-    debug_step = "annotation_tbl_tier_1_2c972bb65c135dbb",
+    store = "~/scratch/Census/census_reanalysis/census-run-samples/50samples_pilot/",
+    #debug_step = "empty_tbl_69e0f0d88e44d787",
     tier = file_list |> pull(tier),
     computing_resources = list(
 
       crew_controller_slurm(
         name = "tier_1",
-        slurm_memory_gigabytes_per_cpu = 15,
+        slurm_memory_gigabytes_per_cpu = 20,
         slurm_cpus_per_task = 1,
         workers = 50,
         tasks_max = 5,
@@ -157,12 +159,29 @@ file_list |> pull(file_name) |>
       ),
       crew_controller_slurm(
         name = "tier_3",
-        slurm_memory_gigabytes_per_cpu = 45,
+        slurm_memory_gigabytes_per_cpu = 50,
         slurm_cpus_per_task = 1,
         workers = 50,
         tasks_max = 5,
         verbose = T
-      ))
+      ),
+      crew_controller_slurm(
+        name = "tier_4",
+        slurm_memory_gigabytes_per_cpu = 100,
+        slurm_cpus_per_task = 1,
+        workers = 50,
+        tasks_max = 5,
+        verbose = T
+      ),
+      crew_controller_slurm(
+        name = "tier_5",
+        slurm_memory_gigabytes_per_cpu = 200,
+        slurm_cpus_per_task = 1,
+        workers = 50,
+        tasks_max = 5,
+        verbose = T
+      )
+      )
     
   ) |> 
   #tranform_assay(fx =  purrr::map(1:20, ~identity), target_output = "sce_transformed") |> 
@@ -171,28 +190,28 @@ file_list |> pull(file_name) |>
                  target_output = "sce_transformed") |>
   
   # Remove empty outliers based on RNA count threshold per cell
-  remove_empty_threshold(target_input = "data_object", RNA_feature_threshold = 200 ) |>
+  remove_empty_threshold(target_input = "sce_transformed", RNA_feature_threshold = 200 ) |>
   
   # Remove empty outliers
-  #remove_empty_DropletUtils(target_input = "data_object") |>
+  #remove_empty_DropletUtils(target_input = "sce_transformed") |>
   
   # Remove dead cells
-  remove_dead_scuttle(target_input = "data_object") |>
+  remove_dead_scuttle(target_input = "sce_transformed") |>
   
   # Score cell cycle
-  score_cell_cycle_seurat(target_input = "data_object") |>
+  score_cell_cycle_seurat(target_input = "sce_transformed") |>
   
   # Remove doublets
-  remove_doublets_scDblFinder(target_input = "data_object") |>
+  remove_doublets_scDblFinder(target_input = "sce_transformed") |>
   
   # Annotation
-  annotate_cell_type(target_input = "data_object", azimuth_reference = "pbmcref") |>
+  annotate_cell_type(target_input = "sce_transformed", azimuth_reference = "pbmcref") |>
   
   normalise_abundance_seurat_SCT(factors_to_regress = c(
     "subsets_Mito_percent",
     "subsets_Ribo_percent",
     "G2M.Score"
-  ), target_input = "data_object")
+  ), target_input = "sce_transformed")
   
 # calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "sce_transformed") |>
    # 
