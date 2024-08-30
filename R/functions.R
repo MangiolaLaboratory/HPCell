@@ -689,9 +689,6 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   #Fix GChecks 
   empty_droplet = NULL 
   .cell <- NULL 
-  subsets_Ribo_percent <- NULL  
-  subsets_Mito_percent <- NULL  
-  G2M.Score = NULL 
   
   # Your code for non_batch_variation_removal function here
   class_input = input_read_RNA_assay |> class()
@@ -719,8 +716,9 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   
   # Filtering dead
   if(alive_identification_tbl |> is.null() |> not())
-    input_read_RNA_assay = input_read_RNA_assay |>
-    left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
+    input_read_RNA_assay = 
+    input_read_RNA_assay |>
+    left_join(alive_identification_tbl |> select(.cell, alive, any_of(factors_to_regress)), by = ".cell") |>
     filter(alive) 
   
   # attach cell cycle
@@ -742,18 +740,18 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   
   # Normalise RNA
   normalized_rna <- 
+    input_read_RNA_assay |> 
     Seurat::SCTransform(
-      input_read_RNA_assay, 
-    assay=assay,
-    return.only.var.genes=FALSE,
-    residual.features = NULL,
-    vars.to.regress = factors_to_regress,
-    vst.flavor = "v2",
-    scale_factor=2186,  
-    conserve.memory=T, 
-    min_cells=0,
-  )  |> 
-    GetAssayData(assay="SCT")
+      assay=assay,
+      return.only.var.genes=FALSE,
+      residual.features = NULL,
+      vars.to.regress = factors_to_regress,
+      vst.flavor = "v2",
+      scale_factor=2186,  
+      conserve.memory=T, 
+      min_cells=0,
+    )  |> 
+      GetAssayData(assay="SCT")
   
 
   if (class_input == "SingleCellExperiment") {
