@@ -396,7 +396,7 @@ get_single_cell.HPCell = function(input_hpc, target_input = "data_object", targe
       user_function = preprocessing_output |> quote() , 
       input_read_RNA_assay = target_input |> is_target(), 
       empty_droplets_tbl = "empty_tbl" |> is_target() ,
-      non_batch_variation_removal_S = sct_matrix |> quote(), 
+      non_batch_variation_removal_S = "sct_matrix" |> is_target(), 
       alive_identification_tbl = "alive_tbl" |> is_target(),
       cell_cycle_score_tbl = "cell_cycle_tbl" |> is_target(),
       annotation_label_transfer_tbl = "annotation_tbl" |> is_target(),
