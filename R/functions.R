@@ -718,8 +718,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   if(alive_identification_tbl |> is.null() |> not())
     input_read_RNA_assay = 
     input_read_RNA_assay |>
-    left_join(alive_identification_tbl |> select(.cell, alive, any_of(factors_to_regress)), by = ".cell") |>
-    filter(alive) 
+    left_join(alive_identification_tbl |> select(.cell, alive, any_of(factors_to_regress)), by = ".cell") 
   
   # attach cell cycle
   if(cell_cycle_score_tbl |> is.null() |> not())
@@ -868,8 +867,7 @@ preprocessing_output <- function(input_read_RNA_assay,
     input_read_RNA_assay = 
     input_read_RNA_assay |>
     left_join(
-      cell_cycle_score_tbl |>
-        select(.cell, any_of(factors_to_regress)),
+      cell_cycle_score_tbl ,
       by=".cell"
     )
   
