@@ -6,9 +6,9 @@
 \usage{
 non_batch_variation_removal(
   input_read_RNA_assay,
-  empty_droplets_tbl,
-  alive_identification_tbl,
-  cell_cycle_score_tbl,
+  empty_droplets_tbl = NULL,
+  alive_identification_tbl = NULL,
+  cell_cycle_score_tbl = NULL,
   assay = NULL,
   factors_to_regress = NULL,
   external_path
