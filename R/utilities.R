@@ -624,11 +624,9 @@ tar_append = function(fx, tiers = NULL, script = targets::tar_config_get("script
   # }
   
   # Add prefix
-  "target_list = c(target_list, list(" |> 
+  "target_list |> target_append(" |> 
     c(call_expr ) |> 
-    
-    # Add suffix
-    c("))") |> 
+    c(")") |> 
     
     paste(collapse = " ") |> 
     
@@ -2615,8 +2613,11 @@ write_source = function(user_function_source_path, target_script){
       write_lines(target_script, append = TRUE)
 }
 
-target_append <- function(list_var, ...) {
-  list_var <<- c(list_var, list(...))
+#' @export
+target_append <- function(target_list, ...) {
+  # Append the new elements to the list
+  target_list <<- c(target_list, list(...))
+  
 }
 
 write_HDF5_array_safe = function(normalized_rna, name, directory){
