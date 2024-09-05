@@ -91,10 +91,10 @@ initialise_hpc <- function(input_hpc,
       garbage_collection = TRUE,
       storage = "worker",
       retrieval = "worker",
-     # error = "continue",
+      error = "continue",
       format = "qs",
       debug = d, # Set the target you want to debug.
-      # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
+      #cue = tar_cue(mode = "never"), # Force skip non-debugging outdated targets.
       controller = crew_controller_group ( readRDS("temp_computing_resources.rds") ), 
       packages = c("HPCell", "tidySingleCellExperiment")
     )
@@ -699,6 +699,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
   
   tar_make(
     callr_function = my_callr_function,
+    #reporter = "summary",
     reporter = "verbose_positives",
     script = glue("{input_hpc$initialisation$store}.R"),
     store = input_hpc$initialisation$store
@@ -720,7 +721,7 @@ evaluate_hpc.HPCell = function(input_hpc) {
     "temp_gene_nomenclature.rds",
     "data_container_type.rds",
     "temp_fx.rds"
-  ) |> 
+  ) |>
     remove_files_safely()
   
   # If get_single_cell is called then return the object 

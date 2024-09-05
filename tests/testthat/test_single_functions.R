@@ -541,7 +541,7 @@ file_list =
 #   purrr::map_chr(here::here) |>
 #   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) 
 #   
-   dir("dev/CAQ_sce/", full.names = T) |> head(3)
+   dir("dev/CAQ_sce/", full.names = T) |> head(2)
 
   # Initialise pipeline characteristics
 file_list |> 
@@ -549,9 +549,9 @@ file_list |>
     gene_nomenclature = "symbol",
     data_container_type = "sce_hdf5",
     store = "~/scratch/Census/temp5/",
-    tier = c("tier_1","tier_1","tier_1"),
+    tier = c("tier_1","tier_1"),
     computing_resources = computing_resources,
-    #debug_step ="sce_transformed_a4efa5bea68c8b98"
+    #debug_step ="empty_tbl_0cf8d597acd380df"
     # debug_step = "non_batch_variation_removal_S_1",
 
     # Default resourced 
@@ -576,7 +576,7 @@ file_list |>
   # ) |>
 
   # Remove empty outliers
-  remove_empty_DropletUtils( target_input = "data_object") |> 
+  remove_empty_DropletUtils( target_input = "sce_transformed") |> 
   
   # Annotation
   annotate_cell_type(
