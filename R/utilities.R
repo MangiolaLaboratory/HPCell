@@ -617,39 +617,35 @@ tar_script_append = function(code, script = targets::tar_config_get("script")){
     write_lines(script, append = TRUE)
 }
 
-#' Append Code to a Targets Script
-#'
-#' @description
-#' Appends given code to a 'targets' package script.
-#'
-#' @param code Code to append.
-#' @param script Path to the script file.
-#'
-#' @importFrom readr write_lines
-#' @importFrom targets tar_config_get
-#' @noRd
-tar_append = function(code, script = targets::tar_config_get("script")){
-  substitute(code) |>
-    deparse() |>
-    head(-1) |>
-    tail(-1) |>
-    write_lines(script, append = TRUE)
-}
-
-tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script"), ...){
+tar_append = function(fx, tiers = NULL, script = targets::tar_config_get("script"), ...){
   
   # Deal with additional argument
-  additional_args <- list(...)
+  additional_args <- 
+    list(...) |> 
+    
+    # I need this because otherwise the quotation of for example the function names 
+    # and the target names will be lost, so those object will be evaluated and 
+    # triggered because they do not exist in the environment
+    quote_name_classes()
+  
+  arguments_to_pass  = c(fx)
+  
+  if(tiers |> is.null() |> not())
+    arguments_to_pass = arguments_to_pass |> c(list(tiers = tiers))
+  
+  if (length(additional_args) > 0)
+    arguments_to_pass = arguments_to_pass |> c(additional_args)
   
   # Construct the call with substitute
-  if (length(additional_args) > 0) {
+  # if (length(additional_args) > 0) {
     call_expr = 
-      as.call(c(fx, list(tiers), additional_args)) |> 
+      as.call(arguments_to_pass) |> 
       deparse()
-  } else {
-    call_expr <- substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
-      deparse() 
-  }
+    
+  # } else {
+  #   call_expr <- substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
+  #     deparse() 
+  # }
   
   # Add prefix
   "target_list = c(target_list, list(" |> 
@@ -657,6 +653,8 @@ tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script")
     
     # Add suffix
     c("))") |> 
+    
+    paste(collapse = " ") |> 
     
     # Write
     write_lines(script, append = TRUE)
@@ -674,12 +672,12 @@ tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script")
 #' @importFrom readr write_lines
 #' @importFrom targets tar_config_get
 #' @noRd
-tar_script_append2 = function(code, script = targets::tar_config_get("script")){
+tar_script_append2 = function(code, script = targets::tar_config_get("script"), append = TRUE){
   code |>
     deparse() |>
     head(-1) |>
     tail(-1) |>
-    write_lines(script, append = TRUE)
+    write_lines(script, append = append)
 }
 
 #' Append Code to a Targets Script
@@ -716,7 +714,7 @@ append_chunk_fix = function(chunk, script = targets::tar_config_get("script")){
   # Add prefix
   "target_list = c(target_list, list(" |> 
     c(
-      substitute(chunk) |>  # cannot start with pipe
+      chunk |>  # cannot start with pipe
         deparse() |> 
         head(-1) |>
         tail(-1) 
@@ -724,6 +722,9 @@ append_chunk_fix = function(chunk, script = targets::tar_config_get("script")){
     
     # Add suffix
     c("))") |> 
+    
+    paste(collapse = " ") |> 
+    
     
     # Write
     write_lines(script, append = TRUE)
@@ -770,6 +771,8 @@ append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("sc
       
       # Add suffix
       c("))") |> 
+      
+      paste(collapse = " ") |> 
       
       # Write
       write_lines(script, append = TRUE)
@@ -930,6 +933,230 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 # cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
 # cleaned_cell_types <- clean_cell_types_deeper(cell_types)
 clean_cell_types_deeper = function(x){
+  
+  monaco = 
+    tribble(
+    ~Query,                              ~Reference,                        ~Database,
+    "Naive CD8 T cells",                 "cd8 naive",                       "monaco_first.labels.fine",
+    "Central memory CD8 T cells",        "cd8 tcm",                         "monaco_first.labels.fine",
+    "Effector memory CD8 T cells",       "cd8 tem",                         "monaco_first.labels.fine",
+    "Terminal effector CD8 T cells",     "terminal effector cd4 t",         "monaco_first.labels.fine", # Adjusting for the closest match
+    "MAIT cells",                        "mait",                            "monaco_first.labels.fine",
+    "Vd2 gd T cells",                    "tgd",                             "monaco_first.labels.fine",
+    "Non-Vd2 gd T cells",                "tgd",                                "monaco_first.labels.fine", # No direct match, leaving as NA
+    "Follicular helper T cells",         "cd4 fh",                          "monaco_first.labels.fine",
+    "T regulatory cells",                "treg",                            "monaco_first.labels.fine",
+    "Th1 cells",                         "cd4 th1",                         "monaco_first.labels.fine",
+    "Th1/Th17 cells",                    "cd4 th1/th17",                    "monaco_first.labels.fine",
+    "Th17 cells",                        "cd4 th17",                        "monaco_first.labels.fine",
+    "Th2 cells",                         "cd4 th2",                         "monaco_first.labels.fine",
+    "Naive CD4 T cells",                 "cd4 naive",                       "monaco_first.labels.fine",
+    "Progenitor cells",                  "progenitor_cell",                 "monaco_first.labels.fine",
+    "Naive B cells",                     "b naive",                         "monaco_first.labels.fine",
+    "Naive B",                     "b naive",                         "monaco_first.labels.fine",
+    "Non-switched memory B cells",       "b memory",                                "monaco_first.labels.fine", # No direct match, leaving as NA
+    "Nonswitched memory B",       "b memory",                                "monaco_first.labels.fine", # No direct match, leaving as NA
+    "Exhausted B cells",                 "plasma_cell",                                "monaco_first.labels.fine", # No direct match, leaving as NA
+    "Switched memory B cells",           "b memory",                        "monaco_first.labels.fine",
+    "Switched memory B",           "b memory",                        "monaco_first.labels.fine",
+    "Plasmablasts",                      "plasma_cell",                     "monaco_first.labels.fine",
+    "Classical monocytes",               "cd14 mono",                        "monaco_first.labels.fine",
+    "Intermediate monocytes",            "cd14 mono",                       "monaco_first.labels.fine", # Mapping to a closely related term
+    "Non classical monocytes",           "cd16 mono",                       "monaco_first.labels.fine",
+    "Natural killer cells",              "nk",                              "monaco_first.labels.fine",
+    "Natural killer",              "nk",                              "monaco_first.labels.fine",
+    "Plasmacytoid dendritic cells",      "pdc",                             "monaco_first.labels.fine",
+    "Myeloid dendritic cells",           "cdc",                             "monaco_first.labels.fine",
+    "Myeloid dendritic",           "cdc",                             "monaco_first.labels.fine",
+    "Low-density neutrophils",           "granulocyte",                     "monaco_first.labels.fine",
+    "Lowdensity neutrophils",           "granulocyte",                     "monaco_first.labels.fine",
+    "Low-density basophils",             "granulocyte",                                "monaco_first.labels.fine", # No direct match, leaving as NA
+    "Lowdensity basophils",             "granulocyte",                                "monaco_first.labels.fine", # No direct match, leaving as NA
+    "Terminal effector CD4 T cells",     "terminal effector cd4 t",         "monaco_first.labels.fine",
+    "progenitor",     "progenitor_cell",         "monaco_first.labels.fine"
+  )
+  
+ azimuth = 
+    tribble(
+    ~Query,              ~Reference,                        ~Database,
+    "NK",                "nk",                              "Azimuth",
+    "CD8 TEM",           "cd8 tem",                         "Azimuth",
+    "CD4 CTL",           "cd4 helper",                         "Azimuth", # CD4 cytotoxic T lymphocytes often relate to Th1 cells
+    "dnT",               "dnt",                             "Azimuth",
+    "CD8 Naive",         "cd8 naive",                       "Azimuth",
+    "CD4 Naive",         "cd4 naive",                       "Azimuth",
+    "CD4 TCM",           "cd4 helper",                    "Azimuth", # Central memory cells often relate to Th1 or Th17
+    "gdT",               "tgd",                             "Azimuth",
+    "CD8 TCM",           "cd8 tcm",                         "Azimuth",
+    "MAIT",              "mait",                            "Azimuth",
+    "CD4 TEM",           "terminal effector cd4 t",         "Azimuth", # Effector memory cells can relate to terminal effector cells
+    "ILC",               "ilc",                             "Azimuth",
+    "CD14 Mono",         "cd14 mono",                       "Azimuth",
+    "cDC1",              "cdc",                             "Azimuth", # Conventional dendritic cell 1 is commonly referred to as CDC
+    "pDC",               "pdc",                             "Azimuth",
+    "cDC2",              "cdc",                             "Azimuth", # No specific reference for cDC2, but using CDC as a general category
+    "B naive",           "b naive",                         "Azimuth",
+    "B intermediate",    "b naive",                                "Azimuth", # No direct match, leaving as NA
+    "B memory",          "b memory",                        "Azimuth",
+    "Platelet",          "platelet",                        "Azimuth",
+    "Eryth",             "erythrocyte",                     "Azimuth",
+    "CD16 Mono",         "cd16 mono",                       "Azimuth",
+    "HSPC",              "hematopoietic_precursor_cell",    "Azimuth",
+    "Treg",              "treg",                            "Azimuth",
+    "NK_CD56bright",     "nk",                              "Azimuth", # CD56bright NK cells are a subset of NK cells
+    "Plasmablast",       "plasma_cell",                     "Azimuth",
+    "NK Proliferating",  "NK",            "Azimuth", # NK cells can be proliferative, linked to general proliferation
+    "ASDC",              "cdc",                                "Azimuth", # No direct match, leaving as NA
+    "CD8 Proliferating", "proliferating_t_cell",            "Azimuth",
+    "CD4 Proliferating", "proliferating_t_cell",            "Azimuth",
+    "doublet", "non_immune",            "Azimuth"
+    ) 
+  
+  blueprint =   tribble(
+        ~Query,                             ~Reference,                        ~Database,
+        "Neutrophils",                      "granulocyte",                     "blueprint_first.labels.fine",
+        "Monocytes",                        "monocyte",                        "blueprint_first.labels.fine",
+        "MEP",                              "hematopoietic_cell",                                "blueprint_first.labels.fine", # MEP typically refers to megakaryocyte-erythroid progenitor
+        "CD4+ T-cells",                     "cd4 th1",                         "blueprint_first.labels.fine",
+        "Tregs",                            "treg",                            "blueprint_first.labels.fine",
+        "CD4+ Tcm",                         "cd4 th1/th17",                    "blueprint_first.labels.fine",
+        "CD4+ Tem",                         "terminal effector cd4 t",         "blueprint_first.labels.fine",
+        "CD8+ Tcm",                         "cd8 tcm",                         "blueprint_first.labels.fine",
+        "CD8+ Tem",                         "cd8 tem",                         "blueprint_first.labels.fine",
+        "NK cells",                         "nk",                              "blueprint_first.labels.fine",
+        "naive B-cells",                    "b naive",                         "blueprint_first.labels.fine",
+        "Memory B-cells",                   "b memory",                        "blueprint_first.labels.fine",
+        "Class-switched memory B-cells",    "b memory",                                "blueprint_first.labels.fine", # No direct match, leaving as NA
+        "HSC",                              "hematopoietic_cell",              "blueprint_first.labels.fine",
+        "MPP",                              "hematopoietic_cell",                                "blueprint_first.labels.fine", # MPP typically refers to multipotent progenitor
+        "CLP",                              "hematopoietic_cell",                                "blueprint_first.labels.fine", # CLP typically refers to common lymphoid progenitor
+        "GMP",                              "hematopoietic_cell",                                "blueprint_first.labels.fine", # GMP typically refers to granulocyte-macrophage progenitor
+        "Macrophages",                      "macrophage",                      "blueprint_first.labels.fine",
+        "CD8+ T-cells",                     "cd8",                         "blueprint_first.labels.fine",
+        "CD8 T",                     "cd8",                         "blueprint_first.labels.fine",
+        "Erythrocytes",                     "erythrocyte",                     "blueprint_first.labels.fine",
+        "Megakaryocytes",                   "megakaryocytes",                  "blueprint_first.labels.fine",
+        "CMP",                              "hematopoietic_cell",                "blueprint_first.labels.fine", # CMP typically refers to common myeloid progenitor
+        "Macrophages M1",                   "macrophage",                       "blueprint_first.labels.fine", # Specific polarization states (M1, M2) not explicitly listed
+        "Macrophages M2",                   "macrophage",                      "blueprint_first.labels.fine",
+        "Endothelial cells",                "endothelial_cell",                "blueprint_first.labels.fine",
+        "DC",                               "cdc",                             "blueprint_first.labels.fine", # Assuming DC refers to dendritic cells
+        "Eosinophils",                      "granulocyte",                       "blueprint_first.labels.fine", # No direct match, leaving as NA
+        "Plasma cells",                     "plasma_cell",                     "blueprint_first.labels.fine",
+        "Chondrocytes",                     "chondrocyte",                     "blueprint_first.labels.fine",
+        "Fibroblasts",                      "fibroblast",                      "blueprint_first.labels.fine",
+        "Smooth muscle",                    "smooth_muscle_cell",              "blueprint_first.labels.fine",
+        "Epithelial cells",                 "epithelial_cell",                 "blueprint_first.labels.fine",
+        "Melanocytes",                      "melanocyte",                      "blueprint_first.labels.fine",
+        "Skeletal muscle",                  "muscle_cell",                     "blueprint_first.labels.fine",
+        "Keratinocytes",                    "keratinocyte",                    "blueprint_first.labels.fine",
+        "mv Endothelial cells",             "endothelial_cell",                "blueprint_first.labels.fine",
+        "Myocytes",                         "myocyte",                         "blueprint_first.labels.fine",
+        "Adipocytes",                       "fat_cell",                        "blueprint_first.labels.fine",
+        "Neurons",                          "neuron",                          "blueprint_first.labels.fine",
+        "Pericytes",                        "pericyte_cell",                   "blueprint_first.labels.fine",
+        "Preadipocytes",                    "adipocyte",                       "blueprint_first.labels.fine", # No direct match, leaving as NA
+        "Astrocytes",                       "astrocyte",                       "blueprint_first.labels.fine",
+        "Mesangial cells",                  "mesangial_cell",                  "blueprint_first.labels.fine"
+      )
+   
+  conversion_table = 
+    bind_rows(monaco, blueprint, azimuth)
+  
+  all_combinations = 
+    expand_grid(
+      blueprint_first.labels.fine = blueprint |> pull(Reference) |> unique(), 
+    monaco_first.labels.fine = monaco |> pull(Reference) |> unique(),
+    Azimuth = azimuth |> pull(Reference) |> unique()
+  )
+  
+  t_cells <- c(
+    "cd8 naive",
+    "cd8 tcm",
+    "cd8 tem",
+    "terminal effector cd4 t",
+    "treg",
+    "cd4 th1/th17",
+    "cd4 th1",
+    "cd4 th17",
+    "t_nk",
+    "proliferating_t_cell",
+    "dnt",
+    "cd4 naive",
+    "cd4 th2",
+    "tgd",
+    "cd4 fh",
+    "mait"
+  )
+  
+  b_cells <- c(
+    "b naive",
+    "b memory",
+    "plasma_cell"
+  )
+  
+  myeloid_cells <- c(
+    "cd14 mono",
+    "monocyte",
+    "cd16 mono",
+    "macrophage",
+    "macrophages",
+    "pdc",  # Plasmacytoid dendritic cells
+    "cdc",  # Conventional dendritic cells
+    "promyelocyte",
+    "myelocyte",
+    "kupffer_cell"
+  )
+  
+  ilcs <- c(
+    "ilc",
+    "nk"
+  )
+  
+  all_combinations |> 
+    mutate(consensus =
+      case_when(
+        # Full consensus
+        blueprint_first.labels.fine == monaco_first.labels.fine &
+      blueprint_first.labels.fine == Azimuth ~ blueprint_first.labels.fine,
+      
+      # Partial consensus
+      blueprint_first.labels.fine == monaco_first.labels.fine ~ blueprint_first.labels.fine,
+      blueprint_first.labels.fine == Azimuth ~ blueprint_first.labels.fine,
+      monaco_first.labels.fine == Azimuth ~ monaco_first.labels.fine,
+      
+      # T cells
+      blueprint_first.labels.fine |> str_detect("cd8") & monaco_first.labels.fine |> str_detect("cd8") & Azimuth |> str_detect("cd8") ~ "t cd8",
+      blueprint_first.labels.fine |> str_detect("cd4|th|fh|treg") & monaco_first.labels.fine |> str_detect("cd4|th|fh|treg") & Azimuth |> str_detect("cd4|th|fh|treg") ~ "t cd4",
+      blueprint_first.labels.fine %in% t_cells & monaco_first.labels.fine  %in% t_cells & Azimuth  %in% t_cells ~ "t",
+      
+      # B cells
+      blueprint_first.labels.fine %in% b_cells & monaco_first.labels.fine  %in% b_cells & Azimuth  %in% b_cells ~ "b",
+      
+      # monocytic
+      blueprint_first.labels.fine %in% myeloid_cells & monaco_first.labels.fine  %in% myeloid_cells & Azimuth  %in% myeloid_cells ~ "monocytic",
+      
+      # ILCs
+      blueprint_first.labels.fine %in% ilcs & monaco_first.labels.fine  %in% ilcs & Azimuth  %in% ilcs ~ "ilc",
+      
+      
+      TRUE ~ NA_character_
+      )) |> filter(consensus |> is.na())
+    
+
+  
+  x |> 
+    select(.cell, blueprint_first.labels.fine, monaco_first.labels.fine) |> 
+    pivot_longer(-.cell, names_to = "Database", values_to = "Query") |> 
+    mutate(Query = Query |> tolower()) |>  
+    left_join(conversion_table |> mutate(Query = Query |> tolower()), copy = TRUE) |> 
+    select(-Query) |> 
+    pivot_wider(names_from = Database, values_from = Reference)
+  
+  
+  
+  
+  
   #Fix GChecks 
   cell_type_clean = NULL 
   
@@ -1979,19 +2206,33 @@ vector_to_code <- function(int_vector) {
 #' @noRd
 add_tier_inputs <- function(command, arguments_to_tier, i) {
   
+  if(i |> length() > 1) stop("HPCell says: argument i must be of length one")
+  
   if(length(arguments_to_tier)==0) return(command)
   
   command = command |> deparse() |> paste(collapse = "")  
-  input = command |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
   
   # Filter out arguments to be tiered from the input command
+  #input = command |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
   #arguments_to_tier <- arguments_to_tier |> str_subset(input, negate = TRUE)
   
   # Create a named vector for replacements
   replacement_regexp <- glue("{arguments_to_tier}_{i}") |> as.character() |> set_names(arguments_to_tier)
   
+  # Function to add word boundaries and perform the replacements
+  # This because we only replace WHOLE words
+  add_word_boundaries_and_replace <- function(command, replacements) {
+    for (pattern in names(replacements)) {
+      # Create the regex pattern with word boundaries
+      pattern_with_boundaries <- paste0("\\b", pattern, "\\b")
+      # Perform the replacement for each pattern
+      command <- str_replace(command, pattern_with_boundaries, replacements[pattern])
+    }
+    return(command)
+  }
+  
   # Replace the specified arguments in the command with their tiered versions
-  command |> str_replace_all(replacement_regexp) |>  rlang::parse_expr()
+  command |> add_word_boundaries_and_replace(replacement_regexp) |>  rlang::parse_expr()
   
 }
 
@@ -2091,5 +2332,301 @@ remove_random_effects <- function(formula) {
   
   # Return the fixed effects formula
   return(fixed_formula)
+}
+
+#' @examples
+#' # Example usage:
+#' # delete_lines_with_word("your_text_file.txt", "bla")
+#'
+#' @export
+delete_lines_with_word <- function(word, file_path) {
+  # Step 1: Read the file into R as a vector of lines
+  lines <- readLines(file_path)
+  
+  # Step 2: Filter out lines that contain the specified word
+  word = glue("target_output = \"{word}\"")
+  filtered_lines <- lines[!grepl(word, lines)]
+  
+  # Step 3: Write the modified content back to the file
+  writeLines(filtered_lines, file_path)
+}
+
+#' Get elements with class 'name'
+#'
+#' This function takes a list and returns a character vector of elements
+#' that have the class 'name', converting them to their character equivalents.
+#'
+#' @param lst A list of elements to process.
+#' @return A character vector of elements with class 'name'.
+#' @noRd
+get_elements_with_name_class <- function(lst) {
+  lapply(lst, function(x) {
+    if ("name" %in% class(x)) as.character(x) else NULL
+  }) %>%
+    Filter(Negate(is.null), .) %>% # Remove NULL elements
+    unlist()
+}
+
+#' Get Arguments to Tier Based on Iteration Settings
+#'
+#' This function identifies elements from a list that have the class 'name',
+#' converts them to character strings, and returns only those elements that are
+#' present in the names of a specified input list (`input_hpc`) and have the
+#' `iterate` field set to `"tier"`.
+#'
+#' @param lst A list containing various elements, some of which may have the class 'name'.
+#' @param input_hpc A list whose names are used to filter the elements from `lst`.
+#'                  The elements in `input_hpc` should include an `iterate` field with the value `"tier"`.
+#' @return A character vector of elements from `lst` that have the class 'name',
+#'         are present in the names of `input_hpc`, and have `iterate` set to `"tier"`.
+#' @noRd
+arguments_to_action <- function(lst, input_hpc, value) {
+  matching_elements <- character()
+  
+  for (arg_name in names(lst)) {
+    arg_value <- lst[[arg_name]]
+    
+    # Skip NULL and complex values, because they cannot be a name of a target
+    if (
+      arg_value |> length() == 0 |
+      is.null(arg_value) | !(
+      arg_value |> is("character") | 
+      arg_value |> is("name") | 
+      arg_value |> is("list")
+    )) next
+    
+    # Convert the argument value to a character string vector
+    # arg_value_as_char <- as.character(arg_value)
+    
+    # This because I cannot loop over a single "name" class, while I can loop over a single "character" class
+    # NOT SO ELEGANT 
+    if(arg_value |> length() == 1){
+      
+      if (
+        (arg_value |> is("character") | arg_value |> is("name")) &&
+        as.character(arg_value) %in% names(input_hpc) && 
+        input_hpc[[arg_value]]$iterate %in% value
+      ) 
+        matching_elements <- c(matching_elements, as.character(arg_value) |> set_names(arg_name))
+       
+    }
+      
+    else{
+      # Iterate over each element in arg_value_as_char
+      for (val in arg_value) {
+        
+        # Again, skip if the list include complex elements
+        if (is.null(arg_value) | !(
+          arg_value |> is("character") | 
+          arg_value |> is("name") 
+        )) next
+        
+        # Check if the value exists in input_hpc and iterate is equal to the specified value
+        if (val %in% names(input_hpc) && input_hpc[[val]]$iterate == value) 
+          matching_elements <- c(matching_elements, as.character(arg_value) |> set_names(arg_name))
+        
+      }
+    }
+
+  }
+  
+  return(matching_elements)
+}
+
+
+
+#' Quote elements with class 'name'
+#'
+#' This function takes a list and returns a new list where any elements
+#' with the class 'name' are converted to their quoted equivalent using `quote()`.
+#' This is useful for preserving unevaluated expressions in the list.
+#'
+#' @param lst A list of elements to process.
+#' @return A list where elements with class 'name' are quoted.
+#' @noRd
+quote_name_classes <- function(lst) {
+  lapply(lst, function(x) {
+    if ("name" %in% class(x)) {
+      # Manually create the quoted expression
+      as.call(list(as.name("quote"), x))
+    } else {
+      x  # Leave as is for other elements
+    }
+  })
+}
+
+#' Safe as.name Wrapper
+#'
+#' This function wraps `as.name()` to safely handle `NULL` input.
+#' If the input is `NULL`, the function returns `NULL`; otherwise,
+#' it returns the result of `as.name()`.
+#'
+#' @param input The input to be converted to a name. If `NULL`, the function returns `NULL`.
+#' @return The result of `as.name()` applied to the input, or `NULL` if the input is `NULL`.
+#' @noRd
+safe_as_name <- function(input) {
+  if (is.null(input)) {
+    return(NULL)
+  } else {
+    return(as.name(input))
+  }
+}
+
+#' Check for Name-Value Conflicts in Arguments
+#'
+#' This function checks if any argument names in a given function call are identical
+#' to any of their corresponding values. If such a conflict is found, an error is thrown.
+#' This validation step is crucial for ensuring that arguments do not unintentionally
+#' share the same name as their value, which could lead to unexpected behavior or errors
+#' in downstream processes.
+#'
+#' @param ... Arguments to be checked for name-value conflicts.
+#' @return The function returns the input arguments as a list if no conflicts are found.
+#' @details 
+#' The `check_for_name_value_conflicts()` function is designed to catch cases where the name of an argument matches one of its values. For example, if you pass an argument like `sample_id = "sample_id"`, this function will detect that the name and value are identical and throw an error. Such conflicts can cause confusion or unintended behavior in your code, especially in complex workflows or pipelines where argument names are often used to identify specific data or parameters.
+#' 
+#' The function works by iterating over all arguments passed via `...`, converting each argument's value to a character string, and then checking if the argument's name appears in this string. If a match is found, an error is raised with a clear message indicating the problematic argument.
+#' 
+#' This function is particularly useful in contexts like data processing pipelines where arguments may be dynamically generated or modified. Ensuring that no argument name matches its value helps maintain clarity and prevent errors in such scenarios.
+#'
+#' @examples
+#' check_for_name_value_conflicts(sample_id = "sample_001", group = "control")
+#' 
+#' # This will throw an error:
+#' # check_for_name_value_conflicts(sample_id = "sample_id")
+#' 
+#' @importFrom glue glue
+#' @noRd
+check_for_name_value_conflicts <- function(...) {
+# Capture the arguments passed to the function
+args_list <- list(...)
+
+# Iterate through the list and check for name-value conflicts
+for (arg_name in names(args_list)) {
+  arg_value <- args_list[[arg_name]]
+
+  # Skip NULL values
+  if (is.null(arg_value)) next
+  
+  # Convert the argument value to a character string
+  # arg_value_as_char <- as.character(arg_value)
+  
+  # Check if the argument name matches any of the values in arg_value_as_char
+  if (arg_name %in% c(arg_value)) {
+    stop(glue::glue("HPCell says: Argument name '{arg_name}' cannot be the same as its value '{arg_value_as_char}'"))
+  }
+}
+
+# If no conflicts, return the arguments as is or proceed with the function logic
+return(args_list)
+}
+
+#' Expand Tiered Arguments in a List
+#'
+#' This function takes a list of arguments (`lst`), identifies a specific argument to replace (`argument_to_replace`),
+#' and expands it into a list of quoted tiered values. This is particularly useful when you need to dynamically generate
+#' tiered versions of an argument within a list structure.
+#'
+#' @param lst A list of arguments where one argument will be replaced by a list of tiered versions.
+#' @param tiers A vector of tiers (e.g., `c("1", "2")`) used to generate the tiered versions of the argument.
+#' @param argument_to_replace The name of the argument in `lst` that should be replaced by the tiered versions.
+#' @param tiered_args The base name used to create the tiered versions. The tiers will be appended to this base name.
+#' @return The modified list where the specified argument is replaced by a list of quoted tiered values.
+#' @details 
+#' The `expand_tiered_arguments()` function is designed to dynamically generate tiered versions of an argument
+#' in a list. For example, if you have an argument `pseudobulk_list` in `lst` that you want to replace with tiered
+#' versions like `pseudobulk_se_merge_within_tier_1` and `pseudobulk_se_merge_within_tier_2`, this function will 
+#' create those versions, quote them (to prevent evaluation), and replace the original argument in `lst` with a 
+#' list of these quoted expressions. This is useful in contexts where arguments need to be programmatically 
+#' generated and passed to functions that expect lists of unevaluated symbols.
+#'
+#' The function works by first checking if the `argument_to_replace` exists in the `lst`. If it does, it constructs 
+#' the tiered versions by iterating over the `tiers` vector, creating symbols for each tier, and wrapping each 
+#' symbol in a `quote()` to prevent immediate evaluation. The result is a list of quoted expressions that replace 
+#' the original argument in `lst`.
+#' 
+#' @examples
+#' args_list <- list(
+#'   external_path = "_targets/external",
+#'   pseudobulk_list = "pseudobulk_se_iterated",
+#'   packages = c("tidySummarizedExperiment", "HPCell")
+#' )
+#' 
+#' name_target_intermediate <- "pseudobulk_se_merge_within_tier"
+#' 
+#' result <- expand_tiered_arguments(
+#'   lst = args_list, 
+#'   tiers = c("1", "2"), 
+#'   argument_to_replace = "pseudobulk_list",
+#'   tiered_args = name_target_intermediate
+#' )
+#' 
+#' # The output will be:
+#' # $external_path
+#' # [1] "_targets/external"
+#' #
+#' # $pseudobulk_list
+#' # list(quote(pseudobulk_se_merge_within_tier_1), quote(pseudobulk_se_merge_within_tier_2))
+#' #
+#' # $packages
+#' # [1] "tidySummarizedExperiment" "HPCell"
+#' 
+#' @importFrom stats substitute
+#' @noRd
+expand_tiered_arguments <- function(lst, tiers, argument_to_replace, tiered_args) {
+  # Check if the argument to replace exists in the list
+  if (argument_to_replace %in% names(lst)) {
+    # Fetch the correct value of the tiered argument from the list
+    tiered_base <- lst[[argument_to_replace]]
+    
+    # Create a vector of tiered values by combining tiered_base with tiers
+    # If no tier do not add the suffix
+    tiered_values <- lapply(tiers, function(tier) paste0(tiered_base, "_", tier) |> as.name() )
+
+    # Construct the c(...) call with the tiered values
+    c_call <- as.call(c(as.name("c"), tiered_values))
+    
+    # Wrap the entire c(...) call with quote(quote(...))
+    lst[[argument_to_replace]] <- substitute(quote(quote(expr)), list(expr = c_call))
+  }
+  
+  return(lst)
+}
+
+
+build_pattern = function(arguments_to_tier = c(), other_arguments_to_map = c(), index = c()){
+  
+  pattern = NULL 
+  
+  if(
+    arguments_to_tier |> length() > 0 |
+    other_arguments_to_map |> length() > 0
+  ){
+    
+    pattern = as.name("map")
+    
+    if(arguments_to_tier |> length() > 0)
+      pattern = pattern |> c(
+        arguments_to_tier |>
+          map(
+            ~ substitute(
+              slice(input, index  = arg ), 
+              list(input = as.symbol(.x), arg=index)
+            ) 
+          )
+      )
+    
+    if(other_arguments_to_map |> length() > 0){
+      
+        pattern = pattern |> c(other_arguments_to_map |> lapply(as.name))
+      
+    }
+      
+    pattern = as.call(pattern)
+    
+  }
+  
+  pattern
+  
 }
 

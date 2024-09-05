@@ -54,7 +54,7 @@ run_targets_pipeline <- function(
 ){
   
   # Fix GCHECKS 
-  read_file <- NULL
+  data_object <- NULL
   reference_file <- NULL
   tissue_file <- NULL
   filtered_file <- NULL
@@ -207,7 +207,7 @@ run_targets_pipeline <- function(
     
     target_list = list(
       tar_target(file, "input_file.rds", format = "rds"), 
-      tar_target(read_file, readRDS("input_file.rds")),
+      tar_target(data_object, readRDS("input_file.rds")),
       #tar_target(reference_file, "input_reference.rds", format = "rds"), 
       tar_target(reference_file, readRDS("input_reference.rds")), 
       tar_target(tissue_file, readRDS("tissue.rds")), 
@@ -223,7 +223,7 @@ run_targets_pipeline <- function(
       
       # Define input files
       # tarchetypes::tar_files(name= input_track, 
-      #                        read_file, 
+      #                        data_object, 
       #                        deployment = "main"),
       # tarchetypes::tar_files(name= reference_track,
       #                        read_reference_file, 
@@ -235,7 +235,7 @@ run_targets_pipeline <- function(
       tar_target(reference_label_coarse, reference_label_coarse_id(tissue), deployment = "main"), 
       tar_target(reference_label_fine, reference_label_fine_id(tissue), deployment = "main"), 
       # Reading input files
-      tar_target(file_path, read_file, pattern = map(read_file), format = "file", deployment = "main"),
+      tar_target(file_path, data_object, pattern = map(data_object), format = "file", deployment = "main"),
       tar_target(unique_tissues,
                  get_unique_tissues(read_data_container(file_path, container_type = data_container_type_file), sample_column |> quo_name()),
                  pattern = map(file_path),

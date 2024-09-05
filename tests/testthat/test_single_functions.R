@@ -450,6 +450,17 @@ process_seurat_object <- function(input_a, assay = NULL) {
 
 assay<- process_seurat_object(input_seurat_list[[1]])
 
+# library(SeuratData)
+# # devtools::install_github("satijalab/azimuth")
+# library(Azimuth)
+# library(Seurat)
+# options(Seurat.object.assay.version = "v5")
+# obj <- LoadData("pbmcsca") |>
+#   UpdateSeuratObject() |>
+#   RunAzimuth(reference = "pbmcref") |>
+#   SCTransform()
+# obj |> saveRDS("dev/reference_azimuth.rds")
+
 
 library(HPCell)
 library(crew)
@@ -459,6 +470,7 @@ library(crew.cluster)
 # library(tidySingleCellExperiment)
 # library(Seurat)
 # library(SeuratData)
+# InstallData("pbmc3k")
 # options(Seurat.object.assay.version = "v5")
 input_seurat <-
   LoadData("pbmc3k") |>
@@ -481,27 +493,49 @@ input_seurat <-
 # input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_2_SCE.rds")
 
 
-# Define and execute the pipeline
-c("dev/input_seurat_treated_1_SCE.rds",
-  "dev/input_seurat_treated_2_SCE.rds",
-  "dev/input_seurat_UNtreated_1_SCE.rds",
-  "dev/input_seurat_UNtreated_2_SCE.rds") |>
-  purrr::map_chr(here::here) |> 
-   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) |> 
+
+# library(SeuratData)
+# InstallData("pbmcsca")
+# pbmcsca <- LoadData("pbmcsca") # save this to disk, so you can recall every time you execute HPCell
+
+
+# # Define and execute the pipeline
+file_list = 
+#   c("dev/input_seurat_treated_1.rds",
+#   "dev/input_seurat_treated_2.rds",
+#   "dev/input_seurat_UNtreated_1.rds",
+#   "dev/input_seurat_UNtreated_2.rds") |>
+#   purrr::map_chr(here::here) |>
+#   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) 
+#   
   
-  dir("dev/CAQ_sce/", full.names = T) |> 
+    dir("dev/CAQ_sce/", full.names = T) 
 
 
   # Initialise pipeline characteristics
+file_list |> 
   initialise_hpc(
     gene_nomenclature = "symbol",
-    data_container_type = "sce_rds",
-     store = "~/scratch/Census/census_reanalysis/sample_test/",
-     tier = c("tier_1", "tier_1", "tier_2", "tier_2"),
+    data_container_type = "sce_hdf5",
     
+    # debug_step = "non_batch_variation_removal_S_1",
+
     # Default resourced 
-  #  computing_resources = crew_controller_local(workers = 10), #resource_tuned_slurm
-      
+   computing_resources = crew_controller_local(workers = 8), #resource_tuned_slurm
+  
+   # tier = rep(c("tier_1", "tier_2"), times = 6),
+   # computing_resources = list(
+   #   
+   #   crew_controller_local(
+   #     name = "tier_1",
+   #     workers = 4
+   #   ),
+   #   crew_controller_local(
+   #     name = "tier_2",
+   #     workers = 4
+   #   )
+   # )
+   
   #   computing_resources = list(
   # 
   #   crew_controller_slurm(
@@ -521,64 +555,68 @@ c("dev/input_seurat_treated_1_SCE.rds",
   #     verbose = T
   #   )
   # )
-
-  # computing_resources =
-  #   list(  crew_controller_local(
-  #     name = "tier_1",
-  #     workers = 2,
-  #     seconds_idle = 10
-  #   ),
-  #   crew_controller_local(
-  #     name = "tier_2",
-  #     workers = 2,
-  #     seconds_idle = 10
-  #   )
-  # )
     
   # #  Slurm resources
-    computing_resources =
-      crew.cluster::crew_controller_slurm(
-        slurm_memory_gigabytes_per_cpu = 5,
-        workers = 500,
-        tasks_max = 5,
-        verbose = T,
-        slurm_cpus_per_task = 1
-      )
+    # computing_resources =
+    #   crew.cluster::crew_controller_slurm(
+    #     slurm_memory_gigabytes_per_cpu = 5,
+    #     workers = 500,
+    #     tasks_max = 5,
+    #     verbose = T,
+    #     slurm_cpus_per_task = 1
+    #   )
   ) |> 
   
+  
+  hpc_report(
+    "empty_report", 
+    rmd_path = paste0(system.file(package = "HPCell"), "/rmd/test.Rmd"), 
+    empty_list = "empty_tbl" |> is_target(),
+    sample_names = "sample_names" |> is_target()
+  ) |> 
+  
+  # ONLY APPLICABLE TO SCE FOR NOW
+  tranform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
+  
+  hpc_iterate(
+    target_output = "o",
+    user_function = function(x, y){x |> dplyr::mutate(bla = y)},
+    x = "data_object" |> is_target(),
+    y = "works"
+  ) |>
+
   # Remove empty outliers
-  remove_empty_DropletUtils() |> 
-  
-  # Remove dead cells
-  remove_dead_scuttle() |> 
-  
-  # Score cell cycle
-  score_cell_cycle_seurat() |> 
-  
-  # Remove doublets
-  remove_doublets_scDblFinder() |> 
+  remove_empty_DropletUtils( target_input = "data_object") |> 
   
   # Annotation
-  annotate_cell_type() |> 
+  annotate_cell_type(
+    target_input = "data_object"
+    # ,
+    # azimuth_reference = readRDS("dev/reference_azimuth.rds")
+  ) |> 
   
+  # Remove dead cells
+  remove_dead_scuttle(target_input = "data_object") |> 
+  
+  # Score cell cycle
+  score_cell_cycle_seurat(target_input = "data_object") |> 
+  
+  # Remove doublets
+  remove_doublets_scDblFinder(target_input = "data_object") |> 
+  
+
   normalise_abundance_seurat_SCT(factors_to_regress = c(
     "subsets_Mito_percent", 
     "subsets_Ribo_percent", 
     "G2M.Score"
-  )) |> 
+  ), 
+  target_input = "data_object") |> 
   
-  calculate_pseudobulk(group_by = "monaco_first.labels.fine") |> 
+  calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "data_object") |> 
   
-  test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts")
-  #test_differential_abundance(~ age_days, .abundance="counts")
+  # test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts") |> 
+   test_differential_abundance(~ age_days, .abundance="counts", group_by_column = "monaco_first.labels.fine") |> 
 
-store <- "~/HPCell/_targets_1"
-preprocessing_output_2<- c(tar_read(preprocessing_output_S_1_9d3f5f7bf0d99f4d, store = store), tar_read(preprocessing_output_S_1_b1e2c51e3268decc, store = store))
-preprocessed_metadata_list <- lapply(preprocessing_output_2, function(x) x@meta.data)
-input_data <- c(readRDS("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds"), readRDS("~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds"))
-input_meta_data_list <- list(input_data[[1]]@meta.data, input_data[[2]]@meta.data)
-
-empty_droplets_tbl_list<- list(tar_read(empty_droplets_tbl_1_90db523aa8824c48, store = store), tar_read(empty_droplets_tbl_1_16cf021f56ae67e1, store = store))
-annotation_label_transfer_list <- list(tar_read("annotation_label_transfer_tbl_1_0bf95fdfad97d473", store = store), tar_read("annotation_label_transfer_tbl_1_61b90f7f73a315eb", store = store))
-store<- "/vast/scratch/users/si.j/store_HPC1"
+  # For the moment only available for single cell
+  get_single_cell(target_input = "data_object") 
 

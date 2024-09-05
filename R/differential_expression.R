@@ -200,4 +200,163 @@ map_de = function(se, my_formula, assay, method, max_rows_for_matrix_multiplicat
   
 }
 
+#' @export
+#' @noRd
+internal_de_function = function(x, fi, a, f, m){
+  
+  # Skip if not enough samples
+  if(x |> ncol() < 3) warning("HPCell says: your dataset has less than 3 samples, the differential expression analysis was skipped")
+  if(x |> ncol() < 3) return(NULL)
+  
+  x |>
+    keep_abundant(factor_of_interest = fi, .abundance = !!sym(a)) |> 
+    test_differential_abundance(f, .abundance = !!sym(a),  method = m) |> 
+    pivot_transcript() |> 
+    
+    # This because fi can be NULL. 
+    # But I have to modify TIDYBULK to just accept character for factor_of_interest
+    # And should replace .abundance accepting enquo, with assay accepting character
+    # This code will simplify a lot
+    
+    substitute(env = list(fi = fi)) |> eval()
+}
 
+
+#' @importFrom tidybulk test_differential_abundance
+#' 
+#' 
+#' @export
+factory_de_fix_effect = function(se_list_input, output_se, formula, method, tiers, factor_of_interest = NULL, .abundance = NULL){
+  
+  list(
+    
+    
+    tar_target_raw("chunk_tbl", 
+                   pseudobulk_se |> 
+                     rownames() |> 
+                     feature_chunks() |> 
+                     quote()
+                   
+    ),
+    
+    tar_target_raw(
+      "pseudobulk_group_list",
+      pseudobulk_se |> 
+        group_split(!!sym(pseudobulk_group_by)) |>  
+        quote(),
+      iteration = "list",
+      packages = c("tidySummarizedExperiment", "S4Vectors", "targets")
+    ),
+    
+    
+    # Analyse
+    tar_target_raw(
+      output_se,
+      pseudobulk_group_list |> 
+        keep_abundant(factor_of_interest = i, .abundance = a) |> 
+        test_differential_abundance(
+          f,
+          .abundance = !!sym(a),
+          method = m
+        ) |> 
+        pivot_transcript() |> 
+        substitute(
+          env = list(
+            f=as.formula(formula), a = .abundance, m=method, 
+            i = factor_of_interest
+          )),
+      pattern = map(pseudobulk_group_list) |> quote(), 
+      packages="tidybulk"
+    )
+    
+    
+    # factory_collapse(
+    #   "pseudobulk_joined", 
+    #   command = bind_rows(create_pseudobulk_sample) |> left_join(chunk_tbl) |> quote(),
+    #   tiered_input = "create_pseudobulk_sample", 
+    #   tiers = tiers, 
+    #   packages = c("dplyr") #, pattern = map(create_pseudobulk_sample) |> quote()
+    # )
+  )
+}
+
+#' @importFrom rlang sym
+#' @importFrom dplyr left_join
+#' @importFrom dplyr nest
+#' @importFrom dplyr group_by
+#' @importFrom dplyr mutate
+#' @importFrom dplyr unnest
+#' @importFrom purrr map
+#' @importFrom S4Vectors split
+#' @importFrom purrr compact
+#' @importFrom purrr map
+#' 
+#' @export
+factory_de_random_effect = function(se_list_input, output_se, formula, tiers, factor_of_interest = NULL, .abundance = NULL){
+  
+  
+  list(
+    
+    tar_target_raw(
+      "pseudobulk_group_list",
+      pseudobulk_se |> 
+        group_split(!!sym(pseudobulk_group_by)) |>  
+        quote(),
+      iteration = "list",
+      packages = c("tidySummarizedExperiment", "S4Vectors", "targets", "rlang")
+    ),
+    
+    tar_target_raw(
+      "pseudobulk_table_dispersion_gene",
+      pseudobulk_group_list  |> 
+        keep_abundant(factor_of_interest = i, .abundance = a, minimum_proportion = 0.2, minimum_counts = 1,) |> 
+        scale_abundance() |> 
+        se_add_dispersion(f, a ) |> 
+        split_summarized_experiment(chunk_size = 10) |> 
+        substitute(env = list(
+          f=as.formula(formula), 
+          a = glue("{.abundance}_scaled"),
+          i = factor_of_interest 
+        )), 
+      pattern = map(pseudobulk_group_list) |> quote(), 
+      iteration = "list",
+      packages = c("tidySummarizedExperiment", "S4Vectors", "purrr", "dplyr" ,"tidybulk", "HPCell")
+    ), 
+    
+    tar_target_raw(
+      "pseudobulk_table_dispersion_gene_unlist", 
+      pseudobulk_table_dispersion_gene |> unlist() |> unlist() |> quote(),
+      iteration = "list"
+      #, 
+      #pattern = map(pseudobulk_table_dispersion_gene) |> quote()
+    ),
+    
+    # Analyse
+    tar_target_raw(
+      "de_split",
+      pseudobulk_table_dispersion_gene_unlist |> 
+        map_de( f, a, 
+                "glmmseq_lme4", 
+                max_rows_for_matrix_multiplication = 10000, 
+                cores = 1,
+                .scaling_factor = !!sym(s),
+                .group_by = !!sym(pseudobulk_group_by)
+        ) |> 
+        
+        substitute(env = list(f=as.formula(formula), a = .abundance, s = "TMM")),
+      pattern = map(pseudobulk_table_dispersion_gene_unlist) |> quote(),
+      iteration = "list",
+      packages = c("rlang")
+    ),
+    
+    tar_target_raw(output_se, 
+                   de_split |>
+                     compact() |> 
+                     bind_rows() |>
+                     nest(summary = -!!sym(pseudobulk_group_by)) |>
+                     quote(), 
+                   packages = c("tidyr", "dplyr", "purrr")
+    )
+    
+  )
+}

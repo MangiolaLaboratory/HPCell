@@ -200,6 +200,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     # Subset
     RNA_assay = input_read_RNA_assay[rownames(input_read_RNA_assay[[assay]]) %in% rownames(reference_azimuth[["SCT"]]),][[assay]]
+    
     #RNA_assay <- input_read_RNA_assay@assays$RNA[["counts"]][rownames(input_read_RNA_assay@assays$RNA[["counts"]])%in% rownames(reference_azimuth[["SCT"]]),]
     #ADT_assay = input_read_RNA_assay[["ADT"]][rownames(input_read_RNA_assay[["ADT"]]) %in% rownames(reference_azimuth[["ADT"]]),]
     input_read_RNA_assay <- CreateSeuratObject( counts = RNA_assay)
@@ -696,7 +697,8 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
                                         alive_identification_tbl, 
                                         cell_cycle_score_tbl,
                                         assay = NULL,
-                                        factors_to_regress = NULL){
+                                        factors_to_regress = NULL,
+                                        external_path){
   #Fix GChecks 
   empty_droplet = NULL 
   .cell <- NULL 
@@ -705,7 +707,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   G2M.Score = NULL 
   
   # Your code for non_batch_variation_removal function here
-  
+  class_input = input_read_RNA_assay |> class()
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
@@ -722,7 +724,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
         new.assay.name = assay)
   }
   
-  counts =
+  input_read_RNA_assay =
     input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by = ".cell") |>
     filter(!empty_droplet) |>
@@ -734,7 +736,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
     ) 
   
   if(!is.null(cell_cycle_score_tbl)) 
-    counts = counts |>
+    input_read_RNA_assay = input_read_RNA_assay |>
     
     left_join(
       cell_cycle_score_tbl |>
@@ -750,40 +752,57 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   # VariableFeatures(counts) = variable_features
   
   # Normalise RNA
-  normalized_rna <- Seurat::SCTransform(
-    counts, 
+  normalized_rna <- 
+    Seurat::SCTransform(
+      input_read_RNA_assay, 
     assay=assay,
     return.only.var.genes=FALSE,
     residual.features = NULL,
     vars.to.regress = factors_to_regress,
     vst.flavor = "v2",
-    scale_factor=2186
-  )
+    scale_factor=2186,  
+    conserve.memory=T, 
+    min_cells=0,
+  )  |> 
+    GetAssayData(assay="SCT")
   
-  my_assays = "SCT"
-  
-  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
-    normalized_rna <- normalized_rna |> as.SingleCellExperiment(assay = assay)
-  } else if (inherits(input_read_RNA_assay, "Seurat")) {
-    normalized_rna
+
+  if (class_input == "SingleCellExperiment") {
+    dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
+    
+    
+    # Write the slice to the output HDF5 file
+    normalized_rna |> 
+      HDF5Array::writeHDF5Array(
+      filepath = glue("{external_path}/{digest(normalized_rna)}"),
+      name = "SCT",
+      as.sparse = TRUE
+    ) 
+    
+  } else if (class_input ==  "Seurat") {
+    
+    normalized_rna 
+    
   }
 
   
-  # Normalise antibodies
-  if ( "ADT" %in% names(normalized_rna@assays)) {
-    normalized_data <- normalized_rna %>%
-      NormalizeData(normalization.method = 'CLR', margin = 2, assay="ADT") %>%
-      select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
-    
-    my_assays = my_assays |> c("CLR")
-    
-  } else { 
-    normalized_data <- normalized_rna %>%
-      # Drop alive columns
-      select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
-  }
+  # # Normalise antibodies
+  # if ( "ADT" %in% names(normalized_rna@assays)) {
+  #   normalized_data <- normalized_rna %>%
+  #     NormalizeData(normalization.method = 'CLR', margin = 2, assay="ADT") %>%
+  #     select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
+  #   
+  #   my_assays = my_assays |> c("CLR")
+  #   
+  # } else { 
+  #   normalized_data <- normalized_rna %>%
+  #     # Drop alive columns
+  #     select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
+  # }
   
-  normalized_data[[my_assays]] 
+  
+  
+
   
 }
 
@@ -807,10 +826,12 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
 #' @importFrom dplyr filter
 #' @importFrom dplyr select
 #' @import SeuratObject
-#' @importFrom SummarizedExperiment left_join
+#' @importFrom dplyr left_join
 #' @import tidySingleCellExperiment 
 #' @import tidyseurat
 #' @importFrom magrittr not
+#' @importFrom SingleCellExperiment altExp
+#' @importFrom SingleCellExperiment altExp<-
 #' @export
 preprocessing_output <- function(input_read_RNA_assay,
                                  empty_droplets_tbl,
@@ -840,11 +861,13 @@ preprocessing_output <- function(input_read_RNA_assay,
     if(input_read_RNA_assay |> is("Seurat"))
       input_read_RNA_assay[["SCT"]] = non_batch_variation_removal_S
     else if(input_read_RNA_assay |> is("SingleCellExperiment")){
-      message("HPCell says: in order to attach SCT assay to the SingleCellExperiment, the non overlapping features (lowly abundant in the majority of cells) have been dropped")
+      message("HPCell says: in order to attach SCT assay to the SingleCellExperiment, SCT was added to external experiments slot")
       
-      input_read_RNA_assay = input_read_RNA_assay[rownames(non_batch_variation_removal_S), ]
+      #input_read_RNA_assay = input_read_RNA_assay[rownames(non_batch_variation_removal_S), ]
       
-      assay(input_read_RNA_assay, "SCT") <- GetAssayData(non_batch_variation_removal_S)
+      # altExp(input_read_RNA_assay) = SingleCellExperiment(assay  = list(SCT = non_batch_variation_removal_S))
+      
+      assay(input_read_RNA_assay, "SCT") <- non_batch_variation_removal_S
       
     }
   }
@@ -930,7 +953,8 @@ preprocessing_output <- function(input_read_RNA_assay,
 #' @export
 
 # Create pseudobulk for each sample 
-create_pseudobulk <- function(input_read_RNA_assay, sample_names, 
+create_pseudobulk <- function(input_read_RNA_assay, 
+                              sample_names_vec, 
                               empty_droplets_tbl,
                               alive_identification_tbl,
                               cell_cycle_score_tbl,
@@ -947,13 +971,15 @@ create_pseudobulk <- function(input_read_RNA_assay, sample_names,
   dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
   
   preprocessing_output_S = 
-    preprocessing_output(input_read_RNA_assay,
+    preprocessing_output(
+        input_read_RNA_assay,
          empty_droplets_tbl,
          non_batch_variation_removal_S = NULL, 
          alive_identification_tbl, 
          cell_cycle_score_tbl, 
          annotation_label_transfer_tbl, 
-         doublet_identification_tbl)
+         doublet_identification_tbl
+        )
 
   
   if(assays |> is.null()){
@@ -969,7 +995,7 @@ create_pseudobulk <- function(input_read_RNA_assay, sample_names,
     preprocessing_output_S |> 
     
     # Add sample
-    mutate(sample_hpc = sample_names) |> 
+    mutate(sample_hpc = sample_names_vec) |> 
     
     # Aggregate
     #aggregate_cells(c(sample_hpc, any_of(x)), slot = "data", assays = assays) 
@@ -1031,7 +1057,11 @@ create_pseudobulk <- function(input_read_RNA_assay, sample_names,
 #' 
 #' @export
 #' 
-pseudobulk_merge <- function(pseudobulk_list, ...) {
+pseudobulk_merge <- function(pseudobulk_list, external_path, ...) {
+  
+  dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
+  
+  
   # Fix GCHECKS 
   . = NULL 
 
@@ -1053,7 +1083,8 @@ pseudobulk_merge <- function(pseudobulk_list, ...) {
     as.character()
   
   
-  output_path_sample <- pseudobulk_list |>
+  se <- pseudobulk_list |>
+    
     # Add missing genes
     purrr::map(~{
    
@@ -1067,10 +1098,18 @@ pseudobulk_merge <- function(pseudobulk_list, ...) {
     
     purrr::map(~ .x |> dplyr::select(any_of(common_columns)))   %>%
     
-    do.call(S4Vectors::cbind, .)
+    do.call(S4Vectors::cbind, .) 
+  
+  
+  file_name = glue("{external_path}/{digest(se)}")
+
+  se = 
+    se |> 
+  
+    saveHDF5SummarizedExperiment(dir = file_name, replace=TRUE, as.sparse=TRUE) 
   
   # Return the pseudobulk data for this single sample
-  return(output_path_sample)
+  return(se)
 }
 
 
@@ -1491,4 +1530,5 @@ annotation_consensus = function(single_cell_data, .sample_column, .cell_type, .a
 }
 
 
-
+#' @export
+is_target = function(x) as.name(x) 
