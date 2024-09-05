@@ -855,7 +855,7 @@ preprocessing_output <- function(input_read_RNA_assay,
     # Filter dead cells
     left_join(
       alive_identification_tbl |>
-        select(.cell, any_of(c("alive", "subsets_Mito_percent", "subsets_Ribo_percent", "high_mitochondrion", "high_ribosome"))),
+        select(.cell, any_of(c("alive", "subsets_Mito_percent", "subsets_Mito_sum", "subsets_Ribo_percent", "high_mitochondrion", "high_ribosome"))),
       by = ".cell"
     ) |>
     filter(alive) |>

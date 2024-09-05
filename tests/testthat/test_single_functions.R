@@ -460,9 +460,9 @@ library(crew.cluster)
 # library(Seurat)
 # library(SeuratData)
 # options(Seurat.object.assay.version = "v5")
-# input_seurat <-
-#   LoadData("pbmc3k") |>
-#   _[,1:500]
+input_seurat <-
+  LoadData("pbmc3k") |>
+  _[,1:500]
 # 
 # change_seurat_counts = function(data){
 # 
@@ -572,5 +572,13 @@ c("dev/input_seurat_treated_1_SCE.rds",
   test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts")
   #test_differential_abundance(~ age_days, .abundance="counts")
 
+store <- "~/HPCell/_targets_1"
+preprocessing_output_2<- c(tar_read(preprocessing_output_S_1_9d3f5f7bf0d99f4d, store = store), tar_read(preprocessing_output_S_1_b1e2c51e3268decc, store = store))
+preprocessed_metadata_list <- lapply(preprocessing_output_2, function(x) x@meta.data)
+input_data <- c(readRDS("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds"), readRDS("~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds"))
+input_meta_data_list <- list(input_data[[1]]@meta.data, input_data[[2]]@meta.data)
 
+empty_droplets_tbl_list<- list(tar_read(empty_droplets_tbl_1_90db523aa8824c48, store = store), tar_read(empty_droplets_tbl_1_16cf021f56ae67e1, store = store))
+annotation_label_transfer_list <- list(tar_read("annotation_label_transfer_tbl_1_0bf95fdfad97d473", store = store), tar_read("annotation_label_transfer_tbl_1_61b90f7f73a315eb", store = store))
+store<- "/vast/scratch/users/si.j/store_HPC1"
 

@@ -9,8 +9,7 @@ alive_identification(
   empty_droplets_tbl,
   annotation_label_transfer_tbl = NULL,
   annotation_column = NULL,
-  assay = NULL,
-  gene_nomenclature
+  assay = NULL
 )
 }
 \arguments{

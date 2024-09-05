@@ -8,7 +8,6 @@ doublet_identification(
   input_read_RNA_assay,
   empty_droplets_tbl,
   alive_identification_tbl,
-  annotation_label_transfer_tbl,
   assay = NULL
 )
 }
@@ -19,9 +18,9 @@ doublet_identification(
 
 \item{alive_identification_tbl}{A tibble identifying alive cells.}
 
-\item{annotation_label_transfer_tbl}{A tibble with annotation label transfer data.}
-
 \item{assay}{Name of the assay to use.}
+
+\item{annotation_label_transfer_tbl}{A tibble with annotation label transfer data.}
 
 \item{reference_label_fine}{Optional reference label for fine-tuning.}
 }

@@ -39,7 +39,7 @@ library(SeuratData)
 
 options(Seurat.object.assay.version = "v5")
 input_seurat <- 
-  LoadData("pbmc3k") |>
+  LoadPBMCData("pbmc3k") |>
   _[,1:500] 
 
 file_path = tempfile()
@@ -52,15 +52,18 @@ input_hpc =
   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2"))
 
 ## Test with fibrosis samples 
-input_hpc =
-  c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds") |> 
-  magrittr::set_names(c("GSM3489182", "THD0001"))
+# input_hpc =
+#   c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds") |> 
+#   magrittr::set_names(c("GSM3489182", "THD0001"))
 
 input_hpc =
   c("~/HPCell/fibrosis_data_modified/input1", "~/HPCell/fibrosis_data_modified/input2") |>
   magrittr::set_names(c("GSM3489182", "THD0001"))
 
-
+# PBMC dataset 
+input_hpc = 
+  c("~/HPCell/pbmc_data/pbmc_data_500") |> 
+  magrittr::set_names(c("pbmc3k"))
 ```
 
 Local parallel computing
@@ -88,8 +91,8 @@ input_hpc |>
     "subsets_Mito_percent", 
     "subsets_Ribo_percent", 
     "G2M.Score"
-  )) |> 
-  calculate_pseudobulk(group_by = c("sampleName"))
+  )) 
+# calculate_pseudobulk(group_by = c("sampleName"))
 ```
 
 SLURM HPC parallel computing

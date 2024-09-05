@@ -29,7 +29,7 @@ Imports:
   tidyr, 
   glue,
   stringr,
-  tidyseurat,
+  tidyseurat (>= 0.8.0),
   purrr,
   readr,
   patchwork,

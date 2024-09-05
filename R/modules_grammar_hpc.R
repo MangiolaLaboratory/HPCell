@@ -73,7 +73,6 @@ initialise_hpc <- function(input_hpc,
   input_hpc |> as.list() |>  saveRDS("input_file.rds")
   gene_nomenclature |> saveRDS("temp_gene_nomenclature.rds")
   data_container_type |> saveRDS("data_container_type.rds")
-  
   computing_resources |> saveRDS("temp_computing_resources.rds")
   tiers = tier |> 
     get_positions() 
@@ -182,6 +181,19 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
   args_list$factory = function(tiers){
+    report_params <-
+      list(
+          x1 = empty_droplets_tbl,
+    #     x3 = doublet_identification_tbl_1,
+    #     x4 = annotation_label_transfer_tbl_1,
+    #     x5 = sample_column,
+    #     x6 = pseudobulk_group_by,
+          x7 = report_output_path
+      ) |> quote()
+    # 
+    report_output_path <- glue("{input_hpc$initialisation$store}/empty_droplet_report.html")
+    # modified_report_params <- substitute(report_params, list(report_output_path = report_output_path))
+    
     list(
       tar_target_raw("total_RNA_count_check", readRDS("total_RNA_count_check.rds") |> quote(), deployment = "main"),
       
@@ -194,16 +206,21 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
           quote(),
         tiers, 
         arguments_to_tier = "read_file"
-      )  ,
+      ),
       
       factory_collapse(
         "my_report",
         do.call(bind_rows, empty_droplets_tbl) |> quote(),
         "empty_droplets_tbl",
         tiers, packages = c("dplyr")
-      )
+      ),
+      tar_render(
+        name = empty_droplet_report,
+        path = paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_Report_HPC.Rmd"),
+        params = eval(report_params),
+        output_file = report_output_path
     )
-    
+    )
   }
   
   # We don't want recursive when we call factory
@@ -408,7 +425,23 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc) {
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
   args_list$factory = function(tiers){
+    
+    # report_params <- 
+    #   list(
+    #     x1 = input_read,
+    #     x3 = doublet_identification_tbl_1,
+    #     x4 = annotation_label_transfer_tbl_1,
+    #     x5 = sample_column,
+    #     x6 = pseudobulk_group_by,
+    #     x7 = report_output_path
+    #   ) |> quote()
+    # 
+    # report_output_path <- glue("{input_hpc$initialisation$store}/external")
+    # modified_report_params <- substitute(report_params, list(report_output_path = report_output_path))
+    
     list(
+      # tar_target_raw("pseudobulk_group_by", pseudobulk_group_by, deployment = "main") ,
+      
       factory_split(
         "doublet_identification_tbl", read_file |> 
           read_data_container(container_type = data_container_type) |> 
@@ -419,18 +452,23 @@ remove_doublets_scDblFinder.HPCell = function(input_hpc) {
           ) |> quote(),
         tiers, arguments_to_tier = "read_file",
         other_arguments_to_tier = c("empty_droplets_tbl", "alive_identification_tbl", 
-                                    "annotation_label_transfer_tbl"), 
-        other_arguments_to_map = c("empty_droplets_tbl", "alive_identification_tbl", 
+                                    "annotation_label_transfer_tbl"),
+        other_arguments_to_map = c("empty_droplets_tbl", "alive_identification_tbl",
                                    "annotation_label_transfer_tbl")
       ),
       
       factory_collapse(
         "my_report4",
-        bind_rows(doublet_identification_tbl) |> quote(), 
+        bind_rows(doublet_identification_tbl) |> quote(),
         "doublet_identification_tbl",
         tiers, packages = c("dplyr")
       )
-    )
+      # tar_render(
+      #   name = doublet_identification_report,
+      #   path = paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
+      #   params = eval(modified_report_params), 
+      #   output_file = report_output_path
+      )
     
   }
   
@@ -646,7 +684,6 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
             cell_cycle_score_tbl,
             annotation_label_transfer_tbl,
             doublet_identification_tbl,
-            
             x = pseudobulk_group_by, 
             external_path = e
           ) |> 
@@ -702,110 +739,109 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL) {
     add_class("HPCell")
   
 }
-#' Test Differential Abundance for HPCell
-#'
-#' This function tests differential abundance for HPCell objects.
-#'
-#' @name test_differential_abundance,HPCell-method
-#' @rdname test_differential_abundance
-#' @inherit tidybulk::test_differential_abundance
-#'
-#' @importFrom tidybulk test_differential_abundance
-#' @exportMethod test_differential_abundance
-#' @param .data An HPCell object.
-#' @param .formula A formula used to model the design matrix.
-#' @param .sample Sample parameter.
-#' @param .transcript Transcript parameter.
-#' @param .abundance Abundance parameter.
-#' @param contrasts Contrasts parameter.
-#' @param method Method parameter, default is "edgeR_quasi_likelihood".
-#' @param test_above_log2_fold_change Test above log2 fold change.
-#' @param scaling_method Scaling method, default is "TMM".
-#' @param omit_contrast_in_colnames Omit contrast in column names.
-#' @param prefix Prefix parameter.
-#' @param action Action parameter, default is "add".
-#' @param ... Additional parameters.
-#' @param significance_threshold Significance threshold.
-#' @param fill_missing_values Fill missing values.
-#' @param .contrasts Contrasts parameter.
-#' @return The result of the differential abundance test.
-#'
-setMethod(
-  "test_differential_abundance",
-  signature(.data = "HPCell"),
-  function(.data, .formula, .sample = NULL, .transcript = NULL, 
-           .abundance = NULL, contrasts = NULL, method = "edgeR_quasi_likelihood", 
-           test_above_log2_fold_change = NULL, scaling_method = "TMM", 
-           omit_contrast_in_colnames = FALSE, prefix = "", action = "add", factor_of_interest = NULL,
-           ..., significance_threshold = NULL, fill_missing_values = NULL, 
-           .contrasts = NULL) {
-    
-    # Capture all arguments including defaults
-    args_list <- as.list(environment())[-1]
-    
-    # Optionally, you can evaluate the arguments if they are expressions
-    args_list <- lapply(args_list, eval, envir = parent.frame())
-    
-    args_list$factory = function(tiers, .formula, factor_of_interest = NULL, .abundance = NULL){
-      
-      if(.formula |> deparse() |> str_detect("\\|"))
-        factory_de_random_effect(
-          se_list_input = "create_pseudobulk_sample", 
-          output_se = "de", 
-          formula=.formula,
-          #method="edger_robust_likelihood_ratio", 
-          tiers = tiers,
-          factor_of_interest = factor_of_interest,
-          .abundance = .abundance
-        )
-      
-      else
-        factory_de_fix_effect(
-          se_list_input = "create_pseudobulk_sample", 
-          output_se = "de", 
-          formula=.formula,
-          method="edger_robust_likelihood_ratio", 
-          tiers = tiers,
-          factor_of_interest = factor_of_interest,
-          .abundance = .abundance
-        )
-      
-    }
-    
-    # We don't want recursive when we call factory
-    if(.data |> length() > 0) {
-      
-      environment(.formula) <- new.env(parent = emptyenv())
-      
-      tar_tier_append(
-        quote(dummy_hpc |> test_differential_abundance() %$% test_differential_abundance %$% factory),
-        tiers = .data$initialisation$tier |> get_positions() ,
-        script = glue("{.data$initialisation$store}.R"),
-        .formula = .formula, 
-        factor_of_interest = factor_of_interest,
-        .abundance = .abundance
-      )
-      
-    }
-    
-    
-    .data |>
-      c(list(test_differential_abundance = args_list)) |>
-      add_class("HPCell")
-    
-  }
-)
-
+#' #' Test Differential Abundance for HPCell
+#' #'
+#' #' This function tests differential abundance for HPCell objects.
+#' #'
+#' #' @name test_differential_abundance,HPCell-method
+#' #' @rdname test_differential_abundance
+#' #' @inherit tidybulk::test_differential_abundance
+#' #'
+#' #' @importFrom tidybulk test_differential_abundance
+#' #' @exportMethod test_differential_abundance
+#' #' @param .data An HPCell object.
+#' #' @param .formula A formula used to model the design matrix.
+#' #' @param .sample Sample parameter.
+#' #' @param .transcript Transcript parameter.
+#' #' @param .abundance Abundance parameter.
+#' #' @param contrasts Contrasts parameter.
+#' #' @param method Method parameter, default is "edgeR_quasi_likelihood".
+#' #' @param test_above_log2_fold_change Test above log2 fold change.
+#' #' @param scaling_method Scaling method, default is "TMM".
+#' #' @param omit_contrast_in_colnames Omit contrast in column names.
+#' #' @param prefix Prefix parameter.
+#' #' @param action Action parameter, default is "add".
+#' #' @param ... Additional parameters.
+#' #' @param significance_threshold Significance threshold.
+#' #' @param fill_missing_values Fill missing values.
+#' #' @param .contrasts Contrasts parameter.
+#' #' @return The result of the differential abundance test.
+#' #'
+#' setMethod(
+#'   "test_differential_abundance",
+#'   signature(.data = "HPCell"),
+#'   function(.data, .formula, .sample = NULL, .transcript = NULL, 
+#'            .abundance = NULL, contrasts = NULL, method = "edgeR_quasi_likelihood", 
+#'            test_above_log2_fold_change = NULL, scaling_method = "TMM", 
+#'            omit_contrast_in_colnames = FALSE, prefix = "", action = "add", factor_of_interest = NULL,
+#'            ..., significance_threshold = NULL, fill_missing_values = NULL, 
+#'            .contrasts = NULL) {
+#'     
+#'     # Capture all arguments including defaults
+#'     args_list <- as.list(environment())[-1]
+#'     
+#'     # Optionally, you can evaluate the arguments if they are expressions
+#'     args_list <- lapply(args_list, eval, envir = parent.frame())
+#'     
+#'     args_list$factory = function(tiers, .formula, factor_of_interest = NULL, .abundance = NULL){
+#'       
+#'       if(.formula |> deparse() |> str_detect("\\|"))
+#'         factory_de_random_effect(
+#'           se_list_input = "create_pseudobulk_sample", 
+#'           output_se = "de", 
+#'           formula=.formula,
+#'           #method="edger_robust_likelihood_ratio", 
+#'           tiers = tiers,
+#'           factor_of_interest = factor_of_interest,
+#'           .abundance = .abundance
+#'         )
+#'       
+#'       else
+#'         factory_de_fix_effect(
+#'           se_list_input = "create_pseudobulk_sample", 
+#'           output_se = "de", 
+#'           formula=.formula,
+#'           method="edger_robust_likelihood_ratio", 
+#'           tiers = tiers,
+#'           factor_of_interest = factor_of_interest,
+#'           .abundance = .abundance
+#'         )
+#'       
+#'     }
+#'     
+#'     # We don't want recursive when we call factory
+#'     if(.data |> length() > 0) {
+#'       
+#'       environment(.formula) <- new.env(parent = emptyenv())
+#'       
+#'       tar_tier_append(
+#'         quote(dummy_hpc |> test_differential_abundance() %$% test_differential_abundance %$% factory),
+#'         tiers = .data$initialisation$tier |> get_positions() ,
+#'         script = glue("{.data$initialisation$store}.R"),
+#'         .formula = .formula, 
+#'         factor_of_interest = factor_of_interest,
+#'         .abundance = .abundance
+#'       )
+#'       
+#'     }
+#'     
+#'     
+#'     .data |>
+#'       c(list(test_differential_abundance = args_list)) |>
+#'       add_class("HPCell")
+#'     
+#'   }
+#' )
+#' 
 
 #' @export
 preprocessing_output_factory = function(tiers){
-  
-  
+  args_list <- as.list(environment())[-1]
   
   list(
     factory_split(
       "preprocessing_output_S", 
-      read_file |> 
+      command = {read_file |> 
         read_data_container(container_type = data_container_type) |> 
         preprocessing_output(empty_droplets_tbl,
                              non_batch_variation_removal_S,
@@ -813,7 +849,20 @@ preprocessing_output_factory = function(tiers){
                              cell_cycle_score_tbl,
                              annotation_label_transfer_tbl,
                              doublet_identification_tbl) |> 
-        quote(),
+        # 
+        # tar_render(
+        #   name = empty_droplets_report,
+        #   path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
+        #   params = list(x1 = empty_droplets_tbl
+        #                 # x2 = empty_droplets_tbl,
+        #                 # x3 = annotation_label_transfer_tbl
+        #                 # x4 = tar_read(unique_tissues, store = store),
+        #                 # x5 = sample_column |> quo_name()
+        #   ), 
+        #   output_file = substitute(env = list(e = external_path))
+        #   ) 
+        quote()
+        },
       tiers, 
       arguments_to_tier = "read_file", 
       other_arguments_to_tier = c("empty_droplets_tbl",
@@ -833,6 +882,61 @@ preprocessing_output_factory = function(tiers){
   )
   
 }
+
+
+
+    #   
+    #   factory_collapse(
+    #     "colapsed_preprocessing_output",
+    #     bind_rows(preprocessing_output_S) ,
+    #     "preprocessing_output_S",
+    #     tiers
+    #   ),
+    #   
+    #   tar_render(
+    #     name = preprocessing_report,
+    #     path = paste0(system.file(package = "HPCell"), "/rmd/preprocessing_report.Rmd"),
+    #     params = list(
+    #       x1 = collapsed_preprocessing_output, 
+    #       x2 = group_by|> quo_name()
+    #     )
+    # ) 
+
+
+#' generate_report = function(tiers){
+#' 
+#'   list(
+#'     factory_split(
+#'       "final_report",
+#'       command = {read_file |>
+#'         read_data_container(container_type = data_container_type) |>
+        # tar_render(
+        #   name = empty_droplets_report,
+        #   path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
+        #   params = list(x1 = empty_droplets_tbl,
+        #                 # x2 = empty_droplets_tbl,
+        #                 # x3 = annotation_label_transfer_tbl
+        #                 # x4 = tar_read(unique_tissues, store = store),
+        #                 # x5 = sample_column |> quo_name()
+        #                 )) |>
+#'           quote()
+#'         },
+#'         tiers,
+#'         arguments_to_tier = "read_file",
+#'         other_arguments_to_tier = c("empty_droplets_tbl"
+#'                                     # "annotation_label_transfer_tbl",
+#'                                     # "doublet_identification_tbl"),
+#'         ),
+#'         other_arguments_to_map = c("empty_droplets_tbl"
+#'                                    # "annotation_label_transfer_tbl",
+#'                                    # "doublet_identification_tbl")
+#'       )
+#'     )
+#' 
+#'   )
+#' 
+#' }
+
 
 
 # Define the generic function
@@ -900,6 +1004,15 @@ evaluate_hpc.HPCell = function(input_hpc) {
     input_hpc$initialisation$tier |> get_positions() ,
     glue("{input_hpc$initialisation$store}.R")
   )
+  
+  #-----------------------#
+  # Reports
+  #-----------------------#
+  # tar_tier_append(
+  #   quote(generate_report),
+  #   input_hpc$initialisation$tier |> get_positions() ,
+  #   glue("{input_hpc$initialisation$store}.R")
+  # )
   
   #-----------------------#
   # Close pipeline
