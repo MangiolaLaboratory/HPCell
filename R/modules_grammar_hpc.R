@@ -615,7 +615,8 @@ evaluate_hpc.HPCell = function(input_hpc) {
   # Empty droplets
   #-----------------------#
   
-  if(! "empty_tbl" %in% names(input_hpc))
+  if(
+    ! "empty_tbl" %in% names(input_hpc))
     target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
   
   #-----------------------#
