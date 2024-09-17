@@ -84,8 +84,8 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   }
   
   blueprint <- celldex::BlueprintEncodeData(
-    ensembl = gene_nomenclature == "ensembl", 
-    legacy = TRUE
+    ensembl = gene_nomenclature == "ensembl"
+    #legacy = TRUE
   )
   
   data_annotated =
@@ -119,8 +119,8 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   gc()
 
   MonacoImmuneData <- celldex::MonacoImmuneData(
-    ensembl = gene_nomenclature == "ensembl", 
-    legacy = TRUE
+    ensembl = gene_nomenclature == "ensembl"
+    #legacy = TRUE
   )
   
   data_annotated =
