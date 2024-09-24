@@ -43,12 +43,53 @@ read_data_container <- function(file,
   }
   
   switch(container_type,
-         "anndata" = zellkonverter::readH5AD(file, reader = "R", use_hdf5 = TRUE, obs = FALSE, raw = FALSE, layers = FALSE),
+         "anndata" = zellkonverter::readH5AD(file, reader = "R", use_hdf5 = TRUE, 
+                                             obs = FALSE, raw = FALSE, layers = FALSE),
          "sce_rds" = readRDS(file),
          "seurat_rds" = readRDS(file),
          "sce_hdf5" = loadHDF5SummarizedExperiment(file),
          "seurat_h5" = SeuratDisk::LoadH5Seurat(file)
          )
+}
+
+#' Save various types of single-cell data
+#' @param data A data object to save.
+#' @param dir A character vector of length one specifies the file path, or directory path.
+#' @param container_type A character vector of length one specifies the input data type.
+#' @return An object stored in the defined path.
+#' @importFrom HDF5Array loadHDF5SummarizedExperiment saveHDF5SummarizedExperiment
+#' @export
+save_experiment_data <- function(data,
+                                 dir,
+                                 container_type = "anndata"){
+  
+  if (container_type == "seurat_h5") {
+    if (!requireNamespace("SeuratDisk", quietly = TRUE)) {
+      stop("HPCell says: You need to install the SeuratDisk package.")
+    }
+  }
+  
+  if (container_type == "anndata") {
+    if (!requireNamespace("zellkonverter", quietly = TRUE)) {
+      stop("HPCell says: You need to install the zellkonverter package.")
+    }
+  }
+  
+  switch(container_type,
+         "anndata" = zellkonverter::writeH5AD(data,
+                                              paste0(dir, ".h5ad"),
+                                              compression = "gzip"),
+         "sce_rds" = saveRDS(data, paste0(dir, ".rds")),
+         "seurat_rds" = saveRDS(data, paste0(dir, ".rds")),
+         "sce_hdf5" = saveHDF5SummarizedExperiment(data,
+                                                   dir,
+                                                   replace = TRUE,
+                                                   as.sparse = TRUE),
+         
+         "seurat_h5" = SeuratDisk::SaveH5Seurat(data,
+                                                paste0(dir, ".h5Seurat"),
+                                                overwrite = TRUE)
+  )
 }
 
 #' Gene name conversion using ensembl database
@@ -78,6 +119,21 @@ convert_gene_names <- function(id,
   edb_df
 }
 
+#' Transform counts to continous data
+#' @param counts A SummarizedExperiment object
+#' @importFrom tidyr pivot_longer
+#' @importFrom SummarizedExperiment assay
+#' @importFrom tibble as_tibble rownames_to_column
+#' @importFrom magrittr extract2
+get_count_per_gene_df <- function(counts) {
+  #assay_name = data@assays |> names() |> extract2(1)
+  #counts <- assay(data, assay_name) |> as.data.frame() |> rownames_to_column(var = "features")
+  counts_tidy <- counts |> as.data.frame() |> tibble::rownames_to_column(var = "features") |>
+    as_tibble() |> pivot_longer(!features, names_to = "cells",
+                                values_to = "counts")
+  counts_tidy
+}
+
 #' Identify Empty Droplets in Single-Cell RNA-seq Data
 #'
 #' @description
@@ -98,11 +154,13 @@ convert_gene_names <- function(id,
 #' @importFrom DropletUtils emptyDrops barcodeRanks
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importFrom biomaRt useMart getBM
 #' 
 #' @export
 empty_droplet_id <- function(input_read_RNA_assay,
                              total_RNA_count_check  = -Inf,
-                             assay = NULL){
+                             assay = NULL,
+                             gene_nomenclature){
   #Fix GChecks 
   FDR = NULL 
   .cell = NULL 
@@ -122,14 +180,28 @@ empty_droplet_id <- function(input_read_RNA_assay,
   
   significance_threshold = 0.001
   # Genes to exclude
-  location <- mapIds(
-    EnsDb.Hsapiens.v86,
-    keys=rownames(input_read_RNA_assay),
-    column="SEQNAME",
-    keytype="SYMBOL"
-  )
-  mitochondrial_genes = which(location=="MT") |> names()
-  ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
+  if (gene_nomenclature == "symbol") {
+    location <- mapIds(
+      EnsDb.Hsapiens.v86,
+      keys=rownames(input_read_RNA_assay),
+      column="SEQNAME",
+      keytype="SYMBOL"
+    )
+    mitochondrial_genes = which(location=="MT") |> names()
+    ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
+    
+  } else if (gene_nomenclature == "ensembl") {
+    # all_genes are saved in data/all_genes.rda to avoid recursively accessing biomaRt backend for potential timeout error
+    data(ensembl_genes_biomart)
+    all_mitochondrial_genes <- ensembl_genes_biomart[grep("MT", ensembl_genes_biomart$chromosome_name), ] 
+    all_ribosome_genes <- ensembl_genes_biomart[grep("^(RPL|RPS)", ensembl_genes_biomart$external_gene_name), ]
+    
+    mitochondrial_genes <- all_mitochondrial_genes |> 
+      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+    ribosome_genes <- all_ribosome_genes |> 
+      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+  }
+
   
   # if ("originalexp" %in% names(input_file@assays)) {
   #   barcode_ranks <- barcodeRanks(input_file@assays$originalexp@counts[!rownames(input_file@assays$originalexp@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
@@ -144,13 +216,14 @@ empty_droplet_id <- function(input_read_RNA_assay,
     counts <- assay(input_read_RNA_assay, assay)
   }
   filtered_counts <- counts[!(rownames(counts) %in% c(mitochondrial_genes, ribosome_genes)),, drop=FALSE ]
+  
   # Calculate bar-codes ranks
   barcode_ranks <- barcodeRanks(filtered_counts)
-  
+
   # Set the minimum total RNA per cell for ambient RNA
   if(min(barcode_ranks$total) < 100) { lower = 100 } else {
     lower = quantile(barcode_ranks$total, 0.05)
-    
+
     # write_lines(
     #   glue("{input_path} has supposely empty droplets with a lot of RNAm maybe a lot of ambient RNA? Please investigate"),
     #   file = glue("{dirname(output_path_result)}/warnings_emptyDrops.txt"),
@@ -177,15 +250,15 @@ empty_droplet_id <- function(input_read_RNA_assay,
   } 
   
   # barcode ranks
-  barcode_table <- barcode_table |>
-    left_join(
-      barcode_ranks |>
-        as_tibble(rownames = ".cell") |>
-        mutate(
-          knee =  metadata(barcode_ranks)$knee,
-          inflection =  metadata(barcode_ranks)$inflection
-        )
-    )
+  # barcode_table <- barcode_table |>
+  #   left_join(
+  #     barcode_ranks |>
+  #       as_tibble(rownames = ".cell") |>
+  #       mutate(
+  #         knee =  metadata(barcode_ranks)$knee,
+  #         inflection =  metadata(barcode_ranks)$inflection
+  #       )
+  #   )
   
   
   # barcode_table |>  saveRDS(output_path_result)
@@ -218,6 +291,92 @@ empty_droplet_id <- function(input_read_RNA_assay,
   
   barcode_table
   # return(list(barcode_table, plot_barcode_ranks))
+}
+
+#' Identify Empty Droplets in Single-Cell RNA-seq Data
+#'
+#' @description
+#' `empty_droplet_threshold` distinguishes between empty and non-empty droplets by threshold. 
+#' It excludes mitochondrial and ribosomal genes, and filters input data
+#' based on defined values of `nCount_RNA` and `nFeature_RNA`
+#' The function returns a tibble containing RNA count, RNA feature count indicating whether cells are empty droplets.
+#'
+#' @param input_read_RNA_assay SingleCellExperiment or Seurat object containing RNA assay data.
+#' @param filter_empty_droplets Logical value indicating whether to filter the input data.
+#' @param RNA_feature_threshold An optional integer for the number of feature count. Default is 200
+#'
+#' @return A tibble with columns: Cell, nFeature_RNA, empty_droplet (classification of droplets).
+#'
+#' @importFrom AnnotationDbi mapIds
+#' @importFrom stringr str_subset
+#' @importFrom dplyr left_join mutate
+#' @importFrom tidyr replace_na
+#' @importFrom DropletUtils emptyDrops barcodeRanks
+#' @importFrom S4Vectors metadata
+#' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importFrom biomaRt useMart getBM
+#' 
+#' @export
+empty_droplet_threshold<- function(input_read_RNA_assay,
+                                   total_RNA_count_check  = -Inf,
+                                   assay = NULL,
+                                   gene_nomenclature,
+                                   RNA_feature_threshold = 200){
+  #Fix GChecks 
+  FDR = NULL 
+  .cell = NULL 
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  
+  # Check if empty droplets have been identified
+  nFeature_name <- paste0("nFeature_", assay)
+  
+  filter_empty_droplets <- "TRUE"
+  
+  significance_threshold = 0.001
+  # Genes to exclude
+  if (gene_nomenclature == "symbol") {
+    location <- mapIds(
+      EnsDb.Hsapiens.v86,
+      keys=rownames(input_read_RNA_assay),
+      column="SEQNAME",
+      keytype="SYMBOL"
+    )
+    mitochondrial_genes = which(location=="MT") |> names()
+    ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
+    
+  } else if (gene_nomenclature == "ensembl") {
+    # all_genes are saved in data/all_genes.rda to avoid recursively accessing biomaRt backend for potential timeout error
+    data(ensembl_genes_biomart)
+    all_mitochondrial_genes <- ensembl_genes_biomart[grep("MT", ensembl_genes_biomart$chromosome_name), ] 
+    all_ribosome_genes <- ensembl_genes_biomart[grep("^(RPL|RPS)", ensembl_genes_biomart$external_gene_name), ]
+    
+    mitochondrial_genes <- all_mitochondrial_genes |> 
+      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+    ribosome_genes <- all_ribosome_genes |> 
+      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+  }
+  
+  # Get counts
+  if (inherits(input_read_RNA_assay, "Seurat")) {
+    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+  } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    counts <- assay(input_read_RNA_assay, assay)
+  }
+  filtered_counts <- counts[!(rownames(counts) %in% c(mitochondrial_genes, ribosome_genes)),, drop=FALSE ]
+  
+  # filter based on nCount_RNA and nFeature_RNA
+  result <- colSums(filtered_counts > 0 ) |> enframe(name = ".cell", value = "nFeature_RNA") |> 
+    #left_join(colSums(filtered_counts) |> enframe(name = ".cell", value = "nCount_RNA"), by = ".cell") |>
+    mutate(empty_droplet = nFeature_RNA < RNA_feature_threshold)
+  
+  # Discard samples with nFeature_RNA density mode < threshold, avoid potential downstream error
+  density_est = result |> pull(nFeature_RNA) |> density()
+  density_value = density_est$x[which.max(density_est$y)]
+  if (density_value < RNA_feature_threshold) return(NULL)
+  
+  result
 }
 
 
@@ -593,39 +752,35 @@ tar_script_append = function(code, script = targets::tar_config_get("script")){
     write_lines(script, append = TRUE)
 }
 
-#' Append Code to a Targets Script
-#'
-#' @description
-#' Appends given code to a 'targets' package script.
-#'
-#' @param code Code to append.
-#' @param script Path to the script file.
-#'
-#' @importFrom readr write_lines
-#' @importFrom targets tar_config_get
-#' @noRd
-tar_append = function(code, script = targets::tar_config_get("script")){
-  substitute(code) |>
-    deparse() |>
-    head(-1) |>
-    tail(-1) |>
-    write_lines(script, append = TRUE)
-}
-
-tar_tier_append = function(fx, tiers, script = targets::tar_config_get("script"), ...){
+tar_append = function(fx, tiers = NULL, script = targets::tar_config_get("script"), ...){
   
   # Deal with additional argument
-  additional_args <- list(...)
+  additional_args <- 
+    list(...) |> 
+    
+    # I need this because otherwise the quotation of for example the function names 
+    # and the target names will be lost, so those object will be evaluated and 
+    # triggered because they do not exist in the environment
+    quote_name_classes()
+  
+  arguments_to_pass  = c(fx)
+  
+  if(tiers |> is.null() |> not())
+    arguments_to_pass = arguments_to_pass |> c(list(tiers = tiers))
+  
+  if (length(additional_args) > 0)
+    arguments_to_pass = arguments_to_pass |> c(additional_args)
   
   # Construct the call with substitute
-  if (length(additional_args) > 0) {
+  # if (length(additional_args) > 0) {
     call_expr = 
-      as.call(c(fx, list(tiers), additional_args)) |> 
+      as.call(arguments_to_pass) |> 
       deparse()
-  } else {
-    call_expr <- substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
-      deparse() 
-  }
+    
+  # } else {
+  #   call_expr <- substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
+  #     deparse() 
+  # }
   
   # Add prefix
   "target_list = c(target_list, list(" |> 
@@ -2186,19 +2341,33 @@ vector_to_code <- function(int_vector) {
 #' @noRd
 add_tier_inputs <- function(command, arguments_to_tier, i) {
   
+  if(i |> length() > 1) stop("HPCell says: argument i must be of length one")
+  
   if(length(arguments_to_tier)==0) return(command)
   
   command = command |> deparse() |> paste(collapse = "")  
-  input = command |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
   
   # Filter out arguments to be tiered from the input command
+  #input = command |> str_extract("[a-zA-Z0-9_]+\\(([a-zA-Z0-9_]+),.*", group=1) 
   #arguments_to_tier <- arguments_to_tier |> str_subset(input, negate = TRUE)
   
   # Create a named vector for replacements
   replacement_regexp <- glue("{arguments_to_tier}_{i}") |> as.character() |> set_names(arguments_to_tier)
   
+  # Function to add word boundaries and perform the replacements
+  # This because we only replace WHOLE words
+  add_word_boundaries_and_replace <- function(command, replacements) {
+    for (pattern in names(replacements)) {
+      # Create the regex pattern with word boundaries
+      pattern_with_boundaries <- paste0("\\b", pattern, "\\b")
+      # Perform the replacement for each pattern
+      command <- str_replace(command, pattern_with_boundaries, replacements[pattern])
+    }
+    return(command)
+  }
+  
   # Replace the specified arguments in the command with their tiered versions
-  command |> str_replace_all(replacement_regexp) |>  rlang::parse_expr()
+  command |> add_word_boundaries_and_replace(replacement_regexp) |>  rlang::parse_expr()
   
 }
 
@@ -2233,26 +2402,27 @@ feature_chunks = function(features, chunk_size = 100){
   
 }
 
+
+
 add_missingh_genes_to_se = function(se, all_genes, missing_genes){
   
   missing_matrix = matrix(rep(0, length(missing_genes) * ncol(se)), ncol = ncol(se))
   
   rownames(missing_matrix) = missing_genes
   colnames(missing_matrix) = colnames(se)
+
+  new_se = SummarizedExperiment(assays = list(count = missing_matrix |> DelayedArray::DelayedArray() ),
+                                colData = colData(se))
+
   
-  new_se = SummarizedExperiment(assay = list(count = missing_matrix))
-  colData(new_se) = colData(se)
+  empty_rowdata = DataFrame(matrix(NA, ncol = ncol(rowData(se)), nrow = length(missing_genes)),
+            row.names = missing_genes)
+  names(empty_rowdata) <- names(rowData(se))
+  rowData(new_se) = empty_rowdata
   
-  empty_rowdata = 
-    rowData(se)[seq_len(nrow(new_se)),,drop=FALSE] |> 
-    as_tibble() |> 
-    mutate(across(everything(), ~ replace(., TRUE, NA))) |> 
-    DataFrame(row.names = missing_genes)
-  
-  rowData(new_se) =  empty_rowdata
-  
+  se = SummarizedExperiment(assays = assays(se), colData = colData(se), rowData = rowData(se))
   se = se |> rbind(new_se)
-  
+
   se[all_genes,]
   
 }
@@ -2315,4 +2485,283 @@ delete_lines_with_word <- function(word, file_path) {
   
   # Step 3: Write the modified content back to the file
   writeLines(filtered_lines, file_path)
+}
+
+#' Get elements with class 'name'
+#'
+#' This function takes a list and returns a character vector of elements
+#' that have the class 'name', converting them to their character equivalents.
+#'
+#' @param lst A list of elements to process.
+#' @return A character vector of elements with class 'name'.
+#' @noRd
+get_elements_with_name_class <- function(lst) {
+  lapply(lst, function(x) {
+    if ("name" %in% class(x)) as.character(x) else NULL
+  }) %>%
+    Filter(Negate(is.null), .) %>% # Remove NULL elements
+    unlist()
+}
+
+#' Get Arguments to Tier Based on Iteration Settings
+#'
+#' This function identifies elements from a list that have the class 'name',
+#' converts them to character strings, and returns only those elements that are
+#' present in the names of a specified input list (`input_hpc`) and have the
+#' `iterate` field set to `"tier"`.
+#'
+#' @param lst A list containing various elements, some of which may have the class 'name'.
+#' @param input_hpc A list whose names are used to filter the elements from `lst`.
+#'                  The elements in `input_hpc` should include an `iterate` field with the value `"tier"`.
+#' @return A character vector of elements from `lst` that have the class 'name',
+#'         are present in the names of `input_hpc`, and have `iterate` set to `"tier"`.
+#' @noRd
+arguments_to_action <- function(lst, input_hpc, value) {
+  matching_elements <- character()
+  
+  for (arg_name in names(lst)) {
+    arg_value <- lst[[arg_name]]
+    
+    # Skip NULL and complex values, because they cannot be a name of a target
+    if (
+      arg_value |> length() == 0 |
+      is.null(arg_value) | !(
+      arg_value |> is("character") | 
+      arg_value |> is("name") | 
+      arg_value |> is("list")
+    )) next
+    
+    # Convert the argument value to a character string vector
+    # arg_value_as_char <- as.character(arg_value)
+    
+    # This because I cannot loop over a single "name" class, while I can loop over a single "character" class
+    # NOT SO ELEGANT 
+    if(arg_value |> length() == 1){
+      
+      if (
+        (arg_value |> is("character") | arg_value |> is("name")) &&
+        as.character(arg_value) %in% names(input_hpc) && 
+        input_hpc[[arg_value]]$iterate %in% value
+      ) 
+        matching_elements <- c(matching_elements, as.character(arg_value) |> set_names(arg_name))
+       
+    }
+      
+    else{
+      # Iterate over each element in arg_value_as_char
+      for (val in arg_value) {
+        
+        # Again, skip if the list include complex elements
+        if (is.null(arg_value) | !(
+          arg_value |> is("character") | 
+          arg_value |> is("name") 
+        )) next
+        
+        # Check if the value exists in input_hpc and iterate is equal to the specified value
+        if (val %in% names(input_hpc) && input_hpc[[val]]$iterate == value) 
+          matching_elements <- c(matching_elements, as.character(arg_value) |> set_names(arg_name))
+        
+      }
+    }
+
+  }
+  
+  return(matching_elements)
+}
+
+
+
+#' Quote elements with class 'name'
+#'
+#' This function takes a list and returns a new list where any elements
+#' with the class 'name' are converted to their quoted equivalent using `quote()`.
+#' This is useful for preserving unevaluated expressions in the list.
+#'
+#' @param lst A list of elements to process.
+#' @return A list where elements with class 'name' are quoted.
+#' @noRd
+quote_name_classes <- function(lst) {
+  lapply(lst, function(x) {
+    if ("name" %in% class(x)) {
+      # Manually create the quoted expression
+      as.call(list(as.name("quote"), x))
+    } else {
+      x  # Leave as is for other elements
+    }
+  })
+}
+
+#' Safe as.name Wrapper
+#'
+#' This function wraps `as.name()` to safely handle `NULL` input.
+#' If the input is `NULL`, the function returns `NULL`; otherwise,
+#' it returns the result of `as.name()`.
+#'
+#' @param input The input to be converted to a name. If `NULL`, the function returns `NULL`.
+#' @return The result of `as.name()` applied to the input, or `NULL` if the input is `NULL`.
+#' @noRd
+safe_as_name <- function(input) {
+  if (is.null(input)) {
+    return(NULL)
+  } else {
+    return(as.name(input))
+  }
+}
+
+#' Check for Name-Value Conflicts in Arguments
+#'
+#' This function checks if any argument names in a given function call are identical
+#' to any of their corresponding values. If such a conflict is found, an error is thrown.
+#' This validation step is crucial for ensuring that arguments do not unintentionally
+#' share the same name as their value, which could lead to unexpected behavior or errors
+#' in downstream processes.
+#'
+#' @param ... Arguments to be checked for name-value conflicts.
+#' @return The function returns the input arguments as a list if no conflicts are found.
+#' @details 
+#' The `check_for_name_value_conflicts()` function is designed to catch cases where the name of an argument matches one of its values. For example, if you pass an argument like `sample_id = "sample_id"`, this function will detect that the name and value are identical and throw an error. Such conflicts can cause confusion or unintended behavior in your code, especially in complex workflows or pipelines where argument names are often used to identify specific data or parameters.
+#' 
+#' The function works by iterating over all arguments passed via `...`, converting each argument's value to a character string, and then checking if the argument's name appears in this string. If a match is found, an error is raised with a clear message indicating the problematic argument.
+#' 
+#' This function is particularly useful in contexts like data processing pipelines where arguments may be dynamically generated or modified. Ensuring that no argument name matches its value helps maintain clarity and prevent errors in such scenarios.
+#'
+#' @examples
+#' check_for_name_value_conflicts(sample_id = "sample_001", group = "control")
+#' 
+#' # This will throw an error:
+#' # check_for_name_value_conflicts(sample_id = "sample_id")
+#' 
+#' @importFrom glue glue
+#' @noRd
+check_for_name_value_conflicts <- function(...) {
+# Capture the arguments passed to the function
+args_list <- list(...)
+
+# Iterate through the list and check for name-value conflicts
+for (arg_name in names(args_list)) {
+  arg_value <- args_list[[arg_name]]
+
+  # Skip NULL values
+  if (is.null(arg_value)) next
+  
+  # Convert the argument value to a character string
+  # arg_value_as_char <- as.character(arg_value)
+  
+  # Check if the argument name matches any of the values in arg_value_as_char
+  if (arg_name %in% c(arg_value)) {
+    stop(glue::glue("HPCell says: Argument name '{arg_name}' cannot be the same as its value '{arg_value_as_char}'"))
+  }
+}
+
+# If no conflicts, return the arguments as is or proceed with the function logic
+return(args_list)
+}
+
+#' Expand Tiered Arguments in a List
+#'
+#' This function takes a list of arguments (`lst`), identifies a specific argument to replace (`argument_to_replace`),
+#' and expands it into a list of quoted tiered values. This is particularly useful when you need to dynamically generate
+#' tiered versions of an argument within a list structure.
+#'
+#' @param lst A list of arguments where one argument will be replaced by a list of tiered versions.
+#' @param tiers A vector of tiers (e.g., `c("1", "2")`) used to generate the tiered versions of the argument.
+#' @param argument_to_replace The name of the argument in `lst` that should be replaced by the tiered versions.
+#' @param tiered_args The base name used to create the tiered versions. The tiers will be appended to this base name.
+#' @return The modified list where the specified argument is replaced by a list of quoted tiered values.
+#' @details 
+#' The `expand_tiered_arguments()` function is designed to dynamically generate tiered versions of an argument
+#' in a list. For example, if you have an argument `pseudobulk_list` in `lst` that you want to replace with tiered
+#' versions like `pseudobulk_se_merge_within_tier_1` and `pseudobulk_se_merge_within_tier_2`, this function will 
+#' create those versions, quote them (to prevent evaluation), and replace the original argument in `lst` with a 
+#' list of these quoted expressions. This is useful in contexts where arguments need to be programmatically 
+#' generated and passed to functions that expect lists of unevaluated symbols.
+#'
+#' The function works by first checking if the `argument_to_replace` exists in the `lst`. If it does, it constructs 
+#' the tiered versions by iterating over the `tiers` vector, creating symbols for each tier, and wrapping each 
+#' symbol in a `quote()` to prevent immediate evaluation. The result is a list of quoted expressions that replace 
+#' the original argument in `lst`.
+#' 
+#' @examples
+#' args_list <- list(
+#'   external_path = "_targets/external",
+#'   pseudobulk_list = "pseudobulk_se_iterated",
+#'   packages = c("tidySummarizedExperiment", "HPCell")
+#' )
+#' 
+#' name_target_intermediate <- "pseudobulk_se_merge_within_tier"
+#' 
+#' result <- expand_tiered_arguments(
+#'   lst = args_list, 
+#'   tiers = c("1", "2"), 
+#'   argument_to_replace = "pseudobulk_list",
+#'   tiered_args = name_target_intermediate
+#' )
+#' 
+#' # The output will be:
+#' # $external_path
+#' # [1] "_targets/external"
+#' #
+#' # $pseudobulk_list
+#' # list(quote(pseudobulk_se_merge_within_tier_1), quote(pseudobulk_se_merge_within_tier_2))
+#' #
+#' # $packages
+#' # [1] "tidySummarizedExperiment" "HPCell"
+#' 
+#' @importFrom stats substitute
+#' @noRd
+expand_tiered_arguments <- function(lst, tiers, argument_to_replace, tiered_args) {
+  # Check if the argument to replace exists in the list
+  if (argument_to_replace %in% names(lst)) {
+    # Fetch the correct value of the tiered argument from the list
+    tiered_base <- lst[[argument_to_replace]]
+    
+    # Create a vector of tiered values by combining tiered_base with tiers
+    # If no tier do not add the suffix
+    tiered_values <- lapply(tiers, function(tier) paste0(tiered_base, "_", tier) |> as.name() )
+
+    # Construct the c(...) call with the tiered values
+    c_call <- as.call(c(as.name("c"), tiered_values))
+    
+    # Wrap the entire c(...) call with quote(quote(...))
+    lst[[argument_to_replace]] <- substitute(quote(quote(expr)), list(expr = c_call))
+  }
+  
+  return(lst)
+}
+
+
+build_pattern = function(arguments_to_tier = c(), other_arguments_to_map = c(), index = c()){
+  
+  pattern = NULL 
+  
+  if(
+    arguments_to_tier |> length() > 0 |
+    other_arguments_to_map |> length() > 0
+  ){
+    
+    pattern = as.name("map")
+    
+    if(arguments_to_tier |> length() > 0)
+      pattern = pattern |> c(
+        arguments_to_tier |>
+          map(
+            ~ substitute(
+              slice(input, index  = arg ), 
+              list(input = as.symbol(.x), arg=index)
+            ) 
+          )
+      )
+    
+    if(other_arguments_to_map |> length() > 0){
+      
+        pattern = pattern |> c(other_arguments_to_map |> lapply(as.name))
+      
+    }
+      
+    pattern = as.call(pattern)
+    
+  }
+  
+  pattern
+  
 }
