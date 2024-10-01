@@ -886,26 +886,37 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 
 #' reference_annotation_to_consensus
 #'
-#' This function takes a vector of cell types and applies a series of transformations
-#' to clean and standardize them for better consistency.
+#' This function takes cell type annotations from multiple datasets (Azimuth, Monaco, Blueprint) and harmonizes them into a consensus annotation. The function utilizes predefined mappings between cell type labels in these datasets to generate standardized cell types across references.
 #'
 #' @importFrom dplyr %>%
 #' @importFrom dplyr mutate
-#'
-#' @importFrom stringr str_remove_all
-#' @importFrom stringr str_remove
-#' @importFrom stringr str_replace
+#' @importFrom dplyr case_when
+#' @importFrom dplyr left_join
+#' @importFrom dplyr tribble
+#' @importFrom tidyr expand_grid
 #' @importFrom stringr str_detect
-#' @importFrom stringr str_replace_all
-#' @importFrom stringr str_trim
+#' 
+#' @param azimuth_input A vector of cell type annotations from the Azimuth dataset.
+#' @param monaco_input A vector of cell type annotations from the Monaco dataset.
+#' @param blueprint_input A vector of cell type annotations from the Blueprint dataset.
 #'
-#' @param x A vector of cell types.
+#' @return A vector of consensus cell type annotations, merging inputs from the three datasets.
 #'
-#' @return A cleaned and standardized vector of cell types.
+#' @examples
+#' # Example usage:
+#' tibble(
+#'   azimuth_predicted.celltype.l2 = c("CD8 TEM", "NK", "CD4 Naive"),
+#'   monaco_first.labels.fine = c("Effector memory CD8 T cells", "Natural killer cells", "Naive CD4 T cells"),
+#'   blueprint_first.labels.fine = c("CD8+ Tem", "NK cells", "Naive B-cells")
+#' ) %>%
+#'   mutate(consensus = reference_annotation_to_consensus(
+#'     azimuth_predicted.celltype.l2, monaco_first.labels.fine, blueprint_first.labels.fine))
+#' 
+#' @note This function is designed to harmonize specific cell types, especially T cells, B cells, monocytic cells, and innate lymphoid cells (ILCs), across reference datasets.
 #'
-# @examples
-# cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
-# cleaned_cell_types <- clean_cell_types_deeper(cell_types)
+#' @seealso \code{\link[dplyr]{mutate}}, \code{\link[stringr]{str_detect}}, \code{\link[tidyr]{expand_grid}}
+#'
+#' @export
 reference_annotation_to_consensus = function(azimuth_input, monaco_input, blueprint_input){
 
   # azimuth_pbmc = enquo(azimuth_pbmc)
