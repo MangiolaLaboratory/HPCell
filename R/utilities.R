@@ -884,7 +884,7 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
     ))
 }
 
-#' Clean and Standardize Cell Types (Deeper)
+#' reference_annotation_to_consensus
 #'
 #' This function takes a vector of cell types and applies a series of transformations
 #' to clean and standardize them for better consistency.
@@ -906,136 +906,136 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 # @examples
 # cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
 # cleaned_cell_types <- clean_cell_types_deeper(cell_types)
-clean_cell_types_deeper = function(x, azimuth_pbmc, monaco_fine, blueprint_fine){
+reference_annotation_to_consensus = function(azimuth_input, monaco_input, blueprint_input){
 
-  azimuth_pbmc = enquo(azimuth_pbmc)
-  monaco_fine = enquo(monaco_fine)
-  blueprint_fine = enquo(blueprint_fine)
+  # azimuth_pbmc = enquo(azimuth_pbmc)
+  # monaco_fine = enquo(monaco_fine)
+  # blueprint_fine = enquo(blueprint_fine)
   
   monaco = 
     tribble(
     ~Query,                              ~Reference,                        ~Database,
-    "Naive CD8 T cells",                 "cd8 naive",                       quo_name(monaco_fine),
-    "Central memory CD8 T cells",        "cd8 tcm",                         quo_name(monaco_fine),
-    "Effector memory CD8 T cells",       "cd8 tem",                         quo_name(monaco_fine),
-    "Terminal effector CD8 T cells",     "terminal effector cd4 t",         quo_name(monaco_fine), # Adjusting for the closest match
-    "MAIT cells",                        "mait",                            quo_name(monaco_fine),
-    "Vd2 gd T cells",                    "tgd",                             quo_name(monaco_fine),
-    "Non-Vd2 gd T cells",                "tgd",                                quo_name(monaco_fine), # No direct match, leaving as NA
-    "Follicular helper T cells",         "cd4 fh",                          quo_name(monaco_fine),
-    "T regulatory cells",                "treg",                            quo_name(monaco_fine),
-    "Th1 cells",                         "cd4 th1",                         quo_name(monaco_fine),
-    "Th1/Th17 cells",                    "cd4 th1/th17",                    quo_name(monaco_fine),
-    "Th17 cells",                        "cd4 th17",                        quo_name(monaco_fine),
-    "Th2 cells",                         "cd4 th2",                         quo_name(monaco_fine),
-    "Naive CD4 T cells",                 "cd4 naive",                       quo_name(monaco_fine),
-    "Progenitor cells",                  "progenitor_cell",                 quo_name(monaco_fine),
-    "Naive B cells",                     "b naive",                         quo_name(monaco_fine),
-    "Naive B",                     "b naive",                         quo_name(monaco_fine),
-    "Non-switched memory B cells",       "b memory",                                quo_name(monaco_fine), # No direct match, leaving as NA
-    "Nonswitched memory B",       "b memory",                                quo_name(monaco_fine), # No direct match, leaving as NA
-    "Exhausted B cells",                 "plasma_cell",                                quo_name(monaco_fine), # No direct match, leaving as NA
-    "Switched memory B cells",           "b memory",                        quo_name(monaco_fine),
-    "Switched memory B",           "b memory",                        quo_name(monaco_fine),
-    "Plasmablasts",                      "plasma_cell",                     quo_name(monaco_fine),
-    "Classical monocytes",               "cd14 mono",                        quo_name(monaco_fine),
-    "Intermediate monocytes",            "cd14 mono",                       quo_name(monaco_fine), # Mapping to a closely related term
-    "Non classical monocytes",           "cd16 mono",                       quo_name(monaco_fine),
-    "Natural killer cells",              "nk",                              quo_name(monaco_fine),
-    "Natural killer",              "nk",                              quo_name(monaco_fine),
-    "Plasmacytoid dendritic cells",      "pdc",                             quo_name(monaco_fine),
-    "Myeloid dendritic cells",           "cdc",                             quo_name(monaco_fine),
-    "Myeloid dendritic",           "cdc",                             quo_name(monaco_fine),
-    "Low-density neutrophils",           "granulocyte",                     quo_name(monaco_fine),
-    "Lowdensity neutrophils",           "granulocyte",                     quo_name(monaco_fine),
-    "Low-density basophils",             "granulocyte",                                quo_name(monaco_fine), # No direct match, leaving as NA
-    "Lowdensity basophils",             "granulocyte",                                quo_name(monaco_fine), # No direct match, leaving as NA
-    "Terminal effector CD4 T cells",     "terminal effector cd4 t",         quo_name(monaco_fine),
-    "progenitor",     "progenitor_cell",         quo_name(monaco_fine)
+    "Naive CD8 T cells",                 "cd8 naive",                       "monaco_fine",
+    "Central memory CD8 T cells",        "cd8 tcm",                         "monaco_fine",
+    "Effector memory CD8 T cells",       "cd8 tem",                         "monaco_fine",
+    "Terminal effector CD8 T cells",     "terminal effector cd4 t",         "monaco_fine", # Adjusting for the closest match
+    "MAIT cells",                        "mait",                            "monaco_fine",
+    "Vd2 gd T cells",                    "tgd",                             "monaco_fine",
+    "Non-Vd2 gd T cells",                "tgd",                                "monaco_fine", # No direct match, leaving as NA
+    "Follicular helper T cells",         "cd4 fh",                          "monaco_fine",
+    "T regulatory cells",                "treg",                            "monaco_fine",
+    "Th1 cells",                         "cd4 th1",                         "monaco_fine",
+    "Th1/Th17 cells",                    "cd4 th1/th17",                    "monaco_fine",
+    "Th17 cells",                        "cd4 th17",                        "monaco_fine",
+    "Th2 cells",                         "cd4 th2",                         "monaco_fine",
+    "Naive CD4 T cells",                 "cd4 naive",                       "monaco_fine",
+    "Progenitor cells",                  "progenitor_cell",                 "monaco_fine",
+    "Naive B cells",                     "b naive",                         "monaco_fine",
+    "Naive B",                     "b naive",                         "monaco_fine",
+    "Non-switched memory B cells",       "b memory",                                "monaco_fine", # No direct match, leaving as NA
+    "Nonswitched memory B",       "b memory",                                "monaco_fine", # No direct match, leaving as NA
+    "Exhausted B cells",                 "plasma_cell",                                "monaco_fine", # No direct match, leaving as NA
+    "Switched memory B cells",           "b memory",                        "monaco_fine",
+    "Switched memory B",           "b memory",                        "monaco_fine",
+    "Plasmablasts",                      "plasma_cell",                     "monaco_fine",
+    "Classical monocytes",               "cd14 mono",                        "monaco_fine",
+    "Intermediate monocytes",            "cd14 mono",                       "monaco_fine", # Mapping to a closely related term
+    "Non classical monocytes",           "cd16 mono",                       "monaco_fine",
+    "Natural killer cells",              "nk",                              "monaco_fine",
+    "Natural killer",              "nk",                              "monaco_fine",
+    "Plasmacytoid dendritic cells",      "pdc",                             "monaco_fine",
+    "Myeloid dendritic cells",           "cdc",                             "monaco_fine",
+    "Myeloid dendritic",           "cdc",                             "monaco_fine",
+    "Low-density neutrophils",           "granulocyte",                     "monaco_fine",
+    "Lowdensity neutrophils",           "granulocyte",                     "monaco_fine",
+    "Low-density basophils",             "granulocyte",                                "monaco_fine", # No direct match, leaving as NA
+    "Lowdensity basophils",             "granulocyte",                                "monaco_fine", # No direct match, leaving as NA
+    "Terminal effector CD4 T cells",     "terminal effector cd4 t",         "monaco_fine",
+    "progenitor",     "progenitor_cell",         "monaco_fine"
   )
   
  azimuth = 
     tribble(
     ~Query,              ~Reference,                        ~Database,
-    "NK",                "nk",                              quo_name(azimuth_pbmc),
-    "CD8 TEM",           "cd8 tem",                         quo_name(azimuth_pbmc),
-    "CD4 CTL",           "cd4 helper",                         quo_name(azimuth_pbmc), # CD4 cytotoxic T lymphocytes often relate to Th1 cells
-    "dnT",               "dnt",                             quo_name(azimuth_pbmc),
-    "CD8 Naive",         "cd8 naive",                       quo_name(azimuth_pbmc),
-    "CD4 Naive",         "cd4 naive",                       quo_name(azimuth_pbmc),
-    "CD4 TCM",           "cd4 helper",                    quo_name(azimuth_pbmc), # Central memory cells often relate to Th1 or Th17
-    "gdT",               "tgd",                             quo_name(azimuth_pbmc),
-    "CD8 TCM",           "cd8 tcm",                         quo_name(azimuth_pbmc),
-    "MAIT",              "mait",                            quo_name(azimuth_pbmc),
-    "CD4 TEM",           "terminal effector cd4 t",         quo_name(azimuth_pbmc), # Effector memory cells can relate to terminal effector cells
-    "ILC",               "ilc",                             quo_name(azimuth_pbmc),
-    "CD14 Mono",         "cd14 mono",                       quo_name(azimuth_pbmc),
-    "cDC1",              "cdc",                             quo_name(azimuth_pbmc), # Conventional dendritic cell 1 is commonly referred to as CDC
-    "pDC",               "pdc",                             quo_name(azimuth_pbmc),
-    "cDC2",              "cdc",                             quo_name(azimuth_pbmc), # No specific reference for cDC2, but using CDC as a general category
-    "B naive",           "b naive",                         quo_name(azimuth_pbmc),
-    "B intermediate",    "b naive",                                quo_name(azimuth_pbmc), # No direct match, leaving as NA
-    "B memory",          "b memory",                        quo_name(azimuth_pbmc),
-    "Platelet",          "platelet",                        quo_name(azimuth_pbmc),
-    "Eryth",             "erythrocyte",                     quo_name(azimuth_pbmc),
-    "CD16 Mono",         "cd16 mono",                       quo_name(azimuth_pbmc),
-    "HSPC",              "hematopoietic_precursor_cell",    quo_name(azimuth_pbmc),
-    "Treg",              "treg",                            quo_name(azimuth_pbmc),
-    "NK_CD56bright",     "nk",                              quo_name(azimuth_pbmc), # CD56bright NK cells are a subset of NK cells
-    "Plasmablast",       "plasma_cell",                     quo_name(azimuth_pbmc),
-    "NK Proliferating",  "NK",            quo_name(azimuth_pbmc), # NK cells can be proliferative, linked to general proliferation
-    "ASDC",              "cdc",                                quo_name(azimuth_pbmc), # No direct match, leaving as NA
-    "CD8 Proliferating", "proliferating_t_cell",            quo_name(azimuth_pbmc),
-    "CD4 Proliferating", "proliferating_t_cell",            quo_name(azimuth_pbmc),
-    "doublet", "non_immune",            quo_name(azimuth_pbmc)
+    "NK",                "nk",                              "azimuth_pbmc",
+    "CD8 TEM",           "cd8 tem",                         "azimuth_pbmc",
+    "CD4 CTL",           "cd4 helper",                         "azimuth_pbmc", # CD4 cytotoxic T lymphocytes often relate to Th1 cells
+    "dnT",               "dnt",                             "azimuth_pbmc",
+    "CD8 Naive",         "cd8 naive",                       "azimuth_pbmc",
+    "CD4 Naive",         "cd4 naive",                       "azimuth_pbmc",
+    "CD4 TCM",           "cd4 helper",                    "azimuth_pbmc", # Central memory cells often relate to Th1 or Th17
+    "gdT",               "tgd",                             "azimuth_pbmc",
+    "CD8 TCM",           "cd8 tcm",                         "azimuth_pbmc",
+    "MAIT",              "mait",                            "azimuth_pbmc",
+    "CD4 TEM",           "terminal effector cd4 t",         "azimuth_pbmc", # Effector memory cells can relate to terminal effector cells
+    "ILC",               "ilc",                             "azimuth_pbmc",
+    "CD14 Mono",         "cd14 mono",                       "azimuth_pbmc",
+    "cDC1",              "cdc",                             "azimuth_pbmc", # Conventional dendritic cell 1 is commonly referred to as CDC
+    "pDC",               "pdc",                             "azimuth_pbmc",
+    "cDC2",              "cdc",                             "azimuth_pbmc", # No specific reference for cDC2, but using CDC as a general category
+    "B naive",           "b naive",                         "azimuth_pbmc",
+    "B intermediate",    "b naive",                                "azimuth_pbmc", # No direct match, leaving as NA
+    "B memory",          "b memory",                        "azimuth_pbmc",
+    "Platelet",          "platelet",                        "azimuth_pbmc",
+    "Eryth",             "erythrocyte",                     "azimuth_pbmc",
+    "CD16 Mono",         "cd16 mono",                       "azimuth_pbmc",
+    "HSPC",              "hematopoietic_precursor_cell",    "azimuth_pbmc",
+    "Treg",              "treg",                            "azimuth_pbmc",
+    "NK_CD56bright",     "nk",                              "azimuth_pbmc", # CD56bright NK cells are a subset of NK cells
+    "Plasmablast",       "plasma_cell",                     "azimuth_pbmc",
+    "NK Proliferating",  "NK",            "azimuth_pbmc", # NK cells can be proliferative, linked to general proliferation
+    "ASDC",              "cdc",                                "azimuth_pbmc", # No direct match, leaving as NA
+    "CD8 Proliferating", "proliferating_t_cell",            "azimuth_pbmc",
+    "CD4 Proliferating", "proliferating_t_cell",            "azimuth_pbmc",
+    "doublet", "non_immune",            "azimuth_pbmc"
     ) 
   
   blueprint =   tribble(
         ~Query,                             ~Reference,                        ~Database,
-        "Neutrophils",                      "granulocyte",                     quo_name(blueprint_fine),
-        "Monocytes",                        "monocyte",                        quo_name(blueprint_fine),
-        "MEP",                              "hematopoietic_cell",              quo_name(blueprint_fine), # MEP typically refers to megakaryocyte-erythroid progenitor
-        "CD4+ T-cells",                     "cd4 th1",                         quo_name(blueprint_fine),
-        "Tregs",                            "treg",                            quo_name(blueprint_fine),
-        "CD4+ Tcm",                         "cd4 th1/th17",                    quo_name(blueprint_fine),
-        "CD4+ Tem",                         "terminal effector cd4 t",         quo_name(blueprint_fine),
-        "CD8+ Tcm",                         "cd8 tcm",                         quo_name(blueprint_fine),
-        "CD8+ Tem",                         "cd8 tem",                         quo_name(blueprint_fine),
-        "NK cells",                         "nk",                              quo_name(blueprint_fine),
-        "naive B-cells",                    "b naive",                         quo_name(blueprint_fine),
-        "Memory B-cells",                   "b memory",                        quo_name(blueprint_fine),
-        "Class-switched memory B-cells",    "b memory",                        quo_name(blueprint_fine), # No direct match, leaving as NA
-        "HSC",                              "hematopoietic_cell",              quo_name(blueprint_fine),
-        "MPP",                              "hematopoietic_cell",              quo_name(blueprint_fine), # MPP typically refers to multipotent progenitor
-        "CLP",                              "hematopoietic_cell",              quo_name(blueprint_fine), # CLP typically refers to common lymphoid progenitor
-        "GMP",                              "hematopoietic_cell",              quo_name(blueprint_fine), # GMP typically refers to granulocyte-macrophage progenitor
-        "Macrophages",                      "macrophage",                      quo_name(blueprint_fine),
-        "CD8+ T-cells",                     "cd8",                             quo_name(blueprint_fine),
-        "CD8 T",                     "cd8",                                    quo_name(blueprint_fine),
-        "Erythrocytes",                     "erythrocyte",                     quo_name(blueprint_fine),
-        "Megakaryocytes",                   "megakaryocytes",                  quo_name(blueprint_fine),
-        "CMP",                              "hematopoietic_cell",              quo_name(blueprint_fine), # CMP typically refers to common myeloid progenitor
-        "Macrophages M1",                   "macrophage",                       quo_name(blueprint_fine), # Specific polarization states (M1, M2) not explicitly listed
-        "Macrophages M2",                   "macrophage",                      quo_name(blueprint_fine),
-        "Endothelial cells",                "endothelial_cell",                quo_name(blueprint_fine),
-        "DC",                               "cdc",                             quo_name(blueprint_fine), # Assuming DC refers to dendritic cells
-        "Eosinophils",                      "granulocyte",                       quo_name(blueprint_fine), # No direct match, leaving as NA
-        "Plasma cells",                     "plasma_cell",                     quo_name(blueprint_fine),
-        "Chondrocytes",                     "chondrocyte",                     quo_name(blueprint_fine),
-        "Fibroblasts",                      "fibroblast",                      quo_name(blueprint_fine),
-        "Smooth muscle",                    "smooth_muscle_cell",              quo_name(blueprint_fine),
-        "Epithelial cells",                 "epithelial_cell",                 quo_name(blueprint_fine),
-        "Melanocytes",                      "melanocyte",                      quo_name(blueprint_fine),
-        "Skeletal muscle",                  "muscle_cell",                     quo_name(blueprint_fine),
-        "Keratinocytes",                    "keratinocyte",                    quo_name(blueprint_fine),
-        "mv Endothelial cells",             "endothelial_cell",                quo_name(blueprint_fine),
-        "Myocytes",                         "myocyte",                         quo_name(blueprint_fine),
-        "Adipocytes",                       "fat_cell",                        quo_name(blueprint_fine),
-        "Neurons",                          "neuron",                          quo_name(blueprint_fine),
-        "Pericytes",                        "pericyte_cell",                   quo_name(blueprint_fine),
-        "Preadipocytes",                    "adipocyte",                       quo_name(blueprint_fine), # No direct match, leaving as NA
-        "Astrocytes",                       "astrocyte",                       quo_name(blueprint_fine),
-        "Mesangial cells",                  "mesangial_cell",                  quo_name(blueprint_fine)
+        "Neutrophils",                      "granulocyte",                     "blueprint_fine",
+        "Monocytes",                        "monocyte",                        "blueprint_fine",
+        "MEP",                              "hematopoietic_cell",              "blueprint_fine", # MEP typically refers to megakaryocyte-erythroid progenitor
+        "CD4+ T-cells",                     "cd4 th1",                         "blueprint_fine",
+        "Tregs",                            "treg",                            "blueprint_fine",
+        "CD4+ Tcm",                         "cd4 th1/th17",                    "blueprint_fine",
+        "CD4+ Tem",                         "terminal effector cd4 t",         "blueprint_fine",
+        "CD8+ Tcm",                         "cd8 tcm",                         "blueprint_fine",
+        "CD8+ Tem",                         "cd8 tem",                         "blueprint_fine",
+        "NK cells",                         "nk",                              "blueprint_fine",
+        "naive B-cells",                    "b naive",                         "blueprint_fine",
+        "Memory B-cells",                   "b memory",                        "blueprint_fine",
+        "Class-switched memory B-cells",    "b memory",                        "blueprint_fine", # No direct match, leaving as NA
+        "HSC",                              "hematopoietic_cell",              "blueprint_fine",
+        "MPP",                              "hematopoietic_cell",              "blueprint_fine", # MPP typically refers to multipotent progenitor
+        "CLP",                              "hematopoietic_cell",              "blueprint_fine", # CLP typically refers to common lymphoid progenitor
+        "GMP",                              "hematopoietic_cell",              "blueprint_fine", # GMP typically refers to granulocyte-macrophage progenitor
+        "Macrophages",                      "macrophage",                      "blueprint_fine",
+        "CD8+ T-cells",                     "cd8",                             "blueprint_fine",
+        "CD8 T",                     "cd8",                                    "blueprint_fine",
+        "Erythrocytes",                     "erythrocyte",                     "blueprint_fine",
+        "Megakaryocytes",                   "megakaryocytes",                  "blueprint_fine",
+        "CMP",                              "hematopoietic_cell",              "blueprint_fine", # CMP typically refers to common myeloid progenitor
+        "Macrophages M1",                   "macrophage",                       "blueprint_fine", # Specific polarization states (M1, M2) not explicitly listed
+        "Macrophages M2",                   "macrophage",                      "blueprint_fine",
+        "Endothelial cells",                "endothelial_cell",                "blueprint_fine",
+        "DC",                               "cdc",                             "blueprint_fine", # Assuming DC refers to dendritic cells
+        "Eosinophils",                      "granulocyte",                       "blueprint_fine", # No direct match, leaving as NA
+        "Plasma cells",                     "plasma_cell",                     "blueprint_fine",
+        "Chondrocytes",                     "chondrocyte",                     "blueprint_fine",
+        "Fibroblasts",                      "fibroblast",                      "blueprint_fine",
+        "Smooth muscle",                    "smooth_muscle_cell",              "blueprint_fine",
+        "Epithelial cells",                 "epithelial_cell",                 "blueprint_fine",
+        "Melanocytes",                      "melanocyte",                      "blueprint_fine",
+        "Skeletal muscle",                  "muscle_cell",                     "blueprint_fine",
+        "Keratinocytes",                    "keratinocyte",                    "blueprint_fine",
+        "mv Endothelial cells",             "endothelial_cell",                "blueprint_fine",
+        "Myocytes",                         "myocyte",                         "blueprint_fine",
+        "Adipocytes",                       "fat_cell",                        "blueprint_fine",
+        "Neurons",                          "neuron",                          "blueprint_fine",
+        "Pericytes",                        "pericyte_cell",                   "blueprint_fine",
+        "Preadipocytes",                    "adipocyte",                       "blueprint_fine", # No direct match, leaving as NA
+        "Astrocytes",                       "astrocyte",                       "blueprint_fine",
+        "Mesangial cells",                  "mesangial_cell",                  "blueprint_fine"
       )
    
   conversion_table = 
@@ -1087,108 +1087,109 @@ clean_cell_types_deeper = function(x, azimuth_pbmc, monaco_fine, blueprint_fine)
   
   all_combinations = 
     expand_grid(
-      !!blueprint_fine := blueprint |> pull(Reference) |> unique(), 
-      !!monaco_fine := monaco |> pull(Reference) |> unique(),
-      !!azimuth_pbmc := azimuth |> pull(Reference) |> unique()
+      blueprint_fine = blueprint |> pull(Reference) |> unique(), 
+      monaco_fine = monaco |> pull(Reference) |> unique(),
+      azimuth_pbmc = azimuth |> pull(Reference) |> unique()
     ) |> 
     
     # Find consensus manually
     mutate(consensus =
              case_when(
                # Full consensus
-               {{ blueprint_fine }} == {{ monaco_fine }} &
-                 {{ blueprint_fine }} == {{ azimuth_pbmc }} ~ {{ blueprint_fine }},
+                blueprint_fine  ==  monaco_fine  &
+                  blueprint_fine  ==  azimuth_pbmc  ~  blueprint_fine ,
                
                # Partial consensus
-               {{ blueprint_fine }} == {{ monaco_fine }} ~ {{ blueprint_fine }},
-               {{ blueprint_fine }} == {{ azimuth_pbmc }} ~ {{ blueprint_fine }},
-               {{ monaco_fine }} == {{ azimuth_pbmc }} ~ {{ monaco_fine }},
+                blueprint_fine  ==  monaco_fine  ~  blueprint_fine ,
+                blueprint_fine  ==  azimuth_pbmc  ~  blueprint_fine ,
+                monaco_fine  ==  azimuth_pbmc  ~  monaco_fine ,
                
                # T cells
-               str_detect({{ blueprint_fine }}, "cd8") & str_detect({{ monaco_fine }}, "cd8") & str_detect({{ azimuth_pbmc }}, "cd8") ~ "t cd8",
-               str_detect({{ blueprint_fine }}, "cd4|th|fh|treg") & str_detect({{ monaco_fine }}, "cd4|th|fh|treg") & str_detect({{ azimuth_pbmc }}, "cd4|th|fh|treg") ~ "t cd4",
-               {{ blueprint_fine }} %in% t_cells & {{ monaco_fine }} %in% t_cells & {{ azimuth_pbmc }} %in% t_cells ~ "t",
+               str_detect( blueprint_fine , "cd8") & str_detect( monaco_fine , "cd8") & str_detect( azimuth_pbmc , "cd8") ~ "t cd8",
+               str_detect( blueprint_fine , "cd4|th|fh|treg") & str_detect( monaco_fine , "cd4|th|fh|treg") & str_detect( azimuth_pbmc , "cd4|th|fh|treg") ~ "t cd4",
+                blueprint_fine  %in% t_cells &  monaco_fine  %in% t_cells &  azimuth_pbmc  %in% t_cells ~ "t",
                
                # B cells
-               {{ blueprint_fine }} %in% b_cells & {{ monaco_fine }} %in% b_cells & {{ azimuth_pbmc }} %in% b_cells ~ "b",
+                blueprint_fine  %in% b_cells &  monaco_fine  %in% b_cells &  azimuth_pbmc  %in% b_cells ~ "b",
                
                # Monocytic cells
-               {{ blueprint_fine }} %in% myeloid_cells & {{ monaco_fine }} %in% myeloid_cells & {{ azimuth_pbmc }} %in% myeloid_cells ~ "monocytic",
+                blueprint_fine  %in% myeloid_cells &  monaco_fine  %in% myeloid_cells &  azimuth_pbmc  %in% myeloid_cells ~ "monocytic",
                
                # ILCs
-               {{ blueprint_fine }} %in% ilcs & {{ monaco_fine }} %in% ilcs & {{ azimuth_pbmc }} %in% ilcs ~ "ilc",
+                blueprint_fine  %in% ilcs &  monaco_fine  %in% ilcs &  azimuth_pbmc  %in% ilcs ~ "ilc",
                
                # Citotoxic
-               ( {{ blueprint_fine }} %in% ilcs | str_detect({{ blueprint_fine }}, "cd8") ) & 
-                ( {{ monaco_fine }} %in% ilcs | str_detect({{ monaco_fine }}, "cd8") ) &
-                ( {{ azimuth_pbmc }} %in% ilcs | str_detect({{ azimuth_pbmc }}, "cd8") ) ~ "citotoxic",
+               (  blueprint_fine  %in% ilcs | str_detect( blueprint_fine , "cd8") ) & 
+                (  monaco_fine  %in% ilcs | str_detect( monaco_fine , "cd8") ) &
+                (  azimuth_pbmc  %in% ilcs | str_detect( azimuth_pbmc , "cd8") ) ~ "citotoxic",
                
                ##################
                # Partial consensus broad cell types
                ##################
                
                # T cells
-               str_detect({{ blueprint_fine }}, "cd8") & str_detect({{ monaco_fine }}, "cd8") ~ "t cd8",
-               str_detect({{ blueprint_fine }}, "cd8") & str_detect({{ azimuth_pbmc }}, "cd8") ~ "t cd8",
-               str_detect({{ monaco_fine }}, "cd8") & str_detect({{ azimuth_pbmc }}, "cd8") ~ "t cd8",
+               str_detect( blueprint_fine , "cd8") & str_detect( monaco_fine , "cd8") ~ "t cd8",
+               str_detect( blueprint_fine , "cd8") & str_detect( azimuth_pbmc , "cd8") ~ "t cd8",
+               str_detect( monaco_fine , "cd8") & str_detect( azimuth_pbmc , "cd8") ~ "t cd8",
 
-           str_detect({{ blueprint_fine }}, "cd4|th|fh|treg") & str_detect({{ monaco_fine }}, "cd4|th|fh|treg") ~ "t cd4",
-           str_detect({{ blueprint_fine }}, "cd4|th|fh|treg") & str_detect({{ azimuth_pbmc }}, "cd4|th|fh|treg") ~ "t cd4",
-           str_detect({{ monaco_fine }}, "cd4|th|fh|treg") & str_detect({{ azimuth_pbmc }}, "cd4|th|fh|treg") ~ "t cd4",
+           str_detect( blueprint_fine , "cd4|th|fh|treg") & str_detect( monaco_fine , "cd4|th|fh|treg") ~ "t cd4",
+           str_detect( blueprint_fine , "cd4|th|fh|treg") & str_detect( azimuth_pbmc , "cd4|th|fh|treg") ~ "t cd4",
+           str_detect( monaco_fine , "cd4|th|fh|treg") & str_detect( azimuth_pbmc , "cd4|th|fh|treg") ~ "t cd4",
            
-            {{ blueprint_fine }} %in% t_cells & {{ monaco_fine }} %in% t_cells  ~ "t",
-            {{ blueprint_fine }} %in% t_cells  & {{ azimuth_pbmc }} %in% t_cells ~ "t",
-            {{ monaco_fine }} %in% t_cells & {{ azimuth_pbmc }} %in% t_cells ~ "t",
+             blueprint_fine  %in% t_cells &  monaco_fine  %in% t_cells  ~ "t",
+             blueprint_fine  %in% t_cells  &  azimuth_pbmc  %in% t_cells ~ "t",
+             monaco_fine  %in% t_cells &  azimuth_pbmc  %in% t_cells ~ "t",
 
                # B cells
-            {{ blueprint_fine }} %in% b_cells & {{ monaco_fine }} %in% b_cells  ~ "b",
-            {{ blueprint_fine }} %in% b_cells  & {{ azimuth_pbmc }} %in% b_cells ~ "b",
-             {{ monaco_fine }} %in% b_cells & {{ azimuth_pbmc }} %in% b_cells ~ "b",
+             blueprint_fine  %in% b_cells &  monaco_fine  %in% b_cells  ~ "b",
+             blueprint_fine  %in% b_cells  &  azimuth_pbmc  %in% b_cells ~ "b",
+              monaco_fine  %in% b_cells &  azimuth_pbmc  %in% b_cells ~ "b",
 
                # Monocytic cells
-              {{ blueprint_fine }} %in% myeloid_cells & {{ monaco_fine }} %in% myeloid_cells  ~ "monocytic",
-              {{ blueprint_fine }} %in% myeloid_cells  & {{ azimuth_pbmc }} %in% myeloid_cells ~ "monocytic",
-              {{ monaco_fine }} %in% myeloid_cells & {{ azimuth_pbmc }} %in% myeloid_cells ~ "monocytic",
+               blueprint_fine  %in% myeloid_cells &  monaco_fine  %in% myeloid_cells  ~ "monocytic",
+               blueprint_fine  %in% myeloid_cells  &  azimuth_pbmc  %in% myeloid_cells ~ "monocytic",
+               monaco_fine  %in% myeloid_cells &  azimuth_pbmc  %in% myeloid_cells ~ "monocytic",
 
                # ILCs
-              {{ blueprint_fine }} %in% ilcs & {{ monaco_fine }} %in% ilcs  ~ "ilc",
-              {{ blueprint_fine }} %in% ilcs  & {{ azimuth_pbmc }} %in% ilcs ~ "ilc",
-              {{ monaco_fine }} %in% ilcs & {{ azimuth_pbmc }} %in% ilcs ~ "ilc",
+               blueprint_fine  %in% ilcs &  monaco_fine  %in% ilcs  ~ "ilc",
+               blueprint_fine  %in% ilcs  &  azimuth_pbmc  %in% ilcs ~ "ilc",
+               monaco_fine  %in% ilcs &  azimuth_pbmc  %in% ilcs ~ "ilc",
 
            # Citotoxic
-           ( {{ blueprint_fine }} %in% ilcs | str_detect({{ blueprint_fine }}, "cd8") ) & 
-             ( {{ monaco_fine }} %in% ilcs | str_detect({{ monaco_fine }}, "cd8") )  ~ "citotoxic",
+           (  blueprint_fine  %in% ilcs | str_detect( blueprint_fine , "cd8") ) & 
+             (  monaco_fine  %in% ilcs | str_detect( monaco_fine , "cd8") )  ~ "citotoxic",
            
-           ( {{ blueprint_fine }} %in% ilcs | str_detect({{ blueprint_fine }}, "cd8") ) & 
-             ( {{ azimuth_pbmc }} %in% ilcs | str_detect({{ azimuth_pbmc }}, "cd8") ) ~ "citotoxic",
+           (  blueprint_fine  %in% ilcs | str_detect( blueprint_fine , "cd8") ) & 
+             (  azimuth_pbmc  %in% ilcs | str_detect( azimuth_pbmc , "cd8") ) ~ "citotoxic",
            
-             ( {{ monaco_fine }} %in% ilcs | str_detect({{ monaco_fine }}, "cd8") ) &
-             ( {{ azimuth_pbmc }} %in% ilcs | str_detect({{ azimuth_pbmc }}, "cd8") ) ~ "citotoxic",
+             (  monaco_fine  %in% ilcs | str_detect( monaco_fine , "cd8") ) &
+             (  azimuth_pbmc  %in% ilcs | str_detect( azimuth_pbmc , "cd8") ) ~ "citotoxic",
            
                
                TRUE ~ NA_character_
              )) 
-    
+  # |> 
+  #   rowid_to_column("combination_id") |> 
+  #   pivot_longer(-combination_id, names_to = "Database", values_to = "Reference") |> 
+  #   left_join(conversion_table, relationship = "many-to-many") |> 
+  #   select(-Reference) |> 
+  #   pivot_wider(names_from = Database, values_from = Query, values_fn = function(x) paste(unique(x), collapse = ","))
   
-  all_combinations |> 
-    rowid_to_column("combination_id") |> 
-    pivot_longer(-combination_id, names_to = "Database", values_to = "Reference") |> 
-    left_join(conversion_table, relationship = "many-to-many") |> 
-    select(-Reference) |> 
-    pivot_wider(names_from = Database, values_from = Query, values_fn = function(x) paste(unique(x), collapse = ","))
-
-
-  
-  x |> 
-    mutate(
-      !!blueprint_fine := blueprint |> select(-Database) |> deframe() |> _[!!blueprint_fine]
+  # parse names
+    tibble(
+      blueprint_fine = blueprint |> select(-Database) |> deframe() |> _[!!blueprint_input],
+      monaco_fine = monaco |> select(-Database) |> deframe() |> _[!!monaco_input],
+      azimuth_pbmc = azimuth |> select(-Database) |> deframe() |> _[!!azimuth_input],
     ) |> 
-    select(.cell, !!blueprint_fine, !!monaco_fine, !!azimuth_pbmc) |> 
-    pivot_longer(-.cell, names_to = "Database", values_to = "Query") |> 
-    mutate(Query = Query |> tolower()) |>  
-    left_join(conversion_table |> mutate(Query = Query |> tolower()), copy = TRUE) |> 
-    select(-Query) |> 
-    pivot_wider(names_from = Database, values_from = Reference)
+    left_join(
+      all_combinations,
+      by = join_by(
+        blueprint_fine == blueprint_fine,
+        monaco_fine == monaco_fine,
+        azimuth_pbmc == azimuth_pbmc
+      )
+    ) |> 
+    pull(consensus)
   
   
   # 
