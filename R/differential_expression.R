@@ -282,10 +282,10 @@ factory_de_fix_effect = function(se_list_input, output_se, formula, method, tier
 
 #' @importFrom rlang sym
 #' @importFrom dplyr left_join
-#' @importFrom dplyr nest
+#' @importFrom tidyr nest
 #' @importFrom dplyr group_by
 #' @importFrom dplyr mutate
-#' @importFrom dplyr unnest
+#' @importFrom tidyr unnest
 #' @importFrom purrr map
 #' @importFrom S4Vectors split
 #' @importFrom purrr compact
