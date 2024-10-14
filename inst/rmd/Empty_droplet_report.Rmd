@@ -4,11 +4,8 @@ author: "SS"
 date: "2023-12-07"
 output: html_document
 params: 
-  x1: "NA"
-  x2: "NA"
-  x3: "NA"
-  x4: "NA"
-  x5: "NA"
+  empty_tbl: "NA"
+  data_object: "NA"
 ---
 
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
@@ -107,16 +104,20 @@ library(S4Vectors)
 # sample_names<- params$x4
 # sample_names<- unlist(sample_names)
 
-process_input<- function(input_metadata) {
-  input<- input_metadata |>
-    # input_seurat@meta.data |>
-  tibble::rownames_to_column(var = '.cell')
-  return(input)
-}
-processed_input_list <- map(input_meta_data_list, process_input)
-unique_samples_list <- map(preprocessed_metadata_list, ~ .x |> magrittr::extract2(sample_column) |> unique())
-preprocessed_metadata_list
-sample_column<- "sampleName"
+# process_input<- function(input_metadata) {
+#   input<- input_metadata |>
+#     # input_seurat@meta.data |>
+#   tibble::rownames_to_column(var = '.cell')
+#   return(input)
+# }
+#processed_input_list <- map(input_metadata, process_input)
+#unique_samples_list <- map(input_metadata, ~ .x |> magrittr::extract2(sample_column) |> unique())
+#preprocessed_metadata_list
+#sample_column<- "sampleName"
+
+sample_column <- "orig.ident"
+# data_object <- map(data_object, ~ .x %>% extract2("orig.ident") |> 
+#                      rownames_to_column(var = ".cell"))
 ```
 
 ## Barcode rank plot
@@ -124,12 +125,12 @@ sample_column<- "sampleName"
 # names(empty_droplets_tbl_list) <- unique_samples_list
 # Process empty droplets data 
 empty_df <- function(input_metadata, empty_droplets_tbl) {
-  input <- input_metadata |>
-    # input_seurat@meta.data |> 
-    tibble::rownames_to_column(var = '.cell')
-  
+  # input <- input_metadata |>
+  #   # input_seurat@meta.data |> 
+  #   tibble::rownames_to_column(var = '.cell')
+  #browser()
   joined_data <- empty_droplets_tbl |> 
-    left_join(input |> dplyr::select(.cell, !!sample_column), by = '.cell')
+    left_join(input_metadata |> dplyr::select(.cell, !!sample_column), by = '.cell')
 
   # Create a data frame with plotting information
   plot_data <- data.frame(
@@ -149,7 +150,9 @@ empty_df <- function(input_metadata, empty_droplets_tbl) {
 }
 
 
-process_empty_droplet_list <- purrr::map2(input_meta_data_list, empty_droplets_tbl_list, empty_df)
+# process_empty_droplet_list <- purrr::map2(input_meta_data_list, empty_droplets_tbl_list, empty_df)
+process_empty_droplet_list <- purrr::map2(data_object, empty_tbl, empty_df)
+
 
 # Combined tibble with an identifier for each tissue/sample
 combined_df <- bind_rows(process_empty_droplet_list) 

@@ -442,8 +442,7 @@ hpc_merge =
 #' 
 #' 
 #' @export
-hpc_report = 
-  function(input_hpc, target_output = NULL, rmd_path = NULL, ...) {
+hpc_report = function(input_hpc, target_output = NULL, rmd_path = NULL, ...) {
     
     # # Check for argument consistency
     # check_for_name_value_conflicts(...)

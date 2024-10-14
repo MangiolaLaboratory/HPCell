@@ -65,10 +65,12 @@ initialise_hpc <- function(input_hpc,
   dir.create(store, showWarnings = FALSE, recursive = TRUE)
   data_file_names = glue("{store}/{names(input_hpc)}.rds")
   
+  # Save parameters to files?
   input_hpc |> as.list() |>  saveRDS("input_file.rds")
   gene_nomenclature |> saveRDS("temp_gene_nomenclature.rds")
   data_container_type |> saveRDS("data_container_type.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
+  # Get the index of jobs of different priority 
   tiers = tier |> 
     get_positions() 
   tiers |> 
@@ -143,7 +145,6 @@ initialise_hpc <- function(input_hpc,
     )
   
 }
-
 
 
 
@@ -455,6 +456,49 @@ get_single_cell.HPCell = function(input_hpc, target_input = "data_object", targe
   
 }
 
+# Define the generic function
+
+# calc_UMAP_reports <- function(input_hpc, target_input = "data_object", target_output = "calc_UMAP_dbl_report", ...) {
+#   UseMethod("calc_UMAP_reports")
+# }
+
+
+# calc_UMAP_reports.HPCell = function(input_hpc, target_input = "data_object", target_output = "calc_UMAP_dbl_report", ...) {
+#   
+#   input_hpc |> 
+#     hpc_iterate(
+#       target_output = target_output, 
+#       user_function = calc_UMAP |> quote(), 
+#       input_seurat = target_input |> is_target()
+#     )
+#   
+# }
+
+# calc_UMAP_reports.Seurat = function(input_hpc, target_input = "data_object", target_output = "calc_UMAP_dbl_report", ...){
+# 
+#   # Capture all arguments including defaults
+#   args_list <- as.list(environment())
+# 
+#   # Optionally, you can evaluate the arguments if they are expressions
+#   args_list <- lapply(args_list, eval, envir = parent.frame())
+# 
+#   list(initialisation = list(input_hpc = input_hpc)) |>
+#     add_class("HPCell") |>
+#     calc_UMAP_reports()
+# }
+
+
+# target_chunk_undefined_calc_UMAP_reports = function(input_hpc){
+#   
+#   input_hpc |> 
+#     hpc_iterate(
+#       target_output = "calc_UMAP_dbl_report", 
+#       packages = c("Seurat")
+#     )
+  
+# }
+
+
 
 #' Test Differential Abundance for HPCell
 #'
@@ -656,6 +700,11 @@ evaluate_hpc.HPCell = function(input_hpc) {
   if(! "sct_matrix" %in% names(input_hpc))
     target_chunk_undefined_normalise_abundance_seurat_SCT(input_hpc)
   
+  # #---------------------------#
+  # # Calculate UMAP for reports
+  # #---------------------------#
+  # if(! "calc_UMAP_dbl_report" %in% names(input_hpc))
+  #   target_chunk_undefined_calc_UMAP_reports(input_hpc)
   
   #-----------------------#
   # Reports

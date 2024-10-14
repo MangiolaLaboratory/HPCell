@@ -8,7 +8,7 @@ empty_droplet_id(
   input_read_RNA_assay,
   total_RNA_count_check = -Inf,
   assay = NULL,
-  gene_nomenclature
+  gene_nomenclature = "symbol"
 )
 }
 \arguments{

@@ -126,7 +126,16 @@ input_hpc |>
     "subsets_Mito_percent", 
     "subsets_Ribo_percent", 
     "G2M.Score"
-  )) 
+  )) |> 
+  
+  hpc_report(
+    "empty_report", 
+    rmd_path = "~/HPCell/inst/rmd/Empty_droplet_Report_HPC.Rmd",
+    empty_tbl = "empty_tbl" |> is_target(),
+    sample_names = "sample_names" |> is_target(), 
+    input_meta = tar_read(data_object)[[1]]@meta.data
+  ) 
+  
 # calculate_pseudobulk(group_by = c("sampleName"))
 ```
 
@@ -276,13 +285,20 @@ input_hpc |>
     gene_nomenclature = "symbol",
     data_container_type = "seurat_rds"
   ) |> 
-  
   hpc_report(
-    "empty_report", # The name of the report output
-    rmd_path = "~/HPCell/inst/rmd/Empty_droplet_Report_HPC.Rmd", 
-    x1 = "empty_tbl" |> is_target(), # The results and targets needed for the report
-    x2 = "sample_names" |> is_target() # The results and targets needed for the report
-  ) 
+  "empty_report", 
+  rmd_path = "~/HPCell/inst/rmd/Empty_droplet_Report_HPC.Rmd", 
+  empty_tbl = targets::tar_read(empty_tbl),  # Explicitly pass the target
+  sample_names = targets::tar_read(sample_names)
+)
+  
+  <!-- hpc_report( -->
+  <!--   "empty_report", # The name of the report output -->
+  <!--   rmd_path = "~/HPCell/inst/rmd/Empty_droplet_Report_HPC.Rmd",  -->
+  <!--   x1 = "empty_tbl" |> is_target(), # The results and targets needed for the report -->
+  <!--   x2 = "sample_names" |> is_target() # The results and targets needed for the report -->
+  <!-- )  -->
+
 
 tar_read(empty_report)
 # paste0(system.file(package = "HPCell"), "/inst/rmd/Empty_droplet_Report_HPC.Rmd")

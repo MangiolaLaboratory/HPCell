@@ -407,7 +407,6 @@ rmarkdown::render(
 )
 
 ## Pseudobulk analysis report 
-
 rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/pseudobulk_analysis_report.html"),
@@ -513,10 +512,12 @@ file_list =
 
 
   # Initialise pipeline characteristics
-file_list |> 
+# file_list |> 
+input_hpc |> 
   initialise_hpc(
     gene_nomenclature = "symbol",
-    data_container_type = "sce_hdf5",
+    # data_container_type = "sce_hdf5",
+    data_container_type = "seurat_rds",
     
     # debug_step = "non_batch_variation_removal_S_1",
 
@@ -570,13 +571,14 @@ file_list |>
   
   hpc_report(
     "empty_report", 
-    rmd_path = paste0(system.file(package = "HPCell"), "/rmd/test.Rmd"), 
-    empty_list = "empty_tbl" |> is_target(),
-    sample_names = "sample_names" |> is_target()
+    rmd_path = "~/HPCell/inst/rmd/Empty_droplet_Report_HPC.Rmd", 
+    empty_tbl = "empty_tbl" |> is_target(),
+    sample_names = "sample_names" |> is_target(), 
+    data_object = "data_object" |> is_target()
   ) |> 
   
   # ONLY APPLICABLE TO SCE FOR NOW
-  tranform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
+  tranform_assay(fx = input_hpc |> purrr::map(~identity), target_output = "sce_transformed") |> 
   
   hpc_iterate(
     target_output = "o",
@@ -615,8 +617,52 @@ file_list |>
   calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "data_object") |> 
   
   # test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts") |> 
-   test_differential_abundance(~ age_days, .abundance="counts", group_by_column = "monaco_first.labels.fine") |> 
+  test_differential_abundance(~ age_days, .abundance="counts", group_by_column = "monaco_first.labels.fine") |> 
 
   # For the moment only available for single cell
   get_single_cell(target_input = "data_object") 
+
+
+input_metadata <- list(data_object$data_object_cd8b54e4bde74e66@meta.data, data_object$data_object_054cd7cffa276f6d@meta.data)
+
+#Testing report 
+  
+input_hpc |> 
+  # Initialise pipeline characteristics
+  initialise_hpc(
+  gene_nomenclature = "symbol",
+  data_container_type = "seurat_rds"
+  ) |> 
+  # calc_UMAP_reports() |>
+  remove_empty_DropletUtils() |>          # Remove empty outliers
+  remove_dead_scuttle() |>                # Remove dead cells
+  score_cell_cycle_seurat() |>            # Score cell cycle
+  remove_doublets_scDblFinder() |>        # Remove doublets
+  annotate_cell_type() |>                 # Annotation across SingleR and Seurat Azimuth
+  normalise_abundance_seurat_SCT(factors_to_regress = c(
+    "subsets_Mito_percent", 
+    "subsets_Ribo_percent", 
+    "G2M.Score"
+  )) |> 
+  hpc_report(
+    "empty_report", 
+    rmd_path = "~/HPCell/inst/rmd/Empty_droplet_report.Rmd",
+    empty_tbl = "empty_tbl" |> is_target(),
+    data_object = "data_object" |> is_target()
+  ) |> 
+  hpc_report(
+    "doublet_report", 
+    rmd_path = "~/HPCell/inst/rmd/Doublet_identification_report.Rmd",
+    data_object = "data_object" |> is_target(), 
+    doublet_tbl = "doublet_tbl" |> is_target(), 
+    annotation_tbl = "annotation_tbl" |> is_target(), 
+    sample_names = "sample_names" |> is_target()
+  ) |> 
+  hpc_report(
+    "Technical_variation_report", 
+    rmd_path = "~/HPCell/inst/rmd/Technical_variation_report_hpc.Rmd",
+    data_object = "data_object" |> is_target(), 
+    empty_tbl = "empty_tbl" |> is_target()
+  )
+
 
