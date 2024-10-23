@@ -200,6 +200,7 @@ map_de = function(se, my_formula, assay, method, max_rows_for_matrix_multiplicat
   
 }
 
+#' @importFrom tidybulk test_differential_abundance
 #' @export
 #' @noRd
 internal_de_function = function(x, fi, a, formul, m){

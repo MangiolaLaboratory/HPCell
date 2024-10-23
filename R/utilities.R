@@ -48,7 +48,7 @@ read_data_container <- function(file,
          "seurat_rds" = readRDS(file),
          "sce_hdf5" = loadHDF5SummarizedExperiment(file),
          "seurat_h5" = SeuratDisk::LoadH5Seurat(file)
-         )
+  )
 }
 
 #' Gene name conversion using ensembl database
@@ -113,12 +113,12 @@ empty_droplet_id <- function(input_read_RNA_assay,
   # Check if empty droplets have been identified
   nFeature_name <- paste0("nFeature_", assay)
   
-    #if (any(input_read_RNA_assay[[nFeature_name]] < total_RNA_count_check)) {
+  #if (any(input_read_RNA_assay[[nFeature_name]] < total_RNA_count_check)) {
   filter_empty_droplets <- "TRUE"
-    # }
-    # else {
-    #   filter_empty_droplets <- "FALSE"
-    # }
+  # }
+  # else {
+  #   filter_empty_droplets <- "FALSE"
+  # }
   
   significance_threshold = 0.001
   # Genes to exclude
@@ -614,10 +614,10 @@ tar_append = function(fx, tiers = NULL, script = targets::tar_config_get("script
   
   # Construct the call with substitute
   # if (length(additional_args) > 0) {
-    call_expr = 
-      as.call(arguments_to_pass) |> 
-      deparse()
-    
+  call_expr = 
+    as.call(arguments_to_pass) |> 
+    deparse()
+  
   # } else {
   #   call_expr <- substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
   #     deparse() 
@@ -716,13 +716,13 @@ append_chunk_fix = function(chunk, script = targets::tar_config_get("script")){
 #' @importFrom targets tar_config_get
 #' @noRd
 append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("script")){
-   
+  
   # This does not work with purrr:::imap
   # As chunk does not like passed to a function
   tiers = tiers |> get_positions()
   .y = 1
   for(.x in tiers |> names()  ){
-      
+    
     
     "target_list = c(target_list, list(" |> 
       c(
@@ -740,7 +740,7 @@ append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("sc
                         "targets::tar_option_get(\"resources\")",
                         glue("tar_resources(crew = tar_resources_crew(\"{.x}\"))" )
                       )
-        )
+          )
       ) |> 
       
       # Add suffix
@@ -753,7 +753,7 @@ append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("sc
     
     .y = .y + 1
   }
-
+  
   
 }
 
@@ -919,157 +919,156 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 #'
 #' @export
 reference_annotation_to_consensus = function(azimuth_input, monaco_input, blueprint_input){
-
+  
   # azimuth_pbmc = enquo(azimuth_pbmc)
   # monaco_fine = enquo(monaco_fine)
   # blueprint_fine = enquo(blueprint_fine)
   
   monaco = 
     tribble(
-    ~Query,                              ~Reference,                        ~Database,
-    "Naive CD8 T cells",                 "cd8 naive",                       "monaco_fine",
-    "Central memory CD8 T cells",        "cd8 tcm",                         "monaco_fine",
-    "Effector memory CD8 T cells",       "cd8 tem",                         "monaco_fine",
-    "Terminal effector CD8 T cells",     "cd8 tem",         "monaco_fine", # Adjusting for the closest match
-    "MAIT cells",                        "mait",                            "monaco_fine",
-    "Vd2 gd T cells",                    "tgd",                             "monaco_fine",
-    "Non-Vd2 gd T cells",                "tgd",                                "monaco_fine", # No direct match, leaving as NA
-    "Follicular helper T cells",         "cd4 fh",                          "monaco_fine",
-    "T regulatory cells",                "treg",                            "monaco_fine",
-    "Th1 cells",                         "cd4 th1",                         "monaco_fine",
-    "Th1/Th17 cells",                    "cd4 th1/th17",                    "monaco_fine",
-    "Th17 cells",                        "cd4 th17",                        "monaco_fine",
-    "Th2 cells",                         "cd4 th2",                         "monaco_fine",
-    "Naive CD4 T cells",                 "cd4 naive",                       "monaco_fine",
-    "Progenitor cells",                  "progenitor_cell",                 "monaco_fine",
-    "Naive B cells",                     "b naive",                         "monaco_fine",
-    "Naive B",                     "b naive",                         "monaco_fine",
-    "Non-switched memory B cells",       "b memory",                                "monaco_fine", # No direct match, leaving as NA
-    "Nonswitched memory B",       "b memory",                                "monaco_fine", # No direct match, leaving as NA
-    "Exhausted B cells",                 "plasma_cell",                                "monaco_fine", # No direct match, leaving as NA
-    "Switched memory B cells",           "b memory",                        "monaco_fine",
-    "Switched memory B",           "b memory",                        "monaco_fine",
-    "Plasmablasts",                      "plasma_cell",                     "monaco_fine",
-    "Classical monocytes",               "cd14 mono",                        "monaco_fine",
-    "Intermediate monocytes",            "cd14 mono",                       "monaco_fine", # Mapping to a closely related term
-    "Non classical monocytes",           "cd16 mono",                       "monaco_fine",
-    "Natural killer cells",              "nk",                              "monaco_fine",
-    "Natural killer",              "nk",                              "monaco_fine",
-    "Plasmacytoid dendritic cells",      "pdc",                             "monaco_fine",
-    "Myeloid dendritic cells",           "cdc",                             "monaco_fine",
-    "Myeloid dendritic",           "cdc",                             "monaco_fine",
-    "Low-density neutrophils",           "granulocyte",                     "monaco_fine",
-    "Lowdensity neutrophils",           "granulocyte",                     "monaco_fine",
-    "Low-density basophils",             "granulocyte",                                "monaco_fine", # No direct match, leaving as NA
-    "Lowdensity basophils",             "granulocyte",                                "monaco_fine", # No direct match, leaving as NA
-    "Terminal effector CD4 T cells",     "terminal effector cd4 t",         "monaco_fine",
-    "progenitor",     "progenitor_cell",         "monaco_fine"
-  ) 
+      ~Query,                              ~Reference,
+      "Naive CD8 T cells",                 "cd8 naive",
+      "Central memory CD8 T cells",        "cd8 tcm",
+      "Effector memory CD8 T cells",       "cd8 tem",
+      "Terminal effector CD8 T cells",     "cd8 tem",         # Adjusting for the closest match
+      "MAIT cells",                        "mait",
+      "Vd2 gd T cells",                    "tgd",
+      "Non-Vd2 gd T cells",                "tgd",             # No direct match, leaving as NA
+      "Follicular helper T cells",         "cd4 fh",
+      "T regulatory cells",                "treg",
+      "Th1 cells",                         "cd4 th1",
+      "Th1/Th17 cells",                    "cd4 th1/th17",
+      "Th17 cells",                        "cd4 th17",
+      "Th2 cells",                         "cd4 th2",
+      "Naive CD4 T cells",                 "cd4 naive",
+      "Progenitor cells",                  "progenitor",
+      "Naive B cells",                     "b naive",
+      "Naive B",                           "b naive",
+      "Non-switched memory B cells",       "b memory",        # No direct match, leaving as NA
+      "Nonswitched memory B",              "b memory",        # No direct match, leaving as NA
+      "Exhausted B cells",                 "plasma",          # Removed " cell"
+      "Switched memory B cells",           "b memory",
+      "Switched memory B",                 "b memory",
+      "Plasmablasts",                      "plasma",          # Removed " cell"
+      "Classical monocytes",               "cd14 mono",
+      "Intermediate monocytes",            "cd14 mono",       # Mapping to a closely related term
+      "Non classical monocytes",           "cd16 mono",
+      "Natural killer cells",              "nk",
+      "Natural killer",                    "nk",
+      "Plasmacytoid dendritic cells",      "pdc",
+      "Myeloid dendritic cells",           "cdc",
+      "Myeloid dendritic",                 "cdc",
+      "Low-density neutrophils",           "granulocyte",
+      "Lowdensity neutrophils",            "granulocyte",
+      "Low-density basophils",             "granulocyte",     # No direct match, leaving as NA
+      "Lowdensity basophils",              "granulocyte",     # No direct match, leaving as NA
+      "Terminal effector CD4 T cells",     "cd4 tem",
+      "progenitor",                        "progenitor"       # Removed " cell"
+    )
   
- azimuth = 
+  azimuth = 
     tribble(
-    ~Query,              ~Reference,                        ~Database,
-    "NK",                "nk",                              "azimuth_pbmc",
-    "CD8 TEM",           "cd8 tem",                         "azimuth_pbmc",
-    "CD4 CTL",           "cd4 helper",                         "azimuth_pbmc", # CD4 cytotoxic T lymphocytes often relate to Th1 cells
-    "dnT",               "dnt",                             "azimuth_pbmc",
-    "CD8 Naive",         "cd8 naive",                       "azimuth_pbmc",
-    "CD4 Naive",         "cd4 naive",                       "azimuth_pbmc",
-    "CD4 TCM",           "cd4 tcm",                    "azimuth_pbmc", # Central memory cells often relate to Th1 or Th17
-    "gdT",               "tgd",                             "azimuth_pbmc",
-    "CD8 TCM",           "cd8 tcm",                         "azimuth_pbmc",
-    "MAIT",              "mait",                            "azimuth_pbmc",
-    "CD4 TEM",           "cd4 tem",         "azimuth_pbmc", # Effector memory cells can relate to terminal effector cells
-    "ILC",               "ilc",                             "azimuth_pbmc",
-    "CD14 Mono",         "cd14 mono",                       "azimuth_pbmc",
-    "cDC1",              "cdc",                             "azimuth_pbmc", # Conventional dendritic cell 1 is commonly referred to as CDC
-    "pDC",               "pdc",                             "azimuth_pbmc",
-    "cDC2",              "cdc",                             "azimuth_pbmc", # No specific reference for cDC2, but using CDC as a general category
-    "B naive",           "b naive",                         "azimuth_pbmc",
-    "B intermediate",    "b memory",                        "azimuth_pbmc", # No direct match, leaving as NA
-    "B memory",          "b memory",                        "azimuth_pbmc",
-    "Platelet",          "platelet",                        "azimuth_pbmc",
-    "Eryth",             "erythrocyte",                     "azimuth_pbmc",
-    "CD16 Mono",         "cd16 mono",                       "azimuth_pbmc",
-    "HSPC",              "hematopoietic_precursor_cell",    "azimuth_pbmc",
-    "Treg",              "treg",                            "azimuth_pbmc",
-    "NK_CD56bright",     "nk",                              "azimuth_pbmc", # CD56bright NK cells are a subset of NK cells
-    "Plasmablast",       "plasma_cell",                     "azimuth_pbmc",
-    "NK Proliferating",  "NK",            "azimuth_pbmc", # NK cells can be proliferative, linked to general proliferation
-    "ASDC",              "cdc",                                "azimuth_pbmc", # No direct match, leaving as NA
-    "CD8 Proliferating", "cd8_proliferating_t_cell",            "azimuth_pbmc",
-    "CD4 Proliferating", "cd4_proliferating_t_cell",            "azimuth_pbmc",
-    "doublet", 
-    "non_immune",        
-    "azimuth_pbmc"
-    ) 
+      ~Query,              ~Reference,
+      "NK",                "nk",
+      "CD8 TEM",           "cd8 tem",
+      "CD4 CTL",           "cd4 helper",       # CD4 cytotoxic T lymphocytes often relate to Th1 cells
+      "dnT",               "dnt",
+      "CD8 Naive",         "cd8 naive",
+      "CD4 Naive",         "cd4 naive",
+      "CD4 TCM",           "cd4 tcm",          # Central memory cells often relate to Th1 or Th17
+      "gdT",               "tgd",
+      "CD8 TCM",           "cd8 tcm",
+      "MAIT",              "mait",
+      "CD4 TEM",           "cd4 tem",          # Effector memory cells can relate to terminal effector cells
+      "ILC",               "ilc",
+      "CD14 Mono",         "cd14 mono",
+      "cDC1",              "cdc",              # Conventional dendritic cell 1 is commonly referred to as CDC
+      "pDC",               "pdc",
+      "cDC2",              "cdc",              # No specific reference for cDC2, but using CDC as a general category
+      "B naive",           "b naive",
+      "B intermediate",    "b memory",         # No direct match, leaving as NA
+      "B memory",          "b memory",
+      "Platelet",          "platelet",
+      "Eryth",             "erythrocyte",
+      "CD16 Mono",         "cd16 mono",
+      "HSPC",              "progenitor",
+      "Treg",              "treg",
+      "NK_CD56bright",     "nk",               # CD56bright NK cells are a subset of NK cells
+      "Plasmablast",       "plasma",
+      "NK Proliferating",  "nk",               # NK cells can be proliferative
+      "ASDC",              "cdc",              # No direct match, leaving as NA
+      "CD8 Proliferating", "cd8 tem",
+      "CD4 Proliferating", "cd4 tem",
+      "doublet",           "non immune",
+      NA,                  NA
+    )
   
-  blueprint =   tribble(
-        ~Query,                             ~Reference,                        ~Database,
-        "Neutrophils",                      "granulocyte",                     "blueprint_fine",
-        "Monocytes",                        "monocyte",                        "blueprint_fine",
-        "MEP",                              "hematopoietic_cell",              "blueprint_fine", # MEP typically refers to megakaryocyte-erythroid progenitor
-        "CD4+ T-cells",                     "cd4 t",                         "blueprint_fine",
-        "Tregs",                            "treg",                            "blueprint_fine",
-        "CD4+ Tcm",                         "cd4 tcm",                    "blueprint_fine",
-        "CD4+ Tem",                         "cd4 tem",         "blueprint_fine",
-        "CD8+ Tcm",                         "cd8 tcm",                         "blueprint_fine",
-        "CD8+ Tem",                         "cd8 tem",                         "blueprint_fine",
-        "NK cells",                         "nk",                              "blueprint_fine",
-        "naive B-cells",                    "b naive",                         "blueprint_fine",
-        "Memory B-cells",                   "b memory",                        "blueprint_fine",
-        "Class-switched memory B-cells",    "b memory",                        "blueprint_fine", # No direct match, leaving as NA
-        "HSC",                              "hematopoietic_cell",              "blueprint_fine",
-        "MPP",                              "hematopoietic_cell",              "blueprint_fine", # MPP typically refers to multipotent progenitor
-        "CLP",                              "hematopoietic_cell",              "blueprint_fine", # CLP typically refers to common lymphoid progenitor
-        "GMP",                              "hematopoietic_cell",              "blueprint_fine", # GMP typically refers to granulocyte-macrophage progenitor
-        "Macrophages",                      "macrophage",                      "blueprint_fine",
-        "CD8+ T-cells",                     "cd8",                             "blueprint_fine",
-        "CD8 T",                     "cd8",                                    "blueprint_fine",
-        "Erythrocytes",                     "erythrocyte",                     "blueprint_fine",
-        "Megakaryocytes",                   "megakaryocytes",                  "blueprint_fine",
-        "CMP",                              "hematopoietic_cell",              "blueprint_fine", # CMP typically refers to common myeloid progenitor
-        "Macrophages M1",                   "macrophage",                       "blueprint_fine", # Specific polarization states (M1, M2) not explicitly listed
-        "Macrophages M2",                   "macrophage",                      "blueprint_fine",
-        "Endothelial cells",                "endothelial_cell",                "blueprint_fine",
-        "DC",                               "cdc",                             "blueprint_fine", # Assuming DC refers to dendritic cells
-        "Eosinophils",                      "granulocyte",                       "blueprint_fine", # No direct match, leaving as NA
-        "Plasma cells",                     "plasma_cell",                     "blueprint_fine",
-        "Chondrocytes",                     "chondrocyte",                     "blueprint_fine",
-        "Fibroblasts",                      "fibroblast",                      "blueprint_fine",
-        "Smooth muscle",                    "smooth_muscle_cell",              "blueprint_fine",
-        "Epithelial cells",                 "epithelial_cell",                 "blueprint_fine",
-        "Melanocytes",                      "melanocyte",                      "blueprint_fine",
-        "Skeletal muscle",                  "muscle_cell",                     "blueprint_fine",
-        "Keratinocytes",                    "keratinocyte",                    "blueprint_fine",
-        "mv Endothelial cells",             "endothelial_cell",                "blueprint_fine",
-        "Myocytes",                         "myocyte",                         "blueprint_fine",
-        "Adipocytes",                       "fat_cell",                        "blueprint_fine",
-        "Neurons",                          "neuron",                          "blueprint_fine",
-        "Pericytes",                        "pericyte_cell",                   "blueprint_fine",
-        "Preadipocytes",                    "adipocyte",                       "blueprint_fine", # No direct match, leaving as NA
-        "Astrocytes",                       "astrocyte",                       "blueprint_fine",
-        "Mesangial cells",                  "mesangial_cell",                  "blueprint_fine"
-      )
-
+  blueprint = tribble(
+    ~Query,                             ~Reference,
+    "Neutrophils",                      "granulocyte",
+    "Monocytes",                        "monocyte",
+    "MEP",                              "progenitor",      # MEP typically refers to megakaryocyte-erythroid progenitor
+    "CD4+ T-cells",                     "cd4 t",
+    "Tregs",                            "treg",
+    "CD4+ Tcm",                         "cd4 tcm",
+    "CD4+ Tem",                         "cd4 tem",
+    "CD8+ Tcm",                         "cd8 tcm",
+    "CD8+ Tem",                         "cd8 tem",
+    "NK cells",                         "nk",
+    "naive B-cells",                    "b naive",
+    "Memory B-cells",                   "b memory",
+    "Class-switched memory B-cells",    "b memory",           # No direct match, leaving as NA
+    "HSC",                              "progenitor",      # HSC typically refers to hematopoietic stem cell
+    "MPP",                              "progenitor",      # MPP typically refers to multipotent progenitor
+    "CLP",                              "progenitor",      # CLP typically refers to common lymphoid progenitor
+    "GMP",                              "progenitor",      # GMP typically refers to granulocyte-macrophage progenitor
+    "Macrophages",                      "macrophage",
+    "CD8+ T-cells",                     "cd8",
+    "CD8 T",                            "cd8",
+    "Erythrocytes",                     "erythrocyte",
+    "Megakaryocytes",                   "megakaryocytes",
+    "CMP",                              "progenitor",      # CMP typically refers to common myeloid progenitor
+    "Macrophages M1",                   "macrophage m1",      # Specific polarization states (M1, M2) not explicitly listed
+    "Macrophages M2",                   "macrophage m2",
+    "Endothelial cells",                "endothelial",        # Removed " cell"
+    "DC",                               "cdc",                # Assuming DC refers to dendritic cells
+    "Eosinophils",                      "granulocyte",        # No direct match, leaving as NA
+    "Plasma cells",                     "plasma",             # Removed " cell"
+    "Chondrocytes",                     "chondrocyte",
+    "Fibroblasts",                      "fibroblast",
+    "Smooth muscle",                    "smooth muscle",      # Removed " cell" from "smooth muscle cell"
+    "Epithelial cells",                 "epithelial",         # Removed " cell"
+    "Melanocytes",                      "melanocyte",
+    "Skeletal muscle",                  "muscle",             # "muscle cell" becomes "muscle"
+    "Keratinocytes",                    "keratinocyte",
+    "mv Endothelial cells",             "endothelial",        # Removed " cell"
+    "Myocytes",                         "myocyte",
+    "Adipocytes",                       "fat",                # "fat cell" becomes "fat" after removing " cell"
+    "Neurons",                          "neuron",
+    "Pericytes",                        "pericyte",           # "pericyte cell" becomes "pericyte"
+    "Preadipocytes",                    "adipocyte",          # No direct match, leaving as NA
+    "Astrocytes",                       "astrocyte",
+    "Mesangial cells",                  "mesangial"           # Removed " cell"
+  )
+  
   non_immune_cells <- c(
     "megakaryocytes",
-    "endothelial_cell",
+    "endothelial",
     "chondrocyte",
     "fibroblast",
-    "smooth_muscle_cell",
-    "epithelial_cell",
+    "smooth muscle",
+    "epithelial",
     "melanocyte",
-    "muscle_cell",
+    "muscle",
     "keratinocyte",
-    "endothelial_cell",  # Appears again in the original vector
+    "endothelial",  # Appears again in the original vector
     "myocyte",
-    "fat_cell",
+    "fat",
     "neuron",
-    "pericyte_cell",
+    "pericyte",
     "adipocyte",
     "astrocyte",
-    "mesangial_cell"
+    "mesangial"
   )
   
   t_cells <- c(
@@ -1078,15 +1077,15 @@ reference_annotation_to_consensus = function(azimuth_input, monaco_input, bluepr
     "cd8 tem",
     "cd4 tem",
     "cd4 tcm",
-    "terminal effector cd4 t",
+    "cd4 effector",
     "treg",
     "cd4 th1/th17",
     "cd4 th1",
     "cd4 th17",
+    "cd4 th2",
     "cd4 t",
     "t_nk",
-    "cd4_proliferating_t_cell",
-    "cd8_proliferating_t_cell",
+    "cd8 effector",
     "dnt",
     "cd4 naive",
     "cd4 th2",
@@ -1098,7 +1097,7 @@ reference_annotation_to_consensus = function(azimuth_input, monaco_input, bluepr
   b_cells <- c(
     "b naive",
     "b memory",
-    "plasma_cell"
+    "plasma"
   )
   
   myeloid_cells <- c(
@@ -1106,18 +1105,19 @@ reference_annotation_to_consensus = function(azimuth_input, monaco_input, bluepr
     "monocyte",
     "cd16 mono",
     "macrophage",
+    "macrophage m1",
+    "macrophage m2",
     "macrophages",
-    "pdc",  # Plasmacytoid dendritic cells
+    #"pdc",  # Plasmacytoid dendritic cells
     "cdc",  # Conventional dendritic cells
-    "promyelocyte",
-    "myelocyte",
-    "kupffer_cell"
+    "kupffer"
   )
   
   ilcs <- c(
     "ilc",
     "nk"
   )
+  
   
   all_combinations = 
     expand_grid(
@@ -1131,35 +1131,46 @@ reference_annotation_to_consensus = function(azimuth_input, monaco_input, bluepr
              case_when(
                
                # Non immune
-               blueprint_fine %in% non_immune_cells ~ "non_immune",
+               blueprint_fine %in% non_immune_cells ~ "non immune",
                
                # Full consensus
-                blueprint_fine  ==  monaco_fine  &
-                  blueprint_fine  ==  azimuth_pbmc  ~  blueprint_fine ,
+               blueprint_fine  ==  monaco_fine  &
+                 blueprint_fine  ==  azimuth_pbmc  ~  blueprint_fine ,
+               
+               # This goes before partial exact consensus because is a special case
+               monaco_fine %in% c("cd4 fh","cd4 th1","cd4 th1/th17", "cd4 th17", "cd4 th2") & blueprint_fine %in% c("cd4 tcm") & azimuth_pbmc %in% c("cd4 tcm") ~ glue("{monaco_fine} cm") , # Because most Th cells are central and effector memory CD4 T cells (CM and EM), PMID: 30726743
+               monaco_fine %in% c("cd4 fh","cd4 th1","cd4 th1/th17", "cd4 th17", "cd4 th2") & blueprint_fine %in% c("cd4 tem") & azimuth_pbmc %in% c("cd4 tem") ~ glue("{monaco_fine} em") , # Because most Th cells are central and effector memory CD4 T cells (CM and EM), PMID: 30726743
+               blueprint_fine |> str_detect("macrophage") & monaco_fine |> str_detect(" mono") & azimuth_pbmc |> str_detect(" mono") ~ blueprint_fine,
                
                # Partial consensus
-                blueprint_fine  ==  monaco_fine  ~  blueprint_fine ,
-                blueprint_fine  ==  azimuth_pbmc  ~  blueprint_fine ,
-                monaco_fine  ==  azimuth_pbmc  ~  monaco_fine ,
+               blueprint_fine  ==  monaco_fine  ~  blueprint_fine ,
+               blueprint_fine  ==  azimuth_pbmc  ~  blueprint_fine ,
+               monaco_fine  ==  azimuth_pbmc  ~  monaco_fine ,
+               
+               ##################
+               # More difficoult combination if nothing above matched
+               ##################
                
                # T cells
                str_detect( blueprint_fine , "cd8") & str_detect( monaco_fine , "cd8") & str_detect( azimuth_pbmc , "cd8") ~ "t cd8",
-               str_detect( blueprint_fine , "cd4|th|fh|treg") & str_detect( monaco_fine , "cd4|th|fh|treg") & str_detect( azimuth_pbmc , "cd4|th|fh|treg") ~ "t cd4",
-                blueprint_fine  %in% t_cells &  monaco_fine  %in% t_cells &  azimuth_pbmc  %in% t_cells ~ "t",
+               
+               
+               str_detect( blueprint_fine , "cd4|treg") & str_detect( monaco_fine , "cd4|treg") & str_detect( azimuth_pbmc , "cd4|treg") ~ "t cd4",
+               blueprint_fine  %in% t_cells &  monaco_fine  %in% t_cells &  azimuth_pbmc  %in% t_cells ~ "t",
                
                # B cells
-                blueprint_fine  %in% b_cells &  monaco_fine  %in% b_cells &  azimuth_pbmc  %in% b_cells ~ "b",
+               blueprint_fine  %in% b_cells &  monaco_fine  %in% b_cells &  azimuth_pbmc  %in% b_cells ~ "b",
                
                # Monocytic cells
-                blueprint_fine  %in% myeloid_cells &  monaco_fine  %in% myeloid_cells &  azimuth_pbmc  %in% myeloid_cells ~ "monocytic",
+               blueprint_fine  %in% myeloid_cells &  monaco_fine  %in% myeloid_cells &  azimuth_pbmc  %in% myeloid_cells ~ "monocytic",
                
                # ILCs
-                blueprint_fine  %in% ilcs &  monaco_fine  %in% ilcs &  azimuth_pbmc  %in% ilcs ~ "ilc",
+               blueprint_fine  %in% ilcs &  monaco_fine  %in% ilcs &  azimuth_pbmc  %in% ilcs ~ "ilc",
                
-               # Citotoxic
+               # cytotoxic
                (  blueprint_fine  %in% ilcs | str_detect( blueprint_fine , "cd8") ) & 
-                (  monaco_fine  %in% ilcs | str_detect( monaco_fine , "cd8") ) &
-                (  azimuth_pbmc  %in% ilcs | str_detect( azimuth_pbmc , "cd8") ) ~ "citotoxic",
+                 (  monaco_fine  %in% ilcs | str_detect( monaco_fine , "cd8") ) &
+                 (  azimuth_pbmc  %in% ilcs | str_detect( azimuth_pbmc , "cd8") ) ~ "cytotoxic",
                
                ##################
                # Partial consensus broad cell types
@@ -1169,43 +1180,61 @@ reference_annotation_to_consensus = function(azimuth_input, monaco_input, bluepr
                str_detect( blueprint_fine , "cd8") & str_detect( monaco_fine , "cd8") ~ "t cd8",
                str_detect( blueprint_fine , "cd8") & str_detect( azimuth_pbmc , "cd8") ~ "t cd8",
                str_detect( monaco_fine , "cd8") & str_detect( azimuth_pbmc , "cd8") ~ "t cd8",
-
-           str_detect( blueprint_fine , "cd4|th|fh|treg") & str_detect( monaco_fine , "cd4|th|fh|treg") ~ "t cd4",
-           str_detect( blueprint_fine , "cd4|th|fh|treg") & str_detect( azimuth_pbmc , "cd4|th|fh|treg") ~ "t cd4",
-           str_detect( monaco_fine , "cd4|th|fh|treg") & str_detect( azimuth_pbmc , "cd4|th|fh|treg") ~ "t cd4",
-           
-             blueprint_fine  %in% t_cells &  monaco_fine  %in% t_cells  ~ "t",
-             blueprint_fine  %in% t_cells  &  azimuth_pbmc  %in% t_cells ~ "t",
-             monaco_fine  %in% t_cells &  azimuth_pbmc  %in% t_cells ~ "t",
-
+               
+               monaco_fine %in% c("cd4 fh","cd4 th1","cd4 th1/th17", "cd4 th17", "cd4 th2") & blueprint_fine %in% c("cd4 tcm") ~ glue("{monaco_fine} cm") , # Because most Th cells are central and effector memory CD4 T cells (CM and EM), PMID: 30726743
+               monaco_fine %in% c("cd4 fh","cd4 th1","cd4 th1/th17", "cd4 th17", "cd4 th2") & azimuth_pbmc %in% c("cd4 tcm") ~ glue("{monaco_fine} cm") , # Because most Th cells are central and effector memory CD4 T cells (CM and EM), PMID: 30726743
+               
+               
+               monaco_fine %in% c("cd4 fh","cd4 th1","cd4 th1/th17", "cd4 th17", "cd4 th2") & blueprint_fine %in% c("cd4 tem") ~ glue("{monaco_fine} em") , # Because most Th cells are central and effector memory CD4 T cells (CM and EM), PMID: 30726743
+               monaco_fine %in% c("cd4 fh","cd4 th1","cd4 th1/th17", "cd4 th17", "cd4 th2") & azimuth_pbmc %in% c("cd4 tem") ~ glue("{monaco_fine} em") , # Because most Th cells are central and effector memory CD4 T cells (CM and EM), PMID: 30726743
+               
+               
+               str_detect( blueprint_fine , "cd4|treg") & str_detect( monaco_fine , "cd4|treg") ~ "t cd4",
+               str_detect( blueprint_fine , "cd4|treg") & str_detect( azimuth_pbmc , "cd4|treg") ~ "t cd4",
+               str_detect( monaco_fine , "cd4|treg") & str_detect( azimuth_pbmc , "cd4|treg") ~ "t cd4",
+               
+               blueprint_fine  %in% t_cells &  monaco_fine  %in% t_cells  ~ "t",
+               blueprint_fine  %in% t_cells  &  azimuth_pbmc  %in% t_cells ~ "t",
+               monaco_fine  %in% t_cells &  azimuth_pbmc  %in% t_cells ~ "t",
+               
                # B cells
-             blueprint_fine  %in% b_cells &  monaco_fine  %in% b_cells  ~ "b",
-             blueprint_fine  %in% b_cells  &  azimuth_pbmc  %in% b_cells ~ "b",
-              monaco_fine  %in% b_cells &  azimuth_pbmc  %in% b_cells ~ "b",
-
+               blueprint_fine  %in% b_cells &  monaco_fine  %in% b_cells  ~ "b",
+               blueprint_fine  %in% b_cells  &  azimuth_pbmc  %in% b_cells ~ "b",
+               monaco_fine  %in% b_cells &  azimuth_pbmc  %in% b_cells ~ "b",
+               
                # Monocytic cells
+               blueprint_fine |> str_detect("monocyte") & monaco_fine |> str_detect(" mono") ~ monaco_fine,  # This is because blueprint does not have CDC16 or CD14
+               blueprint_fine |> str_detect("monocyte") & azimuth_pbmc |> str_detect(" mono") ~ azimuth_pbmc,  # This is because blueprint does not have CDC16 or CD14
+               
+               blueprint_fine |> str_detect("macrophage") & monaco_fine |> str_detect(" mono") ~ blueprint_fine,  # This is because only blueprint has mac M1 M2
+               blueprint_fine |> str_detect("macrophage") & azimuth_pbmc |> str_detect(" mono") ~ blueprint_fine,  # This is because only blueprint has mac M1 M2
+
                blueprint_fine  %in% myeloid_cells &  monaco_fine  %in% myeloid_cells  ~ "monocytic",
                blueprint_fine  %in% myeloid_cells  &  azimuth_pbmc  %in% myeloid_cells ~ "monocytic",
                monaco_fine  %in% myeloid_cells &  azimuth_pbmc  %in% myeloid_cells ~ "monocytic",
-
+               
                # ILCs
                blueprint_fine  %in% ilcs &  monaco_fine  %in% ilcs  ~ "ilc",
                blueprint_fine  %in% ilcs  &  azimuth_pbmc  %in% ilcs ~ "ilc",
                monaco_fine  %in% ilcs &  azimuth_pbmc  %in% ilcs ~ "ilc",
-
-           # Citotoxic
-           (  blueprint_fine  %in% ilcs | str_detect( blueprint_fine , "cd8") ) & 
-             (  monaco_fine  %in% ilcs | str_detect( monaco_fine , "cd8") )  ~ "citotoxic",
-           
-           (  blueprint_fine  %in% ilcs | str_detect( blueprint_fine , "cd8") ) & 
-             (  azimuth_pbmc  %in% ilcs | str_detect( azimuth_pbmc , "cd8") ) ~ "citotoxic",
-           
-             (  monaco_fine  %in% ilcs | str_detect( monaco_fine , "cd8") ) &
-             (  azimuth_pbmc  %in% ilcs | str_detect( azimuth_pbmc , "cd8") ) ~ "citotoxic",
-           
+               
+               # cytotoxic
+               (  blueprint_fine  %in% ilcs | str_detect( blueprint_fine , "cd8") ) & 
+                 (  monaco_fine  %in% ilcs | str_detect( monaco_fine , "cd8") )  ~ "cytotoxic",
+               
+               (  blueprint_fine  %in% ilcs | str_detect( blueprint_fine , "cd8") ) & 
+                 (  azimuth_pbmc  %in% ilcs | str_detect( azimuth_pbmc , "cd8") ) ~ "cytotoxic",
+               
+               (  monaco_fine  %in% ilcs | str_detect( monaco_fine , "cd8") ) &
+                 (  azimuth_pbmc  %in% ilcs | str_detect( azimuth_pbmc , "cd8") ) ~ "cytotoxic",
+               
                
                TRUE ~ NA_character_
-             )) 
+             )) |> 
+    
+    # simplify Thelper cm to tcm
+    mutate(consensus = if_else(consensus |> str_detect("cd4 .* cm"), "cd4 tcm", consensus  ))
+  
   # |> 
   #   rowid_to_column("combination_id") |> 
   #   pivot_longer(-combination_id, names_to = "Database", values_to = "Reference") |> 
@@ -1214,11 +1243,11 @@ reference_annotation_to_consensus = function(azimuth_input, monaco_input, bluepr
   #   pivot_wider(names_from = Database, values_from = Query, values_fn = function(x) paste(unique(x), collapse = ","))
   
   # parse names, chenge to lower case for all
-    tibble(
-      blueprint_fine = blueprint |> select(-Database) |> mutate(across(everything(), tolower)) |> deframe() |> _[!!tolower(blueprint_input)],
-      monaco_fine = monaco |> select(-Database) |> mutate(across(everything(), tolower)) |> deframe() |> _[!!tolower(monaco_input)],
-      azimuth_pbmc = azimuth |> select(-Database) |> mutate(across(everything(), tolower)) |> deframe() |> _[!!tolower(azimuth_input)],
-    ) |> 
+  tibble(
+    blueprint_fine = blueprint |> mutate(across(everything(), tolower)) |> deframe() |> _[!!tolower(blueprint_input)],
+    monaco_fine = monaco |> mutate(across(everything(), tolower)) |> deframe() |> _[!!tolower(monaco_input)],
+    azimuth_pbmc = azimuth |> mutate(across(everything(), tolower)) |> deframe() |> _[!!tolower(azimuth_input)],
+  ) |> 
     left_join(
       all_combinations,
       by = join_by(
@@ -1257,7 +1286,7 @@ reference_annotation_to_consensus = function(azimuth_input, monaco_input, bluepr
 #' 
 #' @export
 clean_cellxgene_cell_types = function(x){
-
+  
   x |>
     # Annotate
     tolower() |>
@@ -1278,7 +1307,7 @@ clean_cellxgene_cell_types = function(x){
     str_remove("germinal center") |>
     str_remove("iggnegative") |>
     str_remove("terminally differentiated") |>
-
+    
     str_replace(".*macrophage.*", "macrophage") |>
     str_replace("^mononuclear phagocyte$", "macrophage") |>
     str_replace(".* treg.*", "treg") |>
@@ -1287,9 +1316,9 @@ clean_cellxgene_cell_types = function(x){
     str_replace(".*thelper .*", "thelper") |>
     str_replace(".*gammadelta.*", "tgd") |>
     str_replace(".*natural killer.*", "nk") |> 
-
+    
     str_replace_all("  ", " ") |>
-
+    
     str_replace("myeloid leukocyte", "myeloid") |>
     str_replace("effector memory", "tem") |>
     str_replace("effector", "tem") |>
@@ -1300,7 +1329,7 @@ clean_cellxgene_cell_types = function(x){
     str_replace("classical monocyte", "cd14 monocyte") |>
     str_replace("follicular b", "b") |>
     str_replace("unswitched memory", "memory") |>
-
+    
     str_trim() |>
     
     str_remove_all("\\+") |>
@@ -1311,7 +1340,7 @@ clean_cellxgene_cell_types = function(x){
     str_trim() |> 
     
     str_remove("^_+|_+$") |>  # Removes leading and trailing underscores
-  
+    
     # clean NON IMMUNE
     str_replace("(?i)\\bepithelial\\b", "epithelial_cell") |>
     str_replace("(?i)\\bfibroblast\\b", "fibroblast") |>
@@ -1515,7 +1544,7 @@ harmonise_names_non_immune = function(metadata){
   metadata$cell_type_harmonised <- ifelse(grepl("myoblast", metadata$cell_type_harmonised, ignore.case=TRUE),
                                           "myoblast", ## Discussed with Stefano on Teams on 16/12/2022.
                                           metadata$cell_type_harmonised)
-
+  
   metadata$cell_type_harmonised <- ifelse(grepl("satellite", metadata$cell_type_harmonised, ignore.case=TRUE),
                                           "satellite_cell", ## Discussed with Stefano on Teams on 16/12/2022.
                                           metadata$cell_type_harmonised)
@@ -1588,7 +1617,7 @@ harmonise_names_non_immune = function(metadata){
   metadata$cell_type_harmonised <- gsub(" " , "_", metadata$cell_type_harmonised)
   
   
-
+  
   table(metadata$cell_type_harmonised[grepl("glial", metadata$cell_type_harmonised, ignore.case=TRUE)])
   ##  glial cell, microglial cell, radial glial cell
   ## https://www.simplypsychology.org/glial-cells.html#:~:text=Glial%20cells%20are%20a%20general,that%20keep%20the%20brain%20functioning.
@@ -2518,10 +2547,10 @@ arguments_to_action <- function(lst, input_hpc, value) {
     if (
       arg_value |> length() == 0 |
       is.null(arg_value) | !(
-      arg_value |> is("character") | 
-      arg_value |> is("name") | 
-      arg_value |> is("list")
-    )) next
+        arg_value |> is("character") | 
+        arg_value |> is("name") | 
+        arg_value |> is("list")
+      )) next
     
     # Convert the argument value to a character string vector
     # arg_value_as_char <- as.character(arg_value)
@@ -2536,9 +2565,9 @@ arguments_to_action <- function(lst, input_hpc, value) {
         input_hpc[[arg_value]]$iterate %in% value
       ) 
         matching_elements <- c(matching_elements, as.character(arg_value) |> set_names(arg_name))
-       
-    }
       
+    }
+    
     else{
       # Iterate over each element in arg_value_as_char
       for (val in arg_value) {
@@ -2555,7 +2584,7 @@ arguments_to_action <- function(lst, input_hpc, value) {
         
       }
     }
-
+    
   }
   
   return(matching_elements)
@@ -2626,27 +2655,27 @@ safe_as_name <- function(input) {
 #' @importFrom glue glue
 #' @noRd
 check_for_name_value_conflicts <- function(...) {
-# Capture the arguments passed to the function
-args_list <- list(...)
-
-# Iterate through the list and check for name-value conflicts
-for (arg_name in names(args_list)) {
-  arg_value <- args_list[[arg_name]]
-
-  # Skip NULL values
-  if (is.null(arg_value)) next
+  # Capture the arguments passed to the function
+  args_list <- list(...)
   
-  # Convert the argument value to a character string
-  # arg_value_as_char <- as.character(arg_value)
-  
-  # Check if the argument name matches any of the values in arg_value_as_char
-  if (arg_name %in% c(arg_value)) {
-    stop(glue::glue("HPCell says: Argument name '{arg_name}' cannot be the same as its value '{arg_value_as_char}'"))
+  # Iterate through the list and check for name-value conflicts
+  for (arg_name in names(args_list)) {
+    arg_value <- args_list[[arg_name]]
+    
+    # Skip NULL values
+    if (is.null(arg_value)) next
+    
+    # Convert the argument value to a character string
+    # arg_value_as_char <- as.character(arg_value)
+    
+    # Check if the argument name matches any of the values in arg_value_as_char
+    if (arg_name %in% c(arg_value)) {
+      stop(glue::glue("HPCell says: Argument name '{arg_name}' cannot be the same as its value '{arg_value_as_char}'"))
+    }
   }
-}
-
-# If no conflicts, return the arguments as is or proceed with the function logic
-return(args_list)
+  
+  # If no conflicts, return the arguments as is or proceed with the function logic
+  return(args_list)
 }
 
 #' Expand Tiered Arguments in a List
@@ -2710,7 +2739,7 @@ expand_tiered_arguments <- function(lst, tiers, argument_to_replace, tiered_args
     # Create a vector of tiered values by combining tiered_base with tiers
     # If no tier do not add the suffix
     tiered_values <- lapply(tiers, function(tier) paste0(tiered_base, "_", tier) |> as.name() )
-
+    
     # Construct the c(...) call with the tiered values
     c_call <- as.call(c(as.name("c"), tiered_values))
     
@@ -2746,10 +2775,10 @@ build_pattern = function(arguments_to_tier = c(), other_arguments_to_map = c(), 
     
     if(other_arguments_to_map |> length() > 0){
       
-        pattern = pattern |> c(other_arguments_to_map |> lapply(as.name))
+      pattern = pattern |> c(other_arguments_to_map |> lapply(as.name))
       
     }
-      
+    
     pattern = as.call(pattern)
     
   }
@@ -2762,9 +2791,9 @@ write_source = function(user_function_source_path, target_script){
   if(user_function_source_path |> is.null() |> not())
     
     source(s) |> 
-      substitute(env = list(s =user_function_source_path )) |> 
-      deparse() |> 
-      write_lines(target_script, append = TRUE)
+    substitute(env = list(s =user_function_source_path )) |> 
+    deparse() |> 
+    write_lines(target_script, append = TRUE)
 }
 
 #' @export
