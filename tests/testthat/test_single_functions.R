@@ -532,6 +532,11 @@ computing_resources = crew_controller_local(workers = 8) #resource_tuned_slurm
 #     slurm_cpus_per_task = 1
 #   )
 
+{ foo_function = function(x, y){x |> dplyr::mutate(foo = y)} } |> 
+  substitute() |> 
+  deparse() |> 
+  readr::write_lines("dev/my_custom_script.R")
+
 # # Define and execute the pipeline
 file_list = 
 #   c("dev/input_seurat_treated_1.rds",
@@ -554,6 +559,7 @@ file_list |>
     #debug_step ="empty_tbl_0cf8d597acd380df"
     # debug_step = "non_batch_variation_removal_S_1",
 
+
     # Default resourced 
   ) |> 
   
@@ -575,6 +581,14 @@ file_list |>
   #   y = "works"
   # ) |>
 
+  hpc_iterate(
+    target_output = "foo",
+    user_function = foo_function |> quote(),
+    x = "data_object" |> is_target(),
+    y = "works", 
+    user_function_source_path = "dev/my_custom_script.R" |> here::here()
+  ) |>
+  
   # Remove empty outliers
   remove_empty_DropletUtils( target_input = "sce_transformed") |> 
   
@@ -594,7 +608,6 @@ file_list |>
   # Remove doublets
   remove_doublets_scDblFinder(target_input = "data_object") |> 
   
-
   normalise_abundance_seurat_SCT(factors_to_regress = c(
     "subsets_Mito_percent",
     "subsets_Ribo_percent",
@@ -605,7 +618,7 @@ file_list |>
   calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "data_object") |> 
   
   # test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts") |> 
-   test_differential_abundance(~ age_days, .abundance="counts", group_by_column = "monaco_first.labels.fine") |> 
+  test_differential_abundance(~ age_days, .abundance="counts", group_by_column = "monaco_first.labels.fine") |> 
 
   # For the moment only available for single cell
   get_single_cell(target_input = "data_object") 

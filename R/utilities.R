@@ -49,7 +49,7 @@ read_data_container <- function(file,
          "seurat_rds" = readRDS(file),
          "sce_hdf5" = loadHDF5SummarizedExperiment(file),
          "seurat_h5" = SeuratDisk::LoadH5Seurat(file)
-         )
+  )
 }
 
 #' Save various types of single-cell data
@@ -137,6 +137,92 @@ get_count_per_gene_df <- function(counts) {
 #' Identify Empty Droplets in Single-Cell RNA-seq Data
 #'
 #' @description
+#' `empty_droplet_threshold` distinguishes between empty and non-empty droplets by threshold. 
+#' It excludes mitochondrial and ribosomal genes, and filters input data
+#' based on defined values of `nCount_RNA` and `nFeature_RNA`
+#' The function returns a tibble containing RNA count, RNA feature count indicating whether cells are empty droplets.
+#'
+#' @param input_read_RNA_assay SingleCellExperiment or Seurat object containing RNA assay data.
+#' @param filter_empty_droplets Logical value indicating whether to filter the input data.
+#' @param RNA_feature_threshold An optional integer for the number of feature count. Default is 200
+#'
+#' @return A tibble with columns: Cell, nFeature_RNA, empty_droplet (classification of droplets).
+#'
+#' @importFrom AnnotationDbi mapIds
+#' @importFrom stringr str_subset
+#' @importFrom dplyr left_join mutate
+#' @importFrom tidyr replace_na
+#' @importFrom DropletUtils emptyDrops barcodeRanks
+#' @importFrom S4Vectors metadata
+#' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importFrom biomaRt useMart getBM
+#' 
+#' @export
+empty_droplet_threshold<- function(input_read_RNA_assay,
+                                   total_RNA_count_check  = -Inf,
+                                   assay = NULL,
+                                   gene_nomenclature,
+                                   RNA_feature_threshold = 200){
+  #Fix GChecks 
+  FDR = NULL 
+  .cell = NULL 
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  
+  # Check if empty droplets have been identified
+  nFeature_name <- paste0("nFeature_", assay)
+  
+  filter_empty_droplets <- "TRUE"
+  
+  significance_threshold = 0.001
+  # Genes to exclude
+  if (gene_nomenclature == "symbol") {
+    location <- mapIds(
+      EnsDb.Hsapiens.v86,
+      keys=rownames(input_read_RNA_assay),
+      column="SEQNAME",
+      keytype="SYMBOL"
+    )
+    mitochondrial_genes = which(location=="MT") |> names()
+    ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
+    
+  } else if (gene_nomenclature == "ensembl") {
+    # all_genes are saved in data/all_genes.rda to avoid recursively accessing biomaRt backend for potential timeout error
+    data(ensembl_genes_biomart)
+    all_mitochondrial_genes <- ensembl_genes_biomart[grep("MT", ensembl_genes_biomart$chromosome_name), ] 
+    all_ribosome_genes <- ensembl_genes_biomart[grep("^(RPL|RPS)", ensembl_genes_biomart$external_gene_name), ]
+    
+    mitochondrial_genes <- all_mitochondrial_genes |> 
+      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+    ribosome_genes <- all_ribosome_genes |> 
+      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+  }
+  
+  # Get counts
+  if (inherits(input_read_RNA_assay, "Seurat")) {
+    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+  } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    counts <- assay(input_read_RNA_assay, assay)
+  }
+  filtered_counts <- counts[!(rownames(counts) %in% c(mitochondrial_genes, ribosome_genes)),, drop=FALSE ]
+  
+  # filter based on nCount_RNA and nFeature_RNA
+  result <- colSums(filtered_counts > 0 ) |> enframe(name = ".cell", value = "nFeature_RNA") |> 
+    #left_join(colSums(filtered_counts) |> enframe(name = ".cell", value = "nCount_RNA"), by = ".cell") |>
+    mutate(empty_droplet = nFeature_RNA < RNA_feature_threshold)
+  
+  # Discard samples with nFeature_RNA density mode < threshold, avoid potential downstream error
+  density_est = result |> pull(nFeature_RNA) |> density()
+  density_value = density_est$x[which.max(density_est$y)]
+  if (density_value < RNA_feature_threshold) return(NULL)
+  
+  result
+}
+
+#' Identify Empty Droplets in Single-Cell RNA-seq Data
+#'
+#' @description
 #' `empty_droplet_id` distinguishes between empty and non-empty droplets using the DropletUtils package.
 #' It excludes mitochondrial and ribosomal genes, calculates barcode ranks, and optionally filters input data
 #' based on these criteria. The function returns a tibble containing log probabilities, FDR, and a classification
@@ -171,12 +257,12 @@ empty_droplet_id <- function(input_read_RNA_assay,
   # Check if empty droplets have been identified
   nFeature_name <- paste0("nFeature_", assay)
   
-    #if (any(input_read_RNA_assay[[nFeature_name]] < total_RNA_count_check)) {
+  #if (any(input_read_RNA_assay[[nFeature_name]] < total_RNA_count_check)) {
   filter_empty_droplets <- "TRUE"
-    # }
-    # else {
-    #   filter_empty_droplets <- "FALSE"
-    # }
+  # }
+  # else {
+  #   filter_empty_droplets <- "FALSE"
+  # }
   
   significance_threshold = 0.001
   # Genes to exclude
@@ -773,21 +859,19 @@ tar_append = function(fx, tiers = NULL, script = targets::tar_config_get("script
   
   # Construct the call with substitute
   # if (length(additional_args) > 0) {
-    call_expr = 
-      as.call(arguments_to_pass) |> 
-      deparse()
-    
+  call_expr = 
+    as.call(arguments_to_pass) |> 
+    deparse()
+  
   # } else {
   #   call_expr <- substitute(fx(x), env = list(fx = fx, x = tiers)) |> 
   #     deparse() 
   # }
   
   # Add prefix
-  "target_list = c(target_list, list(" |> 
+  "target_list |> target_append(" |> 
     c(call_expr ) |> 
-    
-    # Add suffix
-    c("))") |> 
+    c(")") |> 
     
     paste(collapse = " ") |> 
     
@@ -877,13 +961,13 @@ append_chunk_fix = function(chunk, script = targets::tar_config_get("script")){
 #' @importFrom targets tar_config_get
 #' @noRd
 append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("script")){
-   
+  
   # This does not work with purrr:::imap
   # As chunk does not like passed to a function
   tiers = tiers |> get_positions()
   .y = 1
   for(.x in tiers |> names()  ){
-      
+    
     
     "target_list = c(target_list, list(" |> 
       c(
@@ -901,7 +985,7 @@ append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("sc
                         "targets::tar_option_get(\"resources\")",
                         glue("tar_resources(crew = tar_resources_crew(\"{.x}\"))" )
                       )
-        )
+          )
       ) |> 
       
       # Add suffix
@@ -914,7 +998,7 @@ append_chunk_tiers = function(chunk, tiers, script = targets::tar_config_get("sc
     
     .y = .y + 1
   }
-
+  
   
 }
 
@@ -1045,177 +1129,208 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
     ))
 }
 
-#' Clean and Standardize Cell Types (Deeper)
+#' reference_annotation_to_consensus
 #'
-#' This function takes a vector of cell types and applies a series of transformations
-#' to clean and standardize them for better consistency.
+#' This function takes cell type annotations from multiple datasets (Azimuth, Monaco, Blueprint) and harmonizes them into a consensus annotation. The function utilizes predefined mappings between cell type labels in these datasets to generate standardized cell types across references.
 #'
 #' @importFrom dplyr %>%
 #' @importFrom dplyr mutate
-#'
-#' @importFrom stringr str_remove_all
-#' @importFrom stringr str_remove
-#' @importFrom stringr str_replace
+#' @importFrom dplyr case_when
+#' @importFrom dplyr left_join
+#' @importFrom dplyr tribble
+#' @importFrom tidyr expand_grid
 #' @importFrom stringr str_detect
-#' @importFrom stringr str_replace_all
-#' @importFrom stringr str_trim
+#' @importFrom tibble deframe
+#' 
+#' @param azimuth_input A vector of cell type annotations from the Azimuth dataset.
+#' @param monaco_input A vector of cell type annotations from the Monaco dataset.
+#' @param blueprint_input A vector of cell type annotations from the Blueprint dataset.
 #'
-#' @param x A vector of cell types.
+#' @return A vector of consensus cell type annotations, merging inputs from the three datasets.
 #'
-#' @return A cleaned and standardized vector of cell types.
+#' @examples
+#' # Example usage:
+#' tibble(
+#'   azimuth_predicted.celltype.l2 = c("CD8 TEM", "NK", "CD4 Naive"),
+#'   monaco_first.labels.fine = c("Effector memory CD8 T cells", "Natural killer cells", "Naive CD4 T cells"),
+#'   blueprint_first.labels.fine = c("CD8+ Tem", "NK cells", "Naive B-cells")
+#' ) %>%
+#'   mutate(consensus = reference_annotation_to_consensus(
+#'     azimuth_predicted.celltype.l2, monaco_first.labels.fine, blueprint_first.labels.fine))
+#' 
+#' @note This function is designed to harmonize specific cell types, especially T cells, B cells, monocytic cells, and innate lymphoid cells (ILCs), across reference datasets.
 #'
-# @examples
-# cell_types <- c("CD4 T Cell, AlphaBeta", "NK cell, gammadelta", "Central Memory")
-# cleaned_cell_types <- clean_cell_types_deeper(cell_types)
-clean_cell_types_deeper = function(x){
+#' @seealso \code{\link[dplyr]{mutate}}, \code{\link[stringr]{str_detect}}, \code{\link[tidyr]{expand_grid}}
+#'
+#' @export
+reference_annotation_to_consensus = function(azimuth_input, monaco_input, blueprint_input){
+  
+  # azimuth_pbmc = enquo(azimuth_pbmc)
+  # monaco_fine = enquo(monaco_fine)
+  # blueprint_fine = enquo(blueprint_fine)
   
   monaco = 
     tribble(
-    ~Query,                              ~Reference,                        ~Database,
-    "Naive CD8 T cells",                 "cd8 naive",                       "monaco_first.labels.fine",
-    "Central memory CD8 T cells",        "cd8 tcm",                         "monaco_first.labels.fine",
-    "Effector memory CD8 T cells",       "cd8 tem",                         "monaco_first.labels.fine",
-    "Terminal effector CD8 T cells",     "terminal effector cd4 t",         "monaco_first.labels.fine", # Adjusting for the closest match
-    "MAIT cells",                        "mait",                            "monaco_first.labels.fine",
-    "Vd2 gd T cells",                    "tgd",                             "monaco_first.labels.fine",
-    "Non-Vd2 gd T cells",                "tgd",                                "monaco_first.labels.fine", # No direct match, leaving as NA
-    "Follicular helper T cells",         "cd4 fh",                          "monaco_first.labels.fine",
-    "T regulatory cells",                "treg",                            "monaco_first.labels.fine",
-    "Th1 cells",                         "cd4 th1",                         "monaco_first.labels.fine",
-    "Th1/Th17 cells",                    "cd4 th1/th17",                    "monaco_first.labels.fine",
-    "Th17 cells",                        "cd4 th17",                        "monaco_first.labels.fine",
-    "Th2 cells",                         "cd4 th2",                         "monaco_first.labels.fine",
-    "Naive CD4 T cells",                 "cd4 naive",                       "monaco_first.labels.fine",
-    "Progenitor cells",                  "progenitor_cell",                 "monaco_first.labels.fine",
-    "Naive B cells",                     "b naive",                         "monaco_first.labels.fine",
-    "Naive B",                     "b naive",                         "monaco_first.labels.fine",
-    "Non-switched memory B cells",       "b memory",                                "monaco_first.labels.fine", # No direct match, leaving as NA
-    "Nonswitched memory B",       "b memory",                                "monaco_first.labels.fine", # No direct match, leaving as NA
-    "Exhausted B cells",                 "plasma_cell",                                "monaco_first.labels.fine", # No direct match, leaving as NA
-    "Switched memory B cells",           "b memory",                        "monaco_first.labels.fine",
-    "Switched memory B",           "b memory",                        "monaco_first.labels.fine",
-    "Plasmablasts",                      "plasma_cell",                     "monaco_first.labels.fine",
-    "Classical monocytes",               "cd14 mono",                        "monaco_first.labels.fine",
-    "Intermediate monocytes",            "cd14 mono",                       "monaco_first.labels.fine", # Mapping to a closely related term
-    "Non classical monocytes",           "cd16 mono",                       "monaco_first.labels.fine",
-    "Natural killer cells",              "nk",                              "monaco_first.labels.fine",
-    "Natural killer",              "nk",                              "monaco_first.labels.fine",
-    "Plasmacytoid dendritic cells",      "pdc",                             "monaco_first.labels.fine",
-    "Myeloid dendritic cells",           "cdc",                             "monaco_first.labels.fine",
-    "Myeloid dendritic",           "cdc",                             "monaco_first.labels.fine",
-    "Low-density neutrophils",           "granulocyte",                     "monaco_first.labels.fine",
-    "Lowdensity neutrophils",           "granulocyte",                     "monaco_first.labels.fine",
-    "Low-density basophils",             "granulocyte",                                "monaco_first.labels.fine", # No direct match, leaving as NA
-    "Lowdensity basophils",             "granulocyte",                                "monaco_first.labels.fine", # No direct match, leaving as NA
-    "Terminal effector CD4 T cells",     "terminal effector cd4 t",         "monaco_first.labels.fine",
-    "progenitor",     "progenitor_cell",         "monaco_first.labels.fine"
+      ~Query,                              ~Reference,
+      "Naive CD8 T cells",                 "cd8 naive",
+      "Central memory CD8 T cells",        "cd8 tcm",
+      "Effector memory CD8 T cells",       "cd8 tem",
+      "Terminal effector CD8 T cells",     "cd8 tem",         # Adjusting for the closest match
+      "MAIT cells",                        "mait",
+      "Vd2 gd T cells",                    "tgd",
+      "Non-Vd2 gd T cells",                "tgd",             # No direct match, leaving as NA
+      "Follicular helper T cells",         "cd4 fh",
+      "T regulatory cells",                "treg",
+      "Th1 cells",                         "cd4 th1",
+      "Th1/Th17 cells",                    "cd4 th1/th17",
+      "Th17 cells",                        "cd4 th17",
+      "Th2 cells",                         "cd4 th2",
+      "Naive CD4 T cells",                 "cd4 naive",
+      "Progenitor cells",                  "progenitor",
+      "Naive B cells",                     "b naive",
+      "Naive B",                           "b naive",
+      "Non-switched memory B cells",       "b memory",        # No direct match, leaving as NA
+      "Nonswitched memory B",              "b memory",        # No direct match, leaving as NA
+      "Exhausted B cells",                 "plasma",          # Removed " cell"
+      "Switched memory B cells",           "b memory",
+      "Switched memory B",                 "b memory",
+      "Plasmablasts",                      "plasma",          # Removed " cell"
+      "Classical monocytes",               "cd14 mono",
+      "Intermediate monocytes",            "cd14 mono",       # Mapping to a closely related term
+      "Non classical monocytes",           "cd16 mono",
+      "Natural killer cells",              "nk",
+      "Natural killer",                    "nk",
+      "Plasmacytoid dendritic cells",      "pdc",
+      "Myeloid dendritic cells",           "cdc",
+      "Myeloid dendritic",                 "cdc",
+      "Low-density neutrophils",           "granulocyte",
+      "Lowdensity neutrophils",            "granulocyte",
+      "Low-density basophils",             "granulocyte",     # No direct match, leaving as NA
+      "Lowdensity basophils",              "granulocyte",     # No direct match, leaving as NA
+      "Terminal effector CD4 T cells",     "cd4 tem",
+      "progenitor",                        "progenitor"       # Removed " cell"
+    )
+  
+  azimuth = 
+    tribble(
+      ~Query,              ~Reference,
+      "NK",                "nk",
+      "CD8 TEM",           "cd8 tem",
+      "CD4 CTL",           "cd4 helper",       # CD4 cytotoxic T lymphocytes often relate to Th1 cells
+      "dnT",               "dnt",
+      "CD8 Naive",         "cd8 naive",
+      "CD4 Naive",         "cd4 naive",
+      "CD4 TCM",           "cd4 tcm",          # Central memory cells often relate to Th1 or Th17
+      "gdT",               "tgd",
+      "CD8 TCM",           "cd8 tcm",
+      "MAIT",              "mait",
+      "CD4 TEM",           "cd4 tem",          # Effector memory cells can relate to terminal effector cells
+      "ILC",               "ilc",
+      "CD14 Mono",         "cd14 mono",
+      "cDC1",              "cdc",              # Conventional dendritic cell 1 is commonly referred to as CDC
+      "pDC",               "pdc",
+      "cDC2",              "cdc",              # No specific reference for cDC2, but using CDC as a general category
+      "B naive",           "b naive",
+      "B intermediate",    "b memory",         # No direct match, leaving as NA
+      "B memory",          "b memory",
+      "Platelet",          "platelet",
+      "Eryth",             "erythrocyte",
+      "CD16 Mono",         "cd16 mono",
+      "HSPC",              "progenitor",
+      "Treg",              "treg",
+      "NK_CD56bright",     "nk",               # CD56bright NK cells are a subset of NK cells
+      "Plasmablast",       "plasma",
+      "NK Proliferating",  "nk",               # NK cells can be proliferative
+      "ASDC",              "cdc",              # No direct match, leaving as NA
+      "CD8 Proliferating", "cd8 tem",
+      "CD4 Proliferating", "cd4 tem",
+      "doublet",           "non immune",
+      NA,                  NA
+    )
+  
+  blueprint = tribble(
+    ~Query,                             ~Reference,
+    "Neutrophils",                      "granulocyte",
+    "Monocytes",                        "monocyte",
+    "MEP",                              "progenitor",      # MEP typically refers to megakaryocyte-erythroid progenitor
+    "CD4+ T-cells",                     "cd4 t",
+    "Tregs",                            "treg",
+    "CD4+ Tcm",                         "cd4 tcm",
+    "CD4+ Tem",                         "cd4 tem",
+    "CD8+ Tcm",                         "cd8 tcm",
+    "CD8+ Tem",                         "cd8 tem",
+    "NK cells",                         "nk",
+    "naive B-cells",                    "b naive",
+    "Memory B-cells",                   "b memory",
+    "Class-switched memory B-cells",    "b memory",           # No direct match, leaving as NA
+    "HSC",                              "progenitor",      # HSC typically refers to hematopoietic stem cell
+    "MPP",                              "progenitor",      # MPP typically refers to multipotent progenitor
+    "CLP",                              "progenitor",      # CLP typically refers to common lymphoid progenitor
+    "GMP",                              "progenitor",      # GMP typically refers to granulocyte-macrophage progenitor
+    "Macrophages",                      "macrophage",
+    "CD8+ T-cells",                     "cd8",
+    "CD8 T",                            "cd8",
+    "Erythrocytes",                     "erythrocyte",
+    "Megakaryocytes",                   "megakaryocytes",
+    "CMP",                              "progenitor",      # CMP typically refers to common myeloid progenitor
+    "Macrophages M1",                   "macrophage m1",      # Specific polarization states (M1, M2) not explicitly listed
+    "Macrophages M2",                   "macrophage m2",
+    "Endothelial cells",                "endothelial",        # Removed " cell"
+    "DC",                               "cdc",                # Assuming DC refers to dendritic cells
+    "Eosinophils",                      "granulocyte",        # No direct match, leaving as NA
+    "Plasma cells",                     "plasma",             # Removed " cell"
+    "Chondrocytes",                     "chondrocyte",
+    "Fibroblasts",                      "fibroblast",
+    "Smooth muscle",                    "smooth muscle",      # Removed " cell" from "smooth muscle cell"
+    "Epithelial cells",                 "epithelial",         # Removed " cell"
+    "Melanocytes",                      "melanocyte",
+    "Skeletal muscle",                  "muscle",             # "muscle cell" becomes "muscle"
+    "Keratinocytes",                    "keratinocyte",
+    "mv Endothelial cells",             "endothelial",        # Removed " cell"
+    "Myocytes",                         "myocyte",
+    "Adipocytes",                       "fat",                # "fat cell" becomes "fat" after removing " cell"
+    "Neurons",                          "neuron",
+    "Pericytes",                        "pericyte",           # "pericyte cell" becomes "pericyte"
+    "Preadipocytes",                    "adipocyte",          # No direct match, leaving as NA
+    "Astrocytes",                       "astrocyte",
+    "Mesangial cells",                  "mesangial"           # Removed " cell"
   )
   
- azimuth = 
-    tribble(
-    ~Query,              ~Reference,                        ~Database,
-    "NK",                "nk",                              "Azimuth",
-    "CD8 TEM",           "cd8 tem",                         "Azimuth",
-    "CD4 CTL",           "cd4 helper",                         "Azimuth", # CD4 cytotoxic T lymphocytes often relate to Th1 cells
-    "dnT",               "dnt",                             "Azimuth",
-    "CD8 Naive",         "cd8 naive",                       "Azimuth",
-    "CD4 Naive",         "cd4 naive",                       "Azimuth",
-    "CD4 TCM",           "cd4 helper",                    "Azimuth", # Central memory cells often relate to Th1 or Th17
-    "gdT",               "tgd",                             "Azimuth",
-    "CD8 TCM",           "cd8 tcm",                         "Azimuth",
-    "MAIT",              "mait",                            "Azimuth",
-    "CD4 TEM",           "terminal effector cd4 t",         "Azimuth", # Effector memory cells can relate to terminal effector cells
-    "ILC",               "ilc",                             "Azimuth",
-    "CD14 Mono",         "cd14 mono",                       "Azimuth",
-    "cDC1",              "cdc",                             "Azimuth", # Conventional dendritic cell 1 is commonly referred to as CDC
-    "pDC",               "pdc",                             "Azimuth",
-    "cDC2",              "cdc",                             "Azimuth", # No specific reference for cDC2, but using CDC as a general category
-    "B naive",           "b naive",                         "Azimuth",
-    "B intermediate",    "b naive",                                "Azimuth", # No direct match, leaving as NA
-    "B memory",          "b memory",                        "Azimuth",
-    "Platelet",          "platelet",                        "Azimuth",
-    "Eryth",             "erythrocyte",                     "Azimuth",
-    "CD16 Mono",         "cd16 mono",                       "Azimuth",
-    "HSPC",              "hematopoietic_precursor_cell",    "Azimuth",
-    "Treg",              "treg",                            "Azimuth",
-    "NK_CD56bright",     "nk",                              "Azimuth", # CD56bright NK cells are a subset of NK cells
-    "Plasmablast",       "plasma_cell",                     "Azimuth",
-    "NK Proliferating",  "NK",            "Azimuth", # NK cells can be proliferative, linked to general proliferation
-    "ASDC",              "cdc",                                "Azimuth", # No direct match, leaving as NA
-    "CD8 Proliferating", "proliferating_t_cell",            "Azimuth",
-    "CD4 Proliferating", "proliferating_t_cell",            "Azimuth",
-    "doublet", "non_immune",            "Azimuth"
-    ) 
-  
-  blueprint =   tribble(
-        ~Query,                             ~Reference,                        ~Database,
-        "Neutrophils",                      "granulocyte",                     "blueprint_first.labels.fine",
-        "Monocytes",                        "monocyte",                        "blueprint_first.labels.fine",
-        "MEP",                              "hematopoietic_cell",                                "blueprint_first.labels.fine", # MEP typically refers to megakaryocyte-erythroid progenitor
-        "CD4+ T-cells",                     "cd4 th1",                         "blueprint_first.labels.fine",
-        "Tregs",                            "treg",                            "blueprint_first.labels.fine",
-        "CD4+ Tcm",                         "cd4 th1/th17",                    "blueprint_first.labels.fine",
-        "CD4+ Tem",                         "terminal effector cd4 t",         "blueprint_first.labels.fine",
-        "CD8+ Tcm",                         "cd8 tcm",                         "blueprint_first.labels.fine",
-        "CD8+ Tem",                         "cd8 tem",                         "blueprint_first.labels.fine",
-        "NK cells",                         "nk",                              "blueprint_first.labels.fine",
-        "naive B-cells",                    "b naive",                         "blueprint_first.labels.fine",
-        "Memory B-cells",                   "b memory",                        "blueprint_first.labels.fine",
-        "Class-switched memory B-cells",    "b memory",                                "blueprint_first.labels.fine", # No direct match, leaving as NA
-        "HSC",                              "hematopoietic_cell",              "blueprint_first.labels.fine",
-        "MPP",                              "hematopoietic_cell",                                "blueprint_first.labels.fine", # MPP typically refers to multipotent progenitor
-        "CLP",                              "hematopoietic_cell",                                "blueprint_first.labels.fine", # CLP typically refers to common lymphoid progenitor
-        "GMP",                              "hematopoietic_cell",                                "blueprint_first.labels.fine", # GMP typically refers to granulocyte-macrophage progenitor
-        "Macrophages",                      "macrophage",                      "blueprint_first.labels.fine",
-        "CD8+ T-cells",                     "cd8",                         "blueprint_first.labels.fine",
-        "CD8 T",                     "cd8",                         "blueprint_first.labels.fine",
-        "Erythrocytes",                     "erythrocyte",                     "blueprint_first.labels.fine",
-        "Megakaryocytes",                   "megakaryocytes",                  "blueprint_first.labels.fine",
-        "CMP",                              "hematopoietic_cell",                "blueprint_first.labels.fine", # CMP typically refers to common myeloid progenitor
-        "Macrophages M1",                   "macrophage",                       "blueprint_first.labels.fine", # Specific polarization states (M1, M2) not explicitly listed
-        "Macrophages M2",                   "macrophage",                      "blueprint_first.labels.fine",
-        "Endothelial cells",                "endothelial_cell",                "blueprint_first.labels.fine",
-        "DC",                               "cdc",                             "blueprint_first.labels.fine", # Assuming DC refers to dendritic cells
-        "Eosinophils",                      "granulocyte",                       "blueprint_first.labels.fine", # No direct match, leaving as NA
-        "Plasma cells",                     "plasma_cell",                     "blueprint_first.labels.fine",
-        "Chondrocytes",                     "chondrocyte",                     "blueprint_first.labels.fine",
-        "Fibroblasts",                      "fibroblast",                      "blueprint_first.labels.fine",
-        "Smooth muscle",                    "smooth_muscle_cell",              "blueprint_first.labels.fine",
-        "Epithelial cells",                 "epithelial_cell",                 "blueprint_first.labels.fine",
-        "Melanocytes",                      "melanocyte",                      "blueprint_first.labels.fine",
-        "Skeletal muscle",                  "muscle_cell",                     "blueprint_first.labels.fine",
-        "Keratinocytes",                    "keratinocyte",                    "blueprint_first.labels.fine",
-        "mv Endothelial cells",             "endothelial_cell",                "blueprint_first.labels.fine",
-        "Myocytes",                         "myocyte",                         "blueprint_first.labels.fine",
-        "Adipocytes",                       "fat_cell",                        "blueprint_first.labels.fine",
-        "Neurons",                          "neuron",                          "blueprint_first.labels.fine",
-        "Pericytes",                        "pericyte_cell",                   "blueprint_first.labels.fine",
-        "Preadipocytes",                    "adipocyte",                       "blueprint_first.labels.fine", # No direct match, leaving as NA
-        "Astrocytes",                       "astrocyte",                       "blueprint_first.labels.fine",
-        "Mesangial cells",                  "mesangial_cell",                  "blueprint_first.labels.fine"
-      )
-   
-  conversion_table = 
-    bind_rows(monaco, blueprint, azimuth)
-  
-  all_combinations = 
-    expand_grid(
-      blueprint_first.labels.fine = blueprint |> pull(Reference) |> unique(), 
-    monaco_first.labels.fine = monaco |> pull(Reference) |> unique(),
-    Azimuth = azimuth |> pull(Reference) |> unique()
+  non_immune_cells <- c(
+    "megakaryocytes",
+    "endothelial",
+    "chondrocyte",
+    "fibroblast",
+    "smooth muscle",
+    "epithelial",
+    "melanocyte",
+    "muscle",
+    "keratinocyte",
+    "endothelial",  # Appears again in the original vector
+    "myocyte",
+    "fat",
+    "neuron",
+    "pericyte",
+    "adipocyte",
+    "astrocyte",
+    "mesangial"
   )
   
   t_cells <- c(
     "cd8 naive",
     "cd8 tcm",
     "cd8 tem",
-    "terminal effector cd4 t",
+    "cd4 tem",
+    "cd4 tcm",
+    "cd4 effector",
     "treg",
     "cd4 th1/th17",
     "cd4 th1",
     "cd4 th17",
+    "cd4 th2",
+    "cd4 t",
     "t_nk",
-    "proliferating_t_cell",
+    "cd8 effector",
     "dnt",
     "cd4 naive",
     "cd4 th2",
@@ -1227,7 +1342,7 @@ clean_cell_types_deeper = function(x){
   b_cells <- c(
     "b naive",
     "b memory",
-    "plasma_cell"
+    "plasma"
   )
   
   myeloid_cells <- c(
@@ -1235,12 +1350,12 @@ clean_cell_types_deeper = function(x){
     "monocyte",
     "cd16 mono",
     "macrophage",
+    "macrophage m1",
+    "macrophage m2",
     "macrophages",
-    "pdc",  # Plasmacytoid dendritic cells
+    #"pdc",  # Plasmacytoid dendritic cells
     "cdc",  # Conventional dendritic cells
-    "promyelocyte",
-    "myelocyte",
-    "kupffer_cell"
+    "kupffer"
   )
   
   ilcs <- c(
@@ -1248,126 +1363,278 @@ clean_cell_types_deeper = function(x){
     "nk"
   )
   
-  all_combinations |> 
+  
+  all_combinations = 
+    expand_grid(
+      blueprint_fine = blueprint |> pull(Reference) |> unique(), 
+      monaco_fine = monaco |> pull(Reference) |> unique(),
+      azimuth_pbmc = azimuth |> pull(Reference) |> unique()
+    ) |> 
+    
+    # Find consensus manually
     mutate(consensus =
-      case_when(
-        # Full consensus
-        blueprint_first.labels.fine == monaco_first.labels.fine &
-      blueprint_first.labels.fine == Azimuth ~ blueprint_first.labels.fine,
-      
-      # Partial consensus
-      blueprint_first.labels.fine == monaco_first.labels.fine ~ blueprint_first.labels.fine,
-      blueprint_first.labels.fine == Azimuth ~ blueprint_first.labels.fine,
-      monaco_first.labels.fine == Azimuth ~ monaco_first.labels.fine,
-      
-      # T cells
-      blueprint_first.labels.fine |> str_detect("cd8") & monaco_first.labels.fine |> str_detect("cd8") & Azimuth |> str_detect("cd8") ~ "t cd8",
-      blueprint_first.labels.fine |> str_detect("cd4|th|fh|treg") & monaco_first.labels.fine |> str_detect("cd4|th|fh|treg") & Azimuth |> str_detect("cd4|th|fh|treg") ~ "t cd4",
-      blueprint_first.labels.fine %in% t_cells & monaco_first.labels.fine  %in% t_cells & Azimuth  %in% t_cells ~ "t",
-      
-      # B cells
-      blueprint_first.labels.fine %in% b_cells & monaco_first.labels.fine  %in% b_cells & Azimuth  %in% b_cells ~ "b",
-      
-      # monocytic
-      blueprint_first.labels.fine %in% myeloid_cells & monaco_first.labels.fine  %in% myeloid_cells & Azimuth  %in% myeloid_cells ~ "monocytic",
-      
-      # ILCs
-      blueprint_first.labels.fine %in% ilcs & monaco_first.labels.fine  %in% ilcs & Azimuth  %in% ilcs ~ "ilc",
-      
-      
-      TRUE ~ NA_character_
-      )) |> filter(consensus |> is.na())
-    
+             case_when(
+               
+               # Non immune
+               blueprint_fine %in% non_immune_cells ~ "non immune",
+               
+               # Full consensus
+               blueprint_fine  ==  monaco_fine  &
+                 blueprint_fine  ==  azimuth_pbmc  ~  blueprint_fine ,
+               
+               # This goes before partial exact consensus because is a special case
+               monaco_fine %in% c("cd4 fh","cd4 th1","cd4 th1/th17", "cd4 th17", "cd4 th2") & blueprint_fine %in% c("cd4 tcm") & azimuth_pbmc %in% c("cd4 tcm") ~ glue("{monaco_fine} cm") , # Because most Th cells are central and effector memory CD4 T cells (CM and EM), PMID: 30726743
+               monaco_fine %in% c("cd4 fh","cd4 th1","cd4 th1/th17", "cd4 th17", "cd4 th2") & blueprint_fine %in% c("cd4 tem") & azimuth_pbmc %in% c("cd4 tem") ~ glue("{monaco_fine} em") , # Because most Th cells are central and effector memory CD4 T cells (CM and EM), PMID: 30726743
+               blueprint_fine |> str_detect("macrophage") & monaco_fine |> str_detect(" mono") & azimuth_pbmc |> str_detect(" mono") ~ blueprint_fine,
+               
+               # Partial consensus
+               blueprint_fine  ==  monaco_fine  ~  blueprint_fine ,
+               blueprint_fine  ==  azimuth_pbmc  ~  blueprint_fine ,
+               monaco_fine  ==  azimuth_pbmc  ~  monaco_fine ,
+               
+               ##################
+               # More difficoult combination if nothing above matched
+               ##################
+               
+               # T cells
+               str_detect( blueprint_fine , "cd8") & str_detect( monaco_fine , "cd8") & str_detect( azimuth_pbmc , "cd8") ~ "t cd8",
+               
+               
+               str_detect( blueprint_fine , "cd4|treg") & str_detect( monaco_fine , "cd4|treg") & str_detect( azimuth_pbmc , "cd4|treg") ~ "t cd4",
+               blueprint_fine  %in% t_cells &  monaco_fine  %in% t_cells &  azimuth_pbmc  %in% t_cells ~ "t",
+               
+               # B cells
+               blueprint_fine  %in% b_cells &  monaco_fine  %in% b_cells &  azimuth_pbmc  %in% b_cells ~ "b",
+               
+               # Monocytic cells
+               blueprint_fine  %in% myeloid_cells &  monaco_fine  %in% myeloid_cells &  azimuth_pbmc  %in% myeloid_cells ~ "monocytic",
+               
+               # ILCs
+               blueprint_fine  %in% ilcs &  monaco_fine  %in% ilcs &  azimuth_pbmc  %in% ilcs ~ "ilc",
+               
+               # cytotoxic
+               (  blueprint_fine  %in% ilcs | str_detect( blueprint_fine , "cd8") ) & 
+                 (  monaco_fine  %in% ilcs | str_detect( monaco_fine , "cd8") ) &
+                 (  azimuth_pbmc  %in% ilcs | str_detect( azimuth_pbmc , "cd8") ) ~ "cytotoxic",
+               
+               ##################
+               # Partial consensus broad cell types
+               ##################
+               
+               # T cells
+               str_detect( blueprint_fine , "cd8") & str_detect( monaco_fine , "cd8") ~ "t cd8",
+               str_detect( blueprint_fine , "cd8") & str_detect( azimuth_pbmc , "cd8") ~ "t cd8",
+               str_detect( monaco_fine , "cd8") & str_detect( azimuth_pbmc , "cd8") ~ "t cd8",
+               
+               monaco_fine %in% c("cd4 fh","cd4 th1","cd4 th1/th17", "cd4 th17", "cd4 th2") & blueprint_fine %in% c("cd4 tcm") ~ glue("{monaco_fine} cm") , # Because most Th cells are central and effector memory CD4 T cells (CM and EM), PMID: 30726743
+               monaco_fine %in% c("cd4 fh","cd4 th1","cd4 th1/th17", "cd4 th17", "cd4 th2") & azimuth_pbmc %in% c("cd4 tcm") ~ glue("{monaco_fine} cm") , # Because most Th cells are central and effector memory CD4 T cells (CM and EM), PMID: 30726743
+               
+               
+               monaco_fine %in% c("cd4 fh","cd4 th1","cd4 th1/th17", "cd4 th17", "cd4 th2") & blueprint_fine %in% c("cd4 tem") ~ glue("{monaco_fine} em") , # Because most Th cells are central and effector memory CD4 T cells (CM and EM), PMID: 30726743
+               monaco_fine %in% c("cd4 fh","cd4 th1","cd4 th1/th17", "cd4 th17", "cd4 th2") & azimuth_pbmc %in% c("cd4 tem") ~ glue("{monaco_fine} em") , # Because most Th cells are central and effector memory CD4 T cells (CM and EM), PMID: 30726743
+               
+               
+               str_detect( blueprint_fine , "cd4|treg") & str_detect( monaco_fine , "cd4|treg") ~ "t cd4",
+               str_detect( blueprint_fine , "cd4|treg") & str_detect( azimuth_pbmc , "cd4|treg") ~ "t cd4",
+               str_detect( monaco_fine , "cd4|treg") & str_detect( azimuth_pbmc , "cd4|treg") ~ "t cd4",
+               
+               blueprint_fine  %in% t_cells &  monaco_fine  %in% t_cells  ~ "t",
+               blueprint_fine  %in% t_cells  &  azimuth_pbmc  %in% t_cells ~ "t",
+               monaco_fine  %in% t_cells &  azimuth_pbmc  %in% t_cells ~ "t",
+               
+               # B cells
+               blueprint_fine  %in% b_cells &  monaco_fine  %in% b_cells  ~ "b",
+               blueprint_fine  %in% b_cells  &  azimuth_pbmc  %in% b_cells ~ "b",
+               monaco_fine  %in% b_cells &  azimuth_pbmc  %in% b_cells ~ "b",
+               
+               # Monocytic cells
+               blueprint_fine |> str_detect("monocyte") & monaco_fine |> str_detect(" mono") ~ monaco_fine,  # This is because blueprint does not have CDC16 or CD14
+               blueprint_fine |> str_detect("monocyte") & azimuth_pbmc |> str_detect(" mono") ~ azimuth_pbmc,  # This is because blueprint does not have CDC16 or CD14
+               
+               blueprint_fine |> str_detect("macrophage") & monaco_fine |> str_detect(" mono") ~ blueprint_fine,  # This is because only blueprint has mac M1 M2
+               blueprint_fine |> str_detect("macrophage") & azimuth_pbmc |> str_detect(" mono") ~ blueprint_fine,  # This is because only blueprint has mac M1 M2
 
-  
-  x |> 
-    select(.cell, blueprint_first.labels.fine, monaco_first.labels.fine) |> 
-    pivot_longer(-.cell, names_to = "Database", values_to = "Query") |> 
-    mutate(Query = Query |> tolower()) |>  
-    left_join(conversion_table |> mutate(Query = Query |> tolower()), copy = TRUE) |> 
-    select(-Query) |> 
-    pivot_wider(names_from = Database, values_from = Reference)
-  
-  
-  
-  
-  
-  #Fix GChecks 
-  cell_type_clean = NULL 
-  
-  x |> 
-    # Annotate
-    mutate(cell_type_clean = cell_type_clean |> tolower()) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove_all(",")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove("alphabeta")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove_all("positive")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_replace("cd4  t", "cd4")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_replace("regulatory t", "treg")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove("thymusderived")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove("human")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove("igg ")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove("igm ")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove("iga ")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove("group [0-9]")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove("common")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove("cd45ro")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove("type i")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove("germinal center")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove("iggnegative")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_remove("terminally differentiated")) |>
+               blueprint_fine  %in% myeloid_cells &  monaco_fine  %in% myeloid_cells  ~ "monocytic",
+               blueprint_fine  %in% myeloid_cells  &  azimuth_pbmc  %in% myeloid_cells ~ "monocytic",
+               monaco_fine  %in% myeloid_cells &  azimuth_pbmc  %in% myeloid_cells ~ "monocytic",
+               
+               # ILCs
+               blueprint_fine  %in% ilcs &  monaco_fine  %in% ilcs  ~ "ilc",
+               blueprint_fine  %in% ilcs  &  azimuth_pbmc  %in% ilcs ~ "ilc",
+               monaco_fine  %in% ilcs &  azimuth_pbmc  %in% ilcs ~ "ilc",
+               
+               # cytotoxic
+               (  blueprint_fine  %in% ilcs | str_detect( blueprint_fine , "cd8") ) & 
+                 (  monaco_fine  %in% ilcs | str_detect( monaco_fine , "cd8") )  ~ "cytotoxic",
+               
+               (  blueprint_fine  %in% ilcs | str_detect( blueprint_fine , "cd8") ) & 
+                 (  azimuth_pbmc  %in% ilcs | str_detect( azimuth_pbmc , "cd8") ) ~ "cytotoxic",
+               
+               (  monaco_fine  %in% ilcs | str_detect( monaco_fine , "cd8") ) &
+                 (  azimuth_pbmc  %in% ilcs | str_detect( azimuth_pbmc , "cd8") ) ~ "cytotoxic",
+               
+               
+               TRUE ~ NA_character_
+             )) |> 
     
-    mutate(cell_type_clean = if_else(cell_type_clean |> str_detect("macrophage"), "macrophage", cell_type_clean) ) |>
-    mutate(cell_type_clean = if_else(cell_type_clean == "mononuclear phagocyte", "macrophage", cell_type_clean) ) |>
-    
-    mutate(cell_type_clean = if_else(cell_type_clean |> str_detect(" treg"), "treg", cell_type_clean) ) |>
-    mutate(cell_type_clean = if_else(cell_type_clean |> str_detect(" dendritic"), "dendritic", cell_type_clean) ) |>
-    mutate(cell_type_clean = if_else(cell_type_clean |> str_detect(" thelper"), "thelper", cell_type_clean) ) |>
-    mutate(cell_type_clean = if_else(cell_type_clean |> str_detect("thelper "), "thelper", cell_type_clean) ) |>
-    mutate(cell_type_clean = if_else(cell_type_clean |> str_detect("gammadelta"), "tgd", cell_type_clean) ) |>
-    mutate(cell_type_clean = if_else(cell_type_clean |> str_detect("natural killer"), "nk", cell_type_clean) ) |>
-    
-    
-    mutate(cell_type_clean = cell_type_clean |> str_replace_all("  ", " ")) |>
-    
-    
-    mutate(cell_type_clean = cell_type_clean |> str_replace("myeloid leukocyte", "myeloid")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_replace("effector memory", "tem")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_replace("effector", "tem")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_replace_all("cd8 t", "cd8")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_replace("central memory", "tcm")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_replace("gammadelta t", "gdt")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_replace("nonclassical monocyte", "cd16 monocyte")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_replace("classical monocyte", "cd14 monocyte")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_replace("follicular b", "b")) |>
-    mutate(cell_type_clean = cell_type_clean |> str_replace("unswitched memory", "memory")) |>
-    
-    mutate(cell_type_clean = cell_type_clean |> str_trim()) 
+    # simplify Thelper cm to tcm
+    mutate(consensus = if_else(consensus |> str_detect("cd4 .* cm"), "cd4 tcm", consensus  ))
+  
+  # |> 
+  #   rowid_to_column("combination_id") |> 
+  #   pivot_longer(-combination_id, names_to = "Database", values_to = "Reference") |> 
+  #   left_join(conversion_table, relationship = "many-to-many") |> 
+  #   select(-Reference) |> 
+  #   pivot_wider(names_from = Database, values_from = Query, values_fn = function(x) paste(unique(x), collapse = ","))
+  
+  # parse names, chenge to lower case for all
+  tibble(
+    blueprint_fine = blueprint |> mutate(across(everything(), tolower)) |> deframe() |> _[!!tolower(blueprint_input)],
+    monaco_fine = monaco |> mutate(across(everything(), tolower)) |> deframe() |> _[!!tolower(monaco_input)],
+    azimuth_pbmc = azimuth |> mutate(across(everything(), tolower)) |> deframe() |> _[!!tolower(azimuth_input)],
+  ) |> 
+    left_join(
+      all_combinations,
+      by = join_by(
+        blueprint_fine == blueprint_fine,
+        monaco_fine == monaco_fine,
+        azimuth_pbmc == azimuth_pbmc
+      )
+    ) |> 
+    pull(consensus)
+  
+  
 }
 
-#' Clean and Standardize Cell Types
+#' Clean and Standardize Cell Type Names
 #'
-#' This function takes a vector of cell types and applies a series of transformations
-#' to clean and standardize them for better consistency.
+#' Cleans and standardizes a vector of cell type names by applying a series of string transformations to improve consistency.
+#' This function is particularly useful for preprocessing cell type labels in biological datasets where consistent naming conventions are important.
+#'
+#' @param x A character vector of cell type names to be cleaned and standardized.
+#'
+#' @return A character vector of cleaned and standardized cell type names.
 #'
 #' @importFrom stringr str_remove_all
+#' @importFrom stringr str_remove
+#' @importFrom stringr str_replace
+#' @importFrom stringr str_replace_all
 #' @importFrom stringr str_trim
 #'
-#' @param .x A vector of cell types.
-#'
-#' @return A cleaned and standardized vector of cell types.
-#'
 #' @examples
-#' cell_types <- c("CD4+ T-cells", "NK cells", "Blast-cells")
-# cleaned_cell_types <- clean_cell_types(cell_types)
-
-clean_cell_types = function(.x){
-  .x |>
+#' cell_types <- c("CD4+ T-cells", "NK cells", "Blast-cells", "Terminally differentiated macrophage")
+#' cleaned_cell_types <- clean_cellxgene_cell_types(cell_types)
+#' print(cleaned_cell_types)
+#'
+#' # Output:
+#' # [1] "cd4 t"     "nk"        ""          "macrophage"
+#' 
+#' @export
+clean_cellxgene_cell_types = function(x){
+  
+  x |>
+    # Annotate
+    tolower() |>
+    str_remove_all(",") |>
+    str_remove("alphabeta") |>
+    str_remove_all("positive") |>
+    str_replace("cd4  t", "cd4") |>
+    str_replace("regulatory t", "treg") |>
+    str_remove("thymusderived") |>
+    str_remove("human") |>
+    str_remove("igg ") |>
+    str_remove("igm ") |>
+    str_remove("iga ") |>
+    str_remove("group [0-9]") |>
+    str_remove("common") |>
+    str_remove("cd45ro") |>
+    str_remove("type i") |>
+    str_remove("germinal center") |>
+    str_remove("iggnegative") |>
+    str_remove("terminally differentiated") |>
+    
+    str_replace(".*macrophage.*", "macrophage") |>
+    str_replace("^mononuclear phagocyte$", "macrophage") |>
+    str_replace(".* treg.*", "treg") |>
+    str_replace(".* dendritic.*", "dendritic") |>
+    str_replace(".* thelper.*", "thelper") |>
+    str_replace(".*thelper .*", "thelper") |>
+    str_replace(".*gammadelta.*", "tgd") |>
+    str_replace(".*natural killer.*", "nk") |> 
+    
+    str_replace_all("  ", " ") |>
+    
+    str_replace("myeloid leukocyte", "myeloid") |>
+    str_replace("effector memory", "tem") |>
+    str_replace("effector", "tem") |>
+    str_replace_all("cd8 t", "cd8") |>
+    str_replace("central memory", "tcm") |>
+    str_replace("gammadelta t", "gdt") |>
+    str_replace("nonclassical monocyte", "cd16 monocyte") |>
+    str_replace("classical monocyte", "cd14 monocyte") |>
+    str_replace("follicular b", "b") |>
+    str_replace("unswitched memory", "memory") |>
+    
+    str_trim() |>
+    
     str_remove_all("\\+") |>
     str_remove_all("cells") |>
     str_remove_all("cell") |>
     str_remove_all("blast") |>
     str_remove_all("-") |>
-    str_trim()
+    str_trim() |> 
+    
+    str_remove("^_+|_+$") |>  # Removes leading and trailing underscores
+    
+    # clean NON IMMUNE
+    str_replace("(?i)\\bepithelial\\b", "epithelial_cell") |>
+    str_replace("(?i)\\bfibroblast\\b", "fibroblast") |>
+    str_replace("(?i)\\bendothelial\\b", "endothelial_cell") |>
+    str_replace("(?i)^(Mueller cell|Muller cell)$", "Muller_cell") |>
+    str_replace("(?i)\\bneuron\\b", "neuron") |>
+    str_replace("(?i)amplifying cell", "amplifying_cell") |>
+    str_replace("(?i)stem cell", "stem_cell") |>
+    str_replace("(?i)progenitor cell", "progenitor_cell") |>
+    str_replace("(?i)acinar cell", "acinar_cell") |>
+    str_replace("(?i)goblet cell", "goblet_cell") |>
+    str_replace("(?i)thymocyte", "thymocyte") |>
+    str_replace("(?i)urothelial", "urothelial_cell") |>
+    str_replace("(?i)\\bfat\\b", "fat_cell") |>
+    str_replace("(?i)pneumocyte", "pneumocyte") |>
+    str_replace("(?i)mesothelial", "mesothelial_cell") |>
+    str_replace("(?i)enteroendocrine", "enteroendocrine_cell") |>
+    str_replace("(?i)enterocyte", "enterocyte") |>
+    str_replace("(?i)\\bbasal\\b", "basal_cell") |>
+    str_replace("(?i)stromal", "stromal_cell") |>
+    str_replace("(?i)retina", "retinal_cell") |>
+    str_replace("(?i)ciliated", "ciliated_cell") |>
+    str_replace("(?i)pericyte", "pericyte_cell") |>
+    str_replace("(?i)trophoblast", "trophoblast") |>
+    str_replace("(?i)brush", "brush_cell") |>
+    str_replace("(?i)serous", "serous_cell") |>
+    str_replace("(?i)hepatocyte", "hepatocyte") |>
+    str_replace("(?i)melanocyte", "melanocyte") |>
+    str_replace("(?i)myocyte", "myocyte") |>
+    str_replace("(?i)promyelocyte", "promyelocyte") |>
+    str_replace("(?i)cholangiocyte", "cholangiocyte") |>
+    str_replace("(?i)myoblast", "myoblast") |>
+    str_replace("(?i)satellite", "satellite_cell") |>
+    str_replace("(?i)muscle", "muscle_cell") |>
+    str_replace("(?i)progenitor", "progenitor_cell") |>
+    str_replace("(?i)erythrocyte", "erythrocyte") |>
+    str_replace("(?i)myoepithelial", "myoepithelial_cell") |>
+    str_replace("(?i)myofibroblast", "myofibroblast_cell") |>
+    str_replace("(?i)pancreatic", "pancreatic_cell") |>
+    str_replace("(?i)renal", "renal_cell") |>
+    str_replace("(?i)epidermal", "epidermal_cell") |>
+    str_replace("(?i)cortical", "cortical_cell") |>
+    str_replace("(?i)interstitial", "interstitial_cell") |>
+    str_replace("(?i)neuroendocrine", "neuroendocrine_cell") |>
+    str_replace("(?i)granular", "granular_cell") |>
+    str_replace("(?i)kidney", "kidney_cell") |>
+    str_replace("(?i)paneth", "paneth_cell") |>
+    str_replace("(?i)bipolar", "bipolar_cell") |>
+    str_replace_all(" ", "_")
 }
 
 
@@ -1522,7 +1789,7 @@ harmonise_names_non_immune = function(metadata){
   metadata$cell_type_harmonised <- ifelse(grepl("myoblast", metadata$cell_type_harmonised, ignore.case=TRUE),
                                           "myoblast", ## Discussed with Stefano on Teams on 16/12/2022.
                                           metadata$cell_type_harmonised)
-
+  
   metadata$cell_type_harmonised <- ifelse(grepl("satellite", metadata$cell_type_harmonised, ignore.case=TRUE),
                                           "satellite_cell", ## Discussed with Stefano on Teams on 16/12/2022.
                                           metadata$cell_type_harmonised)
@@ -1595,7 +1862,7 @@ harmonise_names_non_immune = function(metadata){
   metadata$cell_type_harmonised <- gsub(" " , "_", metadata$cell_type_harmonised)
   
   
-
+  
   table(metadata$cell_type_harmonised[grepl("glial", metadata$cell_type_harmonised, ignore.case=TRUE)])
   ##  glial cell, microglial cell, radial glial cell
   ## https://www.simplypsychology.org/glial-cells.html#:~:text=Glial%20cells%20are%20a%20general,that%20keep%20the%20brain%20functioning.
@@ -1611,648 +1878,648 @@ harmonise_names_non_immune = function(metadata){
   metadata
 }
 
-get_manually_curated_immune_cell_types = function(){
-  
-  # library(zellkonverter)
-  # library(Seurat)
-  # library(SingleCellExperiment) # load early to avoid masking dplyr::count()
-  # library(tidySingleCellExperiment)
-  # library(dplyr)
-  # library(cellxgenedp)
-  # library(tidyverse)
-  #library(tidySingleCellExperiment)
-  # library(stringr)
-  # library(scMerge)
-  # library(glue)
-  # library(tidyseurat)
-  # library(celldex)
-  # library(SingleR)
-  # library(glmGamPoi)
-  # library(stringr)
-  # library(purrr)
-  
-  
-  #Fix GCHECKS 
-  metadata_file = NULL 
-  .cell = NULL 
-  cell_type = NULL
-  file_id = NULL 
-  .sample = NULL 
-  azhimut_confirmed = NULL 
-  blueprint_confirmed <- NULL
-  arrange <- NULL # This one is actually a function from dplyr, so you should use it with dplyr::arrange or import it
-  cell_type_clean <- NULL
-  blueprint_singler <- NULL
-  predicted.celltype.l2 <- NULL
-  strong_evidence <- NULL
-  cell_type_harmonised <- NULL
-  confidence_class <- NULL
-  lineage_1 <- NULL
-  monaco_singler <- NULL
-  cell_annotation_monaco_singler <- NULL
-  cell_annotation_azimuth_l2 <- NULL
-  cell_annotation_blueprint_singler <- NULL
-  confidence_class_manually_curated <- NULL
-  cell_type_harmonised_manually_curated <- NULL
-  file_curated_annotation_merged <- NULL
-  .sample <- NULL
-  cell_type_harmonised_non_immune <- NULL
-
-  # library(zellkonverter)
-  # library(Seurat)
-  # library(SingleCellExperiment) # load early to avoid masking dplyr::count()
-  # library(tidySingleCellExperiment)
-  # library(dplyr)
-  # library(cellxgenedp)
-  # library(tidyverse)
-  # #library(tidySingleCellExperiment)
-  # library(stringr)
-  # library(scMerge)
-  # library(glue)
-  # library(DelayedArray)
-  # library(HDF5Array)
-  # library(tidyseurat)
-  # library(celldex)
-  # library(SingleR)
-  # library(glmGamPoi)
-  # library(stringr)
-  # library(purrr)
-  
-  # # source("utility.R")
-  # 
-  # metadata_file = "/vast/projects/cellxgene_curated//metadata_0.2.rds"
-  # file_curated_annotation_merged = "~/PostDoc/CuratedAtlasQueryR/dev/cell_type_curated_annotation_0.2.3.rds"
-  # file_metadata_annotated = "/vast/projects/cellxgene_curated/metadata_annotated_0.2.3.rds"
-  # annotation_directory = "/vast/projects/cellxgene_curated//annotated_data_0.2/"
-  # 
-  # # metadata_file = "/vast/projects/cellxgene_curated//metadata.rds"
-  # # file_curated_annotation_merged = "~/PostDoc/CuratedAtlasQueryR/dev/cell_type_curated_annotation.rds"
-  # # file_metadata_annotated = "/vast/projects/cellxgene_curated//metadata_annotated.rds"
-  # # annotation_directory = "/vast/projects/cellxgene_curated//annotated_data_0.1/"
-  # 
-  # 
-  # annotation_harmonised =
-  #   dir(annotation_directory, full.names = TRUE) |>
-  #   enframe(value="file") |>
-  #   tidyr::extract(  file,".sample", "/([a-z0-9]+)\\.rds", remove = F) |>
-  #   mutate(data = map(file, ~ .x |> readRDS() |> select(-contains("score")) )) |>
-  #   unnest(data) |>
-  #   
-  #   # Format
-  #   mutate(across(c(predicted.celltype.l1, predicted.celltype.l2, blueprint_singler, monaco_singler, ),	tolower	)) |>
-  #   mutate(across(c(predicted.celltype.l1, predicted.celltype.l2, blueprint_singler, monaco_singler, ),	clean_cell_types	)) |>
-  #   
-  #   # Format
-  # is_strong_evidence(predicted.celltype.l2, blueprint_singler) |> 
-  #   
-  # 
-  # 
-  # 
-  # job::job({
-  #   annotation_harmonised |>  saveRDS("~/PostDoc/CuratedAtlasQueryR/dev/annotated_data_0.2_temp_table.rds")
-  # })
-  # 
-
-  annotation_harmonised = readRDS("~/PostDoc/CuratedAtlasQueryR/dev/annotated_data_0.2_temp_table.rds")
-  
-  # library(CuratedAtlasQueryR)
-  metadata_df = readRDS(metadata_file)
-  
-  # Integrate with metadata
-  
-  annotation =
-    metadata_df |>
-    select(.cell, cell_type, file_id, .sample) |>
-    as_tibble() |>
-    left_join(read_csv("~/PostDoc/CuratedAtlasQueryR/dev/metadata_cell_type.csv"),  by = "cell_type") |>
-    left_join(annotation_harmonised, by = c(".cell", ".sample")) |>
-    
-    # Clen cell types
-    mutate(cell_type_clean = cell_type |> clean_cell_types())
-  
-  # annotation |>
-  # 	filter(lineage_1=="immune") |>
-  # 	count(cell_type, predicted.celltype.l2, blueprint_singler, strong_evidence) |>
-  # 	arrange(!strong_evidence, desc(n)) |>
-  # 	write_csv("~/PostDoc/CuratedAtlasQueryR/dev/annotation_confirm.csv")
-  
-  
-  annotation_crated_confirmed =
-    read_csv("~/PostDoc/CuratedAtlasQueryR/dev/annotation_confirm_manually_curated.csv") |>
-    
-    # TEMPORARY
-    rename(cell_type_clean = cell_type) |>
-    
-    filter(!is.na(azhimut_confirmed) | !is.na(blueprint_confirmed)) |>
-    filter(azhimut_confirmed + blueprint_confirmed > 0) |>
-    
-    # Format
-    mutate(cell_type_harmonised = case_when(
-      azhimut_confirmed ~ predicted.celltype.l2,
-      blueprint_confirmed ~ blueprint_singler
-    )) |>
-    
-    mutate(confidence_class = 1)
-  
-  
-  
-  # To avoid immune cell annotation if very contrasting evidence
-  blueprint_definitely_non_immune = c(   "astrocytes" , "chondrocytes"  , "endothelial"  ,  "epithelial" ,  "fibros"  ,  "keratinocytes" ,    "melanocytes"  , "mesangial"  ,  "mv endothelial",   "myocytes" ,  "neurons"  ,  "pericytes" ,  "preadipocytes" , "skeletal muscle"  ,  "smooth muscle"      )
-  
-  
-  
-  annotation_crated_UNconfirmed =
-    
-    # Read
-    read_csv("~/PostDoc/CuratedAtlasQueryR/dev/annotation_confirm_manually_curated.csv") |>
-    
-    # TEMPORARY
-    rename(cell_type_clean = cell_type) |>
-    
-    filter(is.na(azhimut_confirmed) | (azhimut_confirmed + blueprint_confirmed) == 0) |>
-    
-    clean_cell_types_deeper() |> 
-    
-    mutate(cell_type_harmonised = "") |>
-    
-    # Classify strong evidence
-    mutate(blueprint_confirmed = if_else(cell_type_clean |> str_detect("cd8 cytokine secreting tem t") & blueprint_singler == "nk", T, blueprint_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean |> str_detect("cd8 cytotoxic t") & blueprint_singler == "nk",  T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean |> str_detect("cd8alphaalpha intraepithelial t") & predicted.celltype.l2 == "cd8 tem" & blueprint_singler == "cd8 tem", T, azhimut_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean |> str_detect("mature t") & strong_evidence & predicted.celltype.l2  |> str_detect("tem|tcm"), T, azhimut_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean |> str_detect("myeloid") & strong_evidence & predicted.celltype.l2  == "cd16 mono", T, azhimut_confirmed) ) |>
-    
-    # Classify weak evidence
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c("b", "B") & predicted.celltype.l2   == "b memory" & blueprint_singler == "classswitched memory b", T, azhimut_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c("b", "B") & predicted.celltype.l2   %in% c("b memory", "b intermediate", "b naive", "plasma") & !blueprint_singler %in% c("classswitched memory b", "memory b", "naive b"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c("b", "B") & !predicted.celltype.l2   %in% c("b memory", "b intermediate", "b naive") & blueprint_singler %in% c("classswitched memory b", "memory b", "naive b", "plasma"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "activated cd4" & predicted.celltype.l2  %in% c("cd4 tcm", "cd4 tem", "tregs"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "activated cd4" & blueprint_singler  %in% c("cd4 tcm", "cd4 tem", "tregs"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "activated cd8" & predicted.celltype.l2  %in% c("cd8 tcm", "cd8 tem"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "activated cd8" & blueprint_singler  %in% c("cd8 tcm", "cd8 tem"), T, blueprint_confirmed) ) |>
-    
-    # Monocyte macrophage
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "cd14 cd16 monocyte" & predicted.celltype.l2  %in% c("cd14 mono", "cd16 mono"), T, azhimut_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "cd14 cd16negative classical monocyte" & predicted.celltype.l2  %in% c("cd14 mono"), T, azhimut_confirmed) ) |>
-    mutate(cell_type_harmonised = if_else(cell_type_clean == "cd14 cd16negative classical monocyte" & blueprint_singler  %in% c("monocytes"), "cd14 mono", cell_type_harmonised) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "cd14 monocyte" & predicted.celltype.l2  %in% c("cd14 mono"), T, azhimut_confirmed) ) |>
-    mutate(cell_type_harmonised = if_else(cell_type_clean == "cd14 monocyte" & blueprint_singler  %in% c("monocytes"), "cd14 mono", cell_type_harmonised) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "cd14low cd16 monocyte" & predicted.celltype.l2  %in% c("cd16 mono"), T, azhimut_confirmed) ) |>
-    mutate(cell_type_harmonised = if_else(cell_type_clean == "cd14low cd16 monocyte" & blueprint_singler  %in% c("monocytes"), "cd16 mono", cell_type_harmonised) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "cd16 monocyte" & predicted.celltype.l2  %in% c("cd16 mono"), T, azhimut_confirmed) ) |>
-    mutate(cell_type_harmonised = if_else(cell_type_clean == "cd16 monocyte" & blueprint_singler  %in% c("monocytes"), "cd16 mono", cell_type_harmonised) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "monocyte" & blueprint_singler  |> str_detect("monocyte|macrophage") & !predicted.celltype.l2 |> str_detect(" mono"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "monocyte" & predicted.celltype.l2 |> str_detect(" mono"), T, azhimut_confirmed) ) |>
-    
-    
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "cd4" & predicted.celltype.l2 |> str_detect("cd4|treg") & !blueprint_singler  |> str_detect("cd4"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "cd4" & !predicted.celltype.l2 |> str_detect("cd4") & blueprint_singler  |> str_detect("cd4|treg"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "cd8" & predicted.celltype.l2 |> str_detect("cd8") & !blueprint_singler  |> str_detect("cd8"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "cd8" & !predicted.celltype.l2 |> str_detect("cd8") & blueprint_singler  |> str_detect("cd8"), T, blueprint_confirmed) ) |>
-    
-    
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "memory t" & predicted.celltype.l2 |> str_detect("tem|tcm") & !blueprint_singler  |> str_detect("tem|tcm"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "memory t" & !predicted.celltype.l2 |> str_detect("tem|tcm") & blueprint_singler  |> str_detect("tem|tcm"), T, blueprint_confirmed) ) |>
-    
-    
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "cd8alphaalpha intraepithelial t" & predicted.celltype.l2 |> str_detect("cd8") & !blueprint_singler  |> str_detect("cd8"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "cd8alphaalpha intraepithelial t" & !predicted.celltype.l2 |> str_detect("cd8") & blueprint_singler  |> str_detect("cd8"), T, blueprint_confirmed) ) |>
-    
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "cd8hymocyte" & predicted.celltype.l2 |> str_detect("cd8") & !blueprint_singler  |> str_detect("cd8"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "cd8hymocyte" & !predicted.celltype.l2 |> str_detect("cd8") & blueprint_singler  |> str_detect("cd8"), T, blueprint_confirmed) ) |>
-    
-    # B cells
-    mutate(azhimut_confirmed = if_else(cell_type_clean  |> str_detect("memory b") & predicted.celltype.l2 =="b memory", T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean  |> str_detect("memory b") & blueprint_singler |> str_detect("memory b"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "immature b" & predicted.celltype.l2 =="b naive", T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "immature b" & blueprint_singler |> str_detect("naive b"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "mature b" & predicted.celltype.l2 %in% c("b memory", "b intermediate"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "mature b" & blueprint_singler |> str_detect("memory b"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "naive b" & predicted.celltype.l2 %in% c("b naive"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "naive b" & blueprint_singler |> str_detect("naive b"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "transitional stage b" & predicted.celltype.l2 %in% c("b intermediate"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "transitional stage b" & blueprint_singler |> str_detect("naive b") & !predicted.celltype.l2 %in% c("b intermediate"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "memory b" & predicted.celltype.l2 %in% c("b intermediate"), T, azhimut_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "precursor b", "prob") & predicted.celltype.l2 %in% c("b naive") & !blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "precursor b", "prob") & blueprint_singler |> str_detect("naive b") & predicted.celltype.l2 %in% c("hspc"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "precursor b", "prob") & predicted.celltype.l2 %in% c("hspc"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "precursor b", "prob") & blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), T, blueprint_confirmed) ) |>
-    
-    # Plasma cells
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "plasma") & predicted.celltype.l2 == "plasma" , T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "plasma") & predicted.celltype.l2 == "plasma" , T, blueprint_confirmed) ) |>
-    
-    mutate(azhimut_confirmed = case_when(
-      cell_type_clean %in% c("cd4 cytotoxic t", "cd4 helper t") & predicted.celltype.l2 == "cd4 ctl" & blueprint_singler != "cd4 tcm" ~ T,
-      cell_type_clean %in% c("cd4 cytotoxic t", "cd4 helper t") & predicted.celltype.l2 == "cd4 tem" & blueprint_singler != "cd4 tcm" ~ T,
-      TRUE ~ azhimut_confirmed
-    ) ) |>
-    mutate(blueprint_confirmed = case_when(
-      cell_type_clean %in% c("cd4 cytotoxic t", "cd4 helper t") & blueprint_singler == "cd4 tem" & predicted.celltype.l2 != "cd4 tcm" ~ T,
-      cell_type_clean %in% c("cd4 cytotoxic t", "cd4 helper t") & blueprint_singler == "cd4 t" & predicted.celltype.l2 != "cd4 tcm" ~ T,
-      TRUE ~ blueprint_confirmed
-    ) ) |>
-    
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "cd4hymocyte" & predicted.celltype.l2 |> str_detect("cd4|treg") & !blueprint_singler  |> str_detect("cd4"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "cd4hymocyte" & !predicted.celltype.l2 |> str_detect("cd4") & blueprint_singler  |> str_detect("cd4|treg"), T, blueprint_confirmed) ) |>
-    
-    mutate(azhimut_confirmed = case_when(
-      cell_type_clean %in% c("cd8 memory t") & predicted.celltype.l2 == "cd8 tem" & blueprint_singler != "cd8 tcm" ~ T,
-      cell_type_clean %in% c("cd8 memory t") & predicted.celltype.l2 == "cd8 tcm" & blueprint_singler != "cd8 tem" ~ T,
-      TRUE ~ azhimut_confirmed
-    ) ) |>
-    mutate(blueprint_confirmed = case_when(
-      cell_type_clean %in% c("cd8 memory t") & predicted.celltype.l2 != "cd8 tem" & blueprint_singler == "cd8 tcm" ~ T,
-      cell_type_clean %in% c("cd8 memory t") & predicted.celltype.l2 != "cd8 tcm" & blueprint_singler == "cd8 tem" ~ T,
-      TRUE ~ blueprint_confirmed
-    ) ) |>
-    
-    mutate(azhimut_confirmed = case_when(
-      cell_type_clean %in% c("cd4 memory t") & predicted.celltype.l2 == "cd4 tem" & blueprint_singler != "cd8 tcm" ~ T,
-      cell_type_clean %in% c("cd4 memory t") & predicted.celltype.l2 == "cd4 tcm" & blueprint_singler != "cd8 tem" ~ T,
-      TRUE ~ azhimut_confirmed
-    ) ) |>
-    mutate(blueprint_confirmed = case_when(
-      cell_type_clean %in% c("cd4 memory t") & predicted.celltype.l2 != "cd4 tem" & blueprint_singler == "cd4 tcm" ~ T,
-      cell_type_clean %in% c("cd4 memory t") & predicted.celltype.l2 != "cd4 tcm" & blueprint_singler == "cd4 tem" ~ T,
-      TRUE ~ blueprint_confirmed
-    ) ) |>
-    
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "t") & blueprint_singler =="cd8 t" & predicted.celltype.l2 |> str_detect("cd8"), T, azhimut_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "t") & blueprint_singler =="cd4 t" & predicted.celltype.l2 |> str_detect("cd4|treg"), T, azhimut_confirmed) ) |>
-    
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "treg") & blueprint_singler %in% c("tregs"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "treg") & predicted.celltype.l2 == "treg", T, azhimut_confirmed) ) |>
-    
-    
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "tcm cd4") & blueprint_singler %in% c("cd4 tcm"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "tcm cd4") & predicted.celltype.l2 == "cd4 tcm", T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "tcm cd8") & blueprint_singler %in% c("cd8 tcm"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "tcm cd8") & predicted.celltype.l2 == "cd8 tcm", T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "tem cd4") & blueprint_singler %in% c("cd4 tem"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "tem cd4") & predicted.celltype.l2 == "cd4 tem", T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "tem cd8") & blueprint_singler %in% c("cd8 tem"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "tem cd8") & predicted.celltype.l2 == "cd8 tem", T, azhimut_confirmed) ) |>
-    
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "tgd") & predicted.celltype.l2 == "gdt", T, azhimut_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "activated cd4") & predicted.celltype.l2 == "cd4 proliferating", T, azhimut_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "activated cd8") & predicted.celltype.l2 == "cd8 proliferating", T, azhimut_confirmed) ) |>
-    
-    
-    
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c("naive cd4", "naive t") & predicted.celltype.l2 %in% c("cd4 naive"), T, azhimut_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c("naive cd8", "naive t") & predicted.celltype.l2 %in% c("cd8 naive"), T, azhimut_confirmed) ) |>
-    
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "prot") & predicted.celltype.l2 %in% c("cd4 naive") & !blueprint_singler |> str_detect("clp|hcs|mpp|cd8"), T, azhimut_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "prot") & predicted.celltype.l2 %in% c("cd8 naive") & !blueprint_singler |> str_detect("clp|hcs|mpp|cd4"), T, azhimut_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "prot") & predicted.celltype.l2 %in% c("hspc"), T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "prot") & blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), T, blueprint_confirmed) ) |>
-    
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "dendritic" & predicted.celltype.l2 %in% c("asdc", "cdc2", "cdc1", "pdc"), T, azhimut_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean == "double negative t regulatory" & predicted.celltype.l2 == "dnt", T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "early t lineage precursor", "immature innate lymphoid") & blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "early t lineage precursor", "immature innate lymphoid") & predicted.celltype.l2 == "hspc" & blueprint_singler != "clp", T, azhimut_confirmed) ) |>
-    
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c("ilc1", "ilc2", "innate lymphoid") & blueprint_singler == "nk", T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c("ilc1", "ilc2", "innate lymphoid") & predicted.celltype.l2 %in% c( "nk", "ilc", "nk proliferating"), T, azhimut_confirmed) ) |>
-    
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "immature t") & blueprint_singler %in% c("naive t"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "immature t") & predicted.celltype.l2 == "t naive", T, azhimut_confirmed) ) |>
-    
-    mutate(cell_type_harmonised = if_else(cell_type_clean == "fraction a prepro b", "naive b", cell_type_harmonised))  |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == "granulocyte" & blueprint_singler %in% c("eosinophils", "neutrophils"), T, blueprint_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c("immature neutrophil", "neutrophil") & blueprint_singler %in% c( "neutrophils"), T, blueprint_confirmed) ) |>
-    
-    mutate(blueprint_confirmed = if_else(cell_type_clean |> str_detect("megakaryocyte") & blueprint_singler |> str_detect("megakaryocyte"), T, blueprint_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean |> str_detect("macrophage") & blueprint_singler |> str_detect("macrophage"), T, blueprint_confirmed) ) |>
-    
-    mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "nk") & blueprint_singler %in% c("nk"), T, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "nk") & predicted.celltype.l2 %in% c("nk", "nk proliferating", "nk_cd56bright", "ilc"), T, azhimut_confirmed) ) |>
-    
-    
-    # If identical force
-    mutate(azhimut_confirmed = if_else(cell_type_clean == predicted.celltype.l2 , T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean == blueprint_singler , T, blueprint_confirmed) ) |>
-    
-    # Perogenitor
-    mutate(azhimut_confirmed = if_else(cell_type_clean  |> str_detect("progenitor|hematopoietic|precursor") & predicted.celltype.l2  == "hspc", T, azhimut_confirmed) ) |>
-    mutate(blueprint_confirmed = if_else(cell_type_clean  |> str_detect("progenitor|hematopoietic|precursor") & blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), T, blueprint_confirmed) ) |>
-    
-    # Generic original annotation and stem for new annotations
-    mutate(azhimut_confirmed = if_else(
-      cell_type_clean  %in% c("T cell", "myeloid cell", "leukocyte", "myeloid leukocyte", "B cell") &
-        predicted.celltype.l2  == "hspc" &
-        blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), T, azhimut_confirmed) ) |>
-    
-    # Omit mature for stem
-    mutate(blueprint_confirmed = if_else(cell_type_clean  |> str_detect("mature") & blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), F, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean  |> str_detect("mature") & predicted.celltype.l2  == "hspc", F, azhimut_confirmed) ) |>
-    
-    # Omit megacariocyte for stem
-    mutate(blueprint_confirmed = if_else(cell_type_clean  == "megakaryocyte" & blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), F, blueprint_confirmed) ) |>
-    mutate(azhimut_confirmed = if_else(cell_type_clean  == "megakaryocyte" & predicted.celltype.l2  == "hspc", F, azhimut_confirmed) ) |>
-    
-    # Mast cells
-    mutate(cell_type_harmonised = if_else(cell_type_clean == "mast", "mast", cell_type_harmonised))  |>
-    
-    
-    # Visualise
-    #distinct(cell_type_clean, predicted.celltype.l2, blueprint_singler, strong_evidence, azhimut_confirmed, blueprint_confirmed) |>
-    arrange(!strong_evidence, cell_type_clean) |>
-    
-    # set cell names
-    mutate(cell_type_harmonised = case_when(
-      cell_type_harmonised == "" & azhimut_confirmed ~ predicted.celltype.l2,
-      cell_type_harmonised == "" & blueprint_confirmed ~ blueprint_singler,
-      TRUE ~ cell_type_harmonised
-    )) |>
-    
-    # Add NA
-    mutate(cell_type_harmonised = case_when(cell_type_harmonised != "" ~ cell_type_harmonised)) |>
-    
-    # Add unannotated cells because datasets were too small
-    mutate(cell_type_harmonised = case_when(
-      is.na(cell_type_harmonised) & cell_type_clean  |> str_detect("progenitor|hematopoietic|stem|precursor") ~ "stem",
-      
-      is.na(cell_type_harmonised) & cell_type_clean == "cd14 monocyte" ~ "cd14 mono",
-      is.na(cell_type_harmonised) & cell_type_clean == "cd16 monocyte" ~ "cd16 mono",
-      is.na(cell_type_harmonised) & cell_type_clean %in% c("cd4 cytotoxic t", "tem cd4") ~ "cd4 tem",
-      is.na(cell_type_harmonised) & cell_type_clean %in% c("cd8 cytotoxic t", "tem cd8") ~ "cd8 tem",
-      is.na(cell_type_harmonised) & cell_type_clean |> str_detect("macrophage") ~ "macrophage",
-      is.na(cell_type_harmonised) & cell_type_clean %in% c("mature b", "memory b", "transitional stage b") ~ "b memory",
-      is.na(cell_type_harmonised) & cell_type_clean == "mucosal invariant t" ~ "mait",
-      is.na(cell_type_harmonised) & cell_type_clean == "naive b" ~ "b naive",
-      is.na(cell_type_harmonised) & cell_type_clean == "nk" ~ "nk",
-      is.na(cell_type_harmonised) & cell_type_clean == "naive cd4" ~"cd4 naive",
-      is.na(cell_type_harmonised) & cell_type_clean == "naive cd8" ~"cd8 naive",
-      is.na(cell_type_harmonised) & cell_type_clean == "treg" ~ "treg",
-      is.na(cell_type_harmonised) & cell_type_clean == "tgd" ~ "tgd",
-      TRUE ~ cell_type_harmonised
-    )) |>
-    
-    mutate(confidence_class = case_when(
-      !is.na(cell_type_harmonised) & strong_evidence ~ 2,
-      !is.na(cell_type_harmonised) & !strong_evidence ~ 3
-    )) |>
-    
-    # Lowest grade annotation UNreliable
-    mutate(cell_type_harmonised = case_when(
-      
-      # Get origincal annotation
-      is.na(cell_type_harmonised) & cell_type_clean %in% c("neutrophil", "granulocyte") ~ cell_type_clean,
-      is.na(cell_type_harmonised) & cell_type_clean %in% c("conventional dendritic", "dendritic") ~ "cdc",
-      is.na(cell_type_harmonised) & cell_type_clean %in% c("classical monocyte") ~ "cd14 mono",
-      
-      # Get Seurat annotation
-      is.na(cell_type_harmonised) & predicted.celltype.l2 != "eryth" & !is.na(predicted.celltype.l2) ~ predicted.celltype.l2,
-      is.na(cell_type_harmonised) & !blueprint_singler %in% c(
-        "astrocytes", "smooth muscle", "preadipocytes", "mesangial", "myocytes",
-        "doublet", "melanocytes", "chondrocytes", "mv endothelial", "fibros",
-        "neurons", "keratinocytes", "endothelial", "epithelial", "skeletal muscle", "pericytes", "erythrocytes", "adipocytes"
-      ) & !is.na(blueprint_singler) ~ blueprint_singler,
-      TRUE ~ cell_type_harmonised
-      
-    )) |>
-    
-    # Lowest grade annotation UNreliable
-    mutate(cell_type_harmonised = case_when(
-      
-      # Get origincal annotation
-      !cell_type_harmonised %in% c("doublet", "platelet") ~ cell_type_harmonised
-      
-    )) |>
-    
-    mutate(confidence_class = case_when(
-      is.na(confidence_class) & !is.na(cell_type_harmonised) ~ 4,
-      TRUE ~ confidence_class
-    ))
-  
-  # Another passage
-  
-  # annotated_samples = annotation_crated_UNconfirmed |> filter(!is.na(cell_type_harmonised)) |>  distinct( cell_type, .sample, file_id)
-  #
-  # annotation_crated_UNconfirmed |>
-  # 	filter(is.na(cell_type_harmonised))  |>
-  # 	count(cell_type ,    cell_type_harmonised ,predicted.celltype.l2 ,blueprint_singler) |>
-  # 	arrange(desc(n)) |>
-  # 	print(n=99)
-  
-  
-  annotation_all =
-    annotation_crated_confirmed |>
-    clean_cell_types_deeper() |> 
-    bind_rows(
-      annotation_crated_UNconfirmed
-    ) |>
-    
-    # I have multiple confidence_class per combination of labels
-    distinct() |>
-    with_groups(c(cell_type_clean, predicted.celltype.l2, blueprint_singler), ~ .x |> arrange(confidence_class) |> slice(1)) |>
-    
-    # Simplify after harmonisation
-    mutate(cell_type_harmonised =	case_when(
-      cell_type_harmonised %in% c("b memory", "b intermediate", "classswitched memory b", "memory b" ) ~ "b memory",
-      cell_type_harmonised %in% c("b naive", "naive b") ~ "b naive",
-      cell_type_harmonised %in% c("nk_cd56bright", "nk", "nk proliferating", "ilc") ~ "ilc",
-      cell_type_harmonised %in% c("mpp", "clp", "hspc", "mep", "cmp", "hsc", "gmp") ~ "stem",
-      cell_type_harmonised %in% c("macrophages",  "macrophages m1", "macrophages m2") ~ "macrophage",
-      cell_type_harmonised %in% c("treg",  "tregs") ~ "treg",
-      cell_type_harmonised %in% c("gdt",  "tgd") ~ "tgd",
-      cell_type_harmonised %in% c("cd8 proliferating",  "cd8 tem") ~ "cd8 tem",
-      cell_type_harmonised %in% c("cd4 proliferating",  "cd4 tem") ~ "cd4 tem",
-      cell_type_harmonised %in% c("eosinophils",  "neutrophils", "granulocyte", "neutrophil") ~ "granulocyte",
-      cell_type_harmonised %in% c("cdc",  "cdc1", "cdc2", "dc") ~ "cdc",
-      
-      TRUE ~ cell_type_harmonised
-    )) |>
-    dplyr::select(cell_type_clean, cell_type_harmonised, predicted.celltype.l2, blueprint_singler, confidence_class) |>
-    distinct()
-
-  
-  curated_annotation =
-    annotation |>
-    clean_cell_types_deeper() |> 
-    filter(lineage_1=="immune") |>
-    dplyr::select(
-      .cell, .sample, cell_type, cell_type_clean, predicted.celltype.l2, blueprint_singler, monaco_singler) |>
-    left_join(
-      annotation_all ,
-      by = c("cell_type_clean", "predicted.celltype.l2", "blueprint_singler")
-    ) |>
-    dplyr::select(
-      .cell, .sample, cell_type, cell_type_harmonised, confidence_class,
-      cell_annotation_azimuth_l2 = predicted.celltype.l2, cell_annotation_blueprint_singler = blueprint_singler,
-      cell_annotation_monaco_singler = monaco_singler
-    ) |>
-    
-    # Reannotation of generic cell types
-    mutate(cell_type_harmonised = case_when(
-      cell_type_harmonised=="cd4 t" & cell_annotation_monaco_singler |> str_detect("effector memory") ~ "cd4 tem",
-      cell_type_harmonised=="cd4 t" & cell_annotation_monaco_singler |> str_detect("mait") ~ "mait",
-      cell_type_harmonised=="cd4 t" & cell_annotation_monaco_singler |> str_detect("central memory") ~ "cd4 tcm",
-      cell_type_harmonised=="cd4 t" & cell_annotation_monaco_singler |> str_detect("naive") ~ "cd4 naive",
-      cell_type_harmonised=="cd8 t" & cell_annotation_monaco_singler |> str_detect("effector memory") ~ "cd8 tem",
-      cell_type_harmonised=="cd8 t" & cell_annotation_monaco_singler |> str_detect("central memory") ~ "cd8 tcm",
-      cell_type_harmonised=="cd8 t" & cell_annotation_monaco_singler |> str_detect("naive") ~ "cd8 naive",
-      cell_type_harmonised=="monocytes" & cell_annotation_monaco_singler |> str_detect("non classical") ~ "cd16 mono",
-      cell_type == "nonclassical monocyte" & cell_type_harmonised=="monocytes" & cell_annotation_monaco_singler =="intermediate monocytes"   ~ "cd16 mono",
-      cell_type_harmonised=="monocytes" & cell_annotation_monaco_singler |> str_detect("^classical") ~ "cd14 mono",
-      cell_type == "classical monocyte" & cell_type_harmonised=="monocytes" & cell_annotation_monaco_singler =="intermediate monocytes"   ~ "cd14 mono",
-      cell_type_harmonised=="monocytes" & cell_annotation_monaco_singler =="myeloid dendritic" & str_detect(cell_annotation_azimuth_l2, "cdc")   ~ "cdc",
-      
-      
-      TRUE ~ cell_type_harmonised
-    )) |>
-    
-    # Change CD4 classification for version 0.2.1
-    mutate(confidence_class = if_else(
-      cell_type_harmonised |> str_detect("cd4|mait|treg|tgd") & cell_annotation_monaco_singler %in% c("terminal effector cd4 t", "naive cd4 t", "th2", "th17", "t regulatory", "follicular helper t", "th1/th17", "th1", "nonvd2 gd t", "vd2 gd t"),
-      3,
-      confidence_class
-    )) |>
-    
-    # Change CD4 classification for version 0.2.1
-    mutate(cell_type_harmonised = if_else(
-      cell_type_harmonised |> str_detect("cd4|mait|treg|tgd") & cell_annotation_monaco_singler %in% c("terminal effector cd4 t", "naive cd4 t", "th2", "th17", "t regulatory", "follicular helper t", "th1/th17", "th1", "nonvd2 gd t", "vd2 gd t"),
-      cell_annotation_monaco_singler,
-      cell_type_harmonised
-    )) |>
-    
-    
-    mutate(cell_type_harmonised = cell_type_harmonised |>
-             str_replace("naive cd4 t", "cd4 naive") |>
-             str_replace("th2", "cd4 th2") |>
-             str_replace("^th17$", "cd4 th17") |>
-             str_replace("t regulatory", "treg") |>
-             str_replace("follicular helper t", "cd4 fh") |>
-             str_replace("th1/th17", "cd4 th1/th17") |>
-             str_replace("^th1$", "cd4 th1") |>
-             str_replace("nonvd2 gd t", "tgd") |>
-             str_replace("vd2 gd t", "tgd")
-    ) |>
-    
-    # add immune_unclassified
-    mutate(cell_type_harmonised = if_else(cell_type_harmonised == "monocytes", "immune_unclassified", cell_type_harmonised)) |>
-    mutate(cell_type_harmonised = if_else(is.na(cell_type_harmonised), "immune_unclassified", cell_type_harmonised)) |>
-    mutate(confidence_class = if_else(is.na(confidence_class), 5, confidence_class)) |>
-    
-    # drop uncommon cells
-    mutate(cell_type_harmonised = if_else(cell_type_harmonised %in% c("cd4 t", "cd8 t", "asdc", "cd4 ctl"), "immune_unclassified", cell_type_harmonised))
-  
-  
-  # Further rescue of unannotated cells, manually
-  
-  # curated_annotation |>
-  # 	filter(cell_type_harmonised == "immune_unclassified") |>
-  # 	count(cell_type   ,       cell_type_harmonised ,confidence_class ,cell_annotation_azimuth_l2 ,cell_annotation_blueprint_singler ,cell_annotation_monaco_singler) |>
-  # 	arrange(desc(n)) |>
-  # 	write_csv("curated_annotation_still_unannotated_0.2.csv")
-  
-  
-  curated_annotation =
-    curated_annotation |>
-    left_join(
-      read_csv("~/PostDoc/CuratedAtlasQueryR/dev/curated_annotation_still_unannotated_0.2_manually_labelled.csv") |>
-        select(cell_type, cell_type_harmonised_manually_curated = cell_type_harmonised, confidence_class_manually_curated = confidence_class, everything()),
-      by = join_by(cell_type, cell_annotation_azimuth_l2, cell_annotation_blueprint_singler, cell_annotation_monaco_singler)
-    ) |>
-    mutate(
-      confidence_class = if_else(cell_type_harmonised == "immune_unclassified", confidence_class_manually_curated, confidence_class),
-      cell_type_harmonised = if_else(cell_type_harmonised == "immune_unclassified", cell_type_harmonised_manually_curated, cell_type_harmonised),
-    ) |>
-    select(-contains("manually_curated"), -n) |>
-    
-    # drop uncommon cells
-    mutate(cell_type_harmonised = if_else(cell_type_harmonised %in% c("cd4 tcm", "cd4 tem"), "immune_unclassified", cell_type_harmonised))
-  
-  
-  
-  # # Recover confidence class == 4
-  
-  # curated_annotation |>
-  # 	filter(confidence_class==4) |>
-  # 	count(cell_type   ,       cell_type_harmonised ,confidence_class ,cell_annotation_azimuth_l2 ,cell_annotation_blueprint_singler ,cell_annotation_monaco_singler) |>
-  # 	arrange(desc(n)) |>
-  # 	write_csv("curated_annotation_still_unannotated_0.2_confidence_class_4.csv")
-  
-  curated_annotation =
-    curated_annotation |>
-    left_join(
-      read_csv("~/PostDoc/CuratedAtlasQueryR/dev/curated_annotation_still_unannotated_0.2_confidence_class_4_manually_labelled.csv") |>
-        select(confidence_class_manually_curated = confidence_class, everything()),
-      by = join_by(cell_type, cell_type_harmonised, cell_annotation_azimuth_l2, cell_annotation_blueprint_singler, cell_annotation_monaco_singler)
-    ) |>
-    mutate(
-      confidence_class = if_else(confidence_class == 4 & !is.na(confidence_class_manually_curated), confidence_class_manually_curated, confidence_class)
-    ) |>
-    select(-contains("manually_curated"), -n)
-  
-  # Correct fishy stem cell labelling
-  # If stem for the study's annotation and blueprint is non-immune it is probably wrong, 
-  # even because the heart has too many progenitor/stem
-  curated_annotation =
-    curated_annotation |>
-    mutate(confidence_class = case_when(
-      cell_type_harmonised == "stem" & cell_annotation_blueprint_singler %in% c(
-        "skeletal muscle", "adipocytes", "epithelial", "smooth muscle", "chondrocytes", "endothelial"
-      ) ~ 5,
-      TRUE ~ confidence_class
-    ))
-  
-  
-  curated_annotation_merged =
-    
-    # Fix cell ID
-    metadata_df |>
-    dplyr::select(.cell, .sample, cell_type) |>
-    as_tibble() |>
-    
-    # Add cell type
-    left_join(curated_annotation |> dplyr::select(-cell_type), by = c(".cell", ".sample")) |>
-    
-    # Add non immune
-    mutate(cell_type_harmonised = if_else(is.na(cell_type_harmonised), "non_immune", cell_type_harmonised)) |>
-    mutate(confidence_class = if_else(is.na(confidence_class) & cell_type_harmonised == "non_immune", 1, confidence_class)) |>
-    
-    # For some unknown reason
-    distinct()
-  
-  
-  curated_annotation_merged |>
-    
-    # Save
-    saveRDS(file_curated_annotation_merged)
-  
-  metadata_annotated =
-    curated_annotation_merged |>
-    
-    # merge with the rest of metadata
-    left_join(
-      metadata_df |>
-        as_tibble(),
-      by=c(".cell", ".sample", "cell_type")
-    )
-  
-  # Replace `.` with `_` for all column names as it can create difficoulties for MySQL and Python
-  colnames(metadata_annotated) = colnames(metadata_annotated) |> str_replace_all("\\.", "_")
-  metadata_annotated = metadata_annotated |> rename(cell_ = `_cell`, sample_ = `_sample`)
-  
-
-  dictionary_connie_non_immune = 
-    metadata_annotated |> 
-    filter(cell_type_harmonised == "non_immune") |> 
-    distinct(cell_type) |> 
-    harmonise_names_non_immune() |> 
-    rename(cell_type_harmonised_non_immune = cell_type_harmonised )
-  
-  metadata_annotated = 
-    metadata_annotated |> 
-    left_join(dictionary_connie_non_immune) |> 
-    mutate(cell_type_harmonised = if_else(cell_type_harmonised=="non_immune", cell_type_harmonised_non_immune, cell_type_harmonised)) |> 
-    select(-cell_type_harmonised_non_immune)
-  
-  
-}
+# get_manually_curated_immune_cell_types = function(){
+#   
+#   # library(zellkonverter)
+#   # library(Seurat)
+#   # library(SingleCellExperiment) # load early to avoid masking dplyr::count()
+#   # library(tidySingleCellExperiment)
+#   # library(dplyr)
+#   # library(cellxgenedp)
+#   # library(tidyverse)
+#   #library(tidySingleCellExperiment)
+#   # library(stringr)
+#   # library(scMerge)
+#   # library(glue)
+#   # library(tidyseurat)
+#   # library(celldex)
+#   # library(SingleR)
+#   # library(glmGamPoi)
+#   # library(stringr)
+#   # library(purrr)
+#   
+#   
+#   #Fix GCHECKS 
+#   metadata_file = NULL 
+#   .cell = NULL 
+#   cell_type = NULL
+#   file_id = NULL 
+#   .sample = NULL 
+#   azhimut_confirmed = NULL 
+#   blueprint_confirmed <- NULL
+#   arrange <- NULL # This one is actually a function from dplyr, so you should use it with dplyr::arrange or import it
+#   cell_type_clean <- NULL
+#   blueprint_singler <- NULL
+#   predicted.celltype.l2 <- NULL
+#   strong_evidence <- NULL
+#   cell_type_harmonised <- NULL
+#   confidence_class <- NULL
+#   lineage_1 <- NULL
+#   monaco_singler <- NULL
+#   cell_annotation_monaco_singler <- NULL
+#   cell_annotation_azimuth_l2 <- NULL
+#   cell_annotation_blueprint_singler <- NULL
+#   confidence_class_manually_curated <- NULL
+#   cell_type_harmonised_manually_curated <- NULL
+#   file_curated_annotation_merged <- NULL
+#   .sample <- NULL
+#   cell_type_harmonised_non_immune <- NULL
+# 
+#   # library(zellkonverter)
+#   # library(Seurat)
+#   # library(SingleCellExperiment) # load early to avoid masking dplyr::count()
+#   # library(tidySingleCellExperiment)
+#   # library(dplyr)
+#   # library(cellxgenedp)
+#   # library(tidyverse)
+#   # #library(tidySingleCellExperiment)
+#   # library(stringr)
+#   # library(scMerge)
+#   # library(glue)
+#   # library(DelayedArray)
+#   # library(HDF5Array)
+#   # library(tidyseurat)
+#   # library(celldex)
+#   # library(SingleR)
+#   # library(glmGamPoi)
+#   # library(stringr)
+#   # library(purrr)
+#   
+#   # # source("utility.R")
+#   # 
+#   # metadata_file = "/vast/projects/cellxgene_curated//metadata_0.2.rds"
+#   # file_curated_annotation_merged = "~/PostDoc/CuratedAtlasQueryR/dev/cell_type_curated_annotation_0.2.3.rds"
+#   # file_metadata_annotated = "/vast/projects/cellxgene_curated/metadata_annotated_0.2.3.rds"
+#   # annotation_directory = "/vast/projects/cellxgene_curated//annotated_data_0.2/"
+#   # 
+#   # # metadata_file = "/vast/projects/cellxgene_curated//metadata.rds"
+#   # # file_curated_annotation_merged = "~/PostDoc/CuratedAtlasQueryR/dev/cell_type_curated_annotation.rds"
+#   # # file_metadata_annotated = "/vast/projects/cellxgene_curated//metadata_annotated.rds"
+#   # # annotation_directory = "/vast/projects/cellxgene_curated//annotated_data_0.1/"
+#   # 
+#   # 
+#   # annotation_harmonised =
+#   #   dir(annotation_directory, full.names = TRUE) |>
+#   #   enframe(value="file") |>
+#   #   tidyr::extract(  file,".sample", "/([a-z0-9]+)\\.rds", remove = F) |>
+#   #   mutate(data = map(file, ~ .x |> readRDS() |> select(-contains("score")) )) |>
+#   #   unnest(data) |>
+#   #   
+#   #   # Format
+#   #   mutate(across(c(predicted.celltype.l1, predicted.celltype.l2, blueprint_singler, monaco_singler, ),	tolower	)) |>
+#   #   mutate(across(c(predicted.celltype.l1, predicted.celltype.l2, blueprint_singler, monaco_singler, ),	clean_cell_types	)) |>
+#   #   
+#   #   # Format
+#   # is_strong_evidence(predicted.celltype.l2, blueprint_singler) |> 
+#   #   
+#   # 
+#   # 
+#   # 
+#   # job::job({
+#   #   annotation_harmonised |>  saveRDS("~/PostDoc/CuratedAtlasQueryR/dev/annotated_data_0.2_temp_table.rds")
+#   # })
+#   # 
+# 
+#   annotation_harmonised = readRDS("~/PostDoc/CuratedAtlasQueryR/dev/annotated_data_0.2_temp_table.rds")
+#   
+#   # library(CuratedAtlasQueryR)
+#   metadata_df = readRDS(metadata_file)
+#   
+#   # Integrate with metadata
+#   
+#   annotation =
+#     metadata_df |>
+#     select(.cell, cell_type, file_id, .sample) |>
+#     as_tibble() |>
+#     left_join(read_csv("~/PostDoc/CuratedAtlasQueryR/dev/metadata_cell_type.csv"),  by = "cell_type") |>
+#     left_join(annotation_harmonised, by = c(".cell", ".sample")) |>
+#     
+#     # Clen cell types
+#     mutate(cell_type_clean = cell_type |> clean_cell_types())
+#   
+#   # annotation |>
+#   # 	filter(lineage_1=="immune") |>
+#   # 	count(cell_type, predicted.celltype.l2, blueprint_singler, strong_evidence) |>
+#   # 	arrange(!strong_evidence, desc(n)) |>
+#   # 	write_csv("~/PostDoc/CuratedAtlasQueryR/dev/annotation_confirm.csv")
+#   
+#   
+#   annotation_crated_confirmed =
+#     read_csv("~/PostDoc/CuratedAtlasQueryR/dev/annotation_confirm_manually_curated.csv") |>
+#     
+#     # TEMPORARY
+#     rename(cell_type_clean = cell_type) |>
+#     
+#     filter(!is.na(azhimut_confirmed) | !is.na(blueprint_confirmed)) |>
+#     filter(azhimut_confirmed + blueprint_confirmed > 0) |>
+#     
+#     # Format
+#     mutate(cell_type_harmonised = case_when(
+#       azhimut_confirmed ~ predicted.celltype.l2,
+#       blueprint_confirmed ~ blueprint_singler
+#     )) |>
+#     
+#     mutate(confidence_class = 1)
+#   
+#   
+#   
+#   # To avoid immune cell annotation if very contrasting evidence
+#   blueprint_definitely_non_immune = c(   "astrocytes" , "chondrocytes"  , "endothelial"  ,  "epithelial" ,  "fibros"  ,  "keratinocytes" ,    "melanocytes"  , "mesangial"  ,  "mv endothelial",   "myocytes" ,  "neurons"  ,  "pericytes" ,  "preadipocytes" , "skeletal muscle"  ,  "smooth muscle"      )
+#   
+#   
+#   
+#   annotation_crated_UNconfirmed =
+#     
+#     # Read
+#     read_csv("~/PostDoc/CuratedAtlasQueryR/dev/annotation_confirm_manually_curated.csv") |>
+#     
+#     # TEMPORARY
+#     rename(cell_type_clean = cell_type) |>
+#     
+#     filter(is.na(azhimut_confirmed) | (azhimut_confirmed + blueprint_confirmed) == 0) |>
+#     
+#     clean_cell_types_deeper() |> 
+#     
+#     mutate(cell_type_harmonised = "") |>
+#     
+#     # Classify strong evidence
+#     mutate(blueprint_confirmed = if_else(cell_type_clean |> str_detect("cd8 cytokine secreting tem t") & blueprint_singler == "nk", T, blueprint_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean |> str_detect("cd8 cytotoxic t") & blueprint_singler == "nk",  T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean |> str_detect("cd8alphaalpha intraepithelial t") & predicted.celltype.l2 == "cd8 tem" & blueprint_singler == "cd8 tem", T, azhimut_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean |> str_detect("mature t") & strong_evidence & predicted.celltype.l2  |> str_detect("tem|tcm"), T, azhimut_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean |> str_detect("myeloid") & strong_evidence & predicted.celltype.l2  == "cd16 mono", T, azhimut_confirmed) ) |>
+#     
+#     # Classify weak evidence
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c("b", "B") & predicted.celltype.l2   == "b memory" & blueprint_singler == "classswitched memory b", T, azhimut_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c("b", "B") & predicted.celltype.l2   %in% c("b memory", "b intermediate", "b naive", "plasma") & !blueprint_singler %in% c("classswitched memory b", "memory b", "naive b"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c("b", "B") & !predicted.celltype.l2   %in% c("b memory", "b intermediate", "b naive") & blueprint_singler %in% c("classswitched memory b", "memory b", "naive b", "plasma"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "activated cd4" & predicted.celltype.l2  %in% c("cd4 tcm", "cd4 tem", "tregs"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "activated cd4" & blueprint_singler  %in% c("cd4 tcm", "cd4 tem", "tregs"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "activated cd8" & predicted.celltype.l2  %in% c("cd8 tcm", "cd8 tem"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "activated cd8" & blueprint_singler  %in% c("cd8 tcm", "cd8 tem"), T, blueprint_confirmed) ) |>
+#     
+#     # Monocyte macrophage
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "cd14 cd16 monocyte" & predicted.celltype.l2  %in% c("cd14 mono", "cd16 mono"), T, azhimut_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "cd14 cd16negative classical monocyte" & predicted.celltype.l2  %in% c("cd14 mono"), T, azhimut_confirmed) ) |>
+#     mutate(cell_type_harmonised = if_else(cell_type_clean == "cd14 cd16negative classical monocyte" & blueprint_singler  %in% c("monocytes"), "cd14 mono", cell_type_harmonised) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "cd14 monocyte" & predicted.celltype.l2  %in% c("cd14 mono"), T, azhimut_confirmed) ) |>
+#     mutate(cell_type_harmonised = if_else(cell_type_clean == "cd14 monocyte" & blueprint_singler  %in% c("monocytes"), "cd14 mono", cell_type_harmonised) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "cd14low cd16 monocyte" & predicted.celltype.l2  %in% c("cd16 mono"), T, azhimut_confirmed) ) |>
+#     mutate(cell_type_harmonised = if_else(cell_type_clean == "cd14low cd16 monocyte" & blueprint_singler  %in% c("monocytes"), "cd16 mono", cell_type_harmonised) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "cd16 monocyte" & predicted.celltype.l2  %in% c("cd16 mono"), T, azhimut_confirmed) ) |>
+#     mutate(cell_type_harmonised = if_else(cell_type_clean == "cd16 monocyte" & blueprint_singler  %in% c("monocytes"), "cd16 mono", cell_type_harmonised) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "monocyte" & blueprint_singler  |> str_detect("monocyte|macrophage") & !predicted.celltype.l2 |> str_detect(" mono"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "monocyte" & predicted.celltype.l2 |> str_detect(" mono"), T, azhimut_confirmed) ) |>
+#     
+#     
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "cd4" & predicted.celltype.l2 |> str_detect("cd4|treg") & !blueprint_singler  |> str_detect("cd4"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "cd4" & !predicted.celltype.l2 |> str_detect("cd4") & blueprint_singler  |> str_detect("cd4|treg"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "cd8" & predicted.celltype.l2 |> str_detect("cd8") & !blueprint_singler  |> str_detect("cd8"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "cd8" & !predicted.celltype.l2 |> str_detect("cd8") & blueprint_singler  |> str_detect("cd8"), T, blueprint_confirmed) ) |>
+#     
+#     
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "memory t" & predicted.celltype.l2 |> str_detect("tem|tcm") & !blueprint_singler  |> str_detect("tem|tcm"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "memory t" & !predicted.celltype.l2 |> str_detect("tem|tcm") & blueprint_singler  |> str_detect("tem|tcm"), T, blueprint_confirmed) ) |>
+#     
+#     
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "cd8alphaalpha intraepithelial t" & predicted.celltype.l2 |> str_detect("cd8") & !blueprint_singler  |> str_detect("cd8"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "cd8alphaalpha intraepithelial t" & !predicted.celltype.l2 |> str_detect("cd8") & blueprint_singler  |> str_detect("cd8"), T, blueprint_confirmed) ) |>
+#     
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "cd8hymocyte" & predicted.celltype.l2 |> str_detect("cd8") & !blueprint_singler  |> str_detect("cd8"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "cd8hymocyte" & !predicted.celltype.l2 |> str_detect("cd8") & blueprint_singler  |> str_detect("cd8"), T, blueprint_confirmed) ) |>
+#     
+#     # B cells
+#     mutate(azhimut_confirmed = if_else(cell_type_clean  |> str_detect("memory b") & predicted.celltype.l2 =="b memory", T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean  |> str_detect("memory b") & blueprint_singler |> str_detect("memory b"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "immature b" & predicted.celltype.l2 =="b naive", T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "immature b" & blueprint_singler |> str_detect("naive b"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "mature b" & predicted.celltype.l2 %in% c("b memory", "b intermediate"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "mature b" & blueprint_singler |> str_detect("memory b"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "naive b" & predicted.celltype.l2 %in% c("b naive"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "naive b" & blueprint_singler |> str_detect("naive b"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "transitional stage b" & predicted.celltype.l2 %in% c("b intermediate"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "transitional stage b" & blueprint_singler |> str_detect("naive b") & !predicted.celltype.l2 %in% c("b intermediate"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "memory b" & predicted.celltype.l2 %in% c("b intermediate"), T, azhimut_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "precursor b", "prob") & predicted.celltype.l2 %in% c("b naive") & !blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "precursor b", "prob") & blueprint_singler |> str_detect("naive b") & predicted.celltype.l2 %in% c("hspc"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "precursor b", "prob") & predicted.celltype.l2 %in% c("hspc"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "precursor b", "prob") & blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), T, blueprint_confirmed) ) |>
+#     
+#     # Plasma cells
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "plasma") & predicted.celltype.l2 == "plasma" , T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "plasma") & predicted.celltype.l2 == "plasma" , T, blueprint_confirmed) ) |>
+#     
+#     mutate(azhimut_confirmed = case_when(
+#       cell_type_clean %in% c("cd4 cytotoxic t", "cd4 helper t") & predicted.celltype.l2 == "cd4 ctl" & blueprint_singler != "cd4 tcm" ~ T,
+#       cell_type_clean %in% c("cd4 cytotoxic t", "cd4 helper t") & predicted.celltype.l2 == "cd4 tem" & blueprint_singler != "cd4 tcm" ~ T,
+#       TRUE ~ azhimut_confirmed
+#     ) ) |>
+#     mutate(blueprint_confirmed = case_when(
+#       cell_type_clean %in% c("cd4 cytotoxic t", "cd4 helper t") & blueprint_singler == "cd4 tem" & predicted.celltype.l2 != "cd4 tcm" ~ T,
+#       cell_type_clean %in% c("cd4 cytotoxic t", "cd4 helper t") & blueprint_singler == "cd4 t" & predicted.celltype.l2 != "cd4 tcm" ~ T,
+#       TRUE ~ blueprint_confirmed
+#     ) ) |>
+#     
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "cd4hymocyte" & predicted.celltype.l2 |> str_detect("cd4|treg") & !blueprint_singler  |> str_detect("cd4"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "cd4hymocyte" & !predicted.celltype.l2 |> str_detect("cd4") & blueprint_singler  |> str_detect("cd4|treg"), T, blueprint_confirmed) ) |>
+#     
+#     mutate(azhimut_confirmed = case_when(
+#       cell_type_clean %in% c("cd8 memory t") & predicted.celltype.l2 == "cd8 tem" & blueprint_singler != "cd8 tcm" ~ T,
+#       cell_type_clean %in% c("cd8 memory t") & predicted.celltype.l2 == "cd8 tcm" & blueprint_singler != "cd8 tem" ~ T,
+#       TRUE ~ azhimut_confirmed
+#     ) ) |>
+#     mutate(blueprint_confirmed = case_when(
+#       cell_type_clean %in% c("cd8 memory t") & predicted.celltype.l2 != "cd8 tem" & blueprint_singler == "cd8 tcm" ~ T,
+#       cell_type_clean %in% c("cd8 memory t") & predicted.celltype.l2 != "cd8 tcm" & blueprint_singler == "cd8 tem" ~ T,
+#       TRUE ~ blueprint_confirmed
+#     ) ) |>
+#     
+#     mutate(azhimut_confirmed = case_when(
+#       cell_type_clean %in% c("cd4 memory t") & predicted.celltype.l2 == "cd4 tem" & blueprint_singler != "cd8 tcm" ~ T,
+#       cell_type_clean %in% c("cd4 memory t") & predicted.celltype.l2 == "cd4 tcm" & blueprint_singler != "cd8 tem" ~ T,
+#       TRUE ~ azhimut_confirmed
+#     ) ) |>
+#     mutate(blueprint_confirmed = case_when(
+#       cell_type_clean %in% c("cd4 memory t") & predicted.celltype.l2 != "cd4 tem" & blueprint_singler == "cd4 tcm" ~ T,
+#       cell_type_clean %in% c("cd4 memory t") & predicted.celltype.l2 != "cd4 tcm" & blueprint_singler == "cd4 tem" ~ T,
+#       TRUE ~ blueprint_confirmed
+#     ) ) |>
+#     
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "t") & blueprint_singler =="cd8 t" & predicted.celltype.l2 |> str_detect("cd8"), T, azhimut_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "t") & blueprint_singler =="cd4 t" & predicted.celltype.l2 |> str_detect("cd4|treg"), T, azhimut_confirmed) ) |>
+#     
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "treg") & blueprint_singler %in% c("tregs"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "treg") & predicted.celltype.l2 == "treg", T, azhimut_confirmed) ) |>
+#     
+#     
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "tcm cd4") & blueprint_singler %in% c("cd4 tcm"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "tcm cd4") & predicted.celltype.l2 == "cd4 tcm", T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "tcm cd8") & blueprint_singler %in% c("cd8 tcm"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "tcm cd8") & predicted.celltype.l2 == "cd8 tcm", T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "tem cd4") & blueprint_singler %in% c("cd4 tem"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "tem cd4") & predicted.celltype.l2 == "cd4 tem", T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "tem cd8") & blueprint_singler %in% c("cd8 tem"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "tem cd8") & predicted.celltype.l2 == "cd8 tem", T, azhimut_confirmed) ) |>
+#     
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "tgd") & predicted.celltype.l2 == "gdt", T, azhimut_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "activated cd4") & predicted.celltype.l2 == "cd4 proliferating", T, azhimut_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "activated cd8") & predicted.celltype.l2 == "cd8 proliferating", T, azhimut_confirmed) ) |>
+#     
+#     
+#     
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c("naive cd4", "naive t") & predicted.celltype.l2 %in% c("cd4 naive"), T, azhimut_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c("naive cd8", "naive t") & predicted.celltype.l2 %in% c("cd8 naive"), T, azhimut_confirmed) ) |>
+#     
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "prot") & predicted.celltype.l2 %in% c("cd4 naive") & !blueprint_singler |> str_detect("clp|hcs|mpp|cd8"), T, azhimut_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "prot") & predicted.celltype.l2 %in% c("cd8 naive") & !blueprint_singler |> str_detect("clp|hcs|mpp|cd4"), T, azhimut_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "prot") & predicted.celltype.l2 %in% c("hspc"), T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "prot") & blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), T, blueprint_confirmed) ) |>
+#     
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "dendritic" & predicted.celltype.l2 %in% c("asdc", "cdc2", "cdc1", "pdc"), T, azhimut_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == "double negative t regulatory" & predicted.celltype.l2 == "dnt", T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "early t lineage precursor", "immature innate lymphoid") & blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "early t lineage precursor", "immature innate lymphoid") & predicted.celltype.l2 == "hspc" & blueprint_singler != "clp", T, azhimut_confirmed) ) |>
+#     
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c("ilc1", "ilc2", "innate lymphoid") & blueprint_singler == "nk", T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c("ilc1", "ilc2", "innate lymphoid") & predicted.celltype.l2 %in% c( "nk", "ilc", "nk proliferating"), T, azhimut_confirmed) ) |>
+#     
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "immature t") & blueprint_singler %in% c("naive t"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "immature t") & predicted.celltype.l2 == "t naive", T, azhimut_confirmed) ) |>
+#     
+#     mutate(cell_type_harmonised = if_else(cell_type_clean == "fraction a prepro b", "naive b", cell_type_harmonised))  |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == "granulocyte" & blueprint_singler %in% c("eosinophils", "neutrophils"), T, blueprint_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c("immature neutrophil", "neutrophil") & blueprint_singler %in% c( "neutrophils"), T, blueprint_confirmed) ) |>
+#     
+#     mutate(blueprint_confirmed = if_else(cell_type_clean |> str_detect("megakaryocyte") & blueprint_singler |> str_detect("megakaryocyte"), T, blueprint_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean |> str_detect("macrophage") & blueprint_singler |> str_detect("macrophage"), T, blueprint_confirmed) ) |>
+#     
+#     mutate(blueprint_confirmed = if_else(cell_type_clean %in% c( "nk") & blueprint_singler %in% c("nk"), T, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean %in% c( "nk") & predicted.celltype.l2 %in% c("nk", "nk proliferating", "nk_cd56bright", "ilc"), T, azhimut_confirmed) ) |>
+#     
+#     
+#     # If identical force
+#     mutate(azhimut_confirmed = if_else(cell_type_clean == predicted.celltype.l2 , T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean == blueprint_singler , T, blueprint_confirmed) ) |>
+#     
+#     # Perogenitor
+#     mutate(azhimut_confirmed = if_else(cell_type_clean  |> str_detect("progenitor|hematopoietic|precursor") & predicted.celltype.l2  == "hspc", T, azhimut_confirmed) ) |>
+#     mutate(blueprint_confirmed = if_else(cell_type_clean  |> str_detect("progenitor|hematopoietic|precursor") & blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), T, blueprint_confirmed) ) |>
+#     
+#     # Generic original annotation and stem for new annotations
+#     mutate(azhimut_confirmed = if_else(
+#       cell_type_clean  %in% c("T cell", "myeloid cell", "leukocyte", "myeloid leukocyte", "B cell") &
+#         predicted.celltype.l2  == "hspc" &
+#         blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), T, azhimut_confirmed) ) |>
+#     
+#     # Omit mature for stem
+#     mutate(blueprint_confirmed = if_else(cell_type_clean  |> str_detect("mature") & blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), F, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean  |> str_detect("mature") & predicted.celltype.l2  == "hspc", F, azhimut_confirmed) ) |>
+#     
+#     # Omit megacariocyte for stem
+#     mutate(blueprint_confirmed = if_else(cell_type_clean  == "megakaryocyte" & blueprint_singler %in% c("clp","hcs", "mpp", "gmp"), F, blueprint_confirmed) ) |>
+#     mutate(azhimut_confirmed = if_else(cell_type_clean  == "megakaryocyte" & predicted.celltype.l2  == "hspc", F, azhimut_confirmed) ) |>
+#     
+#     # Mast cells
+#     mutate(cell_type_harmonised = if_else(cell_type_clean == "mast", "mast", cell_type_harmonised))  |>
+#     
+#     
+#     # Visualise
+#     #distinct(cell_type_clean, predicted.celltype.l2, blueprint_singler, strong_evidence, azhimut_confirmed, blueprint_confirmed) |>
+#     arrange(!strong_evidence, cell_type_clean) |>
+#     
+#     # set cell names
+#     mutate(cell_type_harmonised = case_when(
+#       cell_type_harmonised == "" & azhimut_confirmed ~ predicted.celltype.l2,
+#       cell_type_harmonised == "" & blueprint_confirmed ~ blueprint_singler,
+#       TRUE ~ cell_type_harmonised
+#     )) |>
+#     
+#     # Add NA
+#     mutate(cell_type_harmonised = case_when(cell_type_harmonised != "" ~ cell_type_harmonised)) |>
+#     
+#     # Add unannotated cells because datasets were too small
+#     mutate(cell_type_harmonised = case_when(
+#       is.na(cell_type_harmonised) & cell_type_clean  |> str_detect("progenitor|hematopoietic|stem|precursor") ~ "stem",
+#       
+#       is.na(cell_type_harmonised) & cell_type_clean == "cd14 monocyte" ~ "cd14 mono",
+#       is.na(cell_type_harmonised) & cell_type_clean == "cd16 monocyte" ~ "cd16 mono",
+#       is.na(cell_type_harmonised) & cell_type_clean %in% c("cd4 cytotoxic t", "tem cd4") ~ "cd4 tem",
+#       is.na(cell_type_harmonised) & cell_type_clean %in% c("cd8 cytotoxic t", "tem cd8") ~ "cd8 tem",
+#       is.na(cell_type_harmonised) & cell_type_clean |> str_detect("macrophage") ~ "macrophage",
+#       is.na(cell_type_harmonised) & cell_type_clean %in% c("mature b", "memory b", "transitional stage b") ~ "b memory",
+#       is.na(cell_type_harmonised) & cell_type_clean == "mucosal invariant t" ~ "mait",
+#       is.na(cell_type_harmonised) & cell_type_clean == "naive b" ~ "b naive",
+#       is.na(cell_type_harmonised) & cell_type_clean == "nk" ~ "nk",
+#       is.na(cell_type_harmonised) & cell_type_clean == "naive cd4" ~"cd4 naive",
+#       is.na(cell_type_harmonised) & cell_type_clean == "naive cd8" ~"cd8 naive",
+#       is.na(cell_type_harmonised) & cell_type_clean == "treg" ~ "treg",
+#       is.na(cell_type_harmonised) & cell_type_clean == "tgd" ~ "tgd",
+#       TRUE ~ cell_type_harmonised
+#     )) |>
+#     
+#     mutate(confidence_class = case_when(
+#       !is.na(cell_type_harmonised) & strong_evidence ~ 2,
+#       !is.na(cell_type_harmonised) & !strong_evidence ~ 3
+#     )) |>
+#     
+#     # Lowest grade annotation UNreliable
+#     mutate(cell_type_harmonised = case_when(
+#       
+#       # Get origincal annotation
+#       is.na(cell_type_harmonised) & cell_type_clean %in% c("neutrophil", "granulocyte") ~ cell_type_clean,
+#       is.na(cell_type_harmonised) & cell_type_clean %in% c("conventional dendritic", "dendritic") ~ "cdc",
+#       is.na(cell_type_harmonised) & cell_type_clean %in% c("classical monocyte") ~ "cd14 mono",
+#       
+#       # Get Seurat annotation
+#       is.na(cell_type_harmonised) & predicted.celltype.l2 != "eryth" & !is.na(predicted.celltype.l2) ~ predicted.celltype.l2,
+#       is.na(cell_type_harmonised) & !blueprint_singler %in% c(
+#         "astrocytes", "smooth muscle", "preadipocytes", "mesangial", "myocytes",
+#         "doublet", "melanocytes", "chondrocytes", "mv endothelial", "fibros",
+#         "neurons", "keratinocytes", "endothelial", "epithelial", "skeletal muscle", "pericytes", "erythrocytes", "adipocytes"
+#       ) & !is.na(blueprint_singler) ~ blueprint_singler,
+#       TRUE ~ cell_type_harmonised
+#       
+#     )) |>
+#     
+#     # Lowest grade annotation UNreliable
+#     mutate(cell_type_harmonised = case_when(
+#       
+#       # Get origincal annotation
+#       !cell_type_harmonised %in% c("doublet", "platelet") ~ cell_type_harmonised
+#       
+#     )) |>
+#     
+#     mutate(confidence_class = case_when(
+#       is.na(confidence_class) & !is.na(cell_type_harmonised) ~ 4,
+#       TRUE ~ confidence_class
+#     ))
+#   
+#   # Another passage
+#   
+#   # annotated_samples = annotation_crated_UNconfirmed |> filter(!is.na(cell_type_harmonised)) |>  distinct( cell_type, .sample, file_id)
+#   #
+#   # annotation_crated_UNconfirmed |>
+#   # 	filter(is.na(cell_type_harmonised))  |>
+#   # 	count(cell_type ,    cell_type_harmonised ,predicted.celltype.l2 ,blueprint_singler) |>
+#   # 	arrange(desc(n)) |>
+#   # 	print(n=99)
+#   
+#   
+#   annotation_all =
+#     annotation_crated_confirmed |>
+#     clean_cell_types_deeper() |> 
+#     bind_rows(
+#       annotation_crated_UNconfirmed
+#     ) |>
+#     
+#     # I have multiple confidence_class per combination of labels
+#     distinct() |>
+#     with_groups(c(cell_type_clean, predicted.celltype.l2, blueprint_singler), ~ .x |> arrange(confidence_class) |> slice(1)) |>
+#     
+#     # Simplify after harmonisation
+#     mutate(cell_type_harmonised =	case_when(
+#       cell_type_harmonised %in% c("b memory", "b intermediate", "classswitched memory b", "memory b" ) ~ "b memory",
+#       cell_type_harmonised %in% c("b naive", "naive b") ~ "b naive",
+#       cell_type_harmonised %in% c("nk_cd56bright", "nk", "nk proliferating", "ilc") ~ "ilc",
+#       cell_type_harmonised %in% c("mpp", "clp", "hspc", "mep", "cmp", "hsc", "gmp") ~ "stem",
+#       cell_type_harmonised %in% c("macrophages",  "macrophages m1", "macrophages m2") ~ "macrophage",
+#       cell_type_harmonised %in% c("treg",  "tregs") ~ "treg",
+#       cell_type_harmonised %in% c("gdt",  "tgd") ~ "tgd",
+#       cell_type_harmonised %in% c("cd8 proliferating",  "cd8 tem") ~ "cd8 tem",
+#       cell_type_harmonised %in% c("cd4 proliferating",  "cd4 tem") ~ "cd4 tem",
+#       cell_type_harmonised %in% c("eosinophils",  "neutrophils", "granulocyte", "neutrophil") ~ "granulocyte",
+#       cell_type_harmonised %in% c("cdc",  "cdc1", "cdc2", "dc") ~ "cdc",
+#       
+#       TRUE ~ cell_type_harmonised
+#     )) |>
+#     dplyr::select(cell_type_clean, cell_type_harmonised, predicted.celltype.l2, blueprint_singler, confidence_class) |>
+#     distinct()
+# 
+#   
+#   curated_annotation =
+#     annotation |>
+#     clean_cell_types_deeper() |> 
+#     filter(lineage_1=="immune") |>
+#     dplyr::select(
+#       .cell, .sample, cell_type, cell_type_clean, predicted.celltype.l2, blueprint_singler, monaco_singler) |>
+#     left_join(
+#       annotation_all ,
+#       by = c("cell_type_clean", "predicted.celltype.l2", "blueprint_singler")
+#     ) |>
+#     dplyr::select(
+#       .cell, .sample, cell_type, cell_type_harmonised, confidence_class,
+#       cell_annotation_azimuth_l2 = predicted.celltype.l2, cell_annotation_blueprint_singler = blueprint_singler,
+#       cell_annotation_monaco_singler = monaco_singler
+#     ) |>
+#     
+#     # Reannotation of generic cell types
+#     mutate(cell_type_harmonised = case_when(
+#       cell_type_harmonised=="cd4 t" & cell_annotation_monaco_singler |> str_detect("effector memory") ~ "cd4 tem",
+#       cell_type_harmonised=="cd4 t" & cell_annotation_monaco_singler |> str_detect("mait") ~ "mait",
+#       cell_type_harmonised=="cd4 t" & cell_annotation_monaco_singler |> str_detect("central memory") ~ "cd4 tcm",
+#       cell_type_harmonised=="cd4 t" & cell_annotation_monaco_singler |> str_detect("naive") ~ "cd4 naive",
+#       cell_type_harmonised=="cd8 t" & cell_annotation_monaco_singler |> str_detect("effector memory") ~ "cd8 tem",
+#       cell_type_harmonised=="cd8 t" & cell_annotation_monaco_singler |> str_detect("central memory") ~ "cd8 tcm",
+#       cell_type_harmonised=="cd8 t" & cell_annotation_monaco_singler |> str_detect("naive") ~ "cd8 naive",
+#       cell_type_harmonised=="monocytes" & cell_annotation_monaco_singler |> str_detect("non classical") ~ "cd16 mono",
+#       cell_type == "nonclassical monocyte" & cell_type_harmonised=="monocytes" & cell_annotation_monaco_singler =="intermediate monocytes"   ~ "cd16 mono",
+#       cell_type_harmonised=="monocytes" & cell_annotation_monaco_singler |> str_detect("^classical") ~ "cd14 mono",
+#       cell_type == "classical monocyte" & cell_type_harmonised=="monocytes" & cell_annotation_monaco_singler =="intermediate monocytes"   ~ "cd14 mono",
+#       cell_type_harmonised=="monocytes" & cell_annotation_monaco_singler =="myeloid dendritic" & str_detect(cell_annotation_azimuth_l2, "cdc")   ~ "cdc",
+#       
+#       
+#       TRUE ~ cell_type_harmonised
+#     )) |>
+#     
+#     # Change CD4 classification for version 0.2.1
+#     mutate(confidence_class = if_else(
+#       cell_type_harmonised |> str_detect("cd4|mait|treg|tgd") & cell_annotation_monaco_singler %in% c("terminal effector cd4 t", "naive cd4 t", "th2", "th17", "t regulatory", "follicular helper t", "th1/th17", "th1", "nonvd2 gd t", "vd2 gd t"),
+#       3,
+#       confidence_class
+#     )) |>
+#     
+#     # Change CD4 classification for version 0.2.1
+#     mutate(cell_type_harmonised = if_else(
+#       cell_type_harmonised |> str_detect("cd4|mait|treg|tgd") & cell_annotation_monaco_singler %in% c("terminal effector cd4 t", "naive cd4 t", "th2", "th17", "t regulatory", "follicular helper t", "th1/th17", "th1", "nonvd2 gd t", "vd2 gd t"),
+#       cell_annotation_monaco_singler,
+#       cell_type_harmonised
+#     )) |>
+#     
+#     
+#     mutate(cell_type_harmonised = cell_type_harmonised |>
+#              str_replace("naive cd4 t", "cd4 naive") |>
+#              str_replace("th2", "cd4 th2") |>
+#              str_replace("^th17$", "cd4 th17") |>
+#              str_replace("t regulatory", "treg") |>
+#              str_replace("follicular helper t", "cd4 fh") |>
+#              str_replace("th1/th17", "cd4 th1/th17") |>
+#              str_replace("^th1$", "cd4 th1") |>
+#              str_replace("nonvd2 gd t", "tgd") |>
+#              str_replace("vd2 gd t", "tgd")
+#     ) |>
+#     
+#     # add immune_unclassified
+#     mutate(cell_type_harmonised = if_else(cell_type_harmonised == "monocytes", "immune_unclassified", cell_type_harmonised)) |>
+#     mutate(cell_type_harmonised = if_else(is.na(cell_type_harmonised), "immune_unclassified", cell_type_harmonised)) |>
+#     mutate(confidence_class = if_else(is.na(confidence_class), 5, confidence_class)) |>
+#     
+#     # drop uncommon cells
+#     mutate(cell_type_harmonised = if_else(cell_type_harmonised %in% c("cd4 t", "cd8 t", "asdc", "cd4 ctl"), "immune_unclassified", cell_type_harmonised))
+#   
+#   
+#   # Further rescue of unannotated cells, manually
+#   
+#   # curated_annotation |>
+#   # 	filter(cell_type_harmonised == "immune_unclassified") |>
+#   # 	count(cell_type   ,       cell_type_harmonised ,confidence_class ,cell_annotation_azimuth_l2 ,cell_annotation_blueprint_singler ,cell_annotation_monaco_singler) |>
+#   # 	arrange(desc(n)) |>
+#   # 	write_csv("curated_annotation_still_unannotated_0.2.csv")
+#   
+#   
+#   curated_annotation =
+#     curated_annotation |>
+#     left_join(
+#       read_csv("~/PostDoc/CuratedAtlasQueryR/dev/curated_annotation_still_unannotated_0.2_manually_labelled.csv") |>
+#         select(cell_type, cell_type_harmonised_manually_curated = cell_type_harmonised, confidence_class_manually_curated = confidence_class, everything()),
+#       by = join_by(cell_type, cell_annotation_azimuth_l2, cell_annotation_blueprint_singler, cell_annotation_monaco_singler)
+#     ) |>
+#     mutate(
+#       confidence_class = if_else(cell_type_harmonised == "immune_unclassified", confidence_class_manually_curated, confidence_class),
+#       cell_type_harmonised = if_else(cell_type_harmonised == "immune_unclassified", cell_type_harmonised_manually_curated, cell_type_harmonised),
+#     ) |>
+#     select(-contains("manually_curated"), -n) |>
+#     
+#     # drop uncommon cells
+#     mutate(cell_type_harmonised = if_else(cell_type_harmonised %in% c("cd4 tcm", "cd4 tem"), "immune_unclassified", cell_type_harmonised))
+#   
+#   
+#   
+#   # # Recover confidence class == 4
+#   
+#   # curated_annotation |>
+#   # 	filter(confidence_class==4) |>
+#   # 	count(cell_type   ,       cell_type_harmonised ,confidence_class ,cell_annotation_azimuth_l2 ,cell_annotation_blueprint_singler ,cell_annotation_monaco_singler) |>
+#   # 	arrange(desc(n)) |>
+#   # 	write_csv("curated_annotation_still_unannotated_0.2_confidence_class_4.csv")
+#   
+#   curated_annotation =
+#     curated_annotation |>
+#     left_join(
+#       read_csv("~/PostDoc/CuratedAtlasQueryR/dev/curated_annotation_still_unannotated_0.2_confidence_class_4_manually_labelled.csv") |>
+#         select(confidence_class_manually_curated = confidence_class, everything()),
+#       by = join_by(cell_type, cell_type_harmonised, cell_annotation_azimuth_l2, cell_annotation_blueprint_singler, cell_annotation_monaco_singler)
+#     ) |>
+#     mutate(
+#       confidence_class = if_else(confidence_class == 4 & !is.na(confidence_class_manually_curated), confidence_class_manually_curated, confidence_class)
+#     ) |>
+#     select(-contains("manually_curated"), -n)
+#   
+#   # Correct fishy stem cell labelling
+#   # If stem for the study's annotation and blueprint is non-immune it is probably wrong, 
+#   # even because the heart has too many progenitor/stem
+#   curated_annotation =
+#     curated_annotation |>
+#     mutate(confidence_class = case_when(
+#       cell_type_harmonised == "stem" & cell_annotation_blueprint_singler %in% c(
+#         "skeletal muscle", "adipocytes", "epithelial", "smooth muscle", "chondrocytes", "endothelial"
+#       ) ~ 5,
+#       TRUE ~ confidence_class
+#     ))
+#   
+#   
+#   curated_annotation_merged =
+#     
+#     # Fix cell ID
+#     metadata_df |>
+#     dplyr::select(.cell, .sample, cell_type) |>
+#     as_tibble() |>
+#     
+#     # Add cell type
+#     left_join(curated_annotation |> dplyr::select(-cell_type), by = c(".cell", ".sample")) |>
+#     
+#     # Add non immune
+#     mutate(cell_type_harmonised = if_else(is.na(cell_type_harmonised), "non_immune", cell_type_harmonised)) |>
+#     mutate(confidence_class = if_else(is.na(confidence_class) & cell_type_harmonised == "non_immune", 1, confidence_class)) |>
+#     
+#     # For some unknown reason
+#     distinct()
+#   
+#   
+#   curated_annotation_merged |>
+#     
+#     # Save
+#     saveRDS(file_curated_annotation_merged)
+#   
+#   metadata_annotated =
+#     curated_annotation_merged |>
+#     
+#     # merge with the rest of metadata
+#     left_join(
+#       metadata_df |>
+#         as_tibble(),
+#       by=c(".cell", ".sample", "cell_type")
+#     )
+#   
+#   # Replace `.` with `_` for all column names as it can create difficoulties for MySQL and Python
+#   colnames(metadata_annotated) = colnames(metadata_annotated) |> str_replace_all("\\.", "_")
+#   metadata_annotated = metadata_annotated |> rename(cell_ = `_cell`, sample_ = `_sample`)
+#   
+# 
+#   dictionary_connie_non_immune = 
+#     metadata_annotated |> 
+#     filter(cell_type_harmonised == "non_immune") |> 
+#     distinct(cell_type) |> 
+#     harmonise_names_non_immune() |> 
+#     rename(cell_type_harmonised_non_immune = cell_type_harmonised )
+#   
+#   metadata_annotated = 
+#     metadata_annotated |> 
+#     left_join(dictionary_connie_non_immune) |> 
+#     mutate(cell_type_harmonised = if_else(cell_type_harmonised=="non_immune", cell_type_harmonised_non_immune, cell_type_harmonised)) |> 
+#     select(-cell_type_harmonised_non_immune)
+#   
+#   
+# }
 
 remove_files_safely <- function(files) {
   for (file in files) {
@@ -2526,10 +2793,10 @@ arguments_to_action <- function(lst, input_hpc, value) {
     if (
       arg_value |> length() == 0 |
       is.null(arg_value) | !(
-      arg_value |> is("character") | 
-      arg_value |> is("name") | 
-      arg_value |> is("list")
-    )) next
+        arg_value |> is("character") | 
+        arg_value |> is("name") | 
+        arg_value |> is("list")
+      )) next
     
     # Convert the argument value to a character string vector
     # arg_value_as_char <- as.character(arg_value)
@@ -2544,9 +2811,9 @@ arguments_to_action <- function(lst, input_hpc, value) {
         input_hpc[[arg_value]]$iterate %in% value
       ) 
         matching_elements <- c(matching_elements, as.character(arg_value) |> set_names(arg_name))
-       
-    }
       
+    }
+    
     else{
       # Iterate over each element in arg_value_as_char
       for (val in arg_value) {
@@ -2563,7 +2830,7 @@ arguments_to_action <- function(lst, input_hpc, value) {
         
       }
     }
-
+    
   }
   
   return(matching_elements)
@@ -2634,27 +2901,27 @@ safe_as_name <- function(input) {
 #' @importFrom glue glue
 #' @noRd
 check_for_name_value_conflicts <- function(...) {
-# Capture the arguments passed to the function
-args_list <- list(...)
-
-# Iterate through the list and check for name-value conflicts
-for (arg_name in names(args_list)) {
-  arg_value <- args_list[[arg_name]]
-
-  # Skip NULL values
-  if (is.null(arg_value)) next
+  # Capture the arguments passed to the function
+  args_list <- list(...)
   
-  # Convert the argument value to a character string
-  # arg_value_as_char <- as.character(arg_value)
-  
-  # Check if the argument name matches any of the values in arg_value_as_char
-  if (arg_name %in% c(arg_value)) {
-    stop(glue::glue("HPCell says: Argument name '{arg_name}' cannot be the same as its value '{arg_value_as_char}'"))
+  # Iterate through the list and check for name-value conflicts
+  for (arg_name in names(args_list)) {
+    arg_value <- args_list[[arg_name]]
+    
+    # Skip NULL values
+    if (is.null(arg_value)) next
+    
+    # Convert the argument value to a character string
+    # arg_value_as_char <- as.character(arg_value)
+    
+    # Check if the argument name matches any of the values in arg_value_as_char
+    if (arg_name %in% c(arg_value)) {
+      stop(glue::glue("HPCell says: Argument name '{arg_name}' cannot be the same as its value '{arg_value_as_char}'"))
+    }
   }
-}
-
-# If no conflicts, return the arguments as is or proceed with the function logic
-return(args_list)
+  
+  # If no conflicts, return the arguments as is or proceed with the function logic
+  return(args_list)
 }
 
 #' Expand Tiered Arguments in a List
@@ -2718,7 +2985,7 @@ expand_tiered_arguments <- function(lst, tiers, argument_to_replace, tiered_args
     # Create a vector of tiered values by combining tiered_base with tiers
     # If no tier do not add the suffix
     tiered_values <- lapply(tiers, function(tier) paste0(tiered_base, "_", tier) |> as.name() )
-
+    
     # Construct the c(...) call with the tiered values
     c_call <- as.call(c(as.name("c"), tiered_values))
     
@@ -2754,14 +3021,54 @@ build_pattern = function(arguments_to_tier = c(), other_arguments_to_map = c(), 
     
     if(other_arguments_to_map |> length() > 0){
       
-        pattern = pattern |> c(other_arguments_to_map |> lapply(as.name))
+      pattern = pattern |> c(other_arguments_to_map |> lapply(as.name))
       
     }
-      
+    
     pattern = as.call(pattern)
     
   }
   
   pattern
+  
+}
+
+write_source = function(user_function_source_path, target_script){
+  if(user_function_source_path |> is.null() |> not())
+    
+    source(s) |> 
+    substitute(env = list(s =user_function_source_path )) |> 
+    deparse() |> 
+    write_lines(target_script, append = TRUE)
+}
+
+#' @export
+target_append <- function(target_list, ...) {
+  # Append the new elements to the list
+  target_list <<- c(target_list, list(...))
+  
+}
+
+write_HDF5_array_safe = function(normalized_rna, name, directory){
+  
+  dir.create(directory, showWarnings = FALSE, recursive = TRUE)
+  
+  hash = digest(normalized_rna)
+  file_name = glue("{directory}/{hash}")
+  
+  if (
+    file.exists(file_name) &&
+    name %in% rhdf5::h5ls(file_name)$name
+  ) {
+    names_to_drop = rhdf5::h5ls(file_name)$name |> str_subset(name)
+    names_to_drop |> map(~rhdf5::h5delete(file_name, .x))
+  }
+  
+  normalized_rna |> 
+    HDF5Array::writeHDF5Array(
+      filepath = file_name,
+      name = name,
+      as.sparse = TRUE
+    ) 
   
 }
