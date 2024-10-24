@@ -70,6 +70,8 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   #assay(input_read_RNA_assay) = assay(input_read_RNA_assay) |> transform_fx()
   input_read_RNA_assay = input_read_RNA_assay |> transform_fx()
   
+  if (length(colnames(input_read_RNA_assay)) == 0) return(NULL)
+  
   input_read_RNA_assay |> 
     save_experiment_data(dir = file_name,
                          container_type = data_container_type )

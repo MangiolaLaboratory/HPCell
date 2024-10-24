@@ -94,7 +94,7 @@ initialise_hpc <- function(input_hpc,
       error = "continue",
       format = "qs",
       debug = d, # Set the target you want to debug.
-      #cue = tar_cue(mode = "never"), # Force skip non-debugging outdated targets.
+      cue = tar_cue(mode = "never"), # Force skip non-debugging outdated targets.
       controller = crew_controller_group ( readRDS("temp_computing_resources.rds") ), 
       packages = c("HPCell", "tidySingleCellExperiment"),
       trust_object_timestamps  = TRUE

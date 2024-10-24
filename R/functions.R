@@ -224,8 +224,8 @@ annotation_label_transfer <- function(input_read_RNA_assay,
               "predicted.celltype.l2.score",
               "predicted.celltype.l3.score"
             )
-          ), matches("umap|UMAP")) |> 
-          nest(azimuth_scores_celltype = c(ends_with("score"), matches("umap|UMAP"))) |>
+          )) |> 
+          nest(azimuth_scores_celltype = c(ends_with("score"))) |>
           dplyr::rename(azimuth_predicted.celltype.l1 = predicted.celltype.l1,
                         azimuth_predicted.celltype.l2 = predicted.celltype.l2,
                         azimuth_predicted.celltype.l3 = predicted.celltype.l3)},
