@@ -6,8 +6,8 @@
 \usage{
 doublet_identification(
   input_read_RNA_assay,
-  empty_droplets_tbl,
-  alive_identification_tbl,
+  empty_droplets_tbl = NULL,
+  alive_identification_tbl = NULL,
   assay = NULL
 )
 }

@@ -1,74 +1,46 @@
 # Define the generic function
 #' @export
-tranform_assay <- function(input_hpc, fx = "identity", target_input = "read_file", target_output = "sce_transformed", ...) {
+tranform_assay <- function(input_hpc, fx = input_hpc$initialisation$input_hpc |> map(~identity), target_input = "data_object", target_output = "sce_transformed", ...) {
   UseMethod("tranform_assay")
 }
 
+#' @importFrom purrr map
+#' 
 #' @export
-tranform_assay.HPCell = function(input_hpc, fx = identity, target_input = "read_file", target_output = "sce_transformed", ...) {
+tranform_assay.HPCell = function(
+    input_hpc,
+    
+    # This might be carrying the environment
+    fx = input_hpc$initialisation$input_hpc |> map(~identity), 
+    target_input = "data_object", 
+    target_output = "sce_transformed", 
+    ...
+  ) {
   
-  # Capture all arguments including defaults
-  args_list <- as.list(environment())[-1]
+  fx |> saveRDS("temp_fx.rds")
   
-  # Optionally, you can evaluate the arguments if they are expressions
-  args_list <- lapply(args_list, eval, envir = parent.frame())
-  
-  args_list$factory = function(tiers, target_input, target_output, external_path){
+  input_hpc |> 
     
-    if(length(readRDS("temp_fx.rds"))==1) 
-      {
-      target_fx = tar_target_raw("transform", readRDS("temp_fx.rds") |> quote(), deployment = "main")
-      arguments_to_tier = NULL
-    }
-    else 
-      {
-        target_fx = tar_target_raw("transform", readRDS("temp_fx.rds") |> quote(), iteration = "list", deployment = "main")
-        arguments_to_tier ="transform"
-       }
-    
-    
-    
-    list(
-      target_fx,
-      
-      factory_split(
-        target_output, 
-        i |> 
-          read_data_container(container_type = data_container_type) |> 
-          transform_utility(transform, e) |> 
-          substitute(env = list(i=as.symbol(target_input), e = external_path)),
-        tiers, 
-        arguments_to_tier = arguments_to_tier,
-        other_arguments_to_tier = target_input,
-        other_arguments_to_map = target_input,
-        iteration = "list", 
-        packages = "HPCell"
-      )  
-    )
-    
-  }
-  
-  # We don't want recursive when we call factory
-  if(input_hpc |> length() > 0) {
+    # Track the file
+    hpc_single("transform_file", "temp_fx.rds", format = "file") |> 
 
-    fx |> saveRDS("temp_fx.rds")
+    hpc_iterate(
+      target_output = "transform", 
+      user_function = readRDS |> quote() ,
+      file = "transform_file" |> is_target()
+      # ,
+      # iteration = "list", 
+      # deployment = "main"
+    ) |> 
     
-    tar_tier_append(
-      fx = quote(dummy_hpc |> tranform_assay() %$% tranform_assay %$% factory),
-      tiers = input_hpc$initialisation$tier |> get_positions() ,
-      target_input = target_input,
-      target_output = target_output,
+    hpc_iterate(
+      target_output = target_output, 
+      user_function = transform_utility |> quote() , 
+      input_read_RNA_assay = as.name(target_input), 
+      transform_fx = transform |> quote() ,
       external_path = glue("{input_hpc$initialisation$store}/external"),
-      script = glue("{input_hpc$initialisation$store}.R")
+      data_container_type = input_hpc$initialisation$data_container_type
     )
-    
-  }
-  
-  
-  # Add pipeline step
-  input_hpc |>
-    c(list(tranform_assay = args_list)) |>
-    add_class("HPCell")
   
 }
 
@@ -77,10 +49,10 @@ tranform_assay.HPCell = function(input_hpc, fx = identity, target_input = "read_
 #' This function applies a specified transformation to the assay of a 
 #' SummarizedExperiment object and saves the transformed object in HDF5 format.
 #'
-#' @param i A SummarizedExperiment object to be transformed.
-#' @param transform A function to apply to the assay of the SummarizedExperiment object.
+#' @param input_read_RNA_assay A SummarizedExperiment object to be transformed.
+#' @param transform_fx A function to apply to the assay of the SummarizedExperiment object.
 #' @param external_path A character string specifying the directory path to save the transformed object.
-#'
+#' @param data_container_type A character vector specifying the output file type. Ideally it should match to the input file type.
 #' @return The function does not return an object. It saves the transformed SummarizedExperiment object to the specified path.
 #'
 #' @importFrom SummarizedExperiment assay assay<-
@@ -89,20 +61,35 @@ tranform_assay.HPCell = function(input_hpc, fx = identity, target_input = "read_
 #' @importFrom HDF5Array saveHDF5SummarizedExperiment
 #'
 #' @export
-transform_utility  = function(i, transform, external_path) {
-  #i = i |> read_data_container(container_type = data_container_type) 
+transform_utility  = function(input_read_RNA_assay, transform_fx, external_path, data_container_type) {
+  #input_read_RNA_assay = input_read_RNA_assay |> read_data_container(container_type = data_container_type) 
   
   dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
-  file_name = glue("{external_path}/{digest(i)}")
+  file_name = glue("{external_path}/{digest(input_read_RNA_assay)}")
   
-  assay(i) = assay(i) |> transform()
+  #assay(input_read_RNA_assay) = assay(input_read_RNA_assay) |> transform_fx()
+  input_read_RNA_assay = input_read_RNA_assay |> transform_fx()
   
-  i |> 
-    saveHDF5SummarizedExperiment(
-      dir = file_name, 
-      replace=TRUE, 
-      as.sparse=TRUE
-    )
+  if (length(colnames(input_read_RNA_assay)) == 0) return(NULL)
   
-  file_name
+  input_read_RNA_assay |> 
+    save_experiment_data(dir = file_name,
+                         container_type = data_container_type )
+    # saveHDF5SummarizedExperiment(
+    #   dir = file_name,
+    #   replace=TRUE,
+    #   as.sparse=TRUE
+    # )
+  
+  extension <- switch(data_container_type,
+                      "sce_rds" = ".rds",
+                      "seurat_rds" = ".rds",
+                      "seurat_h5" = ".h5Seurat",
+                      "anndata" = ".h5ad",
+                      "sce_hdf5" = "")
+  file_name = paste0(file_name, extension)
+  # Return data as target instead of file_name pointer
+  input_read_RNA_assay
 }
+  
+  

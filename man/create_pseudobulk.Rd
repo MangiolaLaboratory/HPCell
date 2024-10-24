@@ -6,12 +6,12 @@
 \usage{
 create_pseudobulk(
   input_read_RNA_assay,
-  sample_names,
-  empty_droplets_tbl,
-  alive_identification_tbl,
-  cell_cycle_score_tbl,
-  annotation_label_transfer_tbl,
-  doublet_identification_tbl,
+  sample_names_vec,
+  empty_droplets_tbl = NULL,
+  alive_identification_tbl = NULL,
+  cell_cycle_score_tbl = NULL,
+  annotation_label_transfer_tbl = NULL,
+  doublet_identification_tbl = NULL,
   x = c(),
   external_path,
   assays = NULL
