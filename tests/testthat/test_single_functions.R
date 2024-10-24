@@ -609,7 +609,6 @@ file_list |>
   # Remove doublets
   remove_doublets_scDblFinder(target_input = "data_object") |> 
   
-
   normalise_abundance_seurat_SCT(factors_to_regress = c(
     "subsets_Mito_percent", 
     "subsets_Ribo_percent", 

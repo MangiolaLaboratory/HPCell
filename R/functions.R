@@ -40,7 +40,7 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(c("."))
 #' 
 #' @export
 annotation_label_transfer <- function(input_read_RNA_assay,
-                                      empty_droplets_tbl, 
+                                      empty_droplets_tbl = NULL, 
                                       reference_azimuth = NULL,
                                       assay = NULL
 ){
@@ -54,34 +54,36 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
+  # Filter empty
+  if(empty_droplets_tbl |> is.null() |> not())
+    input_read_RNA_assay = 
+      input_read_RNA_assay |>
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      dplyr::filter(!empty_droplet) 
+    
   # SingleR
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    sce =
-      input_read_RNA_assay |>
-      # Filter empty
-      left_join(empty_droplets_tbl, by = ".cell") |>
-      dplyr::filter(!empty_droplet) |>
+    input_read_RNA_assay =
+      input_read_RNA_assay
       as.SingleCellExperiment() |>
       logNormCounts()
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")){
-    sce =
+    input_read_RNA_assay =
       input_read_RNA_assay |>
-      # Filter empty
-      left_join(empty_droplets_tbl, by = ".cell") |>
-      dplyr::filter(!empty_droplet) |>
       logNormCounts()
   }
 
-  
-  if(ncol(sce)==1){
-    sce = S4Vectors::cbind(sce, sce)
-    colnames(sce)[2]= "dummy___"
+  # This because an error is num cell = 1
+  if(ncol(input_read_RNA_assay)==1){
+    input_read_RNA_assay = S4Vectors::cbind(input_read_RNA_assay, input_read_RNA_assay)
+    colnames(input_read_RNA_assay)[2]= "dummy___"
   }
+  
   blueprint <- celldex::BlueprintEncodeData()
   
   data_annotated =
     
-    sce |>
+    input_read_RNA_assay |>
     SingleR(
       ref = blueprint,
       assay.type.test= 1,
@@ -94,7 +96,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     left_join(
       
-      sce |>
+      input_read_RNA_assay |>
         SingleR(
           ref = blueprint,
           assay.type.test= 1,
@@ -116,7 +118,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     data_annotated |>
     
     left_join(
-      sce |>
+      input_read_RNA_assay |>
         SingleR(
           ref = MonacoImmuneData,
           assay.type.test= 1,
@@ -130,7 +132,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     ) |>
     
     left_join(
-      sce |>
+      input_read_RNA_assay |>
         SingleR(
           ref = MonacoImmuneData,
           assay.type.test= 1,
@@ -145,9 +147,6 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     filter(.cell!="dummy___")
   
   rm(MonacoImmuneData)
-  gc()
-
-  rm(sce)
   gc()
   
   # Convert SCE to SE to calculate SCT
@@ -180,22 +179,6 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     #output_path
     
   } else if (!is.null(reference_azimuth)) {
-    
-    #print("Start Seurat")
-    
-    # Load reference PBMC
-    # reference_azimuth <- LoadH5Seurat("data//pbmc_multimodal.h5seurat")
-    # reference_azimuth |> saveRDS("analysis/annotation_label_transfer/reference_azimuth.rds")
-    
-    #reference_azimuth = readRDS(reference_azimuth_path)
-    
-    
-    # Reading input
-    input_read_RNA_assay =
-      input_read_RNA_assay |>
-      # Filter empty
-      left_join(empty_droplets_tbl, by = ".cell") |>
-      filter(!empty_droplet)
     
     
     # Subset
@@ -322,7 +305,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' 
 #' @export
 alive_identification <- function(input_read_RNA_assay,
-                                 empty_droplets_tbl,
+                                 empty_droplets_tbl = NULL,
                                  annotation_label_transfer_tbl = NULL,
                                  annotation_column = NULL,
                                  assay = NULL) {
@@ -332,8 +315,7 @@ alive_identification <- function(input_read_RNA_assay,
   detected = NULL
   .cell = NULL 
   high_mitochondrion = NULL 
-  blueprint_first.labels.fine = NULL
-  
+
   if(
     !is.null(annotation_column) && 
     !annotation_column %in% colnames(as_tibble(input_read_RNA_assay[1,1]))
@@ -343,10 +325,12 @@ alive_identification <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
-  input_read_RNA_assay =
-    input_read_RNA_assay |>
-    left_join(empty_droplets_tbl, by=".cell") |>
-    dplyr::filter(!empty_droplet)
+  # Filter empty
+  if(empty_droplets_tbl |> is.null() |> not())
+    input_read_RNA_assay =
+      input_read_RNA_assay |>
+      left_join(empty_droplets_tbl, by=".cell") |>
+      dplyr::filter(!empty_droplet)
   
   # Calculate nFeature_RNA and nCount_RNA if not exist in the data
   nFeature_name <- paste0("nFeature_", assay)
@@ -544,8 +528,8 @@ alive_identification <- function(input_read_RNA_assay,
 #' @import scDblFinder
 #' @export
 doublet_identification <- function(input_read_RNA_assay, 
-                                   empty_droplets_tbl, 
-                                   alive_identification_tbl, 
+                                   empty_droplets_tbl = NULL, 
+                                   alive_identification_tbl = NULL, 
                                    #annotation_label_transfer_tbl, 
                                    #reference_label_fine,
                                    assay = NULL){
@@ -553,8 +537,6 @@ doublet_identification <- function(input_read_RNA_assay,
   # Fix GChecks 
   .cell = NULL 
   empty_droplet = NULL 
-  high_mitochondrion = NULL 
-  high_ribosome = NULL 
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
@@ -564,26 +546,29 @@ doublet_identification <- function(input_read_RNA_assay,
     input_read_RNA_assay <- input_read_RNA_assay |>
       # Filtering empty
       Seurat::as.SingleCellExperiment() 
-    
   } 
   
-  filter_empty_droplets <- input_read_RNA_assay |>
-    # Filtering empty
+  # Filtering empty
+  if(empty_droplets_tbl |> is.null() |> not())
+    input_read_RNA_assay <- input_read_RNA_assay |>
     left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
-    filter(!empty_droplet) |>
-    
-    # Filter dead
+    filter(!empty_droplet) 
+  
+  # Filtering dead
+  if(alive_identification_tbl |> is.null() |> not())
+    input_read_RNA_assay = input_read_RNA_assay |>
     left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
     filter(alive) 
 
   
   # Annotate
-  filter_empty_droplets <- filter_empty_droplets |> 
+  input_read_RNA_assay |> 
     #left_join(annotation_label_transfer_tbl, by = ".cell")|>
     #scDblFinder(clusters = ifelse(reference_label_fine=="none", TRUE, reference_label_fine)) |>
-    scDblFinder(clusters = NULL) 
-  
-  as_tibble(colData(filter_empty_droplets), rownames = ".cell")|> select(.cell, contains("scDblFinder")) 
+    scDblFinder(clusters = NULL) |> 
+    colData() |> 
+    as_tibble(rownames = ".cell") |> 
+    select(.cell, contains("scDblFinder")) 
   
 }
 
@@ -614,7 +599,7 @@ doublet_identification <- function(input_read_RNA_assay,
 #' @importFrom SingleCellExperiment SingleCellExperiment
 #' @export
 cell_cycle_scoring <- function(input_read_RNA_assay, 
-                               empty_droplets_tbl,
+                               empty_droplets_tbl = NULL,
                                gene_nomenclature,
                                assay = NULL){
   #Fix GCHECK
@@ -649,11 +634,15 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
     g2m.features_tidy = Seurat::cc.genes$g2m.genes
   }
   
-  
-  counts <-
+  # Filter empty
+  if(empty_droplets_tbl |> is.null() |> not())
+    input_read_RNA_assay = 
     input_read_RNA_assay |>
     left_join(empty_droplets_tbl, by = ".cell") |>
-    dplyr::filter(!empty_droplet) |>
+    dplyr::filter(!empty_droplet) 
+    
+
+    input_read_RNA_assay |> 
     
     # Normalise needed
     NormalizeData() |>
@@ -669,8 +658,6 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
     
     as_tibble() |>
     select(.cell,  S.Score, G2M.Score, Phase) 
-  
-  counts
   
 }
 
@@ -693,18 +680,15 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
 #' @importFrom Seurat NormalizeData VariableFeatures SCTransform
 #' @export
 non_batch_variation_removal <- function(input_read_RNA_assay, 
-                                        empty_droplets_tbl, 
-                                        alive_identification_tbl, 
-                                        cell_cycle_score_tbl,
+                                        empty_droplets_tbl = NULL, 
+                                        alive_identification_tbl = NULL, 
+                                        cell_cycle_score_tbl = NULL,
                                         assay = NULL,
                                         factors_to_regress = NULL,
                                         external_path){
   #Fix GChecks 
   empty_droplet = NULL 
   .cell <- NULL 
-  subsets_Ribo_percent <- NULL  
-  subsets_Mito_percent <- NULL  
-  G2M.Score = NULL 
   
   # Your code for non_batch_variation_removal function here
   class_input = input_read_RNA_assay |> class()
@@ -724,25 +708,27 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
         new.assay.name = assay)
   }
   
-  input_read_RNA_assay =
-    input_read_RNA_assay |>
-    left_join(empty_droplets_tbl, by = ".cell") |>
-    filter(!empty_droplet) |>
-    
-    left_join(
-      alive_identification_tbl |>
-        select(.cell, any_of(factors_to_regress)),
-      by=".cell"
-    ) 
+  # Filtering empty
+  if(empty_droplets_tbl |> is.null() |> not())
+    input_read_RNA_assay <- input_read_RNA_assay |>
+    left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
+    filter(!empty_droplet) 
   
-  if(!is.null(cell_cycle_score_tbl)) 
-    input_read_RNA_assay = input_read_RNA_assay |>
-    
-    left_join(
-      cell_cycle_score_tbl |>
-        select(.cell, any_of(factors_to_regress)),
-      by=".cell"
-    )
+  # Filtering dead
+  if(alive_identification_tbl |> is.null() |> not())
+    input_read_RNA_assay = 
+    input_read_RNA_assay |>
+    left_join(alive_identification_tbl |> select(.cell, alive, any_of(factors_to_regress)), by = ".cell") 
+  
+  # attach cell cycle
+  if(cell_cycle_score_tbl |> is.null() |> not())
+    input_read_RNA_assay = 
+      input_read_RNA_assay |>
+      left_join(
+        cell_cycle_score_tbl |>
+          select(.cell, any_of(factors_to_regress)),
+        by=".cell"
+      )
   
   # filter(!high_mitochondrion | !high_ribosome)
   
@@ -753,18 +739,18 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   
   # Normalise RNA
   normalized_rna <- 
+    input_read_RNA_assay |> 
     Seurat::SCTransform(
-      input_read_RNA_assay, 
-    assay=assay,
-    return.only.var.genes=FALSE,
-    residual.features = NULL,
-    vars.to.regress = factors_to_regress,
-    vst.flavor = "v2",
-    scale_factor=2186,  
-    conserve.memory=T, 
-    min_cells=0,
-  )  |> 
-    GetAssayData(assay="SCT")
+      assay=assay,
+      return.only.var.genes=FALSE,
+      residual.features = NULL,
+      vars.to.regress = factors_to_regress,
+      vst.flavor = "v2",
+      scale_factor=2186,  
+      conserve.memory=T, 
+      min_cells=0,
+    )  |> 
+      GetAssayData(assay="SCT")
   
 
   if (class_input == "SingleCellExperiment") {
@@ -826,11 +812,11 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
 #' @importFrom SingleCellExperiment altExp<-
 #' @export
 preprocessing_output <- function(input_read_RNA_assay,
-                                 empty_droplets_tbl,
-                                 non_batch_variation_removal_S, 
-                                 alive_identification_tbl, 
-                                 cell_cycle_score_tbl, 
-                                 annotation_label_transfer_tbl, 
+                                 empty_droplets_tbl = NULL,
+                                 non_batch_variation_removal_S = NULL, 
+                                 alive_identification_tbl = NULL, 
+                                 cell_cycle_score_tbl = NULL, 
+                                 annotation_label_transfer_tbl = NULL, 
                                  doublet_identification_tbl){
   #Fix GCHECKS 
   .cell <- NULL
@@ -854,38 +840,36 @@ preprocessing_output <- function(input_read_RNA_assay,
       input_read_RNA_assay[["SCT"]] = non_batch_variation_removal_S
     else if(input_read_RNA_assay |> is("SingleCellExperiment")){
       message("HPCell says: in order to attach SCT assay to the SingleCellExperiment, SCT was added to external experiments slot")
-      
-      #input_read_RNA_assay = input_read_RNA_assay[rownames(non_batch_variation_removal_S), ]
-      
+      #input_read_RNA_assay = input_read_RNA_assay[rownames(non_batch_variation_removal_S), 
       # altExp(input_read_RNA_assay) = SingleCellExperiment(assay  = list(SCT = non_batch_variation_removal_S))
-      
       assay(input_read_RNA_assay, "SCT") <- non_batch_variation_removal_S
       
     }
   }
   
 
+  # Filtering dead
+  if(alive_identification_tbl |> is.null() |> not())
+    input_read_RNA_assay = input_read_RNA_assay |>
+    left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
+    filter(alive) 
+  
+
+  
+  # Filter doublets
+  if(doublet_identification_tbl |> is.null() |> not())
   input_read_RNA_assay <- input_read_RNA_assay |>
-    
-    # Filter dead cells
-    left_join(
-      alive_identification_tbl |>
-        select(.cell, any_of(c("alive", "subsets_Mito_percent", "subsets_Ribo_percent", "high_mitochondrion", "high_ribosome"))),
-      by = ".cell"
-    ) |>
-    filter(alive) |>
-    
-    # Filter doublets
     left_join(doublet_identification_tbl |> select(.cell, scDblFinder.class), by = ".cell") |>
     filter(scDblFinder.class=="singlet") 
   
-  # Add cell cycle
+  # attach cell cycle
   if(cell_cycle_score_tbl |> is.null() |> not())
-    input_read_RNA_assay <- input_read_RNA_assay |> 
-      left_join(
-      cell_cycle_score_tbl,
+    input_read_RNA_assay = 
+    input_read_RNA_assay |>
+    left_join(
+      cell_cycle_score_tbl ,
       by=".cell"
-    ) 
+    )
   
   # Attach annotation
   if (inherits(annotation_label_transfer_tbl, "tbl_df")){
@@ -947,11 +931,11 @@ preprocessing_output <- function(input_read_RNA_assay,
 # Create pseudobulk for each sample 
 create_pseudobulk <- function(input_read_RNA_assay, 
                               sample_names_vec, 
-                              empty_droplets_tbl,
-                              alive_identification_tbl,
-                              cell_cycle_score_tbl,
-                              annotation_label_transfer_tbl,
-                              doublet_identification_tbl ,  
+                              empty_droplets_tbl = NULL,
+                              alive_identification_tbl = NULL,
+                              cell_cycle_score_tbl = NULL,
+                              annotation_label_transfer_tbl = NULL,
+                              doublet_identification_tbl = NULL,  
                               x = c() , 
                               external_path, assays = NULL) {
   #Fix GChecks 
@@ -1402,6 +1386,8 @@ find_variable_genes <- function(input_seurat, empty_droplet){
 
 #' @export
 is_target = function(x) {
+  
+  if(x |> is.null()) return(NULL)
   
   if(x |> is("character") |> not())
     stop("HPCell says: the input to `is_target` must be a character")

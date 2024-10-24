@@ -199,19 +199,6 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   
 }
 
-target_chunk_undefined_remove_empty_DropletUtils = function(input_hpc){
-  
-  input_hpc |> 
-    hpc_iterate(
-      target_output = "empty_tbl", 
-      user_function = (function(x) x |> as_tibble() |>  select(.cell) |> mutate(empty_droplet = FALSE)) |> quote() , 
-      x = "data_object" |> is_target(),
-      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    )
-  
-}
-
-
 # Define the generic function
 #' @export
 remove_dead_scuttle <- function(input_hpc, 
@@ -246,20 +233,6 @@ remove_dead_scuttle.HPCell = function(
   
 }
 
-#' @importFrom dplyr mutate
-target_chunk_undefined_remove_dead_scuttle = function(input_hpc){
-  
-  input_hpc |> 
-    hpc_iterate(
-      target_output = "alive_tbl", 
-      user_function = (function(x) x |> as_tibble() |>  select(.cell) |> mutate(alive = TRUE)) |> quote() , 
-      x = "data_object" |> is_target(),
-      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    )
-  
-}
-
-
 
 # Define the generic function
 #' @export
@@ -281,46 +254,28 @@ score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "data_object
   
 }
 
-target_chunk_undefined_score_cell_cycle_seurat = function(input_hpc, target_input = "data_object"){
-  
-  input_hpc |> 
-    hpc_iterate(
-      target_output = "cell_cycle_tbl", 
-      user_function = function(x) NULL  , 
-      x = "read_file_list" |> is_target()
-    )
-  
-}
-
-
 # Define the generic function
 #' @export
-remove_doublets_scDblFinder <- function(input_hpc, target_input = "data_object", target_output = "doublet_tbl") {
+remove_doublets_scDblFinder <- function(
+    input_hpc, target_input = "data_object", target_output = "doublet_tbl",  
+    target_empry_droplets = "empty_tbl", target_alive = "alive_tbl"
+  ) {
   UseMethod("remove_doublets_scDblFinder")
 }
 
 #' @export
-remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "data_object", target_output = "doublet_tbl") {
+remove_doublets_scDblFinder.HPCell = function(
+    input_hpc, target_input = "data_object", target_output = "doublet_tbl", 
+    target_empry_droplets = "empty_tbl", target_alive = "alive_tbl"
+  ) {
   
   input_hpc |> 
     hpc_iterate(
       target_output = target_output, 
       user_function = doublet_identification |> quote() , 
       input_read_RNA_assay = target_input |> is_target(), 
-      empty_droplets_tbl = "empty_tbl" |> is_target() ,
-      alive_identification_tbl = "alive_tbl" |> is_target()
-    )
-  
-}
-
-target_chunk_undefined_remove_doublets_scDblFinder = function(input_hpc){
-  
-  input_hpc |> 
-    hpc_iterate(
-      target_output = "doublet_tbl", 
-      user_function = (function(x) x |> as_tibble() |>  select(.cell) |> mutate(scDblFinder.class="singlet")) |> quote() , 
-      x = "data_object" |> is_target(),
-      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
+      empty_droplets_tbl = target_empry_droplets |> is_target() ,
+      alive_identification_tbl = target_alive |> is_target()
     )
   
 }
@@ -355,19 +310,6 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target
   
 }
 
-target_chunk_undefined_annotate_cell_type = function(input_hpc){
-  
-  input_hpc |> 
-    hpc_iterate(
-      target_output = "annotation_tbl", 
-      user_function = function(x) NULL ,
-      x = read_file_list |> quote()
-    )
-  
- 
-}
-
-
 # Define the generic function
 #' @export
 normalise_abundance_seurat_SCT <- function(input_hpc, target_input = "data_object", target_output = "sct_matrix", ...) {
@@ -391,18 +333,6 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
   )
   
   
-}
-
-target_chunk_undefined_normalise_abundance_seurat_SCT = function(input_hpc){
-  
-  input_hpc |> 
-    hpc_iterate(
-      target_output = "sct_matrix", 
-      user_function = function(x) NULL ,
-      x = read_file_list |> quote()
-    )
-  
-
 }
 
 # Define the generic function
@@ -466,7 +396,7 @@ get_single_cell.HPCell = function(input_hpc, target_input = "data_object", targe
       user_function = preprocessing_output |> quote() , 
       input_read_RNA_assay = target_input |> is_target(), 
       empty_droplets_tbl = "empty_tbl" |> is_target() ,
-      non_batch_variation_removal_S = sct_matrix |> quote(), 
+      non_batch_variation_removal_S = "sct_matrix" |> is_target(), 
       alive_identification_tbl = "alive_tbl" |> is_target(),
       cell_cycle_score_tbl = "cell_cycle_tbl" |> is_target(),
       annotation_label_transfer_tbl = "annotation_tbl" |> is_target(),
@@ -576,52 +506,6 @@ evaluate_hpc <- function(input_hpc) {
 #' @importFrom purrr imap
 #' @export
 evaluate_hpc.HPCell = function(input_hpc) {
-  
-  #-----------------------#
-  # Empty droplets
-  #-----------------------#
-  
-  if(! "empty_tbl" %in% names(input_hpc))
-    target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
-  
-  #-----------------------#
-  # Annotate cell type
-  #-----------------------#
-  
-  if(
-    !("annotation_tbl" %in% names(input_hpc) |
-      ( "alive_tbl" %in% names(input_hpc) & !is.null(input_hpc$remove_dead_scuttle$group_by))
-    ))
-    target_chunk_undefined_annotate_cell_type(input_hpc)
-  
-  #-----------------------#
-  # Remove dead
-  #-----------------------#
-  
-  if(! "alive_tbl" %in% names(input_hpc))
-    target_chunk_undefined_remove_dead_scuttle(input_hpc)
-  
-  
-  #-----------------------#
-  # score cell cycle
-  #-----------------------#
-  if(! "cell_cycle_tbl" %in% names(input_hpc))
-    target_chunk_undefined_score_cell_cycle_seurat(input_hpc)
-  
-  #-----------------------#
-  # Doublets
-  #-----------------------#
-  
-  if(! "doublet_tbl" %in% names(input_hpc))
-    target_chunk_undefined_remove_doublets_scDblFinder(input_hpc)
-  
-  #-----------------------#
-  # SCT
-  #-----------------------#
-  
-  if(! "sct_matrix" %in% names(input_hpc))
-    target_chunk_undefined_normalise_abundance_seurat_SCT(input_hpc)
-  
   
   #-----------------------#
   # Close pipeline
