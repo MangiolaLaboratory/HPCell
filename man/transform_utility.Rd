@@ -14,9 +14,11 @@ transform_utility(
 \arguments{
 \item{input_read_RNA_assay}{A SummarizedExperiment object to be transformed.}
 
+\item{transform_fx}{A function to apply to the assay of the SummarizedExperiment object.}
+
 \item{external_path}{A character string specifying the directory path to save the transformed object.}
 
-\item{transform}{A function to apply to the assay of the SummarizedExperiment object.}
+\item{data_container_type}{A character vector specifying the output file type. Ideally it should match to the input file type.}
 }
 \value{
 The function does not return an object. It saves the transformed SummarizedExperiment object to the specified path.

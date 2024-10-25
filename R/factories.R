@@ -38,7 +38,6 @@ parse_function_call <- function(command) {
 }
 
 
-
 #' @export
 hpc_internal = function(
     tiers = NULL, 

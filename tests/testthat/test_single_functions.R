@@ -483,7 +483,6 @@ library(crew.cluster)
 # input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_2_SCE.rds")
 
 
-
 # library(SeuratData)
 # InstallData("pbmcsca")
 # pbmcsca <- LoadData("pbmcsca") # save this to disk, so you can recall every time you execute HPCell
@@ -503,27 +502,27 @@ computing_resources = crew_controller_local(workers = 8) #resource_tuned_slurm
 #   )
 # )
 
-#   computing_resources = list(
-# 
-#   crew_controller_slurm(
-#     name = "tier_1",
-#     slurm_memory_gigabytes_per_cpu = 5,
-#     slurm_cpus_per_task = 1,
-#     workers = 50,
-#     tasks_max = 5,
-#     verbose = T
-#   ),
-#   crew_controller_slurm(
-#     name = "tier_2",
-#     slurm_memory_gigabytes_per_cpu = 10,
-#     slurm_cpus_per_task = 1,
-#     workers = 50,
-#     tasks_max = 5,
-#     verbose = T
-#   )
-# )
+  computing_resources = list(
 
-# #  Slurm resources
+  crew_controller_slurm(
+    name = "tier_1",
+    slurm_memory_gigabytes_per_cpu = 5,
+    slurm_cpus_per_task = 1,
+    workers = 50,
+    tasks_max = 5,
+    verbose = T
+  ),
+  crew_controller_slurm(
+    name = "tier_2",
+    slurm_memory_gigabytes_per_cpu = 10,
+    slurm_cpus_per_task = 1,
+    workers = 50,
+    tasks_max = 5,
+    verbose = T
+  )
+)
+
+#  Slurm resources
 # computing_resources =
 #   crew.cluster::crew_controller_slurm(
 #     slurm_memory_gigabytes_per_cpu = 5,
@@ -547,40 +546,40 @@ file_list =
 #   purrr::map_chr(here::here) |>
 #   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) 
 #   
-  
-    dir("dev/CAQ_sce/", full.names = T) |> 
-  head(3)
-
+   dir("dev/CAQ_sce/", full.names = T) |> head(2)
 
   # Initialise pipeline characteristics
 file_list |> 
   initialise_hpc(
     gene_nomenclature = "symbol",
     data_container_type = "sce_hdf5",
+    store = "~/scratch/Census/temp5/",
+    tier = c("tier_1","tier_1"),
     computing_resources = computing_resources,
-    # debug_step = "empty_report",
+    #debug_step ="empty_tbl_0cf8d597acd380df"
+    # debug_step = "non_batch_variation_removal_S_1",
+
 
     # Default resourced 
-   
   ) |> 
   
   # ONLY APPLICABLE TO SCE FOR NOW
   tranform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
   
-  hpc_report(
-    "empty_report", 
-    rmd_path = paste0(system.file(package = "HPCell"), "/rmd/test.Rmd"), 
-    empty_list = "empty_tbl" |> is_target(),
-    sample_names = "sample_names" |> is_target()
-  ) |> 
-  
-
-  hpc_iterate(
-    target_output = "bar",
-    user_function = function(x, y){x |> dplyr::mutate(bar = y)},
-    x = "data_object" |> is_target(),
-    y = "works"
-  ) |>
+  # hpc_report(
+  #   "empty_report", 
+  #   rmd_path = paste0(system.file(package = "HPCell"), "/rmd/test.Rmd"), 
+  #   empty_list = "empty_tbl" |> is_target(),
+  #   sample_names = "sample_names" |> is_target()
+  # ) |> 
+  # 
+  # 
+  # hpc_iterate(
+  #   target_output = "o",
+  #   user_function = function(x, y){x |> dplyr::mutate(bla = y)},
+  #   x = "data_object" |> is_target(),
+  #   y = "works"
+  # ) |>
 
   hpc_iterate(
     target_output = "foo",
@@ -610,8 +609,8 @@ file_list |>
   remove_doublets_scDblFinder(target_input = "data_object") |> 
   
   normalise_abundance_seurat_SCT(factors_to_regress = c(
-    "subsets_Mito_percent", 
-    "subsets_Ribo_percent", 
+    "subsets_Mito_percent",
+    "subsets_Ribo_percent",
     "G2M.Score"
   ), 
   target_input = "data_object") |> 
@@ -623,4 +622,5 @@ file_list |>
 
   # For the moment only available for single cell
   get_single_cell(target_input = "data_object") 
+
 

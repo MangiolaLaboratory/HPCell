@@ -96,7 +96,8 @@ initialise_hpc <- function(input_hpc,
       debug = d, # Set the target you want to debug.
       cue = tar_cue(mode = u), # Force skip non-debugging outdated targets.
       controller = crew_controller_group ( readRDS("temp_computing_resources.rds") ), 
-      packages = c("HPCell")
+      packages = c("HPCell"),
+      trust_object_timestamps = TRUE
     )
      
     target_list = list(  )
@@ -197,9 +198,53 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
       target_output = target_output, 
       user_function = empty_droplet_id |> quote() , 
       input_read_RNA_assay = target_input |> is_target(),
-      total_RNA_count_check = total_RNA_count_check
+      total_RNA_count_check = total_RNA_count_check,
+      gene_nomenclacture = input$initialisation$gene_nomenclacture
     )
   
+}
+
+emove_empty_threshold <- function(input_hpc, RNA_feature_threshold = NULL, target_input = "data_object", target_output = "empty_tbl", ...) {
+  UseMethod("remove_empty_threshold")
+}
+
+#' @export
+remove_empty_threshold.Seurat = function(input_hpc, RNA_feature_threshold = NULL, target_input = "data_object", target_output = "empty_tbl", ...) {
+  # Capture all arguments including defaults
+  args_list <- as.list(environment())
+  
+  # Optionally, you can evaluate the arguments if they are expressions
+  args_list <- lapply(args_list, eval, envir = parent.frame())
+  
+  list(initialisation = list(input_hpc = input_hpc)) |>
+    add_class("HPCell") |>
+    remove_empty_threshold()
+  
+}
+
+#' @export
+remove_empty_threshold.HPCell = function(input_hpc, RNA_feature_threshold = NULL, target_input = "data_object", target_output = "empty_tbl",...) {
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = target_output, 
+      user_function = empty_droplet_threshold |> quote() , 
+      input_read_RNA_assay = target_input |> is_target(),
+      RNA_feature_threshold = RNA_feature_threshold,
+      gene_nomenclature = input_hpc$initialisation$gene_nomenclature
+    )
+  
+  
+}
+
+target_chunk_undefined_remove_empty_threshold = function(input_hpc){
+  input_hpc |> 
+    hpc_iterate(
+      target_output = "empty_tbl", 
+      user_function = (function(x) x |> as_tibble() |>  select(.cell) |> mutate(empty_droplet = FALSE)) |> quote() , 
+      x = "data_object" |> is_target(),
+      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
+    )
 }
 
 # Define the generic function
@@ -231,7 +276,8 @@ remove_dead_scuttle.HPCell = function(
       input_read_RNA_assay = target_input |> safe_as_name(), 
       empty_droplets_tbl = target_empty_droplets |> safe_as_name() ,
       annotation_label_transfer_tbl = target_annotation |> safe_as_name() ,
-      annotation_column = group_by 
+      annotation_column = group_by,
+      gene_nomenclature = input_hpc$initialisation$gene_nomenclature
     )
   
 }
@@ -308,7 +354,8 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target
       user_function = annotation_label_transfer |> quote() , 
       input_read_RNA_assay = target_input |> is_target(), 
       empty_droplets_tbl = "empty_tbl" |> is_target() ,
-      reference_azimuth = reference_read |> quote()
+      reference_azimuth = reference_read |> quote(),
+      gene_nomenclature = input_hpc$initialisation$gene_nomenclature
     )
   
 }
@@ -414,7 +461,7 @@ get_single_cell.HPCell = function(input_hpc, target_input = "data_object", targe
 #'
 #' This function tests differential abundance for HPCell objects.
 #'
-#' @name test_differential_abundance,HPCell-method
+#' @name test_differential_abundance-HPCell-method
 #' @rdname test_differential_abundance
 #' @inherit tidybulk::test_differential_abundance
 #'

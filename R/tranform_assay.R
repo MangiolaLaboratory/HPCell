@@ -23,7 +23,7 @@ tranform_assay.HPCell = function(
     
     # Track the file
     hpc_single("transform_file", "temp_fx.rds", format = "file") |> 
-    
+
     hpc_iterate(
       target_output = "transform", 
       user_function = readRDS |> quote() ,
@@ -38,7 +38,9 @@ tranform_assay.HPCell = function(
       user_function = transform_utility |> quote() , 
       input_read_RNA_assay = "target_input" |> is_target(), 
       transform_fx = "transform" |> is_target()  ,
-      external_path = glue("{input_hpc$initialisation$store}/external") |> as.character()
+      external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
+      data_container_type = input_hpc$initialisation$data_container_type
+
     )
   
 }
@@ -131,9 +133,9 @@ census_harmonise_anndata_counts <- function(data, transform_method) {
 #' SummarizedExperiment object and saves the transformed object in HDF5 format.
 #'
 #' @param input_read_RNA_assay A SummarizedExperiment object to be transformed.
-#' @param transform A function to apply to the assay of the SummarizedExperiment object.
+#' @param transform_fx A function to apply to the assay of the SummarizedExperiment object.
 #' @param external_path A character string specifying the directory path to save the transformed object.
-#'
+#' @param data_container_type A character vector specifying the output file type. Ideally it should match to the input file type.
 #' @return The function does not return an object. It saves the transformed SummarizedExperiment object to the specified path.
 #'
 #' @importFrom SummarizedExperiment assay assay<-
@@ -143,14 +145,14 @@ census_harmonise_anndata_counts <- function(data, transform_method) {
 #'
 #' @export
 transform_utility  = function(input_read_RNA_assay, transform_fx, external_path, data_container_type) {
-  
+
   #input_read_RNA_assay = input_read_RNA_assay |> read_data_container(container_type = data_container_type) 
   
   dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
   
   file_name = glue("{external_path}/{digest(input_read_RNA_assay)}")
   
-  #assay(input_read_RNA_assay) = assay(input_read_RNA_assay) |> transform_fx()
+  if (length(colnames(input_read_RNA_assay)) == 0) return(NULL)
   
   input_read_RNA_assay = input_read_RNA_assay |> census_harmonise_anndata_counts(transform_fx)
   
@@ -177,6 +179,16 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   # Return data as target instead of file_name pointer
   
   input_read_RNA_assay
+
   
+  extension <- switch(data_container_type,
+                      "sce_rds" = ".rds",
+                      "seurat_rds" = ".rds",
+                      "seurat_h5" = ".h5Seurat",
+                      "anndata" = ".h5ad",
+                      "sce_hdf5" = "")
+  file_name = paste0(file_name, extension)
+  # Return data as target instead of file_name pointer
+  input_read_RNA_assay
 }
 

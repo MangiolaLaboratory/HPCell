@@ -28,3 +28,20 @@
 #' @noRd
 #' 
 "dummy_hpc"
+
+
+#' A data frame of Ensembl genes retrieved from biomaRt package
+#' 
+#' This dataset contains Ensembl gene IDs, external gene names, and chromosome names
+#' retrieved using the biomaRt package.
+#' 
+#' @format A data frame map of ensembl_gene_id, external_gene_name and chromosome_name
+#' 
+#' @usage 
+#' data(ensembl_genes_biomart)
+#' 
+#' @source biomaRt::getBM()
+#' 
+#' @keywords datasets
+#' @docType data
+"ensembl_genes_biomart"
