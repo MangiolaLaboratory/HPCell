@@ -4,7 +4,12 @@
 \alias{transform_utility}
 \title{Apply a transformation to an assay and save as HDF5}
 \usage{
-transform_utility(input_read_RNA_assay, transform_fx, external_path)
+transform_utility(
+  input_read_RNA_assay,
+  transform_fx,
+  external_path,
+  data_container_type
+)
 }
 \arguments{
 \item{input_read_RNA_assay}{A SummarizedExperiment object to be transformed.}

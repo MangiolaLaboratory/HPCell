@@ -593,7 +593,7 @@ doublet_identification <- function(input_read_RNA_assay,
 #' @importFrom tibble as_tibble
 #' @importFrom Seurat CellCycleScoring
 #' @importFrom Seurat as.Seurat
-#' @importFrom Seurat RenameAssays
+#' @importFrom SeuratObject RenameAssays
 #' @importFrom Seurat NormalizeData
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' @importFrom SingleCellExperiment SingleCellExperiment

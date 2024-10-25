@@ -12,7 +12,10 @@ initialise_hpc(
   debug_step = NULL,
   RNA_assay_name = "RNA",
   gene_nomenclature = "symbol",
-  data_container_type
+  data_container_type,
+  verbosity = targets::tar_config_get("reporter_make"),
+  error = NULL,
+  update = "thorough"
 )
 }
 \arguments{

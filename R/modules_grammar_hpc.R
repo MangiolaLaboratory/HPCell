@@ -46,7 +46,11 @@ initialise_hpc <- function(input_hpc,
                            debug_step = NULL,
                            RNA_assay_name = "RNA",
                            gene_nomenclature = "symbol",
-                           data_container_type) {
+                           data_container_type,
+                           verbosity = targets::tar_config_get("reporter_make"),
+                           error = NULL,
+                           update = "thorough"
+                          ) {
   
   # Capture all arguments including defaults
   args_list <- as.list(environment())
@@ -67,7 +71,6 @@ initialise_hpc <- function(input_hpc,
   input_hpc |> as.list() |>  saveRDS("input_file.rds")
   gene_nomenclature |> saveRDS("temp_gene_nomenclature.rds")
   data_container_type |> saveRDS("data_container_type.rds")
-  
   computing_resources |> saveRDS("temp_computing_resources.rds")
   tiers = tier |> 
     get_positions() 
@@ -85,21 +88,21 @@ initialise_hpc <- function(input_hpc,
     
     tar_option_set(
       memory = "transient",
-      garbage_collection = TRUE,
+      #garbage_collection = TRUE,
       storage = "worker",
       retrieval = "worker",
-      #error = "continue",
-      format = "qs",
+      error = e,
+      # format = "qs",
       debug = d, # Set the target you want to debug.
-      # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
+      cue = tar_cue(mode = u), # Force skip non-debugging outdated targets.
       controller = crew_controller_group ( readRDS("temp_computing_resources.rds") ), 
       packages = c("HPCell")
     )
-    
+     
     target_list = list(  )
     
     } |> 
-    substitute(env = list(d = debug_step)) |> 
+    substitute(env = list(d = debug_step, e = error, u = update)) |> 
     tar_script_append2(script = glue("{store}.R"), append = FALSE)
 
   
@@ -523,24 +526,24 @@ evaluate_hpc.HPCell = function(input_hpc) {
   
   tar_make(
     callr_function = my_callr_function,
-    reporter = "verbose_positives",
     script = glue("{input_hpc$initialisation$store}.R"),
-    store = input_hpc$initialisation$store
+    store = input_hpc$initialisation$store, 
+    reporter = input_hpc$initialisation$verbosity 
   )
   
-  # Example usage:
-  c(
-    "input_file.rds",
-    "temp_computing_resources.rds",
-    "temp_debug_step.rds",
-    "sample_names.rds",
-    "total_RNA_count_check.rds",
-    "temp_group_by.rds",
-    "factors_to_regress.rds",
-    "pseudobulk_group_by.rds",
-    "temp_gene_nomenclature.rds"
-  ) |> 
-    remove_files_safely()
+  # # Example usage:
+  # c(
+  #   "input_file.rds",
+  #   "temp_computing_resources.rds",
+  #   "temp_debug_step.rds",
+  #   "sample_names.rds",
+  #   "total_RNA_count_check.rds",
+  #   "temp_group_by.rds",
+  #   "factors_to_regress.rds",
+  #   "pseudobulk_group_by.rds",
+  #   "temp_gene_nomenclature.rds"
+  # ) |> 
+  #   remove_files_safely()
   
   # If get_single_cell is called then return the object 
   if(input_hpc$last_call |> is.null() |> not())
