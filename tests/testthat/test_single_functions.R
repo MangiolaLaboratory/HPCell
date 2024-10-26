@@ -626,7 +626,16 @@ input_hpc |>
 input_metadata <- list(data_object$data_object_cd8b54e4bde74e66@meta.data, data_object$data_object_054cd7cffa276f6d@meta.data)
 
 #Testing report 
-  
+InstallData("ifnb")
+ifnb <- UpdateSeuratObject(ifnb)
+ifnb.list <- SplitObject(ifnb, split.by = "stim")
+file_paths <- c("~/HPCell/CTRL_seurat_tibble.rds", "~/HPCell/STIM_seurat_tibble.rds")
+
+input_hpc =
+  file_paths |> 
+  magrittr::set_names(c("CTRL", "STIM"))
+
+
 input_hpc |> 
   # Initialise pipeline characteristics
   initialise_hpc(
@@ -644,6 +653,7 @@ input_hpc |>
     "subsets_Ribo_percent", 
     "G2M.Score"
   )) |> 
+  calculate_pseudobulk() |> 
   hpc_report(
     "empty_report", 
     rmd_path = "~/HPCell/inst/rmd/Empty_droplet_report.Rmd",
@@ -666,3 +676,29 @@ input_hpc |>
   )
 
 
+## Test render empty droplet report 
+rmarkdown::render(
+  input =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
+  output_file = paste0(system.file(package = "HPCell"), "/Empty_droplet_report.html"),
+  params = list(empty_tbl = tar_read("empty_tbl", store = "~/HPCell/_targets"), 
+                data_object = tar_read("data_object", store = "~/HPCell/_targets"), 
+                alive_tbl = tar_read("alive_tbl", store = "~/HPCell/_targets"))
+)
+
+## Test render doublet identification report 
+rmarkdown::render(
+  input =  paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
+  output_file = paste0(system.file(package = "HPCell"), "/Doublet_identification_report.html"),
+  params = list(data_object = tar_read("data_object", store = "~/HPCell/_targets"), 
+                doublet_tbl = tar_read("doublet_tbl", store = "~/HPCell/_targets"), 
+                annotation_tbl = tar_read("annotation_tbl", store = "~/HPCell/_targets"), 
+                sample_names = tar_read("sample_names", store = "~/HPCell/_targets")))
+
+
+rmarkdown::render(
+  input =  paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
+  output_file = paste0(system.file(package = "HPCell"), "/Doublet_identification_report.html"),
+  params = list(data_object = tar_read("data_object", store = "~/HPCell/_targets"), 
+                doublet_tbl = tar_read("doublet_tbl", store = "~/HPCell/_targets"), 
+                annotation_tbl = tar_read("annotation_tbl", store = "~/HPCell/_targets"), 
+                sample_names = tar_read("sample_names", store = "~/HPCell/_targets")))

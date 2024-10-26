@@ -373,7 +373,11 @@ alive_identification <- function(input_read_RNA_assay,
     }
   }
   
-  
+  input_read_RNA_assay <- input_read_RNA_assay %>%
+    AddMetaData(
+      metadata = PercentageFeatureSet(input_read_RNA_assay, pattern = "^MT-", assay = assay), 
+      col.name = "percent.mt"
+    )
   
   # Returns a named vector of IDs
   # Matches the gene id’s row by row and inserts NA when it can’t find gene names
@@ -1052,8 +1056,6 @@ create_pseudobulk <- function(input_read_RNA_assay,
 #' @importFrom SummarizedExperiment colData<-
 #' @importFrom SummarizedExperiment rowData
 #' @importFrom SummarizedExperiment rowData<-
-#' 
-#' 
 #' 
 #' @export
 #' 

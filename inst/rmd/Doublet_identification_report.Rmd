@@ -4,15 +4,15 @@ author: "SS"
 date: "2023-12-05"
 output: html_document
 params: 
-  data_object: "data_object"
-  doublet_tbl: "doublet_tbl"
-  annotation_tbl: "annotation_tbl"
-  sample_names: "sample_names"
+  data_object: "NA"
+  doublet_tbl: "NA"
+  annotation_tbl: "NA"
+  sample_names: "NA"
 ---
 ## Introduction 
 This report contains UMAP representation of cell clusters and visualization of the distribution of doublets across processed samples.
 
-```{r, include=FALSE}
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 library(purrr)
 library(dplyr)
 library(tidyr)
@@ -26,12 +26,26 @@ library(patchwork)
 library(tibble)
 library(scran)
 library(magrittr)
-sample_column <- "orig.ident" 
+library(dplyr)
+library(tidyr)
+library(purrr)
+# library(sccomp)
+library(ggrepel)
+library(Seurat)
+library(glue)
+library(scDblFinder)
+library(Seurat)
+library(tidyseurat)
+library(tidySingleCellExperiment)
+library(patchwork)
+library(tibble)
+library(scran)
+library(purrr)
+#sample_column <- "orig.ident" 
 cell_ann_col <- "seurat_annotations" 
 ```
 
 ```{r, include=FALSE}
-library(purrr)
 calc_UMAP <- function(input_seurat) {
   assay_name <- input_seurat@assays |> names() |> extract2(1)
   
@@ -59,25 +73,11 @@ calc_UMAP <- function(input_seurat) {
   return(x)
 }
 
-calc_UMAP_dbl_report <- map(data_object, calc_UMAP)
+calc_UMAP_dbl_report <- map(params$data_object, calc_UMAP)
 
 ```
 
 ```{r, include=FALSE}
-library(dplyr)
-library(tidyr)
-library(purrr)
-# library(sccomp)
-library(ggrepel)
-library(Seurat)
-library(glue)
-library(scDblFinder)
-library(Seurat)
-library(tidyseurat)
-library(tidySingleCellExperiment)
-library(patchwork)
-library(tibble)
-library(scran)
 
 get_labels_clusters = function(.data, label_column, dim1, dim2){
 
@@ -232,22 +232,24 @@ get_labels_clusters = function(.data, label_column, dim1, dim2){
 ```{r, echo = FALSE, warning=FALSE}
 # Joining info and returning a list of tibbles
 merged_combined_annotation_doublets <- list(
-  print(length(calc_UMAP_dbl_report)),
-  doublet_tbl,
-  annotation_tbl
+  calc_UMAP_dbl_report,
+  params$doublet_tbl,
+  params$annotation_tbl, 
+  params$sample_name
 ) |>
   pmap(
     ~ ..1 |>
-        left_join(..2, by = ".cell") |>
-        left_join(..3, by = ".cell")
+        mutate(sample_column = ..4) |>
+        left_join(..2 |> mutate(sample_column = ..4), by = ".cell") |>  
+        left_join(..3 |> mutate(sample_column = ..4), by = ".cell") 
   ) |> 
   enframe(name = "sample_id", value = "annotated_metadata") |> 
   mutate(
-    sample_name = sample_names  # Using the sample_names list you already have
+    sample_column = params$sample_name  # Using the sample_names list you already have
   ) |> 
   mutate(plot_by_doublet = map2(
     annotated_metadata,
-    sample_name,
+    sample_column,
     ~ {
       # Sample to not overwhelm the plotting
       merged_combined_annotation_doublets = .x |> 
@@ -277,7 +279,7 @@ merged_combined_annotation_doublets <- list(
   )) |> 
   mutate(plot_by_cell_type = map2(
     annotated_metadata,
-    sample_name,
+    params$sample_name,
     ~ {
       # Sample to not overwhelm the plotting
       merged_combined_annotation_doublets = .x |> 
@@ -334,14 +336,14 @@ From this plot, we can infer:
 doublet_composition<- merged_combined_annotation_doublets |>
   mutate(doublet_composition = map2(
     annotated_metadata,
-    sample_name,
+    sample_column,
     ~ {
       #browser()
       .x|>
-      dplyr::select(!!sym(sample_column), scDblFinder.class)}
+      dplyr::select(sample_column, scDblFinder.class)}
       )) |>
       # table()|>
-  dplyr::select(sample_name, doublet_composition) |>
+  dplyr::select(sample_column, doublet_composition) |>
   deframe()
 
   # merged_combined_annotation_doublets <-
@@ -352,17 +354,16 @@ doublet_composition<- merged_combined_annotation_doublets |>
   #          ungroup()
   #        )
 
-# calculate proportion and plot
 #calculate proportion and plot
-  merged_combined_annotation_doublets <-
+merged_combined_annotation_doublets <-
     merged_combined_annotation_doublets |>
   mutate(doublet_composition_plot = map(
     annotated_metadata,
       ~ .x |>
       # browser() |>
   # create frequency column
-  dplyr::count(.data[[sample_column]], .data[[cell_ann_col]], scDblFinder.class, name= "count_class") |>
-    group_by(.data[[sample_column]], .data[[cell_ann_col]]) |>
+  dplyr::count(.data$sample_column, .data[[cell_ann_col]], scDblFinder.class, name= "count_class") |>
+    group_by(.data$sample_column, .data[[cell_ann_col]]) |>
     mutate(proportion = count_class/sum(count_class)) |>
     ungroup() |>
 
@@ -377,7 +378,7 @@ doublet_composition<- merged_combined_annotation_doublets |>
   ggplot(aes(x = .data[[cell_ann_col]] , y = proportion, fill = scDblFinder.class)) +
   geom_bar(stat = "identity") +
   theme_bw() +
-  facet_wrap(~ orig.ident) +
+  facet_wrap(~ sample_column) +
   theme(axis.text.x=element_text(angle=70, hjust=1))
   ))
 
