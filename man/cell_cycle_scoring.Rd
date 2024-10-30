@@ -7,7 +7,7 @@
 cell_cycle_scoring(
   input_read_RNA_assay,
   empty_droplets_tbl = NULL,
-  gene_nomenclature,
+  feature_nomenclature,
   assay = NULL
 )
 }

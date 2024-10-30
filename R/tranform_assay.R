@@ -36,95 +36,13 @@ tranform_assay.HPCell = function(
     hpc_iterate(
       target_output = target_output, 
       user_function = transform_utility |> quote() , 
-      input_read_RNA_assay = "target_input" |> is_target(), 
+      input_read_RNA_assay = "data_object" |> is_target(), 
       transform_fx = "transform" |> is_target()  ,
       external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
-      data_container_type = input_hpc$initialisation$data_container_type
+      container_type = "data_container_type" |> is_target() 
 
     )
   
-}
-
-#' Harmonize Counts Data in a SingleCellExperiment Object
-#'
-#' This function harmonizes the counts data in a \code{SingleCellExperiment} object by adjusting negative values,
-#' scaling counts to avoid downstream failures, applying a transformation method, and removing cells with zero counts.
-#'
-#' @param data A \code{SingleCellExperiment} object containing assays with counts data.
-#' @param transform_method A function or the name of a function (as a character string) to transform the counts data (e.g., \code{"log1p"}, \code{"exp"}).
-#'
-#' @return The modified \code{SingleCellExperiment} object with harmonized counts.
-#' @examples
-#' \dontrun{
-#' library(SingleCellExperiment)
-#' # Using a function object
-#' transformed_sce <- census_harmonise_anndata_counts(sce, log1p)
-#' # Using a function name as a character string
-#' transformed_sce <- census_harmonise_anndata_counts(sce, "exp")
-#' }
-#'
-#' @export
-census_harmonise_anndata_counts <- function(data, transform_method) {
-  # Convert transform_method to a function if it is a character string
-  transform_function <- match.fun(transform_method)
-  
-  # Get the name of the first assay in the data object
-  assay_name <- names(assays(data))[1]
-  
-  # Extract the counts matrix from the assay
-  counts <- assay(data, assay_name)
-  
-  # Compute the density estimate of the counts
-  density_est <- density(as.matrix(counts))
-  
-  # Find the mode (peak) value of the counts
-  mode_value <- density_est$x[which.max(density_est$y)]
-  
-  # If the mode value is negative, shift counts to make the mode zero
-  if (mode_value < 0) {
-    counts <- counts + abs(mode_value)
-  }
-  
-  # Scale counts to a maximum of 20 to avoid downstream failures
-  # Check if the transformation method is not 'identity' and counts exceed 20
-  if (!identical(transform_function, identity) && (max(counts) > 20)) {
-    scale_factor <- 20 / max(counts)
-    counts <- counts * scale_factor
-  }
-  
-  # Apply the transformation method to counts
-  counts <- transform_function(counts)
-  
-  # Round counts to avoid potential subtraction errors due to floating-point precision
-  counts <- round(counts, 5)
-  
-  # Find the most frequent count value (mode) in the counts
-  majority_gene_counts <- as.numeric(names(which.max(table(as.vector(counts)))))
-  
-  # Subtract the mode value from counts if it is not zero
-  if (majority_gene_counts != 0) {
-    counts <- counts - majority_gene_counts
-  }
-  
-  # Replace negative counts with zero to avoid downstream failures
-  if (min(counts[, seq_len(min(10000, ncol(counts)))]) < 0) {
-    counts[counts < 0] <- 0
-  }
-  
-  # Assign the modified counts back to the data object
-  assay(data, assay_name) <- counts
-  
-  # Calculate the column sums (total counts per cell)
-  col_sums <- colSums(counts)
-  
-  # Remove cells with zero total counts
-  data <- data[, col_sums > 0]
-  
-  # Remove row data to avoid downstream binding errors
-  rowData(data) <- NULL
-  
-  # Return the modified data object
-  data
 }
 
 #' Apply a transformation to an assay and save as HDF5
@@ -138,57 +56,146 @@ census_harmonise_anndata_counts <- function(data, transform_method) {
 #' @param data_container_type A character vector specifying the output file type. Ideally it should match to the input file type.
 #' @return The function does not return an object. It saves the transformed SummarizedExperiment object to the specified path.
 #'
-#' @importFrom SummarizedExperiment assay assay<-
+#' @importFrom SummarizedExperiment assay
+#' @importFrom SummarizedExperiment assay<-
+#' @importFrom SummarizedExperiment assays
+#' @importFrom SummarizedExperiment rowData
+#' @importFrom SummarizedExperiment rowData<-
+#' @importFrom SingleCellExperiment reducedDim<-
+#' @importFrom dplyr select
 #' @importFrom glue glue
-#' @importFrom tools digest
-#' @importFrom HDF5Array saveHDF5SummarizedExperiment
+#' @importFrom digest digest
+#' @importFrom stats density
+#' @importFrom stats which.max
 #'
 #' @export
-transform_utility  = function(input_read_RNA_assay, transform_fx, external_path, data_container_type) {
+transform_utility  = function(input_read_RNA_assay, transform_fx, external_path, container_type) {
 
-  #input_read_RNA_assay = input_read_RNA_assay |> read_data_container(container_type = data_container_type) 
+  numer_of_cells_to_sample = 5e3
+  
+  if(ncol(input_read_RNA_assay) == 0) return(NULL)
+  
+  # strip metadata that we don't need
+  input_read_RNA_assay = 
+    input_read_RNA_assay |> 
+    select(.cell, observation_joinid, observation_originalid, donor_id, dataset_id, sample_id, cell_type) 
+  
+  # Remove reduced dimensions
+  reducedDim(input_read_RNA_assay) = NULL
+  
+  # Remove row data to avoid downstream binding errors
+  rowData(input_read_RNA_assay) <- NULL
+  
+  # Clear memory  
+  gc()
   
   dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
   
-  file_name = glue("{external_path}/{digest(input_read_RNA_assay)}")
+  # Convert transform_method to a function if it is a character string
+  transform_function <- match.fun(transform_fx)
   
-  if (length(colnames(input_read_RNA_assay)) == 0) return(NULL)
+  # Get the name of the first assay in the data object
+  assay_name <- names(assays(input_read_RNA_assay))[1]
   
-  input_read_RNA_assay = input_read_RNA_assay |> census_harmonise_anndata_counts(transform_fx)
+  # Extract the counts matrix from the assay
+  counts <- assay(input_read_RNA_assay, assay_name)
   
+  # This is to avoid memory explosion
+  set.seed(42)
+  counts_light_for_checks = counts[,sample(seq_len(ncol(counts)), size = min(numer_of_cells_to_sample, ncol(counts))),drop=FALSE]
+  
+  # Compute the density estimate of the counts. This needs ~13Gb to run for 5000+ cell datasets
+  
+  density_est <- counts_light_for_checks |> as.matrix() |> density()
+  
+  # Clear memory
+  gc()
+  
+  # Find the mode (peak) value of the counts
+  mode_value <- density_est$x[which.max(density_est$y)]
+  
+  # If the mode value is negative, shift counts to make the mode zero
+  if (mode_value < 0) {
+    counts <- counts + abs(mode_value)
+  }
+  
+  # Scale counts to a maximum of 20 to avoid downstream failures.  
+  # This Check needs ~13Gb to run for 5000+ cell datasets
+  # Check if the transformation method is not 'identity' and counts exceed 20
+  if (!identical(transform_function, identity) ) {
+    if(max(counts) > 20){
+    scale_factor <- 20 / max(counts)
+    counts <- counts * scale_factor
+  }}
+  
+  # Clear memory
+  gc()
+  
+  # Apply the transformation method to counts
+  counts <- transform_function(counts)
+  
+  # Round counts to avoid potential subtraction errors due to floating-point precision
+  counts <- round(counts, 5)
+  
+  # Find the most frequent count value (mode) in the counts
+  majority_gene_counts <- compute_mode_delayedarray(counts_light_for_checks)$mode
+  
+  # Subtract the mode value from counts if it is not zero
+  if (majority_gene_counts != 0) {
+    counts <- counts - majority_gene_counts
+  }
+  
+  # Replace negative counts with zero to avoid downstream failures
+  if (min(counts_light_for_checks) < 0) {
+    counts[counts < 0] <- 0
+  }
+  
+  # Clear memory
+  gc()
+  
+  # Assign the modified counts back to the data object
+  assay(input_read_RNA_assay, assay_name) <- counts
+  
+  # Remove cells with zero total counts
+  input_read_RNA_assay <- input_read_RNA_assay[, colSums(counts) > 0]
+  
+  if (ncol(input_read_RNA_assay) == 0) return(NULL)
+  
+  # Return the modified data object
   input_read_RNA_assay |> 
     
-    save_experiment_data(dir = file_name,
-                         
-                         container_type = data_container_type )
+    save_experiment_data(
+      dir = glue("{external_path}/{digest(input_read_RNA_assay)}"), 
+      container_type = container_type
+    )
   
-  extension <- switch(data_container_type,
-                      
-                      "sce_rds" = ".rds",
-                      
-                      "seurat_rds" = ".rds",
-                      
-                      "seurat_h5" = ".h5Seurat",
-                      
-                      "anndata" = ".h5ad",
-                      
-                      "sce_hdf5" = "")
+  # extension <- switch(container_type,
+  #                     
+  #                     "sce_rds" = ".rds",
+  #                     "seurat_rds" = ".rds",
+  #                     
+  #                     "seurat_h5" = ".h5Seurat",
+  #                     
+  #                     "anndata" = ".h5ad",
+  #                     
+  #                     "sce_hdf5" = "")
   
-  file_name = paste0(file_name, extension)
+  # file_name = paste0(file_name, extension)
+  # 
+  # # Return data as target instead of file_name pointer
+  # 
+  # input_read_RNA_assay
+  # 
+  # 
+  # extension <- switch(container_type,
+  #                     "sce_rds" = ".rds",
+  #                     "seurat_rds" = ".rds",
+  #                     "seurat_h5" = ".h5Seurat",
+  #                     "anndata" = ".h5ad",
+  #                     "sce_hdf5" = "")
+  # file_name = paste0(file_name, extension)
   
   # Return data as target instead of file_name pointer
-  
-  input_read_RNA_assay
 
-  
-  extension <- switch(data_container_type,
-                      "sce_rds" = ".rds",
-                      "seurat_rds" = ".rds",
-                      "seurat_h5" = ".h5Seurat",
-                      "anndata" = ".h5ad",
-                      "sce_hdf5" = "")
-  file_name = paste0(file_name, extension)
-  # Return data as target instead of file_name pointer
-  input_read_RNA_assay
 }
 

@@ -10,7 +10,7 @@ alive_identification(
   annotation_label_transfer_tbl = NULL,
   annotation_column = NULL,
   assay = NULL,
-  gene_nomenclature
+  feature_nomenclature
 )
 }
 \arguments{

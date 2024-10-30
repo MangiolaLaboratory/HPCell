@@ -9,7 +9,7 @@ annotation_label_transfer(
   empty_droplets_tbl = NULL,
   reference_azimuth = NULL,
   assay = NULL,
-  gene_nomenclature
+  feature_nomenclature
 )
 }
 \arguments{

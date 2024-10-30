@@ -49,7 +49,8 @@ initialise_hpc <- function(input_hpc,
                            data_container_type,
                            verbosity = targets::tar_config_get("reporter_make"),
                            error = NULL,
-                           update = "thorough"
+                           update = "thorough",
+                           garbage_collection = 0
                           ) {
   
   # Capture all arguments including defaults
@@ -88,7 +89,7 @@ initialise_hpc <- function(input_hpc,
     
     tar_option_set(
       memory = "transient",
-      #garbage_collection = TRUE,
+      garbage_collection = g,
       storage = "worker",
       retrieval = "worker",
       error = e,
@@ -103,7 +104,7 @@ initialise_hpc <- function(input_hpc,
     target_list = list(  )
     
     } |> 
-    substitute(env = list(d = debug_step, e = error, u = update)) |> 
+    substitute(env = list(d = debug_step, e = error, u = update, g = garbage_collection)) |> 
     tar_script_append2(script = glue("{store}.R"), append = FALSE)
 
   
@@ -199,12 +200,13 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
       user_function = empty_droplet_id |> quote() , 
       input_read_RNA_assay = target_input |> is_target(),
       total_RNA_count_check = total_RNA_count_check,
-      gene_nomenclacture = input$initialisation$gene_nomenclacture
+      feature_nomenclature = "gene_nomenclature" |> is_target()
     )
   
 }
 
-emove_empty_threshold <- function(input_hpc, RNA_feature_threshold = NULL, target_input = "data_object", target_output = "empty_tbl", ...) {
+#' @export
+remove_empty_threshold <- function(input_hpc, RNA_feature_threshold = NULL, target_input = "data_object", target_output = "empty_tbl", ...) {
   UseMethod("remove_empty_threshold")
 }
 
@@ -231,7 +233,7 @@ remove_empty_threshold.HPCell = function(input_hpc, RNA_feature_threshold = NULL
       user_function = empty_droplet_threshold |> quote() , 
       input_read_RNA_assay = target_input |> is_target(),
       RNA_feature_threshold = RNA_feature_threshold,
-      gene_nomenclature = input_hpc$initialisation$gene_nomenclature
+      feature_nomenclature = "gene_nomenclature" |> is_target()
     )
   
   
@@ -277,7 +279,7 @@ remove_dead_scuttle.HPCell = function(
       empty_droplets_tbl = target_empty_droplets |> safe_as_name() ,
       annotation_label_transfer_tbl = target_annotation |> safe_as_name() ,
       annotation_column = group_by,
-      gene_nomenclature = input_hpc$initialisation$gene_nomenclature
+      feature_nomenclature = "gene_nomenclature" |> is_target() 
     )
   
 }
@@ -298,7 +300,7 @@ score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "data_object
       user_function = cell_cycle_scoring |> quote() , 
       input_read_RNA_assay = target_input |> is_target(), 
       empty_droplets_tbl = "empty_tbl" |> is_target() ,
-      gene_nomenclature = input_hpc$initialisation$gene_nomenclature
+      feature_nomenclature = "gene_nomenclature" |> is_target() 
     )
   
 }
@@ -355,7 +357,7 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target
       input_read_RNA_assay = target_input |> is_target(), 
       empty_droplets_tbl = "empty_tbl" |> is_target() ,
       reference_azimuth = reference_read |> quote(),
-      gene_nomenclature = input_hpc$initialisation$gene_nomenclature
+      feature_nomenclature = "gene_nomenclature" |> is_target() 
     )
   
 }
