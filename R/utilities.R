@@ -2844,3 +2844,71 @@ compute_mode_delayedarray <- function(delayed_array) {
   
   return(result)
 }
+
+#' Check if All Assay Values are Greater Than Zero and Subtract One if True
+#'
+#' This function, `check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY`, checks if all values 
+#' in a specified assay of a `SingleCellExperiment` or `Seurat` object are greater than zero. 
+#' If all values are greater than zero, it subtracts one from each value. This operation is useful 
+#' in cases where a small adjustment to count data is necessary to standardise the minimum count value.
+#' 
+#' For `SingleCellExperiment` objects, the function accesses the assay data using the `assay` function. 
+#' For `Seurat` objects, it retrieves the data using `GetAssayData` and updates it using `SetAssayData`. 
+#' This allows seamless handling of different object types in single-cell analysis workflows.
+#'
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing the assay data.
+#' @param assay_name A string specifying the name of the assay to be checked and potentially modified.
+#'
+#' @return The modified `SingleCellExperiment` or `Seurat` object, where one has been subtracted 
+#'         from all values in the specified assay if all values were initially greater than zero. 
+#'         If any values are zero or negative, the object is returned unmodified.
+#'         
+#' @examples
+#' # For SingleCellExperiment
+#' # sce <- SingleCellExperiment(assays = list(RNA = matrix(1:9, 3, 3)))
+#' # modified_sce <- check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY(sce, "RNA")
+#'
+#' # For Seurat
+#' # seurat <- CreateSeuratObject(counts = matrix(1:9, 3, 3))
+#' # modified_seurat <- check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY(seurat, "RNA")
+#'
+#' @import SingleCellExperiment
+#' @import Seurat
+#' @importFrom SummarizedExperiment assay
+#' 
+#' @noRd
+check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY <- function(input_read_RNA_assay, assay_name) {
+  
+  # Check if object is SCE or Seurat
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    # For SingleCellExperiment
+    assay_data <- assay(input_read_RNA_assay, assay_name)
+    
+    # Check if all values are > 0
+    if (min(assay_data) > 0) {
+      # Subtract 1 from each value
+      assay(input_read_RNA_assay, assay_name) <- assay_data - 1
+    } else {
+      message("Not all values are greater than 0. No subtraction performed.")
+    }
+    
+  } else if (inherits(input_read_RNA_assay, "Seurat")) {
+    # For Seurat
+    assay_data <- GetAssayData(input_read_RNA_assay, assay = assay_name, slot = "data")
+    
+    # Check if all values are > 0
+    if (min(assay_data) > 0) {
+      # Subtract 1 from each value
+      input_read_RNA_assay <- SetAssayData(input_read_RNA_assay, assay = assay_name, slot = "data", 
+                                           new.data = assay_data - 1)
+    } else {
+      message("Not all values are greater than 0. No subtraction performed.")
+    }
+    
+  } else {
+    stop("The input object is neither a SingleCellExperiment nor a Seurat object.")
+  }
+  
+  # Return the modified object
+  return(input_read_RNA_assay)
+}

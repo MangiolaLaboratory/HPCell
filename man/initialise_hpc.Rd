@@ -16,7 +16,8 @@ initialise_hpc(
   verbosity = targets::tar_config_get("reporter_make"),
   error = NULL,
   update = "thorough",
-  garbage_collection = 0
+  garbage_collection = 0,
+  workspace_on_error
 )
 }
 \arguments{

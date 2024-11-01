@@ -50,7 +50,8 @@ initialise_hpc <- function(input_hpc,
                            verbosity = targets::tar_config_get("reporter_make"),
                            error = NULL,
                            update = "thorough",
-                           garbage_collection = 0
+                           garbage_collection = 0,
+                           workspace_on_error = FALSE
                           ) {
   
   # Capture all arguments including defaults
@@ -98,13 +99,14 @@ initialise_hpc <- function(input_hpc,
       cue = tar_cue(mode = u), # Force skip non-debugging outdated targets.
       controller = crew_controller_group ( readRDS("temp_computing_resources.rds") ), 
       packages = c("HPCell"),
-      trust_object_timestamps = TRUE
+      trust_object_timestamps = TRUE, 
+      workspace_on_error = w
     )
      
     target_list = list(  )
     
     } |> 
-    substitute(env = list(d = debug_step, e = error, u = update, g = garbage_collection)) |> 
+    substitute(env = list(d = debug_step, e = error, u = update, g = garbage_collection, w = workspace_on_error)) |> 
     tar_script_append2(script = glue("{store}.R"), append = FALSE)
 
   
@@ -340,23 +342,15 @@ annotate_cell_type <- function(input_hpc, azimuth_reference = NULL, target_input
 #' @export
 annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target_input = "data_object", target_output = "annotation_tbl", ...) {
   
-  
-  azimuth_reference |> saveRDS("input_reference.rds")
-  
+
   input_hpc |> 
-    
-    hpc_single(
-      target_output = "reference_read", 
-      user_function = readRDS |> quote(),
-      file = "input_reference.rds" 
-    ) |> 
   
     hpc_iterate(
       target_output = target_output, 
       user_function = annotation_label_transfer |> quote() , 
       input_read_RNA_assay = target_input |> is_target(), 
       empty_droplets_tbl = "empty_tbl" |> is_target() ,
-      reference_azimuth = reference_read |> quote(),
+      reference_azimuth = azimuth_reference,
       feature_nomenclature = "gene_nomenclature" |> is_target() 
     )
   

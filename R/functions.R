@@ -288,6 +288,8 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
 #'
 #' @importFrom celldex BlueprintEncodeData
 #' @importFrom celldex MonacoImmuneData
+#' 
+#' # Seurat
 #' @importFrom Seurat CreateAssayObject
 #' @importFrom Seurat SCTransform
 #' @importFrom Seurat CreateSeuratObject
@@ -295,6 +297,8 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
 #' @importFrom Seurat FindTransferAnchors
 #' @importFrom Seurat MapQuery
 #' @importFrom Seurat as.SingleCellExperiment
+#' @import Seurat
+#' 
 #' @importFrom scuttle logNormCounts
 #' @importFrom SingleR SingleR
 #' @importFrom tibble as_tibble
@@ -305,10 +309,14 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
 #' @importFrom magrittr extract2
-#' @importFrom SummarizedExperiment assay 
+#' @importFrom SummarizedExperiment assay
 #' @importFrom SummarizedExperiment assay<-
 #' @importFrom Azimuth RunAzimuth
-#' @import Seurat
+#' @importFrom stringr str_detect
+#' @importFrom tidyr nest
+#' @importFrom S4Vectors cbind
+#' @importFrom S4Vectors Assays
+#' @importFrom S4Vectors RenameAssays
 #' 
 #' @export
 annotation_label_transfer <- function(input_read_RNA_assay,
@@ -329,26 +337,30 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
+  # TEMPORARY FOR SOME REASON THE MIN COUNTS IS NOT 0 FOR SOME SAMPLES
+  input_read_RNA_assay = check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY(input_read_RNA_assay, assay)
+  
+  
   if (!is.null(empty_droplets_tbl)) {
-    filtered_counts =
+    input_read_RNA_assay =
       input_read_RNA_assay |>
       left_join(empty_droplets_tbl, by=".cell") |>
       dplyr::filter(!empty_droplet)
-  } else if (is.null(empty_droplets_tbl)) {return(NULL)}
+  }
   
   # SingleR
   if (inherits(input_read_RNA_assay, "Seurat")) {
     sce =
-      filtered_counts |>
+      input_read_RNA_assay |>
       as.SingleCellExperiment() |>
       logNormCounts(assay.type = assay)
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")){
     sce =
       # Filter empty
-      filtered_counts|>
+      input_read_RNA_assay|>
       logNormCounts(assay.type = assay)
   }
-
+  
   # This because an error is num cell = 1
   if(ncol(input_read_RNA_assay)==1){
     input_read_RNA_assay = S4Vectors::cbind(input_read_RNA_assay, input_read_RNA_assay)
@@ -389,7 +401,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   
   rm(blueprint)
   gc()
-
+  
   MonacoImmuneData <- celldex::MonacoImmuneData(
     ensembl = feature_nomenclature == "ensembl"
     #legacy = TRUE
@@ -430,20 +442,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   rm(MonacoImmuneData)
   gc()
   
-  # Convert SCE to SE to calculate SCT
-  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
-    assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> 
-    as("dgCMatrix")
-    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, 
-                                                              counts = assay) 
-    
-    # Rename assay
-    assay_name_old = input_read_RNA_assay |> Assays() |> _[[1]]
-    input_read_RNA_assay = input_read_RNA_assay |>
-      RenameAssays(
-        assay.name = assay_name_old,
-        new.assay.name = assay)
-  } 
+
   
   # If not immune cells
   if(nrow(data_annotated) == 0){
@@ -463,28 +462,37 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
   } else if (!is.null(reference_azimuth)) {
     
-    #print("Start Seurat")
+    library(Seurat) # !!! If this is not here gives error, but this has to go for Bioconductor
     
-    # Reading input
+    # Convert SCE to SE to calculate SCT
+    if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+      
+      assay(input_read_RNA_assay, assay) <- 
+        assay(input_read_RNA_assay, assay) |> 
+        as("dgCMatrix")
+      
+      input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL,  counts = assay) 
+      
+      # Rename assay
+      assay_name_old = input_read_RNA_assay |> Assays() |> _[[1]]
+      input_read_RNA_assay = input_read_RNA_assay |>
+        RenameAssays(
+          assay.name = assay_name_old,
+          new.assay.name = assay)
+    } 
     
-    if (!is.null(empty_droplets_tbl)) {
-      input_read_RNA_assay =
-        input_read_RNA_assay |>
-        # Filter empty
-        left_join(empty_droplets_tbl, by = ".cell") |>
-        filter(!empty_droplet)
-    } else if (is.null(empty_droplets_tbl)) {return(NULL)}
+    options(future.globals.maxSize = 16 * 1024^3)
     
-    library(Seurat)
     azimuth_annotation = 
-      tryCatch({input_read_RNA_assay |> RenameAssays(assay.name = assay, 
-                                                     new.assay.name = "RNA") |> 
+      tryCatch({
+        
+        if(ncol(input_read_RNA_assay)<200) k.weight = 25
+        else k.weight = 50
+        
+        input_read_RNA_assay |> RenameAssays(assay.name = assay, new.assay.name = "RNA") |> 
           Azimuth::RunAzimuth(reference = reference_azimuth, assay = "RNA", umap.name = "refUMAP") |> 
-          SCTransform(assay = "RNA") |> 
-          ScaleData(assay = "SCT") |>
-          RunPCA(assay = "SCT") |>
           as_tibble() |>
-          select(.cell, any_of(
+          dplyr::select(.cell, any_of(
             c(
               "predicted.celltype.l1",
               "predicted.celltype.l2",
@@ -497,17 +505,20 @@ annotation_label_transfer <- function(input_read_RNA_assay,
           nest(azimuth_scores_celltype = c(ends_with("score"))) |>
           dplyr::rename(azimuth_predicted.celltype.l1 = predicted.celltype.l1,
                         azimuth_predicted.celltype.l2 = predicted.celltype.l2,
-                        azimuth_predicted.celltype.l3 = predicted.celltype.l3)},
-          error = function(e) {
-            print(e)
-            input_read_RNA_assay |> as_tibble() |> select(.cell)
-          })
+                        azimuth_predicted.celltype.l3 = predicted.celltype.l3)
+      },
+      error = function(e) {
+        if(!str_detect(e$message, "Please set k.weight to be smaller than the number of anchors|Number of anchor cells is less than k.weight|number of items to replace is not a multiple of replacement length")) 
+          stop("HPCell says: Seurat Azimuth failed, probably for the small number of cells, which is .", ncol(input_read_RNA_assay), " Please investigate -> ", e$message)
+        print(e)
+        input_read_RNA_assay |> as_tibble() |> dplyr::select(.cell)
+      })
     
     # Save
-    modified_data <- data_annotated  |>
+    data_annotated  |>
       left_join(azimuth_annotation, by = dplyr::join_by(.cell)	)
     
-    return(modified_data)
+
   }
 }
 
@@ -556,7 +567,7 @@ alive_identification <- function(input_read_RNA_assay,
   detected = NULL
   .cell = NULL 
   high_mitochondrion = NULL 
-
+  
   if(
     !is.null(annotation_column) && 
     !annotation_column %in% colnames(as_tibble(input_read_RNA_assay[1,1]))
@@ -567,10 +578,10 @@ alive_identification <- function(input_read_RNA_assay,
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
   if (!is.null(empty_droplets_tbl)) {
-  input_read_RNA_assay =
-    input_read_RNA_assay |>
-    left_join(empty_droplets_tbl, by=".cell") |>
-    dplyr::filter(!empty_droplet)
+    input_read_RNA_assay =
+      input_read_RNA_assay |>
+      left_join(empty_droplets_tbl, by=".cell") |>
+      dplyr::filter(!empty_droplet)
   } else if (is.null(empty_droplets_tbl)) {return(NULL)}
   
   # Calculate nFeature_RNA and nCount_RNA if not exist in the data
@@ -610,7 +621,7 @@ alive_identification <- function(input_read_RNA_assay,
       keytype="SYMBOL"
     )
   }
-
+  
   
   which_mito = rownames(input_read_RNA_assay) |> str_which("^MT")
   
@@ -682,20 +693,20 @@ alive_identification <- function(input_read_RNA_assay,
   # Add cell type labels and determine high mitochondrion content, if annotation_label_transfer_tbl is provided
   if(annotation_column |> is.null() |> not()) {
     
-   if (
-     inherits(annotation_label_transfer_tbl, "tbl_df") &&
-     annotation_column %in% colnames(annotation_label_transfer_tbl)
-   ) {
-     
-     mitochondrion <- qc_metrics %>%
-       left_join(annotation_label_transfer_tbl, by = ".cell") 
-     
-     ribosome =
-       ribosome |>
-       left_join(annotation_label_transfer_tbl, by = ".cell") 
-   }
-  
-  
+    if (
+      inherits(annotation_label_transfer_tbl, "tbl_df") &&
+      annotation_column %in% colnames(annotation_label_transfer_tbl)
+    ) {
+      
+      mitochondrion <- qc_metrics %>%
+        left_join(annotation_label_transfer_tbl, by = ".cell") 
+      
+      ribosome =
+        ribosome |>
+        left_join(annotation_label_transfer_tbl, by = ".cell") 
+    }
+    
+    
     else if (annotation_column %in% colnames(as_tibble(input_read_RNA_assay[1,1]))) {
       
       mitochondrion <- 
@@ -707,8 +718,8 @@ alive_identification <- function(input_read_RNA_assay,
         ribosome |>
         left_join(input_read_RNA_assay |> select(.cell, all_of(annotation_column)), by = ".cell") 
     }
-
-  
+    
+    
     mitochondrion = 
       mitochondrion %>%
       nest(data = -all_of(annotation_column)) 
@@ -731,7 +742,7 @@ alive_identification <- function(input_read_RNA_assay,
                         mutate(high_mitochondrion = isOutlier(subsets_Mito_percent, type="higher"),
                                high_mitochondrion = as.logical(high_mitochondrion)))) %>%
     unnest(cols = data)
-
+  
   ribosome = 
     ribosome |> 
     mutate(data = map(
@@ -748,7 +759,7 @@ alive_identification <- function(input_read_RNA_assay,
   mitochondrion |>
     left_join(ribosome, by=".cell") |>
     mutate(alive = !high_mitochondrion) # & !high_ribosome ) |>
-
+  
 }
 
 
@@ -788,7 +799,7 @@ doublet_identification <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
-
+  
   if (inherits(input_read_RNA_assay, "Seurat")) {
     input_read_RNA_assay <- input_read_RNA_assay |>
       # Filtering empty
@@ -796,17 +807,17 @@ doublet_identification <- function(input_read_RNA_assay,
   } 
   
   if (!is.null(empty_droplets_tbl)) { 
-  
-  filter_empty_droplets <- input_read_RNA_assay |>
-    # Filtering empty
-    left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
-    filter(!empty_droplet) 
-  
-  # Filtering dead
-  if(alive_identification_tbl |> is.null() |> not())
-    input_read_RNA_assay = input_read_RNA_assay |>
-    left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
-    filter(alive)
+    
+    filter_empty_droplets <- input_read_RNA_assay |>
+      # Filtering empty
+      left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
+      filter(!empty_droplet) 
+    
+    # Filtering dead
+    if(alive_identification_tbl |> is.null() |> not())
+      input_read_RNA_assay = input_read_RNA_assay |>
+        left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
+        filter(alive)
   } else if (is.null(empty_droplets_tbl)) {return(NULL)} 
   
   # Condition as scDblFinder only accept assay "counts"
@@ -1109,18 +1120,18 @@ preprocessing_output <- function(input_read_RNA_assay,
     }
   }
   
-
+  
   # Filtering dead
   if(alive_identification_tbl |> is.null() |> not())
     input_read_RNA_assay = input_read_RNA_assay |>
     left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
     filter(alive) 
   
-
+  
   
   # Filter doublets
   if(doublet_identification_tbl |> is.null() |> not())
-  input_read_RNA_assay <- input_read_RNA_assay |>
+    input_read_RNA_assay <- input_read_RNA_assay |>
     left_join(doublet_identification_tbl |> select(.cell, scDblFinder.class), by = ".cell") |>
     filter(scDblFinder.class=="singlet") 
   
@@ -1139,7 +1150,7 @@ preprocessing_output <- function(input_read_RNA_assay,
       left_join(annotation_label_transfer_tbl, by = ".cell")
   }
   
-
+  
   input_read_RNA_assay
   # # Filter Red blood cells and platelets
   # if (tolower(tissue) == "pbmc" & "predicted.celltype.l2" %in% c(rownames(annotation_label_transfer_tbl), colnames(annotation_label_transfer_tbl))) {
@@ -1210,15 +1221,15 @@ create_pseudobulk <- function(input_read_RNA_assay,
   
   preprocessing_output_S = 
     preprocessing_output(
-        input_read_RNA_assay,
-         empty_droplets_tbl,
-         non_batch_variation_removal_S = NULL, 
-         alive_identification_tbl, 
-         cell_cycle_score_tbl, 
-         annotation_label_transfer_tbl, 
-         doublet_identification_tbl
-        )
-
+      input_read_RNA_assay,
+      empty_droplets_tbl,
+      non_batch_variation_removal_S = NULL, 
+      alive_identification_tbl, 
+      cell_cycle_score_tbl, 
+      annotation_label_transfer_tbl, 
+      doublet_identification_tbl
+    )
+  
   
   if(assays |> is.null()){
     if(preprocessing_output_S |> is("Seurat"))
@@ -1227,7 +1238,7 @@ create_pseudobulk <- function(input_read_RNA_assay,
       assays = preprocessing_output_S@assays |> names()
     
   }
-
+  
   # Aggregate cells
   pseudobulk = 
     preprocessing_output_S |> 
@@ -1302,7 +1313,7 @@ pseudobulk_merge <- function(pseudobulk_list, external_path, ...) {
   
   # Fix GCHECKS 
   . = NULL 
-
+  
   # Select only common columns
   # investiagte common_columns, as data_source is not a common column in the pilot data
   common_columns =
@@ -1331,7 +1342,7 @@ pseudobulk_merge <- function(pseudobulk_list, external_path, ...) {
       if(missing_genes |> length() == 0) return(.x)
       else
         .x |> add_missingh_genes_to_se(all_genes, missing_genes)
-        
+      
     }) |>
     
     purrr::map(~ .x |> dplyr::select(any_of(common_columns)))   %>%
@@ -1340,10 +1351,10 @@ pseudobulk_merge <- function(pseudobulk_list, external_path, ...) {
   
   
   file_name = glue("{external_path}/{digest(se)}")
-
+  
   se = 
     se |> 
-  
+    
     saveHDF5SummarizedExperiment(dir = file_name, replace=TRUE, as.sparse=TRUE) 
   
   # Return the pseudobulk data for this single sample
@@ -1458,7 +1469,7 @@ map_test_differential_abundance = function(
       if(ncol(.x) > 2000) method = "glmmseq_glmmTMB"
       else method = "glmmSeq_lme4"
       
-
+      
       # Test
       test_differential_abundance(
         .x,
@@ -1470,7 +1481,7 @@ map_test_differential_abundance = function(
         .dispersion = dispersion,
         ...
       )
-      },
+    },
     ...
     
   ))
