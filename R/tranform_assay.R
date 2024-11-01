@@ -100,12 +100,26 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   # Extract the counts matrix from the assay
   counts <- assay(input_read_RNA_assay, assay_name)
   
+  # Scale counts to a maximum of 20 to avoid downstream failures.  
+  # This Check needs ~13Gb to run for 5000+ cell datasets
+  # Check if the transformation method is not 'identity' and counts exceed 20
+  if (!identical(transform_function, identity) ) {
+    if(max(counts) > 20){
+      scale_factor <- 20 / max(counts)
+      counts <- counts * scale_factor
+    }}
+  
+  # Clear memory
+  gc()
+  
+  # Apply the transformation method to counts
+  counts <- transform_function(counts)
+  
   # This is to avoid memory explosion
   set.seed(42)
   counts_light_for_checks = counts[,sample(seq_len(ncol(counts)), size = min(numer_of_cells_to_sample, ncol(counts))),drop=FALSE]
   
   # Compute the density estimate of the counts. This needs ~13Gb to run for 5000+ cell datasets
-  
   density_est <- counts_light_for_checks |> as.matrix() |> density()
   
   # Clear memory
@@ -118,21 +132,6 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   if (mode_value < 0) {
     counts <- counts + abs(mode_value)
   }
-  
-  # Scale counts to a maximum of 20 to avoid downstream failures.  
-  # This Check needs ~13Gb to run for 5000+ cell datasets
-  # Check if the transformation method is not 'identity' and counts exceed 20
-  if (!identical(transform_function, identity) ) {
-    if(max(counts) > 20){
-    scale_factor <- 20 / max(counts)
-    counts <- counts * scale_factor
-  }}
-  
-  # Clear memory
-  gc()
-  
-  # Apply the transformation method to counts
-  counts <- transform_function(counts)
   
   # Round counts to avoid potential subtraction errors due to floating-point precision
   counts <- round(counts, 5)
