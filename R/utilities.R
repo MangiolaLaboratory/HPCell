@@ -2884,10 +2884,12 @@ check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY <- function(input_rea
     # For SingleCellExperiment
     assay_data <- assay(input_read_RNA_assay, assay_name)
     
+    my_min = min(assay_data)
+    
     # Check if all values are > 0
-    if (min(assay_data) > 0) {
+    if (my_min > 0) {
       # Subtract 1 from each value
-      assay(input_read_RNA_assay, assay_name) <- assay_data - 1
+      assay(input_read_RNA_assay, assay_name) <- assay_data - my_min
     } else {
       message("Not all values are greater than 0. No subtraction performed.")
     }
@@ -2896,11 +2898,13 @@ check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY <- function(input_rea
     # For Seurat
     assay_data <- GetAssayData(input_read_RNA_assay, assay = assay_name, slot = "data")
     
+    my_min = min(assay_data)
+              
     # Check if all values are > 0
-    if (min(assay_data) > 0) {
+    if (my_min > 0) {
       # Subtract 1 from each value
       input_read_RNA_assay <- SetAssayData(input_read_RNA_assay, assay = assay_name, slot = "data", 
-                                           new.data = assay_data - 1)
+                                           new.data = assay_data - my_min)
     } else {
       message("Not all values are greater than 0. No subtraction performed.")
     }
