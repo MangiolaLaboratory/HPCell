@@ -1,13 +1,13 @@
 # Define the generic function
 #' @export
-tranform_assay <- function(input_hpc, fx = input_hpc$initialisation$input_hpc |> map(~identity), target_input = "data_object", target_output = "sce_transformed", ...) {
-  UseMethod("tranform_assay")
+transform_assay <- function(input_hpc, fx = input_hpc$initialisation$input_hpc |> map(~identity), target_input = "data_object", target_output = "sce_transformed", ...) {
+  UseMethod("transform_assay")
 }
 
 #' @importFrom purrr map
 #' 
 #' @export
-tranform_assay.HPCell = function(
+transform_assay.HPCell = function(
     input_hpc,
     
     # This might be carrying the environment
