@@ -263,10 +263,10 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
     #left_join(colSums(filtered_counts) |> enframe(name = ".cell", value = "nCount_RNA"), by = ".cell") |>
     mutate(empty_droplet = nFeature_RNA < RNA_feature_threshold)
   
-  # Discard samples with nFeature_RNA density mode < threshold, avoid potential downstream error
-  density_est = result |> pull(nFeature_RNA) |> density()
-  density_value = density_est$x[which.max(density_est$y)]
-  if (density_value < RNA_feature_threshold) return(NULL)
+  # # Discard samples with nFeature_RNA density mode < threshold, avoid potential downstream error
+  # density_est = result |> pull(nFeature_RNA) |> density()
+  # density_value = density_est$x[which.max(density_est$y)]
+  # if (density_value < RNA_feature_threshold) return(NULL)
   
   result
 }
