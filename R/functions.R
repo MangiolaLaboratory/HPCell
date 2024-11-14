@@ -27,10 +27,20 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(c("."))
 empty_droplet_id <- function(input_read_RNA_assay,
                              total_RNA_count_check  = -Inf,
                              assay = NULL,
-                             feature_nomenclature){
+                             feature_nomenclature,
+                             sample_name){
   
-  if(input_read_RNA_assay |> is.null()) return(NULL)
-  if(ncol(input_read_RNA_assay) == 0) return(NULL)
+  if(ncol(input_read_RNA_assay) == 0) {
+    warning("HPCell says: the sample ", sample_name, " has no cells and returned NULL")
+    return(NULL)
+  }
+  
+  if(input_read_RNA_assay |> is.null()) {
+    warning("HPCell says: the sample ", sample_name, " is NULL and returned NULL")
+    return(NULL)
+  }
+  
+
   
   #Fix GChecks 
   FDR = NULL 
@@ -210,9 +220,19 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
                                    total_RNA_count_check  = -Inf,
                                    assay = NULL,
                                    feature_nomenclature,
-                                   RNA_feature_threshold = 200){
-  if(input_read_RNA_assay |> is.null()) return(NULL)
-  if(ncol(input_read_RNA_assay) == 0) return(NULL)
+                                   RNA_feature_threshold = 200,
+                                   sample_name){
+  
+  
+  if(ncol(input_read_RNA_assay) == 0) {
+    warning("HPCell says: the sample ", sample_name, " has no cells and returned NULL")
+    return(NULL)
+  }
+  
+  if(input_read_RNA_assay |> is.null()) {
+    warning("HPCell says: the sample ", sample_name, " is NULL and returned NULL")
+    return(NULL)
+  }
   
   #Fix GChecks 
   FDR = NULL 
@@ -263,10 +283,10 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
     #left_join(colSums(filtered_counts) |> enframe(name = ".cell", value = "nCount_RNA"), by = ".cell") |>
     mutate(empty_droplet = nFeature_RNA < RNA_feature_threshold)
   
-  # Discard samples with nFeature_RNA density mode < threshold, avoid potential downstream error
-  density_est = result |> pull(nFeature_RNA) |> density()
-  density_value = density_est$x[which.max(density_est$y)]
-  if (density_value < RNA_feature_threshold) return(NULL)
+  # # Discard samples with nFeature_RNA density mode < threshold, avoid potential downstream error
+  # density_est = result |> pull(nFeature_RNA) |> density()
+  # density_value = density_est$x[which.max(density_est$y)]
+  # if (density_value < RNA_feature_threshold) return(NULL)
   
   result
 }
@@ -323,7 +343,8 @@ annotation_label_transfer <- function(input_read_RNA_assay,
                                       empty_droplets_tbl = NULL, 
                                       reference_azimuth = NULL,
                                       assay = NULL,
-                                      feature_nomenclature
+                                      feature_nomenclature,
+                                      sample_name
 ){
   # Fix github checks 
   empty_droplet = NULL 
@@ -331,8 +352,16 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   delta.next = NULL 
   .cell = NULL 
   
-  if(input_read_RNA_assay |> is.null()) return(NULL)
-  if(ncol(input_read_RNA_assay) == 0) return(NULL)
+  if(ncol(input_read_RNA_assay) == 0) {
+    warning("HPCell says: the sample ", sample_name, " has no cells and returned NULL")
+    return(NULL)
+  }
+  
+  if(input_read_RNA_assay |> is.null()) {
+    warning("HPCell says: the sample ", sample_name, " is NULL and returned NULL")
+    return(NULL)
+  }
+  
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
@@ -568,6 +597,16 @@ alive_identification <- function(input_read_RNA_assay,
   .cell = NULL 
   high_mitochondrion = NULL 
   
+  if(ncol(input_read_RNA_assay) == 0) {
+    warning("HPCell says: the sample ", sample_name, " has no cells and returned NULL")
+    return(NULL)
+  }
+  
+  if(input_read_RNA_assay |> is.null()) {
+    warning("HPCell says: the sample ", sample_name, " is NULL and returned NULL")
+    return(NULL)
+  }
+  
   if(
     !is.null(annotation_column) && 
     !annotation_column %in% colnames(as_tibble(input_read_RNA_assay[1,1]))
@@ -796,6 +835,16 @@ doublet_identification <- function(input_read_RNA_assay,
   .cell = NULL 
   empty_droplet = NULL 
   
+  if(ncol(input_read_RNA_assay) == 0) {
+    warning("HPCell says: the sample ", sample_name, " has no cells and returned NULL")
+    return(NULL)
+  }
+  
+  if(input_read_RNA_assay |> is.null()) {
+    warning("HPCell says: the sample ", sample_name, " is NULL and returned NULL")
+    return(NULL)
+  }
+  
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
@@ -874,6 +923,17 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
   S.Score = NULL 
   G2M.Score = NULL 
   Phase = NULL 
+  
+  if(ncol(input_read_RNA_assay) == 0) {
+    warning("HPCell says: the sample ", sample_name, " has no cells and returned NULL")
+    return(NULL)
+  }
+  
+  if(input_read_RNA_assay |> is.null()) {
+    warning("HPCell says: the sample ", sample_name, " is NULL and returned NULL")
+    return(NULL)
+  }
+  
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
@@ -956,6 +1016,16 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   #Fix GChecks 
   empty_droplet = NULL 
   .cell <- NULL 
+  
+  if(ncol(input_read_RNA_assay) == 0) {
+    warning("HPCell says: the sample ", sample_name, " has no cells and returned NULL")
+    return(NULL)
+  }
+  
+  if(input_read_RNA_assay |> is.null()) {
+    warning("HPCell says: the sample ", sample_name, " is NULL and returned NULL")
+    return(NULL)
+  }
   
   # Your code for non_batch_variation_removal function here
   class_input = input_read_RNA_assay |> class()
@@ -1097,6 +1167,16 @@ preprocessing_output <- function(input_read_RNA_assay,
   high_ribosome <- NULL
   scDblFinder.class <- NULL
   predicted.celltype.l2 <- NULL
+  
+  if(ncol(input_read_RNA_assay) == 0) {
+    warning("HPCell says: the sample ", sample_name, " has no cells and returned NULL")
+    return(NULL)
+  }
+  
+  if(input_read_RNA_assay |> is.null()) {
+    warning("HPCell says: the sample ", sample_name, " is NULL and returned NULL")
+    return(NULL)
+  }
   
   if (empty_droplets_tbl |> is.null() |> not()) {
     input_read_RNA_assay =

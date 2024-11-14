@@ -8,7 +8,8 @@ transform_utility(
   input_read_RNA_assay,
   transform_fx,
   external_path,
-  container_type
+  container_type,
+  sample_name
 )
 }
 \arguments{

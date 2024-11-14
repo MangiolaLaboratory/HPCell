@@ -39,7 +39,8 @@ transform_assay.HPCell = function(
       input_read_RNA_assay = "data_object" |> is_target(), 
       transform_fx = "transform" |> is_target()  ,
       external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
-      container_type = "data_container_type" |> is_target() 
+      container_type = "data_container_type" |> is_target() ,
+      sample_name = "sample_names" |> is_target()
 
     )
   
@@ -69,11 +70,14 @@ transform_assay.HPCell = function(
 #' @importFrom stats which.max
 #'
 #' @export
-transform_utility  = function(input_read_RNA_assay, transform_fx, external_path, container_type) {
+transform_utility  = function(input_read_RNA_assay, transform_fx, external_path, container_type, sample_name) {
 
   numer_of_cells_to_sample = 5e3
   
-  if(ncol(input_read_RNA_assay) == 0) return(NULL)
+  if(ncol(input_read_RNA_assay) == 0) {
+    warning("HPCell says: the sample ", sample_name, " has no cells and returned NULL")
+    return(NULL)
+  }
   
   # strip metadata that we don't need
   input_read_RNA_assay = 
@@ -157,8 +161,6 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   
   # Remove cells with zero total counts
   input_read_RNA_assay <- input_read_RNA_assay[, colSums(counts) > 0]
-  
-  if (ncol(input_read_RNA_assay) == 0) return(NULL)
   
   # Return the modified data object
   input_read_RNA_assay |> 
