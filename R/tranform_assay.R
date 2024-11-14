@@ -58,7 +58,7 @@ transform_assay.HPCell = function(
 #'
 #' @importFrom SummarizedExperiment assay
 #' @importFrom SummarizedExperiment assay<-
-#' @importFrom SummarizedExperiment assays
+#' @importFrom SummarizedExperiment assays assays<-
 #' @importFrom SummarizedExperiment rowData
 #' @importFrom SummarizedExperiment rowData<-
 #' @importFrom SingleCellExperiment reducedDim<-
@@ -74,6 +74,9 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   numer_of_cells_to_sample = 5e3
   
   if(ncol(input_read_RNA_assay) == 0) return(NULL)
+  
+  # Rename assay names to for consistency
+  if (names(assays(input_read_RNA_assay)) != "X") names(assays(input_read_RNA_assay)) <- "X"
   
   # strip metadata that we don't need
   input_read_RNA_assay = 
