@@ -20,7 +20,8 @@ se |>
       slurm_memory_gigabytes_per_cpu = 5,
       slurm_cpus_per_task = 2,
       workers = 200,
-      verbose = T
+      verbose = T, 
+      seconds_idle = 30
     )
   )
 
@@ -357,7 +358,8 @@ slurm = crew.cluster::crew_controller_slurm(
   slurm_memory_gigabytes_per_cpu = 5,
   slurm_cpus_per_task = 1,
   workers = 200,
-  verbose = T
+  verbose = T, 
+  seconds_idle = 30
 )
 
 
@@ -488,7 +490,8 @@ se =
          slurm_memory_gigabytes_per_cpu = 5,
          slurm_cpus_per_task = 1,
          workers = 200,
-         verbose = T
+         verbose = T, 
+         seconds_idle = 30
        )
    ) 
  

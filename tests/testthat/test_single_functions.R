@@ -510,7 +510,8 @@ computing_resources = crew_controller_local(workers = 8) #resource_tuned_slurm
     slurm_cpus_per_task = 1,
     workers = 50,
     tasks_max = 5,
-    verbose = T
+    verbose = T, 
+    seconds_idle = 30
   ),
   crew_controller_slurm(
     name = "tier_2",
@@ -518,7 +519,8 @@ computing_resources = crew_controller_local(workers = 8) #resource_tuned_slurm
     slurm_cpus_per_task = 1,
     workers = 50,
     tasks_max = 5,
-    verbose = T
+    verbose = T, 
+    seconds_idle = 30
   )
 )
 
