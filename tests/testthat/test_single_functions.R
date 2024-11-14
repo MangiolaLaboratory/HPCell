@@ -566,7 +566,7 @@ file_list |>
   ) |> 
   
   # ONLY APPLICABLE TO SCE FOR NOW
-  tranform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
+  transform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
   
   # hpc_report(
   #   "empty_report", 
