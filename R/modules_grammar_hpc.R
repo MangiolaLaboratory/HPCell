@@ -61,7 +61,6 @@ initialise_hpc <- function(input_hpc,
   if(input_hpc |> names() |> is.null())
     input_hpc = input_hpc |> set_names(seq_len(length(input_hpc)))
   
-  input_hpc |> names() |> saveRDS("sample_names.rds")
 
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
@@ -71,6 +70,8 @@ initialise_hpc <- function(input_hpc,
   data_file_names = glue("{store}/{names(input_hpc)}.rds")
   
   input_hpc |> as.list() |>  saveRDS("input_file.rds")
+  input_hpc |> names() |> saveRDS("sample_names.rds")
+  
   gene_nomenclature |> saveRDS("temp_gene_nomenclature.rds")
   data_container_type |> saveRDS("data_container_type.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")

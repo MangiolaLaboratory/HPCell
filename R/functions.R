@@ -582,7 +582,7 @@ alive_identification <- function(input_read_RNA_assay,
       input_read_RNA_assay |>
       left_join(empty_droplets_tbl, by=".cell") |>
       dplyr::filter(!empty_droplet)
-  } else if (is.null(empty_droplets_tbl)) {return(NULL)}
+  } 
   
   # Calculate nFeature_RNA and nCount_RNA if not exist in the data
   nFeature_name <- paste0("nFeature_", assay)
@@ -818,7 +818,7 @@ doublet_identification <- function(input_read_RNA_assay,
       input_read_RNA_assay = input_read_RNA_assay |>
         left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
         filter(alive)
-  } else if (is.null(empty_droplets_tbl)) {return(NULL)} 
+  } 
   
   # Condition as scDblFinder only accept assay "counts"
   if (!"counts" %in% (SummarizedExperiment::assays(filter_empty_droplets) |> names())){
@@ -909,7 +909,7 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
     filtered_counts <- input_read_RNA_assay |>
       left_join(empty_droplets_tbl, by = ".cell") |>
       dplyr::filter(!empty_droplet)
-  } else if (is.null(empty_droplets_tbl)) {return(NULL)}
+  } 
   
   counts <- filtered_counts |>
     # Normalise needed
@@ -982,7 +982,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
     filtered_counts <- input_read_RNA_assay_transform |>
       left_join(empty_droplets_tbl, by = ".cell") |>
       dplyr::filter(!empty_droplet)
-  } else if (is.null(empty_droplets_tbl)) {return(NULL)}
+  } 
   
   counts =
     filtered_counts |>
@@ -1103,9 +1103,7 @@ preprocessing_output <- function(input_read_RNA_assay,
       input_read_RNA_assay |>
       left_join(empty_droplets_tbl, by = ".cell") |>
       filter(!empty_droplet)
-  } else if (empty_droplets_tbl |> is.null()) {
-    return(NULL)
-  }
+  } 
   
   # Add normalisation
   if(!is.null(non_batch_variation_removal_S)){

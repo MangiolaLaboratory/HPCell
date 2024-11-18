@@ -45,7 +45,8 @@ for(core in Cores) {
     slurm_memory_gigabytes_per_cpu = 20,
     slurm_cpus_per_task = 1, 
     workers = total_workers, 
-    verbose = FALSE
+    verbose = FALSE, 
+    seconds_idle = 30
   )
   # Time and run your pipeline function
   time_taken <- system.time({
