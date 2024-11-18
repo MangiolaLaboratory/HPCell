@@ -131,23 +131,25 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   # Find the mode (peak) value of the counts
   mode_value <- density_est$x[which.max(density_est$y)]
   
-  # If the mode value is negative, shift counts to make the mode zero
+  # If the mode value is negative, shift counts and counts used for estimation to make the mode zero
   if (mode_value < 0) {
     counts <- counts + abs(mode_value)
+    counts_light_for_checks_shifted <- counts_light_for_checks + abs(mode_value)
   }
   
   # Round counts to avoid potential subtraction errors due to floating-point precision
   counts <- round(counts, 5)
   
   # Find the most frequent count value (mode) in the counts
-  majority_gene_counts <- compute_mode_delayedarray(counts_light_for_checks)$mode
+  majority_gene_counts <- compute_mode_delayedarray(counts_light_for_checks_shifted)$mode
   
   # Subtract the mode value from counts if it is not zero
   if (majority_gene_counts != 0) {
     counts <- counts - majority_gene_counts
   }
   
-  # Replace negative counts with zero to avoid downstream failures
+  # Replace negative counts with zero to avoid downstream failures. 
+  # Use counts_light_for_checks here instead of the shifted value
   if (min(counts_light_for_checks) < 0) {
     counts[counts < 0] <- 0
   }
