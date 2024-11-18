@@ -839,7 +839,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
 #' @export
 preprocessing_output <- function(input_read_RNA_assay,
                                  empty_droplets_tbl,
-                                 non_batch_variation_removal_S, 
+                                 non_batch_variation_removal_S = NULL, 
                                  alive_identification_tbl, 
                                  cell_cycle_score_tbl, 
                                  annotation_label_transfer_tbl, 
@@ -955,15 +955,14 @@ preprocessing_output <- function(input_read_RNA_assay,
 #' @importFrom HDF5Array saveHDF5SummarizedExperiment
 #' 
 #' @export
-
 # Create pseudobulk for each sample 
 create_pseudobulk <- function(input_read_RNA_assay, 
                               sample_names_vec, 
-                              empty_droplets_tbl,
-                              alive_identification_tbl,
-                              cell_cycle_score_tbl,
-                              annotation_label_transfer_tbl,
-                              doublet_identification_tbl ,  
+                              empty_droplets_tbl = NULL,
+                              alive_identification_tbl = NULL,
+                              cell_cycle_score_tbl = NULL,
+                              annotation_label_transfer_tbl = NULL,
+                              doublet_identification_tbl = NULL,  
                               x = c() , 
                               external_path, assays = NULL) {
   #Fix GChecks 

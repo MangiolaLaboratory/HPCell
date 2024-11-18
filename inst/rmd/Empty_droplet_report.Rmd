@@ -10,7 +10,7 @@ params:
   sample_name: "NA"
 ---
 
-```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+```{r setup, include=FALSE}
 library(HPCell)
 library(readr)
 library(dplyr)
@@ -72,7 +72,7 @@ calc_UMAP <- function(input_seurat) {
   return(x)
 }
 
-calc_UMAP_dbl_report <- map(data_object, calc_UMAP)
+calc_UMAP_dbl_report <- map(params$data_object, calc_UMAP)
 
 extract_metadata <- function(seurat_obj, sample_name) {
   seurat_obj@meta.data %>%
@@ -80,7 +80,7 @@ extract_metadata <- function(seurat_obj, sample_name) {
     mutate(sample = sample_name)            
 }
 
-meta_data_list <- map2(data_object, sample_name, ~ extract_metadata(.x, .y))
+meta_data_list <- map2(params$data_object, params$sample_name, ~ extract_metadata(.x, .y))
 
 # Function to merge meta data with another processed tibble data 
 merge_meta <- function(meta_data, data_to_merge) {
@@ -118,7 +118,7 @@ empty_df <- function(input_metadata, empty_droplets_tbl, sample_name) {
 }
 
 process_empty_droplet_list <- purrr::pmap(
-  list(meta_data_list, empty_tbl, sample_name), 
+  list(meta_data_list, params$empty_tbl, params$sample_name), 
   ~ empty_df(..1, ..2, ..3)
 )
 
@@ -152,7 +152,7 @@ print(plot)
 
 ```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 
-merged_alive <- map2(meta_data_list, alive_tbl, merge_meta)
+merged_alive <- map2(meta_data_list, params$alive_tbl, merge_meta)
 combined_merged_alive <- bind_rows(merged_alive)
 
 # Function to process and prepare data for mitochondrial plotting
@@ -182,8 +182,8 @@ plot_mito_data <- function(input_seurat, tissue_name, alive_identification) {
 }
 
 # Apply the function to a list of samples and combine all data
-all_data <- lapply(seq_along(data_object), function(i) {
-  plot_mito_data(meta_data_list[[i]], sample_name[[i]], merged_alive[[i]])
+all_data <- lapply(seq_along(params$data_object), function(i) {
+  plot_mito_data(meta_data_list[[i]], params$sample_name[[i]], merged_alive[[i]])
 })
 
 # Combine all data into a single tibble
@@ -196,7 +196,7 @@ plot_each_sample <- function(combined_plot_mito_data) {
   ggplot(combined_plot_mito_data, aes(x = subsets_Mito_sum, y = subsets_Mito_percent)) +
     facet_wrap(~ tissue_name) + 
     geom_point(aes(color = high_mitochondrion), alpha = 0.5) +
-    scale_x_log10() +
+    #scale_x_log10() +
     geom_hline(aes(yintercept = threshold), color = "red", linetype = "dashed") +
     labs(
       x = "Total count",
@@ -211,7 +211,6 @@ plot_each_sample <- function(combined_plot_mito_data) {
 plot_each_sample(combined_plot_mito_data)
 
 ```
-
 
 ## Proportion of empty droplets
 - Number and proportion of cells (non-empty droplets), everything above knee is retained.
@@ -339,7 +338,7 @@ ggplot(plot_data, aes(x = rank, y = nCount_RNA)) +
 ## Mitochondrial gene expression and ribosomal protein expression across samples 
 - UMAP plots constructed from barcodes that were detected with EmptyDrops 
 - Each point represents a barcode and is colored based on its Mitochondrial/ Ribosomal percentage 
-```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+```{r,  warning=FALSE, message=FALSE, echo=FALSE, fig.length = 2, fig.width=30}
 
 merge_umap_with_metadata <- function(umap_data, metadata, sample) {
   umap_data |>
@@ -350,6 +349,7 @@ merge_umap_with_metadata <- function(umap_data, metadata, sample) {
 
 # Merge UMAP data with combined_merged_alive and add sample names
 umap_merged_data <- map2(calc_UMAP_dbl_report, sample_name, ~ merge_umap_with_metadata(.x, combined_merged_alive, .y))
+
 combined_umap_merged <- bind_rows(umap_merged_data)
 
 # Plot for mitochondrial gene expression

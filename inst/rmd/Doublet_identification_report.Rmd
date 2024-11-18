@@ -12,7 +12,7 @@ params:
 ## Introduction 
 This report contains UMAP representation of cell clusters and visualization of the distribution of doublets across processed samples.
 
-```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+```{r setup, include=FALSE}
 library(purrr)
 library(dplyr)
 library(tidyr)
