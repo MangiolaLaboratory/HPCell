@@ -139,6 +139,7 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   
   # Round counts to avoid potential subtraction errors due to floating-point precision
   counts <- round(counts, 5)
+  counts_light_for_checks_apply_mode <- round(counts_light_for_checks_apply_mode, 5)
   
   # Find the most frequent count value (mode) in the counts
   majority_gene_counts <- compute_mode_delayedarray(counts_light_for_checks_apply_mode)$mode
