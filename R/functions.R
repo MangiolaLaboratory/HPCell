@@ -1056,6 +1056,141 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   
 }
 
+#' Metacell Clustering 
+#'
+#' @description
+#' This function processes single-cell RNA sequencing data to cluster cells into metacells,
+#' a higher resolution of clustering that groups cells sharing similar gene expression patterns.
+#'
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
+#' @param empty_droplets_tbl A tibble identifying empty droplets.
+#' @param alive_identification_tbl A tibble from alive cell identification.
+#' @param cell_cycle_score_tbl A tibble from cell cycle scoring.
+#' @param assay assay used, default = "RNA" 
+#'
+#' @return A tibble with column 'cell' and 'membership' indicating which metacell cluster each cell belongs to.
+#'
+#' @importFrom dplyr left_join filter
+#' @importFrom Seurat NormalizeData FindVariableFeatures ScaleData RunPCA RunUMAP
+#' @importFrom SummarizedExperiment assay assay<-
+#' @importFrom magrittr extract2
+#' @export
+cluster_metacell <- function(input_read_RNA_assay, 
+                                empty_droplets_tbl = NULL, 
+                                alive_identification_tbl = NULL, 
+                                cell_cycle_score_tbl = NULL,
+                                assay = NULL){
+  #Fix GChecks 
+  empty_droplet = NULL 
+  .cell <- NULL 
+  
+  # Metacell config
+  gamma = 50 # the requested graining level.
+  k_knn = 30 # the number of neighbors considered to build the knn network.
+  nb_var_genes = 2000 # number of the top variable genes to use for dimensionality reduction 
+  nb_pc = 50 # the number of principal components to use.   
+  
+  # Your code for non_batch_variation_removal function here
+  class_input = input_read_RNA_assay |> class()
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
+    
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, 
+                                                              counts = assay) 
+    
+    # Rename assay
+    assay_name_old = DefaultAssay(input_read_RNA_assay)
+    input_read_RNA_assay_transform = input_read_RNA_assay |>
+      RenameAssays(
+        assay.name = assay_name_old,
+        new.assay.name = assay)
+  }
+  
+  # avoid small number of cells 
+  if (!is.null(empty_droplets_tbl)) {
+    input_read_RNA_assay_transform <- input_read_RNA_assay_transform |>
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      dplyr::filter(!empty_droplet)
+  } 
+  
+  if (!is.null(alive_identification_tbl)) {
+    input_read_RNA_assay_transform =
+      input_read_RNA_assay_transform |>
+      left_join(
+        alive_identification_tbl ,
+        by=".cell"
+      ) 
+  }
+
+  if(!is.null(cell_cycle_score_tbl)) 
+    input_read_RNA_assay_transform = input_read_RNA_assay_transform |>
+    
+    left_join(
+      cell_cycle_score_tbl ,
+      by=".cell"
+    )
+  
+  
+  # Normalise RNA
+  # (To Do: Let users decide the normalisation factors OR supercell factors by ellipsis)
+  normalized_rna <- 
+    input_read_RNA_assay |> 
+    NormalizeData(normalization.method = "LogNormalize") |> 
+    FindVariableFeatures(nfeatures = 2000) |>
+    ScaleData() |>
+    RunPCA(npcs = 50, verbose = F) |> 
+    RunUMAP(reduction = "pca", dims = c(1:30), n.neighbors = 30, verbose = F)
+  
+  
+  MC <- SuperCell::SCimplify(Seurat::GetAssayData(normalized_rna, slot = "data"),  # single-cell log-normalized gene expression data
+                             k.knn = k_knn,
+                             gamma = gamma,
+                             n.var.genes = nb_var_genes,  
+                             n.pc = nb_pc,
+                             genes.use = Seurat::VariableFeatures(normalized_rna)
+  )
+  
+  # MC.GE <- supercell_GE(Seurat::GetAssayData(normalized_rna, slot = "counts"),
+  #                       MC$membership,
+  #                       mode =  "sum")
+  # 
+  # # Construct the object using metacell
+  # colnames(MC.GE) <- as.character(1:ncol(MC.GE))
+  # MC.seurat <- CreateSeuratObject(counts = MC.GE, 
+  #                                 meta.data = data.frame(size = as.vector(table(MC$membership)))
+  #                                 )
+  # MC.seurat[[annotation_label]] <- MC$annotation
+  # 
+  # # save single-cell membership to metacells in the MC.seurat object
+  # MC.seurat@misc$cell_membership <- data.frame(row.names = names(MC$membership), membership = MC$membership)
+  # MC.seurat@misc$var_features <- MC$genes.use 
+  # 
+  # # Save the PCA components and genes used in SCimplify  
+  # PCA.res <- irlba::irlba(scale(Matrix::t(se.data@assays$RNA@data[MC$genes.use, ])), nv = nb_pc)
+  # pca.x <- PCA.res$u %*% diag(PCA.res$d)
+  # rownames(pca.x) <- colnames(se.data@assays$RNA@data)
+  # MC.seurat@misc$sc.pca <- CreateDimReducObject(
+  #   embeddings = pca.x,
+  #   loadings = PCA.res$v,
+  #   key = "PC_",
+  #   assay = "RNA"
+  # )
+  # 
+  # MC.seurat[["RNA"]] <- as(object = MC.seurat[["RNA"]], Class = "Assay")
+  
+  # Return a tibble showing which cell belongs to which metacell cluster
+  metacell_classification <- tibble(cell = MC$membership |> names(), 
+                                    membership = MC$membership)
+  
+  metacell_classification
+  
+}
+
+
 #' Preprocessing Output
 #'
 #' @description

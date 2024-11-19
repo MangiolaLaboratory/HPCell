@@ -384,6 +384,30 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
 
 # Define the generic function
 #' @export
+cluster_metacell <- function(input_hpc, target_input = "data_object", target_output = "metacell_classification_tbl", ...) {
+  UseMethod("cluster_metacell")
+}
+
+#' @export
+cluster_metacell.HPCell = function(input_hpc,  target_input = "data_object", target_output = "metacell_classification_tbl", ...) {
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = target_output, 
+      user_function = metacell_clustering |> quote() , 
+      input_read_RNA_assay = target_input |> is_target(), 
+      empty_droplets_tbl = "empty_tbl" |> is_target() ,
+      alive_identification_tbl = "alive_tbl" |> is_target(),
+      cell_cycle_score_tbl = "cell_cycle_tbl" |> is_target(),
+      external_path = glue("{input_hpc$initialisation$store}/external"),
+      ...
+    )
+  
+  
+}
+
+# Define the generic function
+#' @export
 calculate_pseudobulk <- function(input_hpc, group_by = NULL, target_input = "data_object", target_output = "pseudobulk_se") {
   UseMethod("calculate_pseudobulk")
 }
