@@ -568,15 +568,25 @@ input_hpc |>
     #   )
   ) |> 
   
-  
   hpc_report(
-    "empty_report", 
-    rmd_path = "~/HPCell/inst/rmd/Empty_droplet_report.Rmd",
+    "pseudo_bulk_report", 
+    rmd_path = "~/HPCell/inst/rmd/pseudobulk_analysis_report.Rmd",
+    data_object = "data_object" |>  is_target(),
     empty_tbl = "empty_tbl" |> is_target(),
-    data_object = "data_object" |> is_target(), 
-    alive_tbl = "alive_tbl" |> is_target(), 
+    alive_tbl = "alive_tbl" |> is_target(),
+    cell_cycle_tbl = "cell_cycle_tbl" |> is_target(),
+    annotation_tbl = "annotation_tbl" |> is_target(),
+    doublet_tbl = "doublet_tbl" |> is_target(), 
     sample_name = "sample_names" |> is_target()
-  ) |> 
+  )|> 
+  hpc_report(
+    "doublet_id_report", 
+    rmd_path = "~/HPCell/inst/rmd/Doublet_identification_report.Rmd",
+    data_object = "data_object" |> is_target(), 
+    doublet_tbl = "doublet_tbl" |> is_target(), 
+    annotation_tbl = "annotation_tbl" |> is_target(), 
+    sample_names = "sample_names" |> is_target()
+  )
   
   # ONLY APPLICABLE TO SCE FOR NOW
   tranform_assay(fx = input_hpc |> purrr::map(~identity), target_output = "sce_transformed") |> 
@@ -624,14 +634,15 @@ input_hpc |>
   get_single_cell(target_input = "data_object") 
 
 
-input_metadata <- list(data_object$data_object_cd8b54e4bde74e66@meta.data, data_object$data_object_054cd7cffa276f6d@meta.data)
+## Report testing 
+  
 library(HPCell)
 library(targets)
 library(Seurat)
 library(SeuratData)
 library(crew)
 library(crew.cluster)
-#Testing report 
+
 InstallData("ifnb")
 ifnb <- UpdateSeuratObject(ifnb)
 ifnb.list <- SplitObject(ifnb, split.by = "stim")
@@ -682,42 +693,3 @@ input_hpc |>
     empty_tbl = "empty_tbl" |> is_target(), 
     sample_name = "sample_names" |> is_target()
   )
-
-## Test technical variation report 
-rmarkdown::render(
-  input =  paste0(system.file(package = "HPCell"), "/rmd/Technical_variation_report_hpc.Rmd"),
-  output_file = paste0(system.file(package = "HPCell"), "/Technical_variation_report_hpc.html"),
-  params = list(data_object = tar_read("data_object", store = "~/HPCell/_targets"), 
-                empty_tbl = tar_read("empty_tbl", store = "~/HPCell/_targets"), 
-                sample_name = tar_read("sample_names", store = "~/HPCell/_targets")
-  ))
-
-## Test render empty droplet report 
-rmarkdown::render(
-  input =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
-  output_file = paste0(system.file(package = "HPCell"), "/Empty_droplet_report.html"),
-  params = list(empty_tbl = tar_read("empty_tbl", store = "~/HPCell/_targets"), 
-                data_object = tar_read("data_object", store = "~/HPCell/_targets"), 
-                alive_tbl = tar_read("alive_tbl", store = "~/HPCell/_targets"), 
-                sample_name = tar_read("sample_names", store = "~/HPCell/_targets")
-))
-
-## Test render doublet identification report 
-rmarkdown::render(
-  input =  paste0(system.file(package = "HPCell"), "/rmd/Doublet_identification_report.Rmd"),
-  output_file = paste0(system.file(package = "HPCell"), "/Doublet_identification_report.html"),
-  params = list(data_object = tar_read("data_object", store = "~/HPCell/_targets"), 
-                doublet_tbl = tar_read("doublet_tbl", store = "~/HPCell/_targets"), 
-                annotation_tbl = tar_read("annotation_tbl", store = "~/HPCell/_targets"), 
-                sample_names = tar_read("sample_names", store = "~/HPCell/_targets")))
-
-rmarkdown::render(
-  input =  paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
-  output_file = paste0(system.file(package = "HPCell"), "/pseudobulk_analysis_report.html"),
-  params = list(data_object = tar_read("data_object", store = "~/HPCell/_targets"), 
-                empty_tbl = tar_read("empty_tbl" , store = "~/HPCell/_targets"),
-                alive_tbl = tar_read("alive_tbl", store = "~/HPCell/_targets"), 
-                cell_cycle_tbl = tar_read("cell_cycle_tbl", store = "~/HPCell/_targets"),
-                annotation_tbl = tar_read("annotation_tbl", store = "~/HPCell/_targets"), 
-                doublet_tbl = tar_read("doublet_tbl", store = "~/HPCell/_targets"), 
-                sample_name = tar_read("sample_names", store = "~/HPCell/_targets")))
