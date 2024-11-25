@@ -37,7 +37,7 @@ library(here)
 ```
 
 Calculate pseudobulk for all samples 
-```{r}
+```{r, include=FALSE}
 preprocessing_output <- function(input_read_RNA_assay,
                                  empty_droplets_tbl,
                                  alive_identification_tbl, 
@@ -91,7 +91,6 @@ preprocessing_output <- function(input_read_RNA_assay,
 
 
 
-
 preprocessing_output_S <- pmap(
   list(params$data_object, params$empty_tbl, params$alive_tbl, params$cell_cycle_tbl, params$annotation_tbl, params$doublet_tbl),
   ~ preprocessing_output(..1, ..2, ..3, ..4, ..5, ..6)
@@ -100,7 +99,7 @@ preprocessing_output_S <- pmap(
 
 
 Create pseudobulk 
-```{r}
+```{r, include=FALSE}
 create_pseudobulk <- function(preprocessing_output_S, assays = NULL, sample_name){
   #browser()
   if(assays |> is.null()){

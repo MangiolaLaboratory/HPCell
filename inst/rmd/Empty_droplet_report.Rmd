@@ -10,7 +10,7 @@ params:
   sample_name: "NA"
 ---
 
-```{r setup, include=FALSE}
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
 library(HPCell)
 library(readr)
 library(dplyr)

@@ -654,12 +654,11 @@ input_hpc =
 
 
 input_hpc |> 
-  # Initialise pipeline characteristics
   initialise_hpc(
   gene_nomenclature = "symbol",
-  data_container_type = "seurat_rds"
+  data_container_type = "seurat_rds", 
+  computing_resources = crew_controller_local(workers = 8),
   ) |> 
-  # calc_UMAP_reports() |>
   remove_empty_DropletUtils() |>          # Remove empty outliers
   remove_dead_scuttle() |>                # Remove dead cells
   score_cell_cycle_seurat() |>            # Score cell cycle
