@@ -43,7 +43,8 @@ read_data_container <- function(file,
   }
   
   switch(container_type,
-         "anndata" = zellkonverter::readH5AD(file, reader = "R", use_hdf5 = TRUE, obs = FALSE, raw = FALSE, layers = FALSE),
+         "anndata" = zellkonverter::readH5AD(file, reader = "R", use_hdf5 = TRUE, 
+                                             obs = FALSE, raw = FALSE, layers = FALSE),
          "sce_rds" = readRDS(file),
          "seurat_rds" = readRDS(file),
          "sce_hdf5" = loadHDF5SummarizedExperiment(file),
@@ -98,11 +99,13 @@ convert_gene_names <- function(id,
 #' @importFrom DropletUtils emptyDrops barcodeRanks
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importFrom biomaRt useMart getBM
 #' 
 #' @export
 empty_droplet_id <- function(input_read_RNA_assay,
                              total_RNA_count_check  = -Inf,
-                             assay = NULL){
+                             assay = NULL,
+                             gene_nomenclature = "symbol"){
   #Fix GChecks 
   FDR = NULL 
   .cell = NULL 
@@ -121,15 +124,31 @@ empty_droplet_id <- function(input_read_RNA_assay,
     # }
   
   significance_threshold = 0.001
+  RNA_feature_count_threshold = 200
+  RNA_count_threshold = 100 
   # Genes to exclude
-  location <- mapIds(
-    EnsDb.Hsapiens.v86,
-    keys=rownames(input_read_RNA_assay),
-    column="SEQNAME",
-    keytype="SYMBOL"
-  )
-  mitochondrial_genes = which(location=="MT") |> names()
-  ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
+  if (gene_nomenclature == "symbol") {
+    location <- mapIds(
+      EnsDb.Hsapiens.v86,
+      keys=rownames(input_read_RNA_assay),
+      column="SEQNAME",
+      keytype="SYMBOL"
+    )
+    mitochondrial_genes = which(location=="MT") |> names()
+    ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
+    
+  } else if (gene_nomenclature == "ensembl") {
+    # all_genes are saved in data/all_genes.rda to avoid recursively accessing biomaRt backend for potential timeout error
+    data(ensembl_genes_biomart)
+    all_mitochondrial_genes <- ensembl_genes_biomart[grep("MT", ensembl_genes_biomart$chromosome_name), ] 
+    all_ribosome_genes <- ensembl_genes_biomart[grep("^(RPL|RPS)", ensembl_genes_biomart$external_gene_name), ]
+    
+    mitochondrial_genes <- all_mitochondrial_genes |> 
+      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+    ribosome_genes <- all_ribosome_genes |> 
+      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+  }
+
   
   # if ("originalexp" %in% names(input_file@assays)) {
   #   barcode_ranks <- barcodeRanks(input_file@assays$originalexp@counts[!rownames(input_file@assays$originalexp@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
@@ -144,6 +163,10 @@ empty_droplet_id <- function(input_read_RNA_assay,
     counts <- assay(input_read_RNA_assay, assay)
   }
   filtered_counts <- counts[!(rownames(counts) %in% c(mitochondrial_genes, ribosome_genes)),, drop=FALSE ]
+  
+  # filter based on RNA_count_threshold
+  filtered_counts <- filtered_counts[rowSums(filtered_counts) > RNA_count_threshold, ]
+  
   # Calculate bar-codes ranks
   barcode_ranks <- barcodeRanks(filtered_counts)
   
@@ -186,6 +209,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
           inflection =  metadata(barcode_ranks)$inflection
         )
     )
+  
   
   
   # barcode_table |>  saveRDS(output_path_result)
@@ -795,20 +819,49 @@ addition = function(a, b){
 #' @noRd
 #' 
 #' @importFrom Seurat RunUMAP
-calc_UMAP <- function(input_seurat){
-  assay_name = input_seurat@assays |> names() |> extract2(1)
-  find_var_genes <- FindVariableFeatures(input_seurat)
-  var_genes<- find_var_genes@assays[[assay_name]]@var.features
+#' @export
+calc_UMAP <- function(input_seurat) {
+  assay_name <- input_seurat@assays |> names() |> extract2(1)
   
-  x<- ScaleData(input_seurat) |>
-    # Calculate UMAP of clusters
-    RunPCA(features = var_genes) |>
-    FindNeighbors(dims = 1:30) |>
-    FindClusters(resolution = 0.5) |>
-    RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
-    as_tibble()
+  # Check if variable features are already present, if not calculate them
+  if (length(VariableFeatures(input_seurat)) == 0) {
+    input_seurat <- FindVariableFeatures(input_seurat)
+  }
+  
+  # Extract variable features using VariableFeatures() for Seurat v5
+  var_genes <- VariableFeatures(input_seurat)
+  
+  # Ensure that there are variable features before proceeding
+  if (length(var_genes) > 0) {
+    # Scale data and run PCA on variable genes
+    x <- ScaleData(input_seurat) |>
+      RunPCA(features = var_genes) |>
+      FindNeighbors(dims = 1:30) |>
+      FindClusters(resolution = 0.5) |>
+      RunUMAP(dims = 1:30, spread = 0.5, min.dist = 0.01, n.neighbors = 10L) |>
+      as_tibble()
+  } else {
+    stop("No variable features available for UMAP calculation.")
+  }
+  
   return(x)
 }
+
+
+# calc_UMAP <- function(input_seurat){
+#   assay_name = input_seurat@assays |> names() |> extract2(1)
+#   find_var_genes <- FindVariableFeatures(input_seurat)
+#   var_genes<- find_var_genes@assays[[assay_name]]@var.features
+#   
+#   x<- ScaleData(input_seurat) |>
+#     # Calculate UMAP of clusters
+#     RunPCA(features = var_genes) |>
+#     FindNeighbors(dims = 1:30) |>
+#     FindClusters(resolution = 0.5) |>
+#     RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
+#     as_tibble()
+#   return(x)
+# }
 #' Subsetting input dataset into a list of SingleCellExperiment or Seurat objects by pre-specified sample column tissue 
 #' 
 #' @importFrom dplyr quo_name pull

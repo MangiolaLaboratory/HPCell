@@ -38,6 +38,43 @@ parse_function_call <- function(command) {
 }
 
 
+#' #' Parse a Function Call String and Expand Tiered Arguments
+#' #'
+#' #' This function takes a string representing a function call, parses it into
+#' #' its constituent parts (function name and arguments), and expands the specified
+#' #' tiered arguments based on the provided tier labels.
+#' #'
+#' #' @param command A character string representing a function call, e.g., "report(empty_droplets_tbl, arg1)".
+#' #' @param tiers A character vector indicating the tier labels for the specified tiered arguments, e.g., c("_1", "_2", "_3").
+#' #' @param tiered_args A character vector specifying which arguments should be tiered, e.g., c("empty_droplets_tbl").
+#' #' 
+#' #' @return A character string representing the modified function call with tiered arguments expanded.
+#' #'
+#' #' @importFrom rlang parse_expr
+#' #'
+#' #' @examples
+#' #' # Example usage:
+#' #' input_string <- "report(empty_droplets_tbl, arg1)"
+#' #' tiers <- c("_1", "_2", "_3")
+#' #' tiered_args <- c("empty_droplets_tbl", "another_arg")
+#' #' output <- expand_tiered_arguments(input_string, tiers, tiered_args)
+#' #' print(output)
+#' #'
+#' #' @export
+#' expand_tiered_arguments <- function(command, tiers, tiered_args) {
+#'   # Parse the input command to get function name and arguments
+#'   command_character = command |> deparse() 
+#'   
+#'   for(t in tiered_args){
+#'     command_character = command_character |> str_replace(t, sprintf("c(%s)",
+#'                                                                  paste0(t, "_", 
+#'                                                                         tiers) |> 
+#'                                                            paste(collapse = ", ")))
+#'   } 
+#'   
+#'   command_character |> rlang::parse_expr()
+
+
 
 #' @export
 hpc_internal = function(
@@ -405,8 +442,7 @@ hpc_merge =
 #' 
 #' 
 #' @export
-hpc_report = 
-  function(input_hpc, target_output = NULL, rmd_path = NULL, ...) {
+hpc_report = function(input_hpc, target_output = NULL, rmd_path = NULL, ...) {
     
     # # Check for argument consistency
     # check_for_name_value_conflicts(...)

@@ -58,6 +58,7 @@ library(SeuratData)
 
 options(Seurat.object.assay.version = "v5")
 input_seurat <- 
+  # LoadPBMCData("pbmc3k") |>
   LoadData("pbmc3k") |>
   _[,1:500] 
 
@@ -66,6 +67,27 @@ file_path = "~/temp_seurat.rds"
 input_seurat |> saveRDS(file_path)
 
 # Let's pretend we have two samples
+input_hpc =
+  c(file_path, file_path) |> 
+  magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2"))
+
+## Test with fibrosis samples 
+# input_hpc =
+#   c("~/HPCell/fibrosis_data/GSE122960___GSM3489182.rds", "~/HPCell/fibrosis_data/GSE135893_cHP___THD0001.rds") |> 
+#   magrittr::set_names(c("GSM3489182", "THD0001"))
+
+# input_hpc =
+#   c("~/HPCell/fibrosis_data_modified/input1", "~/HPCell/fibrosis_data_modified/input2") |>
+#   magrittr::set_names(c("GSM3489182", "THD0001"))
+
+# PBMC dataset 
+# input_hpc = 
+#   c("~/HPCell/pbmc_data/pbmc_data_500") |> 
+#   magrittr::set_names(c("pbmc3k"))
+```
+
+Local parallel computing
+`computing_resources = crew_controller_local(workers = 10)`
 input_hpc =  c(file_path, file_path, file_path) 
 ```
 
@@ -83,6 +105,7 @@ This has several advantages:
 -   The pipeline can be easily extended with the modules by the community
 
 ```{r, eval= FALSE}
+
 library(HPCell)
 library(crew)
 
@@ -104,8 +127,16 @@ input_hpc |>
     "subsets_Ribo_percent", 
     "G2M.Score"
   )) |> 
-  calculate_pseudobulk(group_by = "monaco_first.labels.fine")
-
+  
+  hpc_report(
+    "empty_report", 
+    rmd_path = "~/HPCell/inst/rmd/Empty_droplet_Report_HPC.Rmd",
+    empty_tbl = "empty_tbl" |> is_target(),
+    sample_names = "sample_names" |> is_target(), 
+    input_meta = tar_read(data_object)[[1]]@meta.data
+  ) 
+  
+# calculate_pseudobulk(group_by = c("sampleName"))
 ```
 
 ## Deployment
@@ -254,16 +285,23 @@ input_hpc |>
     gene_nomenclature = "symbol",
     data_container_type = "seurat_rds"
   ) |> 
-  
   hpc_report(
-    "empty_report", # The name of the report output
-    rmd_path = paste0(system.file(package = "HPCell"), "/rmd/test.Rmd"), # The path to the Rmd. In this case it is stored within the package
-    empty_list = "empty_tbl" |> is_target(), # The results and targets needed for the report
-    sample_names = "sample_names" |> is_target() # The results and targets needed for the report
-  ) 
+  "empty_report", 
+  rmd_path = "~/HPCell/inst/rmd/Empty_droplet_Report_HPC.Rmd", 
+  empty_tbl = targets::tar_read(empty_tbl),  # Explicitly pass the target
+  sample_names = targets::tar_read(sample_names)
+)
+  
+  <!-- hpc_report( -->
+  <!--   "empty_report", # The name of the report output -->
+  <!--   rmd_path = "~/HPCell/inst/rmd/Empty_droplet_Report_HPC.Rmd",  -->
+  <!--   x1 = "empty_tbl" |> is_target(), # The results and targets needed for the report -->
+  <!--   x2 = "sample_names" |> is_target() # The results and targets needed for the report -->
+  <!-- )  -->
+
 
 tar_read(empty_report)
-
+# paste0(system.file(package = "HPCell"), "/inst/rmd/Empty_droplet_Report_HPC.Rmd")
 ```
 
 ## Details on prebuilt steps for several popular methods 

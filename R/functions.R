@@ -373,7 +373,11 @@ alive_identification <- function(input_read_RNA_assay,
     }
   }
   
-  
+  input_read_RNA_assay <- input_read_RNA_assay %>%
+    AddMetaData(
+      metadata = PercentageFeatureSet(input_read_RNA_assay, pattern = "^MT-", assay = assay), 
+      col.name = "percent.mt"
+    )
   
   # Returns a named vector of IDs
   # Matches the gene id’s row by row and inserts NA when it can’t find gene names
@@ -835,7 +839,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
 #' @export
 preprocessing_output <- function(input_read_RNA_assay,
                                  empty_droplets_tbl,
-                                 non_batch_variation_removal_S, 
+                                 non_batch_variation_removal_S = NULL, 
                                  alive_identification_tbl, 
                                  cell_cycle_score_tbl, 
                                  annotation_label_transfer_tbl, 
@@ -878,7 +882,7 @@ preprocessing_output <- function(input_read_RNA_assay,
     # Filter dead cells
     left_join(
       alive_identification_tbl |>
-        select(.cell, any_of(c("alive", "subsets_Mito_percent", "subsets_Ribo_percent", "high_mitochondrion", "high_ribosome"))),
+        select(.cell, any_of(c("alive", "subsets_Mito_percent", "subsets_Mito_sum", "subsets_Ribo_percent", "high_mitochondrion", "high_ribosome"))),
       by = ".cell"
     ) |>
     filter(alive) |>
@@ -951,15 +955,14 @@ preprocessing_output <- function(input_read_RNA_assay,
 #' @importFrom HDF5Array saveHDF5SummarizedExperiment
 #' 
 #' @export
-
 # Create pseudobulk for each sample 
 create_pseudobulk <- function(input_read_RNA_assay, 
                               sample_names_vec, 
-                              empty_droplets_tbl,
-                              alive_identification_tbl,
-                              cell_cycle_score_tbl,
-                              annotation_label_transfer_tbl,
-                              doublet_identification_tbl ,  
+                              empty_droplets_tbl = NULL,
+                              alive_identification_tbl = NULL,
+                              cell_cycle_score_tbl = NULL,
+                              annotation_label_transfer_tbl = NULL,
+                              doublet_identification_tbl = NULL,  
                               x = c() , 
                               external_path, assays = NULL) {
   #Fix GChecks 
@@ -998,7 +1001,8 @@ create_pseudobulk <- function(input_read_RNA_assay,
     mutate(sample_hpc = sample_names_vec) |> 
     
     # Aggregate
-    aggregate_cells(c(sample_hpc, any_of(x)), slot = "data", assays = assays) 
+    #aggregate_cells(c(sample_hpc, any_of(x)), slot = "data", assays = assays) 
+    tidySingleCellExperiment::aggregate_cells(c(sample_hpc, !!sym(x)), slot = "data", assays = assays)
   
   # If I start from Seurat
   if(pseudobulk |> is("data.frame"))
@@ -1051,8 +1055,6 @@ create_pseudobulk <- function(input_read_RNA_assay,
 #' @importFrom SummarizedExperiment colData<-
 #' @importFrom SummarizedExperiment rowData
 #' @importFrom SummarizedExperiment rowData<-
-#' 
-#' 
 #' 
 #' @export
 #' 

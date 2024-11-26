@@ -65,11 +65,12 @@ initialise_hpc <- function(input_hpc,
   dir.create(store, showWarnings = FALSE, recursive = TRUE)
   data_file_names = glue("{store}/{names(input_hpc)}.rds")
   
+  # Save parameters to files?
   input_hpc |> as.list() |>  saveRDS("input_file.rds")
   gene_nomenclature |> saveRDS("temp_gene_nomenclature.rds")
   data_container_type |> saveRDS("data_container_type.rds")
-  
   computing_resources |> saveRDS("temp_computing_resources.rds")
+  # Get the index of jobs of different priority 
   tiers = tier |> 
     get_positions() 
   tiers |> 
@@ -96,7 +97,7 @@ initialise_hpc <- function(input_hpc,
       debug = d, # Set the target you want to debug.
       # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
       controller = crew_controller_group ( readRDS("temp_computing_resources.rds") ), 
-      packages = c("HPCell")
+      packages = c("HPCell", "tidySingleCellExperiment")
     )
     
     target_list = list(
@@ -148,7 +149,6 @@ initialise_hpc <- function(input_hpc,
 
 
 
-
 # Define the generic function
 #' @export
 remove_empty_DropletUtils <- function(input_hpc, total_RNA_count_check = NULL, target_input = "data_object", target_output = "empty_tbl", ...) {
@@ -171,7 +171,7 @@ remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = N
 
 #' @export
 remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, target_input = "data_object", target_output = "empty_tbl",...) {
-  
+
   input_hpc |> 
     hpc_iterate(
       target_output = target_output, 
@@ -207,6 +207,7 @@ remove_dead_scuttle <- function(input_hpc,
 }
 
 #' @export
+
 remove_dead_scuttle.HPCell = function(
     input_hpc, 
     group_by = NULL, 
@@ -284,7 +285,6 @@ remove_doublets_scDblFinder <- function(input_hpc, target_input = "data_object",
 
 #' @export
 remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "data_object", target_output = "doublet_tbl") {
-  
   input_hpc |> 
     hpc_iterate(
       target_output = target_output, 
@@ -316,7 +316,6 @@ annotate_cell_type <- function(input_hpc, azimuth_reference = NULL, target_input
 
 #' @export
 annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target_input = "data_object", target_output = "annotation_tbl", ...) {
-  
   
   azimuth_reference |> saveRDS("input_reference.rds")
   
@@ -373,7 +372,6 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
     ...
   )
   
-  
 }
 
 target_chunk_undefined_normalise_abundance_seurat_SCT = function(input_hpc){
@@ -399,7 +397,6 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input 
   
   pseudobulk_sample = 
     glue("{target_output}_iterated") |> 
-    
     # This is important otherwise targets fails with glue
     as.character()
   
@@ -458,6 +455,49 @@ get_single_cell.HPCell = function(input_hpc, target_input = "data_object", targe
   
   
 }
+
+# Define the generic function
+
+# calc_UMAP_reports <- function(input_hpc, target_input = "data_object", target_output = "calc_UMAP_dbl_report", ...) {
+#   UseMethod("calc_UMAP_reports")
+# }
+
+
+# calc_UMAP_reports.HPCell = function(input_hpc, target_input = "data_object", target_output = "calc_UMAP_dbl_report", ...) {
+#   
+#   input_hpc |> 
+#     hpc_iterate(
+#       target_output = target_output, 
+#       user_function = calc_UMAP |> quote(), 
+#       input_seurat = target_input |> is_target()
+#     )
+#   
+# }
+
+# calc_UMAP_reports.Seurat = function(input_hpc, target_input = "data_object", target_output = "calc_UMAP_dbl_report", ...){
+# 
+#   # Capture all arguments including defaults
+#   args_list <- as.list(environment())
+# 
+#   # Optionally, you can evaluate the arguments if they are expressions
+#   args_list <- lapply(args_list, eval, envir = parent.frame())
+# 
+#   list(initialisation = list(input_hpc = input_hpc)) |>
+#     add_class("HPCell") |>
+#     calc_UMAP_reports()
+# }
+
+
+# target_chunk_undefined_calc_UMAP_reports = function(input_hpc){
+#   
+#   input_hpc |> 
+#     hpc_iterate(
+#       target_output = "calc_UMAP_dbl_report", 
+#       packages = c("Seurat")
+#     )
+  
+# }
+
 
 
 #' Test Differential Abundance for HPCell
@@ -549,6 +589,61 @@ setMethod(
 })
 
 
+
+    #   
+    #   factory_collapse(
+    #     "colapsed_preprocessing_output",
+    #     bind_rows(preprocessing_output_S) ,
+    #     "preprocessing_output_S",
+    #     tiers
+    #   ),
+    #   
+    #   tar_render(
+    #     name = preprocessing_report,
+    #     path = paste0(system.file(package = "HPCell"), "/rmd/preprocessing_report.Rmd"),
+    #     params = list(
+    #       x1 = collapsed_preprocessing_output, 
+    #       x2 = group_by|> quo_name()
+    #     )
+    # ) 
+
+
+#' generate_report = function(tiers){
+#' 
+#'   list(
+#'     factory_split(
+#'       "final_report",
+#'       command = {read_file |>
+#'         read_data_container(container_type = data_container_type) |>
+        # tar_render(
+        #   name = empty_droplets_report,
+        #   path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
+        #   params = list(x1 = empty_droplets_tbl,
+        #                 # x2 = empty_droplets_tbl,
+        #                 # x3 = annotation_label_transfer_tbl
+        #                 # x4 = tar_read(unique_tissues, store = store),
+        #                 # x5 = sample_column |> quo_name()
+        #                 )) |>
+#'           quote()
+#'         },
+#'         tiers,
+#'         arguments_to_tier = "read_file",
+#'         other_arguments_to_tier = c("empty_droplets_tbl"
+#'                                     # "annotation_label_transfer_tbl",
+#'                                     # "doublet_identification_tbl"),
+#'         ),
+#'         other_arguments_to_map = c("empty_droplets_tbl"
+#'                                    # "annotation_label_transfer_tbl",
+#'                                    # "doublet_identification_tbl")
+#'       )
+#'     )
+#' 
+#'   )
+#' 
+#' }
+
+
+
 # Define the generic function
 #' @export
 evaluate_hpc <- function(input_hpc) {
@@ -564,7 +659,8 @@ evaluate_hpc.HPCell = function(input_hpc) {
   # Empty droplets
   #-----------------------#
   
-  if(! "empty_tbl" %in% names(input_hpc))
+  if(
+    ! "empty_tbl" %in% names(input_hpc))
     target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
   
   #-----------------------#
@@ -594,7 +690,6 @@ evaluate_hpc.HPCell = function(input_hpc) {
   #-----------------------#
   # Doublets
   #-----------------------#
-  
   if(! "doublet_tbl" %in% names(input_hpc))
     target_chunk_undefined_remove_doublets_scDblFinder(input_hpc)
   
@@ -605,6 +700,20 @@ evaluate_hpc.HPCell = function(input_hpc) {
   if(! "sct_matrix" %in% names(input_hpc))
     target_chunk_undefined_normalise_abundance_seurat_SCT(input_hpc)
   
+  # #---------------------------#
+  # # Calculate UMAP for reports
+  # #---------------------------#
+  # if(! "calc_UMAP_dbl_report" %in% names(input_hpc))
+  #   target_chunk_undefined_calc_UMAP_reports(input_hpc)
+  
+  #-----------------------#
+  # Reports
+  #-----------------------#
+  # tar_tier_append(
+  #   quote(generate_report),
+  #   input_hpc$initialisation$tier |> get_positions() ,
+  #   glue("{input_hpc$initialisation$store}.R")
+  # )
   
   #-----------------------#
   # Close pipeline
@@ -638,7 +747,8 @@ evaluate_hpc.HPCell = function(input_hpc) {
     "factors_to_regress.rds",
     "pseudobulk_group_by.rds",
     "temp_tiers.rds",
-    "temp_gene_nomenclature.rds"
+    "temp_gene_nomenclature.rds",
+    "data_container_type.rds"
   ) |> 
     remove_files_safely()
   

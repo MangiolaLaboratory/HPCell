@@ -250,13 +250,13 @@ run_targets_pipeline <- function(
       
       # Identifying empty droplets
       tar_target(empty_droplets_tbl,
-                 empty_droplet_id(read_data_container(file_path, container_type = data_container_type_file), filter_empty_droplets),
+                 empty_droplet_id(read_data_container(file_path, container_type = data_container_type_file), filter_empty_droplets, gene_nomenclature = "symbol"),
                  pattern = map(file_path),
                  iteration = "list"),
       
       # Cell cycle scoring
       tar_target(cell_cycle_score_tbl, cell_cycle_scoring(read_data_container(file_path, container_type = data_container_type_file ),
-                                                          empty_droplets_tbl),
+                                                          empty_droplets_tbl, gene_nomenclature = "symbol"),
                  pattern = map(file_path,
                                empty_droplets_tbl),
                  iteration = "list"),
@@ -283,8 +283,7 @@ run_targets_pipeline <- function(
       tar_target(doublet_identification_tbl, doublet_identification(read_data_container(file_path, container_type = data_container_type_file),
                                                                     empty_droplets_tbl,
                                                                     alive_identification_tbl,
-                                                                    annotation_label_transfer_tbl,
-                                                                    reference_label_fine),
+                                                                    annotation_label_transfer_tbl),
                  pattern = map(file_path,
                                empty_droplets_tbl,
                                alive_identification_tbl,
@@ -303,13 +302,16 @@ run_targets_pipeline <- function(
                  iteration = "list"),
       
       # Pre-processing output
-      tar_target(preprocessing_output_S, preprocessing_output(tissue,
+      tar_target(preprocessing_output_S, preprocessing_output(read_data_container(file_path, container_type = data_container_type_file ),
+                                                              empty_droplets_tbl,
                                                               non_batch_variation_removal_S,
                                                               alive_identification_tbl,
                                                               cell_cycle_score_tbl,
                                                               annotation_label_transfer_tbl,
                                                               doublet_identification_tbl),
-                 pattern = map(non_batch_variation_removal_S,
+                 pattern = map(file_path,
+                               empty_droplets_tbl,
+                               non_batch_variation_removal_S,
                                alive_identification_tbl,
                                cell_cycle_score_tbl,
                                annotation_label_transfer_tbl,
