@@ -643,15 +643,40 @@ library(SeuratData)
 library(crew)
 library(crew.cluster)
 
+bp<- scRNAseq::fetchDataset("baron-pancreas-2016", "2023-12-14", path="human") 
+  
+file.path <- ("~/HPCell/bp.rds")
+split_values <- unique(bp$label)
+
+# Create a list of SCE objects split by the column
+sce_list <- lapply(split_values, function(value) {
+  bp[, bp$label == value]
+})
+
+
+#########################################
+library(HPCell)
+library(targets)
+library(Seurat)
+library(SeuratData)
+library(crew)
+library(crew.cluster)
+
 InstallData("ifnb")
 ifnb <- UpdateSeuratObject(ifnb)
 ifnb.list <- SplitObject(ifnb, split.by = "stim")
 file_paths <- c("~/HPCell/CTRL_seurat_tibble.rds", "~/HPCell/STIM_seurat_tibble.rds")
 
+ctrl_subset <- subset(ifnb.list$CTRL, cells = sample(Cells(ifnb.list$CTRL), size = 300))
+stim_subset <- subset(ifnb.list$STIM, cells = sample(Cells(ifnb.list$STIM), size = 300))
+
+# Save the Seurat objects to the specified file paths
+saveRDS(ctrl_subset, file_paths[1])  # Save CTRL object
+saveRDS(stim_subset, file_paths[2])  # Save STIM object
+
 input_hpc =
   file_paths |> 
   magrittr::set_names(c("CTRL", "STIM"))
-
 
 input_hpc |> 
   initialise_hpc(
@@ -670,16 +695,16 @@ input_hpc |>
     "G2M.Score"
   )) |> 
   hpc_report(
-    "empty_report", 
-    rmd_path = "~/HPCell/inst/rmd/Empty_droplet_report.Rmd",
+    "empty_report",
+    rmd_path = system.file("rmd", "Empty_droplet_report.Rmd", package = "HPCell"),
     empty_tbl = "empty_tbl" |> is_target(),
-    data_object = "data_object" |> is_target(), 
-    alive_tbl = "alive_tbl" |> is_target(), 
+    data_object = "data_object" |> is_target(),
+    alive_tbl = "alive_tbl" |> is_target(),
     sample_name = "sample_names" |> is_target()
-  ) |> 
+  ) |>
   hpc_report(
     "doublet_report", 
-    rmd_path = "~/HPCell/inst/rmd/Doublet_identification_report.Rmd",
+    rmd_path = system.file("rmd", "Doublet_identification_report.Rmd", package = "HPCell"),
     data_object = "data_object" |> is_target(), 
     doublet_tbl = "doublet_tbl" |> is_target(), 
     annotation_tbl = "annotation_tbl" |> is_target(), 
@@ -687,8 +712,19 @@ input_hpc |>
   ) |> 
   hpc_report(
     "Technical_variation_report", 
-    rmd_path = "~/HPCell/inst/rmd/Technical_variation_report_hpc.Rmd",
+    system.file("rmd", "Technical_variation_report_hpc.Rmd", package = "HPCell"),
     data_object = "data_object" |> is_target(), 
     empty_tbl = "empty_tbl" |> is_target(), 
+    sample_name = "sample_names" |> is_target()
+  ) |> 
+  hpc_report(
+    "pseudo_bulk_report", 
+    system.file("rmd", "pseudobulk_analysis_report.Rmd", package = "HPCell"),
+    data_object = "data_object" |>  is_target(),
+    empty_tbl = "empty_tbl" |> is_target(),
+    alive_tbl = "alive_tbl" |> is_target(),
+    cell_cycle_tbl = "cell_cycle_tbl" |> is_target(),
+    annotation_tbl = "annotation_tbl" |> is_target(),
+    doublet_tbl = "doublet_tbl" |> is_target(), 
     sample_name = "sample_names" |> is_target()
   )
