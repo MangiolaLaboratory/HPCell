@@ -2321,10 +2321,7 @@ add_tier_inputs <- function(command, arguments_to_tier, i) {
 #' @param chunk_size The size of each chunk. Defaults to 100.
 #' @return A tibble with the features and their corresponding chunk numbers.
 #' @importFrom dplyr tibble
-#' @importFrom purrr rep_along
-#' @importFrom purrr ceiling
-#' @importFrom purrr seq_len
-#' @importFrom purrr length
+#' @importFrom rlang rep_along
 #' @importFrom magrittr divide_by
 #' 
 #' 
@@ -2649,7 +2646,6 @@ check_for_name_value_conflicts <- function(...) {
 #' # $packages
 #' # [1] "tidySummarizedExperiment" "HPCell"
 #' 
-#' @importFrom stats substitute
 #' @noRd
 expand_tiered_arguments <- function(lst, tiers, argument_to_replace, tiered_args) {
   # Check if the argument to replace exists in the list
@@ -2767,7 +2763,6 @@ write_HDF5_array_safe = function(normalized_rna, name, directory){
 #' @import DelayedArray
 #' @importFrom DelayedArray blockApply
 #' @importFrom methods as
-#' @importFrom stats as.numeric
 #' @importFrom utils capture.output
 #'
 #' @examples

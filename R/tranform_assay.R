@@ -66,7 +66,6 @@ transform_assay.HPCell = function(
 #' @importFrom glue glue
 #' @importFrom digest digest
 #' @importFrom stats density
-#' @importFrom stats which.max
 #'
 #' @export
 transform_utility  = function(input_read_RNA_assay, transform_fx, external_path, container_type) {
