@@ -76,7 +76,15 @@ Imports:
   ggupset, 
   here, 
   qs,
-  ensembldb
+  ensembldb,
+  Azimuth,
+  DelayedArray,
+  HDF5Array, 
+  SeuratObject,
+  SingleCellExperiment, 
+  biomaRt, 
+  lme4, 
+  tidyselect
 Suggests: 
     testthat(>= 3.0.0), 
     scRNAseq,
