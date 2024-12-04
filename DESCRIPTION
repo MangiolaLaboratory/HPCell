@@ -15,7 +15,8 @@ Remotes:
     sqjin/CellChat,
     satijalab/seurat@seurat5,
     satijalab/seurat-data@seurat5,
-    satijalab/azimuth@master
+    satijalab/azimuth@master,
+    mojaveazure/seurat-disk@master
 Biarch: true
 Imports:
   targets,
