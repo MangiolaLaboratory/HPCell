@@ -15,7 +15,7 @@ Remotes:
     sqjin/CellChat,
     satijalab/seurat@seurat5,
     satijalab/seurat-data@seurat5,
-    seurat-data/azimuth@master
+    satijalab/azimuth@master
 Biarch: true
 Imports:
   targets,
