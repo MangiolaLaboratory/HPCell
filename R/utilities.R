@@ -808,7 +808,6 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 #'
 #' This function takes cell type annotations from multiple datasets (Azimuth, Monaco, Blueprint) and harmonizes them into a consensus annotation. The function utilizes predefined mappings between cell type labels in these datasets to generate standardized cell types across references.
 #'
-#' @importFrom dplyr %>%
 #' @importFrom dplyr mutate
 #' @importFrom dplyr case_when
 #' @importFrom dplyr left_join
@@ -825,12 +824,12 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 #'
 #' @examples
 #' # Example usage:
-#' tibble(
+#' tibble::tibble(
 #'   azimuth_predicted.celltype.l2 = c("CD8 TEM", "NK", "CD4 Naive"),
 #'   monaco_first.labels.fine = c("Effector memory CD8 T cells", "Natural killer cells", "Naive CD4 T cells"),
 #'   blueprint_first.labels.fine = c("CD8+ Tem", "NK cells", "Naive B-cells")
-#' ) %>%
-#'   mutate(consensus = reference_annotation_to_consensus(
+#' ) |>
+#'   dplyr::mutate(consensus = reference_annotation_to_consensus(
 #'     azimuth_predicted.celltype.l2, monaco_first.labels.fine, blueprint_first.labels.fine))
 #' 
 #' @note This function is designed to harmonize specific cell types, especially T cells, B cells, monocytic cells, and innate lymphoid cells (ILCs), across reference datasets.
