@@ -1,6 +1,6 @@
 Package: HPCell
 Title: Massively-parallel R native pipeline for single-cell analysis
-Version: 0.3.8
+Version: 0.3.11
 Authors@R: c(person("Stefano", "Mangiola", email = "mangiolastefano@gmail.com",
                   role = c("aut", "cre")),
                   person("Jiayi", "Si", email = "si.j@wehi.edu.au",
@@ -15,7 +15,8 @@ Remotes:
     sqjin/CellChat,
     satijalab/seurat@seurat5,
     satijalab/seurat-data@seurat5,
-    seurat-data/azimuth@master
+    satijalab/azimuth@master,
+    mojaveazure/seurat-disk@master
 Biarch: true
 Imports:
   targets,
@@ -75,7 +76,15 @@ Imports:
   ggupset, 
   here, 
   qs,
-  ensembldb
+  ensembldb,
+  Azimuth,
+  DelayedArray,
+  HDF5Array, 
+  SeuratObject,
+  SingleCellExperiment, 
+  biomaRt, 
+  lme4, 
+  tidyselect
 Suggests: 
     testthat(>= 3.0.0), 
     scRNAseq,
