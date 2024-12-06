@@ -35,7 +35,7 @@ The key features of HPCell include:
 
 ```{r, eval=FALSE}
 
-remote::install_github("MangiolaLaboratory/HPCell")
+remotes::install_github("MangiolaLaboratory/HPCell")
 
 ```
 

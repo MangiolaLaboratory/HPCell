@@ -460,7 +460,6 @@ get_single_cell.HPCell = function(input_hpc, target_input = "data_object", targe
 #'
 #' @name test_differential_abundance-HPCell-method
 #' @rdname test_differential_abundance
-#' @inherit tidybulk::test_differential_abundance
 #'
 #' @importFrom tidybulk test_differential_abundance
 #' @exportMethod test_differential_abundance
