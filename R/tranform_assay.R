@@ -156,9 +156,16 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   assay(input_read_RNA_assay, assay_name) <- counts
   
   # Remove cells with zero total counts
+  # !!! MAYBE WE SHOULD LKEEP THESE CELLS AND LEAVE THEM TO THE FILTERING STEP
   input_read_RNA_assay <- input_read_RNA_assay[, colSums(counts) > 0]
   
   if (ncol(input_read_RNA_assay) == 0) return(NULL)
+  
+  # Rebuild the SCE to stay light, and to set the assay with the right name
+  input_read_RNA_assay = SingleCellExperiment(
+    assays = list(X = input_read_RNA_assay |> assay() ), 
+    colData = colData(input_read_RNA_assay)
+  )
   
   # Return the modified data object
   input_read_RNA_assay |> 

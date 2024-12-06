@@ -2877,14 +2877,17 @@ compute_mode_delayedarray <- function(delayed_array) {
 #' @importFrom SummarizedExperiment assay
 #' 
 #' @noRd
-check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY <- function(input_read_RNA_assay, assay_name) {
+check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY <- function(input_read_RNA_assay, assay_name, subset_up_to_number_of_cells = dim(input_read_RNA_assay)[2]) {
+  
+  # Do now overshoor the number of cells
+  subset_up_to_number_of_cells = subset_up_to_number_of_cells |> min(dim(input_read_RNA_assay)[2])
   
   # Check if object is SCE or Seurat
   if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     # For SingleCellExperiment
     assay_data <- assay(input_read_RNA_assay, assay_name)
     
-    my_min = min(assay_data)
+    my_min = min(assay_data[, 1:subset_up_to_number_of_cells])
     
     # Check if all values are > 0
     if (my_min > 0) {

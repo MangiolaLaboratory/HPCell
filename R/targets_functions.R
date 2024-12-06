@@ -147,7 +147,7 @@ map2_test_differential_abundance_hpc = function(
       # Dispersion
       tar_target(
         pseudobulk_df_tissue_dispersion, 
-        # pseudobulk_df_tissue |> map_add_dispersion_to_se(data, formula, abundance), 
+        pseudobulk_df_tissue |> map_add_dispersion_to_se(data, formula, abundance), 
         pattern = map(pseudobulk_df_tissue),
         iteration = "group"
       ),
