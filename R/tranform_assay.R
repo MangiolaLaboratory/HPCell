@@ -23,7 +23,6 @@ transform_assay.HPCell = function(
     
     # Track the file
     hpc_single("transform_file", "temp_fx.rds", format = "file") |> 
-
     hpc_iterate(
       target_output = "transform", 
       user_function = readRDS |> quote() ,
@@ -40,7 +39,7 @@ transform_assay.HPCell = function(
       transform_fx = "transform" |> is_target()  ,
       external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
       container_type = "data_container_type" |> is_target() 
-
+      
     )
   
 }
@@ -69,7 +68,7 @@ transform_assay.HPCell = function(
 #'
 #' @export
 transform_utility  = function(input_read_RNA_assay, transform_fx, external_path, container_type) {
-
+  
   numer_of_cells_to_sample = 5e3
   
   if(ncol(input_read_RNA_assay) == 0) return(NULL)
@@ -204,6 +203,5 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   # file_name = paste0(file_name, extension)
   
   # Return data as target instead of file_name pointer
-
+  
 }
-
