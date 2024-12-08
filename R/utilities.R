@@ -808,7 +808,6 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 #'
 #' This function takes cell type annotations from multiple datasets (Azimuth, Monaco, Blueprint) and harmonizes them into a consensus annotation. The function utilizes predefined mappings between cell type labels in these datasets to generate standardized cell types across references.
 #'
-#' @importFrom dplyr %>%
 #' @importFrom dplyr mutate
 #' @importFrom dplyr case_when
 #' @importFrom dplyr left_join
@@ -825,12 +824,12 @@ is_strong_evidence = function(single_cell_data, cell_annotation_azimuth_l2, cell
 #'
 #' @examples
 #' # Example usage:
-#' tibble(
+#' tibble::tibble(
 #'   azimuth_predicted.celltype.l2 = c("CD8 TEM", "NK", "CD4 Naive"),
 #'   monaco_first.labels.fine = c("Effector memory CD8 T cells", "Natural killer cells", "Naive CD4 T cells"),
 #'   blueprint_first.labels.fine = c("CD8+ Tem", "NK cells", "Naive B-cells")
-#' ) %>%
-#'   mutate(consensus = reference_annotation_to_consensus(
+#' ) |>
+#'   dplyr::mutate(consensus = reference_annotation_to_consensus(
 #'     azimuth_predicted.celltype.l2, monaco_first.labels.fine, blueprint_first.labels.fine))
 #' 
 #' @note This function is designed to harmonize specific cell types, especially T cells, B cells, monocytic cells, and innate lymphoid cells (ILCs), across reference datasets.
@@ -2321,10 +2320,7 @@ add_tier_inputs <- function(command, arguments_to_tier, i) {
 #' @param chunk_size The size of each chunk. Defaults to 100.
 #' @return A tibble with the features and their corresponding chunk numbers.
 #' @importFrom dplyr tibble
-#' @importFrom purrr rep_along
-#' @importFrom purrr ceiling
-#' @importFrom purrr seq_len
-#' @importFrom purrr length
+#' @importFrom rlang rep_along
 #' @importFrom magrittr divide_by
 #' 
 #' 
@@ -2649,7 +2645,6 @@ check_for_name_value_conflicts <- function(...) {
 #' # $packages
 #' # [1] "tidySummarizedExperiment" "HPCell"
 #' 
-#' @importFrom stats substitute
 #' @noRd
 expand_tiered_arguments <- function(lst, tiers, argument_to_replace, tiered_args) {
   # Check if the argument to replace exists in the list
@@ -2767,7 +2762,6 @@ write_HDF5_array_safe = function(normalized_rna, name, directory){
 #' @import DelayedArray
 #' @importFrom DelayedArray blockApply
 #' @importFrom methods as
-#' @importFrom stats as.numeric
 #' @importFrom utils capture.output
 #'
 #' @examples
@@ -2877,14 +2871,17 @@ compute_mode_delayedarray <- function(delayed_array) {
 #' @importFrom SummarizedExperiment assay
 #' 
 #' @noRd
-check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY <- function(input_read_RNA_assay, assay_name) {
+check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY <- function(input_read_RNA_assay, assay_name, subset_up_to_number_of_cells = dim(input_read_RNA_assay)[2]) {
+  
+  # Do now overshoor the number of cells
+  subset_up_to_number_of_cells = subset_up_to_number_of_cells |> min(dim(input_read_RNA_assay)[2])
   
   # Check if object is SCE or Seurat
   if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     # For SingleCellExperiment
     assay_data <- assay(input_read_RNA_assay, assay_name)
     
-    my_min = min(assay_data)
+    my_min = min(assay_data[, 1:subset_up_to_number_of_cells])
     
     # Check if all values are > 0
     if (my_min > 0) {

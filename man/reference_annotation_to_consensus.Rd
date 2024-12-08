@@ -24,12 +24,12 @@ This function is designed to harmonize specific cell types, especially T cells, 
 }
 \examples{
 # Example usage:
-tibble(
+tibble::tibble(
   azimuth_predicted.celltype.l2 = c("CD8 TEM", "NK", "CD4 Naive"),
   monaco_first.labels.fine = c("Effector memory CD8 T cells", "Natural killer cells", "Naive CD4 T cells"),
   blueprint_first.labels.fine = c("CD8+ Tem", "NK cells", "Naive B-cells")
-) \%>\%
-  mutate(consensus = reference_annotation_to_consensus(
+) |>
+  dplyr::mutate(consensus = reference_annotation_to_consensus(
     azimuth_predicted.celltype.l2, monaco_first.labels.fine, blueprint_first.labels.fine))
 
 }

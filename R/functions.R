@@ -263,10 +263,10 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
     #left_join(colSums(filtered_counts) |> enframe(name = ".cell", value = "nCount_RNA"), by = ".cell") |>
     mutate(empty_droplet = nFeature_RNA < RNA_feature_threshold)
   
-  # Discard samples with nFeature_RNA density mode < threshold, avoid potential downstream error
-  density_est = result |> pull(nFeature_RNA) |> density()
-  density_value = density_est$x[which.max(density_est$y)]
-  if (density_value < RNA_feature_threshold) return(NULL)
+  # # Discard samples with nFeature_RNA density mode < threshold, avoid potential downstream error
+  # density_est = result |> pull(nFeature_RNA) |> density()
+  # density_value = density_est$x[which.max(density_est$y)]
+  # if (density_value < RNA_feature_threshold) return(NULL)
   
   result
 }
@@ -289,7 +289,6 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
 #' @importFrom celldex BlueprintEncodeData
 #' @importFrom celldex MonacoImmuneData
 #' 
-#' # Seurat
 #' @importFrom Seurat CreateAssayObject
 #' @importFrom Seurat SCTransform
 #' @importFrom Seurat CreateSeuratObject
@@ -297,6 +296,8 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
 #' @importFrom Seurat FindTransferAnchors
 #' @importFrom Seurat MapQuery
 #' @importFrom Seurat as.SingleCellExperiment
+#' @importFrom Seurat Assays
+#' @importFrom SeuratObject RenameAssays
 #' @import Seurat
 #' 
 #' @importFrom scuttle logNormCounts
@@ -315,8 +316,6 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
 #' @importFrom stringr str_detect
 #' @importFrom tidyr nest
 #' @importFrom S4Vectors cbind
-#' @importFrom S4Vectors Assays
-#' @importFrom S4Vectors RenameAssays
 #' 
 #' @export
 annotation_label_transfer <- function(input_read_RNA_assay,
@@ -1072,9 +1071,12 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
 #'
 #' @return Processed and filter_empty_droplets dataset.
 #'
-#' @importFrom dplyr left_join filter select
+#' @importFrom dplyr filter
+#' @importFrom dplyr select
+#' @importFrom dplyr left_join  
 #' @import SeuratObject
-#' @importFrom SummarizedExperiment left_join assay assay<-
+#' @importFrom SummarizedExperiment assay
+#' @importFrom SummarizedExperiment assay<-
 #' @import tidySingleCellExperiment 
 #' @import tidyseurat
 #' @importFrom magrittr not
