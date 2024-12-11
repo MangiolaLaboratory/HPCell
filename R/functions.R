@@ -1108,9 +1108,11 @@ preprocessing_output <- function(input_read_RNA_assay,
   
   # Add normalisation
   if(!is.null(non_batch_variation_removal_S)){
-    if(input_read_RNA_assay |> is("Seurat"))
-      input_read_RNA_assay[["SCT"]] = non_batch_variation_removal_S
-    else if(input_read_RNA_assay |> is("SingleCellExperiment")){
+    if(input_read_RNA_assay |> is("Seurat")) {
+      non_batch_variation_removal_S_assay <- CreateAssay5Object(data = non_batch_variation_removal_S)
+      input_read_RNA_assay[["SCT"]] <- non_batch_variation_removal_S_assay
+
+    } else if(input_read_RNA_assay |> is("SingleCellExperiment")){
       message("HPCell says: in order to attach SCT assay to the SingleCellExperiment, SCT was added to external experiments slot")
       #input_read_RNA_assay = input_read_RNA_assay[rownames(non_batch_variation_removal_S), 
       # altExp(input_read_RNA_assay) = SingleCellExperiment(assay  = list(SCT = non_batch_variation_removal_S))
