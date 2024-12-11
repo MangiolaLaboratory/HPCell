@@ -978,7 +978,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   
   # avoid small number of cells 
   if (!is.null(empty_droplets_tbl)) {
-    filtered_counts <- input_read_RNA_assay_transform |>
+    filtered_counts <- input_read_RNA_assay |>
       left_join(empty_droplets_tbl, by = ".cell") |>
       dplyr::filter(!empty_droplet)
   } 
@@ -1009,9 +1009,8 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   
   # Normalise RNA
   normalized_rna <- 
-    input_read_RNA_assay |> 
-    Seurat::SCTransform(
-      counts, 
+    counts |> 
+      Seurat::SCTransform(
       assay=assay,
       return.only.var.genes=FALSE,
       residual.features = NULL,
