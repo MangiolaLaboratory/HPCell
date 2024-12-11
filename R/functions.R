@@ -1021,15 +1021,17 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
       min_cells=0,
     )  |> 
     GetAssayData(assay="SCT")
-  
-  
+    
+  # Remove NaN features from SCT assay
+  normalized_rna_filtered <- normalized_rna[!apply(normalized_rna, 1, function(row) all(is.nan(row))), ]
+
   if (class_input == "SingleCellExperiment") {
     
-    write_HDF5_array_safe(normalized_rna, "SCT", external_path)
+    write_HDF5_array_safe(normalized_rna_filtered, "SCT", external_path)
     
   } else if (class_input ==  "Seurat") {
     
-    normalized_rna 
+    normalized_rna_filtered 
     
   }
   
