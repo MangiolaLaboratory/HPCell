@@ -1146,10 +1146,12 @@ preprocessing_output <- function(input_read_RNA_assay,
     )
   
   # Attach annotation
-  if (inherits(annotation_label_transfer_tbl, "tbl_df")){
-    input_read_RNA_assay <- input_read_RNA_assay |>
-      left_join(annotation_label_transfer_tbl, by = ".cell")
-  }
+  try({
+      if (inherits(annotation_label_transfer_tbl, "tbl_df")){
+        input_read_RNA_assay <- input_read_RNA_assay |>
+          left_join(annotation_label_transfer_tbl, by = ".cell")
+      }
+    }, silent = TRUE)
   
   
   input_read_RNA_assay
