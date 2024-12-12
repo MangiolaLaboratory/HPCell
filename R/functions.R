@@ -970,7 +970,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
     
     # Rename assay
     assay_name_old = input_read_RNA_assay |> Assays() |> _[[1]]
-    input_read_RNA_assay_transform = input_read_RNA_assay |>
+    input_read_RNA_assay = input_read_RNA_assay |>
       RenameAssays(
         assay.name = assay_name_old,
         new.assay.name = assay)
@@ -978,21 +978,23 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   
   # avoid small number of cells 
   if (!is.null(empty_droplets_tbl)) {
-    filtered_counts <- input_read_RNA_assay_transform |>
+    input_read_RNA_assay <- input_read_RNA_assay |>
       left_join(empty_droplets_tbl, by = ".cell") |>
       dplyr::filter(!empty_droplet)
   } 
-  
-  counts =
-    filtered_counts |>
+
+  if (!is.null(alive_identification_tbl)) {
+  input_read_RNA_assay =
+    input_read_RNA_assay |>
     left_join(
       alive_identification_tbl |>
         select(.cell, any_of(factors_to_regress)),
       by=".cell"
     ) 
+  }
   
   if(!is.null(cell_cycle_score_tbl)) 
-    counts = counts |>
+    input_read_RNA_assay = input_read_RNA_assay |>
     
     left_join(
       cell_cycle_score_tbl |>
@@ -1005,13 +1007,12 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   # variable_features = readRDS(input_path_merged_variable_genes)
   # 
   # # Set variable features
-  # VariableFeatures(counts) = variable_features
+  # VariableFeatures(input_read_RNA_assay) = variable_features
   
   # Normalise RNA
-  normalized_rna <- 
+  input_read_RNA_assay <- 
     input_read_RNA_assay |> 
-    Seurat::SCTransform(
-      counts, 
+      Seurat::SCTransform(
       assay=assay,
       return.only.var.genes=FALSE,
       residual.features = NULL,
@@ -1019,18 +1020,23 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
       vst.flavor = "v2",
       scale_factor=2186,  
       conserve.memory=T, 
-      min_cells=0,
+      min_cells=0
     )  |> 
     GetAssayData(assay="SCT")
-  
-  
+
   if (class_input == "SingleCellExperiment") {
-    
-    write_HDF5_array_safe(normalized_rna, "SCT", external_path)
+
+    if(input_read_RNA_assay[,1,drop=FALSE] |> is.nan() |> any())
+             warning("HPCell says: some features might be all 0s, NaN are added by Seurat in the SCT assay, and kept in the assay because SingleCellExperiment requires same feature set for all assays.")
+             
+    write_HDF5_array_safe(input_read_RNA_assay, "SCT", external_path)
     
   } else if (class_input ==  "Seurat") {
-    
-    normalized_rna 
+
+    # Remove NaN features from SCT assay
+    input_read_RNA_assay <- input_read_RNA_assay[!apply(input_read_RNA_assay, 1, function(row) all(is.nan(row))), ]
+                                                      
+    input_read_RNA_assay 
     
   }
   
@@ -1109,9 +1115,11 @@ preprocessing_output <- function(input_read_RNA_assay,
   
   # Add normalisation
   if(!is.null(non_batch_variation_removal_S)){
-    if(input_read_RNA_assay |> is("Seurat"))
-      input_read_RNA_assay[["SCT"]] = non_batch_variation_removal_S
-    else if(input_read_RNA_assay |> is("SingleCellExperiment")){
+    if(input_read_RNA_assay |> is("Seurat")) {
+      non_batch_variation_removal_S_assay <- CreateAssay5Object(data = non_batch_variation_removal_S)
+      input_read_RNA_assay[["SCT"]] <- non_batch_variation_removal_S_assay
+
+    } else if(input_read_RNA_assay |> is("SingleCellExperiment")){
       message("HPCell says: in order to attach SCT assay to the SingleCellExperiment, SCT was added to external experiments slot")
       #input_read_RNA_assay = input_read_RNA_assay[rownames(non_batch_variation_removal_S), 
       # altExp(input_read_RNA_assay) = SingleCellExperiment(assay  = list(SCT = non_batch_variation_removal_S))
@@ -1145,10 +1153,12 @@ preprocessing_output <- function(input_read_RNA_assay,
     )
   
   # Attach annotation
-  if (inherits(annotation_label_transfer_tbl, "tbl_df")){
-    input_read_RNA_assay <- input_read_RNA_assay |>
-      left_join(annotation_label_transfer_tbl, by = ".cell")
-  }
+  try({
+      if (inherits(annotation_label_transfer_tbl, "tbl_df")){
+        input_read_RNA_assay <- input_read_RNA_assay |>
+          left_join(annotation_label_transfer_tbl, by = ".cell")
+      }
+    }, silent = TRUE)
   
   
   input_read_RNA_assay
