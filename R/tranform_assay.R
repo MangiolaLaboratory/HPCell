@@ -74,7 +74,8 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   if(ncol(input_read_RNA_assay) == 0) return(NULL)
   
   # Rename assay names to for consistency
-  if (names(assays(input_read_RNA_assay)) != "X") names(assays(input_read_RNA_assay)) <- "X"
+  if (length(names(assays(input_read_RNA_assay))) == 1 && 
+      names(assays(input_read_RNA_assay)) != "X") names(assays(input_read_RNA_assay)) <- "X"
   
   # strip metadata that we don't need
   input_read_RNA_assay = 
@@ -132,10 +133,12 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   # If the mode value is negative, shift counts to make the mode zero
   if (mode_value < 0) {
     counts <- counts + abs(mode_value)
+    counts_light_for_checks = counts_light_for_checks + abs(mode_value)
   }
   
   # Round counts to avoid potential subtraction errors due to floating-point precision
   counts <- round(counts, 5)
+  counts_light_for_checks = round(counts_light_for_checks, 5)
   
   # Find the most frequent count value (mode) in the counts
   majority_gene_counts <- compute_mode_delayedarray(counts_light_for_checks)$mode
