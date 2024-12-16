@@ -1,0 +1,38 @@
+from,to,is_immune
+Naive CD8 T cells,cd8 naive,TRUE
+Central memory CD8 T cells,cd8 tcm,TRUE
+Effector memory CD8 T cells,cd8 tem,TRUE
+Terminal effector CD8 T cells,cd8 tem,TRUE
+MAIT cells,mait,TRUE
+Vd2 gd T cells,tgd,TRUE
+Non-Vd2 gd T cells,tgd,TRUE
+Follicular helper T cells,cd4 fh em,TRUE
+T regulatory cells,treg,TRUE
+Th1 cells,cd4 th1 em,TRUE
+Th1/Th17 cells,cd4 th1/th17 em,TRUE
+Th17 cells,cd4 th17 em,TRUE
+Th2 cells,cd4 th2 em,TRUE
+Naive CD4 T cells,cd4 naive,TRUE
+Progenitor cells,progenitor,TRUE
+Naive B cells,b naive,TRUE
+Naive B,b naive,TRUE
+Non-switched memory B cells,b memory,TRUE
+Nonswitched memory B,b memory,TRUE
+Exhausted B cells,plasma,TRUE
+Switched memory B cells,b memory,TRUE
+Switched memory B,b memory,TRUE
+Plasmablasts,plasma,TRUE
+Classical monocytes,cd14 mono,TRUE
+Intermediate monocytes,cd14 mono,TRUE
+Non classical monocytes,cd16 mono,TRUE
+Natural killer cells,nk,TRUE
+Natural killer,nk,TRUE
+Plasmacytoid dendritic cells,pdc,TRUE
+Myeloid dendritic cells,cdc,TRUE
+Myeloid dendritic,cdc,TRUE
+Low-density neutrophils,granulocyte,TRUE
+Lowdensity neutrophils,granulocyte,TRUE
+Low-density basophils,granulocyte,TRUE
+Lowdensity basophils,granulocyte,TRUE
+Terminal effector CD4 T cells,cd4 tem,TRUE
+progenitor,progenitor,TRUE

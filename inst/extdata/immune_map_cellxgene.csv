@@ -1,0 +1,679 @@
+from,to,is_immune
+"activated CD4-positive, alpha-beta T cell",cd4 tem,TRUE
+"activated CD4-positive, alpha-beta T cell, human",cd4 tem,TRUE
+"activated CD8-positive, alpha-beta T cell",cd8 tem,TRUE
+"activated CD8-positive, alpha-beta T cell, human",cd8 tem,TRUE
+activated type II NK T cell,nkt,TRUE
+alpha-beta T cell,t,TRUE
+alternatively activated macrophage,macrophage,TRUE
+alveolar macrophage,macrophage,TRUE
+B cell,b,TRUE
+B-1 B cell,b,TRUE
+B-1a B cell,b,TRUE
+B-1b B cell,b,TRUE
+B-2 B cell,b,TRUE
+basophil,granulocyte,TRUE
+basophil mast progenitor cell,progenitor,TRUE
+blood cell,erythrocyte,TRUE
+"CD14-low, CD16-positive monocyte",cd16 mono,TRUE
+CD14-positive monocyte,cd14 mono,TRUE
+"CD14-positive, CD16-negative classical monocyte",cd14 mono,TRUE
+"CD14-positive, CD16-positive monocyte",monocytic,TRUE
+CD141-positive myeloid dendritic cell,cdc,TRUE
+"CD16-negative, CD56-bright natural killer cell, human",nk,TRUE
+"CD16-positive, CD56-dim natural killer cell, human",nk,TRUE
+CD1c-positive myeloid dendritic cell,cdc,TRUE
+"CD34-positive, CD38-negative hematopoietic stem cell",progenitor,TRUE
+"CD34-positive, CD56-positive, CD117-positive common innate lymphoid precursor, human",progenitor,TRUE
+CD4-positive helper T cell,t cd4,TRUE
+"CD4-positive, alpha-beta cytotoxic T cell",cytotoxic,TRUE
+"CD4-positive, alpha-beta memory T cell",cd4 tcm,TRUE
+"CD4-positive, alpha-beta T cell",t cd4,TRUE
+"CD4-positive, alpha-beta thymocyte",cd4 naive,TRUE
+"CD4-positive, CD25-positive, alpha-beta regulatory T cell",treg,TRUE
+"CD8-alpha alpha positive, gamma-delta intraepithelial T cell",tgd,TRUE
+"CD8-alpha-alpha-positive, alpha-beta intraepithelial T cell",t cd8,TRUE
+"CD8-alpha-beta-positive, alpha-beta intraepithelial T cell",t cd8,TRUE
+"CD8-positive, alpha-beta cytokine secreting effector T cell",t cd8,TRUE
+"CD8-positive, alpha-beta cytotoxic T cell",t cd8,TRUE
+"CD8-positive, alpha-beta memory T cell",cd8 tcm,TRUE
+"CD8-positive, alpha-beta memory T cell, CD45RO-positive",cd8 tcm,TRUE
+"CD8-positive, alpha-beta T cell",t cd8,TRUE
+"CD8-positive, alpha-beta thymocyte",cd8 naive,TRUE
+"central memory CD4-positive, alpha-beta T cell",cd4 tcm,TRUE
+"central memory CD8-positive, alpha-beta T cell",cd8 tcm,TRUE
+central nervous system macrophage,macrophage,TRUE
+class switched memory B cell,b,TRUE
+classical monocyte,monocytic,TRUE
+colon macrophage,macrophage,TRUE
+common dendritic progenitor,progenitor,TRUE
+common lymphoid progenitor,progenitor,TRUE
+common myeloid progenitor,progenitor,TRUE
+conventional dendritic cell,cdc,TRUE
+cord blood hematopoietic stem cell,progenitor,TRUE
+cytotoxic T cell,cytotoxic,TRUE
+"decidual natural killer cell, human",nk,TRUE
+dendritic cell,dc,TRUE
+"dendritic cell, human",dc,TRUE
+DN1 thymic pro-T cell,t,TRUE
+DN3 thymocyte,t,TRUE
+DN4 thymocyte,t,TRUE
+double negative T regulatory cell,treg,TRUE
+double negative thymocyte,t,TRUE
+"double-positive, alpha-beta thymocyte",t,TRUE
+early lymphoid progenitor,progenitor,TRUE
+early pro-B cell,b,TRUE
+early promyelocyte,progenitor,TRUE
+early T lineage precursor,progenitor,TRUE
+"effector CD4-positive, alpha-beta T cell",cd4 tem,TRUE
+"effector CD8-positive, alpha-beta T cell",cd8 tem,TRUE
+"effector memory CD4-positive, alpha-beta T cell",cd4 tem,TRUE
+"effector memory CD8-positive, alpha-beta T cell",cd8 tem,TRUE
+"effector memory CD8-positive, alpha-beta T cell, terminally differentiated",cd8 tem,TRUE
+elicited macrophage,macrophage,TRUE
+enucleate erythrocyte,erythrocyte,TRUE
+eosinophil,granulocyte,TRUE
+erythroblast,erythrocyte,TRUE
+erythrocyte,erythrocyte,TRUE
+erythroid progenitor cell,progenitor,TRUE
+"erythroid progenitor cell, mammalian",progenitor,TRUE
+eurydendroid cell,progenitor,TRUE
+follicular B cell,b,TRUE
+fraction A pre-pro B cell,b,TRUE
+gamma-delta T cell,tgd,TRUE
+germinal center B cell,b,TRUE
+granulocyte,granulocyte,TRUE
+granulocyte monocyte progenitor cell,progenitor,TRUE
+group 2 innate lymphoid cell,ilc,TRUE
+"group 2 innate lymphoid cell, human",ilc,TRUE
+group 3 innate lymphoid cell,ilc,TRUE
+"group 3 innate lymphoid cell, human",ilc,TRUE
+helper T cell,t cd4,TRUE
+hematopoietic multipotent progenitor cell,progenitor,TRUE
+hematopoietic precursor cell,progenitor,TRUE
+hematopoietic stem cell,progenitor,TRUE
+Hofbauer cell,macrophage,TRUE
+IgA plasma cell,plasma,TRUE
+IgA plasmablast,plasma,TRUE
+IgG memory B cell,b memory,TRUE
+IgG plasma cell,plasma,TRUE
+IgG plasmablast,plasma,TRUE
+IgG-negative class switched memory B cell,b,TRUE
+IgM plasma cell,plasma,TRUE
+"ILC1, human",ilc,TRUE
+immature alpha-beta T cell,t,TRUE
+immature B cell,b,TRUE
+immature innate lymphoid cell,ilc,TRUE
+immature natural killer cell,nk,TRUE
+immature neutrophil,granulocyte,TRUE
+immature NK T cell,nkt,TRUE
+inflammatory macrophage,macrophage,TRUE
+innate lymphoid cell,ilc,TRUE
+intermediate monocyte,monocytic,TRUE
+kidney interstitial alternatively activated macrophage,macrophage,TRUE
+Kupffer cell,macrophage,TRUE
+large pre-B-II cell,b,TRUE
+late pro-B cell,b,TRUE
+late promyelocyte,progenitor,TRUE
+liver dendritic cell,dc,TRUE
+lung interstitial macrophage,macrophage,TRUE
+lung macrophage,macrophage,TRUE
+"lung resident memory CD4-positive, alpha-beta T cell",cd4 tcm,TRUE
+"lung resident memory CD8-positive, alpha-beta T cell",t cd8,TRUE
+lymphocyte of B lineage,b,TRUE
+lymphoid lineage restricted progenitor cell,progenitor,TRUE
+macrophage,macrophage,TRUE
+macrophage dendritic cell progenitor,progenitor,TRUE
+mast cell,mast,TRUE
+mature alpha-beta T cell,t,TRUE
+mature B cell,b,TRUE
+mature conventional dendritic cell,cdc,TRUE
+mature gamma-delta T cell,tgd,TRUE
+mature NK T cell,nkt,TRUE
+mature T cell,t,TRUE
+memory B cell,b memory,TRUE
+memory regulatory T cell,treg,TRUE
+memory T cell,t,TRUE
+MHC-II-positive classical monocyte,monocytic,TRUE
+monocyte,monocytic,TRUE
+monocyte-derived dendritic cell,monocytic,TRUE
+mucosal invariant T cell,mait,TRUE
+myeloid dendritic cell,cdc,TRUE
+"myeloid dendritic cell, human",cdc,TRUE
+myeloid lineage restricted progenitor cell,progenitor,TRUE
+naive B cell,b naive,TRUE
+naive regulatory T cell,treg,TRUE
+naive T cell,t,TRUE
+"naive thymus-derived CD4-positive, alpha-beta T cell",cd4 naive,TRUE
+"naive thymus-derived CD8-positive, alpha-beta T cell",cd8 naive,TRUE
+natural killer cell,nk,TRUE
+natural T-regulatory cell,treg,TRUE
+neutrophil,granulocyte,TRUE
+neutrophil progenitor cell,progenitor,TRUE
+"NKp44-negative group 3 innate lymphoid cell, human",ilc,TRUE
+"NKp44-positive group 3 innate lymphoid cell, human",ilc,TRUE
+non-classical monocyte,monocytic,TRUE
+plasma cell,plasma,TRUE
+plasmablast,plasma,TRUE
+plasmacytoid dendritic cell,pdc,TRUE
+"plasmacytoid dendritic cell, human",pdc,TRUE
+pre-B-I cell,b,TRUE
+pre-conventional dendritic cell,cdc,TRUE
+pre-natural killer cell,nk,TRUE
+precursor B cell,b,TRUE
+primitive red blood cell,erythrocyte,TRUE
+pro-B cell,b,TRUE
+pro-T cell,t,TRUE
+proerythroblast,erythrocyte,TRUE
+promonocyte,monocytic,TRUE
+regulatory T cell,treg,TRUE
+small pre-B-II cell,b,TRUE
+T cell,t,TRUE
+T follicular helper cell,cd4 fh em,TRUE
+T follicular regulatory cell,treg,TRUE
+T-helper 1 cell,cd4 th1 em,TRUE
+T-helper 17 cell,cd4 th17 em,TRUE
+T-helper 2 cell,cd4 th2 em,TRUE
+T-helper 22 cell,t cd4,TRUE
+Tc1 cell,t cd8,TRUE
+thymocyte,t,TRUE
+tonsil germinal center B cell,b,TRUE
+transitional stage B cell,b,TRUE
+type I NK T cell,nkt,TRUE
+unswitched memory B cell,b,TRUE
+stromal cell,stromal,FALSE
+oligodendrocyte precursor cell,glial,FALSE
+mucous neck cell,secretory,FALSE
+nasal mucosa goblet cell,secretory,FALSE
+ionocyte,secretory,FALSE
+parietal epithelial cell,epithelial,FALSE
+transit amplifying cell,progenitor,FALSE
+platelet,immune,FALSE
+capillary endothelial cell,endothelial,FALSE
+fibroblast of lung,stromal,FALSE
+smooth muscle cell of the pulmonary artery,muscle,FALSE
+chondrocyte,cartilage,FALSE
+abnormal cell,other,FALSE
+paneth cell,secretory,FALSE
+PP cell,endocrine,FALSE
+endothelial cell of pericentral hepatic sinusoid,endothelial,FALSE
+GABAergic neuron,neuron,FALSE
+squamous epithelial cell,epithelial,FALSE
+embryonic fibroblast,stromal,FALSE
+mesenchymal cell,stromal,FALSE
+kidney cell,renal,FALSE
+kidney loop of Henle epithelial cell,epithelial,FALSE
+retinal bipolar neuron,neuron,FALSE
+epithelial cell of nephron,epithelial,FALSE
+type D enteroendocrine cell,endocrine,FALSE
+motor neuron,neuron,FALSE
+migratory enteric neural crest cell,neuron,FALSE
+skeletal muscle satellite stem cell,muscle,FALSE
+subcutaneous adipocyte,fat,FALSE
+epicardial adipocyte,fat,FALSE
+diffuse bipolar 1 cell,neuron,FALSE
+invaginating midget bipolar cell,neuron,FALSE
+cardiac muscle myoblast,muscle,FALSE
+preosteoblast,progenitor,FALSE
+serous secreting cell,epithelial,FALSE
+cortical thymic epithelial cell,epithelial,FALSE
+OFF-bipolar cell,neuron,FALSE
+colon epithelial cell,epithelial,FALSE
+transit amplifying cell of colon,progenitor,FALSE
+acinar cell of salivary gland,secretory,FALSE
+prostate gland microvascular endothelial cell,endothelial,FALSE
+indirect pathway medium spiny neuron,neuron,FALSE
+direct pathway medium spiny neuron,neuron,FALSE
+epithelial cell of proximal tubule segment 3,epithelial,FALSE
+skeletal muscle satellite cell,muscle,FALSE
+L5/6 near-projecting glutamatergic neuron,neuron,FALSE
+respiratory epithelial cell,epithelial,FALSE
+type N enteroendocrine cell,endocrine,FALSE
+skeletal muscle fiber,muscle,FALSE
+vascular lymphangioblast,progenitor,FALSE
+progenitor cell of mammary luminal epithelium,epithelial,FALSE
+hair follicular keratinocyte,epidermal,FALSE
+cerebellar granule cell precursor,progenitor,FALSE
+unipolar brush cell,secretory,FALSE
+anterior lens cell,lens,FALSE
+stromal cell of endometrium,stromal,FALSE
+CNS interneuron,neuron,FALSE
+transit amplifying cell of small intestine,progenitor,FALSE
+centroblast,immune,FALSE
+tongue muscle cell,muscle,FALSE
+pigmented ciliary epithelial cell,epithelial,FALSE
+pulmonary interstitial fibroblast,stromal,FALSE
+hepatoblast,progenitor,FALSE
+sebum secreting cell,fat,FALSE
+epithelial cell of uterus,epithelial,FALSE
+microfold cell of epithelium of small intestine,epithelial,FALSE
+dopaminergic neuron,neuron,FALSE
+connective tissue cell,stromal,FALSE
+myometrial cell,muscle,FALSE
+kidney collecting duct cell,renal,FALSE
+Schwann cell precursor,glial,FALSE
+type A enteroendocrine cell,endocrine,FALSE
+dermis microvascular lymphatic vessel endothelial cell,endothelial,FALSE
+intestinal crypt stem cell of large intestine,progenitor,FALSE
+type B pancreatic cell,endocrine,FALSE
+kidney loop of Henle thick ascending limb epithelial cell,epithelial,FALSE
+mesangial cell,renal,FALSE
+pancreatic stellate cell,stromal,FALSE
+stem cell,progenitor,FALSE
+cardiac muscle cell,muscle,FALSE
+astrocyte,glial,FALSE
+multi-ciliated epithelial cell,epithelial,FALSE
+bronchial goblet cell,secretory,FALSE
+mucus secreting cell,secretory,FALSE
+luminal hormone-sensing cell of mammary gland,endocrine,FALSE
+placental villous trophoblast,progenitor,FALSE
+perivascular cell,pericyte,FALSE
+epithelial cell of proximal tubule,epithelial,FALSE
+M cell of gut,epithelial,FALSE
+glial cell,glial,FALSE
+adventitial cell,stromal,FALSE
+alveolar type 2 fibroblast cell,progenitor,FALSE
+hepatocyte,liver,FALSE
+brush cell,secretory,FALSE
+endothelial cell of periportal hepatic sinusoid,endothelial,FALSE
+differentiation-committed oligodendrocyte precursor,glial,FALSE
+kidney interstitial cell,stromal,FALSE
+kidney collecting duct intercalated cell,renal,FALSE
+hepatic pit cell,immune,FALSE
+retinal ganglion cell,neuron,FALSE
+neural progenitor cell,neuron,FALSE
+airway submucosal gland duct basal cell,epithelial,FALSE
+blood vessel smooth muscle cell,muscle,FALSE
+respiratory suprabasal cell,epithelial,FALSE
+hematopoietic cell,immune,FALSE
+glycinergic amacrine cell,neuron,FALSE
+pancreatic epsilon cell,endocrine,FALSE
+tracheobronchial serous cell,epithelial,FALSE
+intrahepatic cholangiocyte,epithelial,FALSE
+muscle precursor cell,muscle,FALSE
+tracheobronchial goblet cell,secretory,FALSE
+intestinal crypt stem cell,progenitor,FALSE
+intestinal tuft cell,epithelial,FALSE
+luminal cell of prostate epithelium,epithelial,FALSE
+L6 corticothalamic-projecting glutamatergic cortical neuron,neuron,FALSE
+decidual cell,reproductive,FALSE
+neuron associated cell,neuron,FALSE
+lactocyte,epithelial,FALSE
+epithelial cell of prostate,epithelial,FALSE
+epithelial cell of exocrine pancreas,epithelial,FALSE
+chandelier cell,neuron,FALSE
+ciliary muscle cell,muscle,FALSE
+regular atrial cardiac myocyte,muscle,FALSE
+paneth cell of epithelium of small intestine,epithelial,FALSE
+reticulocyte,blood,FALSE
+epithelial cell of sweat gland,epithelial,FALSE
+kidney connecting tubule principal cell,renal,FALSE
+chorionic trophoblast cell,progenitor,FALSE
+myoblast,muscle,FALSE
+glomerular capillary endothelial cell,endothelial,FALSE
+large intestine goblet cell,secretory,FALSE
+erythroid lineage cell,blood,FALSE
+fibroblast of cardiac tissue,stromal,FALSE
+pancreatic A cell,endocrine,FALSE
+melanocyte,epidermal,FALSE
+cardiac endothelial cell,endothelial,FALSE
+enterocyte,epithelial,FALSE
+lymphocyte,immune,FALSE
+pericyte,pericyte,FALSE
+oligodendrocyte,glial,FALSE
+leukocyte,immune,FALSE
+adipocyte,fat,FALSE
+corticothalamic-projecting glutamatergic cortical neuron,neuron,FALSE
+vascular leptomeningeal cell,pericyte,FALSE
+L6b glutamatergic cortical neuron,neuron,FALSE
+cerebral cortex endothelial cell,endothelial,FALSE
+respiratory basal cell,epithelial,FALSE
+luminal epithelial cell of mammary gland,epithelial,FALSE
+extravillous trophoblast,progenitor,FALSE
+endothelial cell of artery,endothelial,FALSE
+enterocyte of colon,epithelial,FALSE
+pulmonary artery endothelial cell,endothelial,FALSE
+cholangiocyte,epithelial,FALSE
+epithelial cell of lung,epithelial,FALSE
+uterine smooth muscle cell,muscle,FALSE
+alveolar type 1 fibroblast cell,progenitor,FALSE
+preadipocyte,fat,FALSE
+acinar cell,secretory,FALSE
+enteric neuron,neuron,FALSE
+peptic cell,secretory,FALSE
+Schwann cell,glial,FALSE
+inhibitory interneuron,neuron,FALSE
+Mueller cell,glial,FALSE
+myoepithelial cell,myoepithelial,FALSE
+interstitial cell of Cajal,stromal,FALSE
+brush cell of trachebronchial tree,secretory,FALSE
+epithelial cell of thymus,epithelial,FALSE
+deuterosomal cell,epithelial,FALSE
+peripheral nervous system neuron,neuron,FALSE
+parasol ganglion cell of retina,neuron,FALSE
+professional antigen presenting cell,immune,FALSE
+bipolar neuron,neuron,FALSE
+precursor cell,progenitor,FALSE
+neural crest cell,neuron,FALSE
+neuronal brush cell,secretory,FALSE
+epithelial cell of urethra,epithelial,FALSE
+medium spiny neuron,neuron,FALSE
+meningeal macrophage,macrophage,TRUE
+follicular dendritic cell,immune,FALSE
+trophoblast giant cell,progenitor,FALSE
+sympathetic neuron,neuron,FALSE
+noradrenergic cell,neuron,FALSE
+vasa recta ascending limb cell,renal,FALSE
+ovarian surface epithelial cell,epithelial,FALSE
+brainstem motor neuron,neuron,FALSE
+"BEST4+ intestinal epithelial cell, human",epithelial,FALSE
+centrocyte,immune,FALSE
+duodenum glandular cell,epithelial,FALSE
+ileal goblet cell,secretory,FALSE
+non-pigmented ciliary epithelial cell,epithelial,FALSE
+epidermal cell,epidermal,FALSE
+kidney pelvis urothelial cell,epithelial,FALSE
+epithelial cell,epithelial,FALSE
+megakaryocyte,blood,FALSE
+fibroblast,progenitor,FALSE
+enteric smooth muscle cell,muscle,FALSE
+gut endothelial cell,endothelial,FALSE
+intestine goblet cell,secretory,FALSE
+astrocyte of the cerebral cortex,glial,FALSE
+ciliated columnar cell of tracheobronchial tree,epithelial,FALSE
+renal principal cell,renal,FALSE
+malignant cell,other,FALSE
+lung pericyte,pericyte,FALSE
+neoplastic cell,other,FALSE
+glandular epithelial cell,epithelial,FALSE
+keratinocyte,epidermal,FALSE
+epithelial cell of lower respiratory tract,epithelial,FALSE
+taste receptor cell,sensory,FALSE
+syncytiotrophoblast cell,progenitor,FALSE
+fetal cardiomyocyte,muscle,FALSE
+enteroendocrine cell of colon,endocrine,FALSE
+smooth muscle cell,muscle,FALSE
+kidney interstitial fibroblast,stromal,FALSE
+germ cell,reproductive,FALSE
+macroglial cell,glial,FALSE
+respiratory hillock cell,epithelial,FALSE
+primary sensory neuron (sensu Teleostei),neuron,FALSE
+photoreceptor cell,neuron,FALSE
+epithelial cell of alveolus of lung,epithelial,FALSE
+pancreatic PP cell,endocrine,FALSE
+fast muscle cell,muscle,FALSE
+neuroendocrine cell,endocrine,FALSE
+megakaryocyte progenitor cell,blood,FALSE
+regular ventricular cardiac myocyte,muscle,FALSE
+Sertoli cell,reproductive,FALSE
+rod bipolar cell,neuron,FALSE
+diffuse bipolar 4 cell,neuron,FALSE
+flat midget bipolar cell,neuron,FALSE
+midget ganglion cell of retina,neuron,FALSE
+pulmonary ionocyte,secretory,FALSE
+Bergmann glial cell,glial,FALSE
+bladder urothelial cell,epithelial,FALSE
+endosteal cell,bone,FALSE
+melanocyte of skin,epidermal,FALSE
+cone retinal bipolar cell,neuron,FALSE
+neuron associated cell (sensu Vertebrata),neuron,FALSE
+granule cell,neuron,FALSE
+non-myelinating Schwann cell,glial,FALSE
+renal intercalated cell,renal,FALSE
+salivary gland cell,epithelial,FALSE
+sensory neuron,neuron,FALSE
+collagen secreting cell,stromal,FALSE
+immature astrocyte,glial,FALSE
+cerebral cortex GABAergic interneuron,neuron,FALSE
+pigmented epithelial cell,epithelial,FALSE
+columnar/cuboidal epithelial cell,epithelial,FALSE
+immature Schwann cell,glial,FALSE
+kidney distal convoluted tubule epithelial cell,epithelial,FALSE
+basal cell of epidermis,epithelial,FALSE
+mural cell,pericyte,FALSE
+myofibroblast cell,stromal,FALSE
+foveolar cell of stomach,epithelial,FALSE
+myeloid cell,immune,FALSE
+microglial cell,glial,FALSE
+pvalb GABAergic cortical interneuron,neuron,FALSE
+near-projecting glutamatergic cortical neuron,neuron,FALSE
+endothelial cell of placenta,endothelial,FALSE
+absorptive cell,epithelial,FALSE
+type II pneumocyte,pneumocyte,FALSE
+type L enteroendocrine cell,endocrine,FALSE
+cerebellar granule cell,neuron,FALSE
+kidney loop of Henle thin ascending limb epithelial cell,epithelial,FALSE
+retinal pigment epithelial cell,epithelial,FALSE
+midzonal region hepatocyte,liver,FALSE
+centrilobular region hepatocyte,liver,FALSE
+stromal cell of ovary,stromal,FALSE
+tracheobronchial smooth muscle cell,muscle,FALSE
+renal alpha-intercalated cell,renal,FALSE
+basal epithelial cell of tracheobronchial tree,epithelial,FALSE
+colon goblet cell,secretory,FALSE
+P/D1 enteroendocrine cell,endocrine,FALSE
+granulosa cell,reproductive,FALSE
+fibro/adipogenic progenitor cell,progenitor,FALSE
+forebrain neuroblast,progenitor,FALSE
+radial glial cell,glial,FALSE
+interneuron,neuron,FALSE
+bronchial smooth muscle cell,muscle,FALSE
+lung neuroendocrine cell,endocrine,FALSE
+lung goblet cell,secretory,FALSE
+medullary thymic epithelial cell,epithelial,FALSE
+small intestine goblet cell,secretory,FALSE
+H1 horizontal cell,neuron,FALSE
+giant bipolar cell,neuron,FALSE
+OFFx cell,neuron,FALSE
+hepatic stellate cell,liver,FALSE
+neuronal receptor cell,sensory,FALSE
+epithelial cell of proximal tubule segment 1,epithelial,FALSE
+lens fiber cell,lens,FALSE
+basal cell of prostate epithelium,epithelial,FALSE
+Cajal-Retzius cell,neuron,FALSE
+corneal endothelial cell,endothelial,FALSE
+glioblast,glial,FALSE
+smooth muscle cell of prostate,muscle,FALSE
+secondary lens fiber,lens,FALSE
+sst chodl GABAergic cortical interneuron,neuron,FALSE
+pancreatic endocrine cell,endocrine,FALSE
+paneth cell of colon,secretory,FALSE
+myelinating Schwann cell,glial,FALSE
+primary cultured cell,other,FALSE
+prostate stromal cell,stromal,FALSE
+epidermal Langerhans cell,immune,FALSE
+primordial germ cell,reproductive,FALSE
+endothelial cell of vascular tree,endothelial,FALSE
+epithelial cell of esophagus,epithelial,FALSE
+mesothelial cell,mesothelial,FALSE
+vein endothelial cell,endothelial,FALSE
+sst GABAergic cortical interneuron,neuron,FALSE
+caudal ganglionic eminence derived GABAergic cortical interneuron,neuron,FALSE
+sncg GABAergic cortical interneuron,neuron,FALSE
+luminal adaptive secretory precursor cell of mammary gland,progenitor,FALSE
+myoepithelial cell of mammary gland,myoepithelial,FALSE
+fibroblast of mammary gland,stromal,FALSE
+kidney connecting tubule epithelial cell,epithelial,FALSE
+intestinal enteroendocrine cell,endocrine,FALSE
+type I pneumocyte,pneumocyte,FALSE
+endothelial cell of hepatic sinusoid,endothelial,FALSE
+glutamatergic neuron,neuron,FALSE
+ciliated cell,epithelial,FALSE
+secretory cell,secretory,FALSE
+stratified epithelial cell,epithelial,FALSE
+skin fibroblast,stromal,FALSE
+type G enteroendocrine cell,endocrine,FALSE
+myelocyte,immune,FALSE
+chromaffin cell,endocrine,FALSE
+reticular cell,immune,FALSE
+renal interstitial pericyte,renal,FALSE
+basal cell of epithelium of trachea,epithelial,FALSE
+amacrine cell,neuron,FALSE
+myeloid leukocyte,immune,FALSE
+slow muscle cell,muscle,FALSE
+enterocyte of epithelium of small intestine,epithelial,FALSE
+ciliated epithelial cell,epithelial,FALSE
+Leydig cell,reproductive,FALSE
+GABAergic amacrine cell,neuron,FALSE
+diffuse bipolar 3b cell,neuron,FALSE
+osteoblast,progenitor,FALSE
+corneal epithelial cell,epithelial,FALSE
+mature microglial cell,glial,FALSE
+mature astrocyte,glial,FALSE
+retinal astrocyte,glial,FALSE
+brush cell of trachea,secretory,FALSE
+mesothelial cell of epicardium,mesothelial,FALSE
+thyroid follicular cell,endocrine,FALSE
+visceromotor neuron,neuron,FALSE
+choroid plexus epithelial cell,epithelial,FALSE
+skeletal muscle fibroblast,muscle,FALSE
+bronchial epithelial cell,epithelial,FALSE
+cortical cell of adrenal gland,endocrine,FALSE
+inflammatory cell,immune,FALSE
+fibroblast of connective tissue of glandular part of prostate,stromal,FALSE
+vasa recta descending limb cell,renal,FALSE
+lung microvascular endothelial cell,endothelial,FALSE
+conjunctival epithelial cell,epithelial,FALSE
+smooth muscle cell of sphincter of pupil,muscle,FALSE
+eye photoreceptor cell,neuron,FALSE
+epithelial cell of small intestine,epithelial,FALSE
+pyramidal neuron,neuron,FALSE
+sebaceous gland cell,epithelial,FALSE
+granular cell of epidermis,epithelial,FALSE
+bone marrow cell,bone,FALSE
+mesothelial cell of pleura,mesothelial,FALSE
+neuron,neuron,FALSE
+endothelial cell,endothelial,FALSE
+prickle cell,epidermal,FALSE
+renal beta-intercalated cell,renal,FALSE
+intestinal epithelial cell,epithelial,FALSE
+enteroendocrine cell,endocrine,FALSE
+L2/3-6 intratelencephalic projecting glutamatergic neuron,neuron,FALSE
+vip GABAergic cortical interneuron,neuron,FALSE
+club cell,epithelial,FALSE
+mammary gland epithelial cell,epithelial,FALSE
+endothelial cell of uterus,endothelial,FALSE
+endothelial cell of lymphatic vessel,endothelial,FALSE
+vascular associated smooth muscle cell,muscle,FALSE
+lung perichondrial fibroblast,stromal,FALSE
+type EC enteroendocrine cell,endocrine,FALSE
+pancreatic acinar cell,secretory,FALSE
+supporting cell,epithelial,FALSE
+contractile cell,muscle,FALSE
+theca cell,reproductive,FALSE
+stem cell of epidermis,epithelial,FALSE
+retinal rod cell,neuron,FALSE
+promyelocyte,immune,FALSE
+brain vascular cell,pericyte,FALSE
+progenitor cell,progenitor,FALSE
+kidney capillary endothelial cell,endothelial,FALSE
+mesodermal cell,stromal,FALSE
+GIP cell,endocrine,FALSE
+mesenchymal lymphangioblast,progenitor,FALSE
+mesothelial fibroblast,stromal,FALSE
+tendon cell,stromal,FALSE
+S cone cell,neuron,FALSE
+diffuse bipolar 2 cell,neuron,FALSE
+diffuse bipolar 6 cell,neuron,FALSE
+parietal cell,epithelial,FALSE
+smooth muscle myoblast,muscle,FALSE
+endothelial cell of sinusoid,endothelial,FALSE
+mononuclear phagocyte,immune,FALSE
+retina horizontal cell,neuron,FALSE
+embryonic stem cell,progenitor,FALSE
+suprabasal keratinocyte,epidermal,FALSE
+papillary tips cell,renal,FALSE
+retinal blood vessel endothelial cell,endothelial,FALSE
+kidney loop of Henle ascending limb epithelial cell,epithelial,FALSE
+L4 intratelencephalic projecting glutamatergic neuron,neuron,FALSE
+sperm,reproductive,FALSE
+fibroblast of connective tissue of nonglandular part of prostate,stromal,FALSE
+lens epithelial cell,epithelial,FALSE
+glomerular endothelial cell,endothelial,FALSE
+kidney resident macrophage,macrophage,TRUE
+epithelial cell of stratum germinativum of esophagus,epithelial,FALSE
+basal epithelial cell of prostatic duct,epithelial,FALSE
+serous cell of epithelium of bronchus,epithelial,FALSE
+urothelial cell,epithelial,FALSE
+GABAergic interneuron,neuron,FALSE
+intestinal crypt stem cell of small intestine,progenitor,FALSE
+enterocyte of epithelium proper of ileum,epithelial,FALSE
+smooth muscle fiber of ileum,muscle,FALSE
+L6 intratelencephalic projecting glutamatergic neuron of the primary motor cortex,neuron,FALSE
+ventricular cardiac muscle cell,muscle,FALSE
+endocrine cell,endocrine,FALSE
+mesenchymal stem cell,progenitor,FALSE
+unknown,other,FALSE
+neural cell,neuron,FALSE
+cardiac neuron,neuron,FALSE
+lamp5 GABAergic cortical interneuron,neuron,FALSE
+chandelier pvalb GABAergic cortical interneuron,neuron,FALSE
+L5 extratelencephalic projecting glutamatergic cortical neuron,neuron,FALSE
+blood vessel endothelial cell,endothelial,FALSE
+basal cell,epithelial,FALSE
+intestinal crypt stem cell of colon,progenitor,FALSE
+goblet cell,secretory,FALSE
+bronchus fibroblast of lung,progenitor,FALSE
+lung secretory cell,secretory,FALSE
+metallothionein-positive alveolar macrophage,macrophage,TRUE
+pancreatic ductal cell,endocrine,FALSE
+pancreatic D cell,endocrine,FALSE
+kidney collecting duct principal cell,renal,FALSE
+kidney loop of Henle thin descending limb epithelial cell,epithelial,FALSE
+periportal region hepatocyte,liver,FALSE
+Merkel cell,sensory,FALSE
+megakaryocyte-erythroid progenitor cell,blood,FALSE
+endothelial tip cell,endothelial,FALSE
+glandular cell of esophagus,epithelial,FALSE
+kidney epithelial cell,epithelial,FALSE
+podocyte,renal,FALSE
+interstitial cell of ovary,stromal,FALSE
+tracheal goblet cell,secretory,FALSE
+lung ciliated cell,epithelial,FALSE
+cortical interneuron,neuron,FALSE
+ependymal cell,glial,FALSE
+serous secreting cell of bronchus submucosal gland,epithelial,FALSE
+enucleated reticulocyte,blood,FALSE
+neuroblast (sensu Vertebrata),progenitor,FALSE
+type I enteroendocrine cell,endocrine,FALSE
+fibroblast of breast,stromal,FALSE
+retinal cone cell,neuron,FALSE
+enterocyte of epithelium of large intestine,epithelial,FALSE
+H2 horizontal cell,neuron,FALSE
+diffuse bipolar 3a cell,neuron,FALSE
+starburst amacrine cell,neuron,FALSE
+ON-blue cone bipolar cell,neuron,FALSE
+duct epithelial cell,epithelial,FALSE
+adipocyte of epicardial fat of left ventricle,fat,FALSE
+osteoclast,bone,FALSE
+adipocyte of breast,fat,FALSE
+cell of skeletal muscle,muscle,FALSE
+ganglion interneuron,neuron,FALSE
+muscle cell,muscle,FALSE
+Purkinje cell,neuron,FALSE
+stellate neuron,neuron,FALSE
+ON-bipolar cell,neuron,FALSE
+forebrain radial glial cell,glial,FALSE
+L2/3 intratelencephalic projecting glutamatergic neuron,neuron,FALSE
+cerebral cortex neuron,neuron,FALSE
+inhibitory motor neuron,neuron,FALSE
+tuft cell of colon,epithelial,FALSE
+respiratory goblet cell,secretory,FALSE
+progenitor cell of endocrine pancreas,progenitor,FALSE
+epithelial fate stem cell,epithelial,FALSE
+enteroendocrine cell of small intestine,endocrine,FALSE
+keratocyte,epithelial,FALSE
+endocardial cell,endothelial,FALSE
+cardiac mesenchymal cell,stromal,FALSE
+L5/6 near-projecting glutamatergic neuron of the primary motor cortex,neuron,FALSE
+Langerhans cell,immune,FALSE
+surface ectodermal cell,epithelial,FALSE
+serous cell of epithelium of trachea,epithelial,FALSE
+epithelial cell of lacrimal sac,epithelial,FALSE
+intraepithelial lymphocyte,progenitor,FALSE
+pneumocyte,pneumocyte,FALSE
+non-terminally differentiated cell,progenitor,FALSE
+mononuclear cell,immune,FALSE
+peripheral blood mononuclear cell,immune,FALSE
+exhausted T cell,t,TRUE
+endothelial cell of venule,endothelial,FALSE

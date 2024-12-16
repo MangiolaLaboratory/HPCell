@@ -1,0 +1,30 @@
+from,to,is_immune
+NK,nk,TRUE
+CD8 TEM,cd8 tem,TRUE
+CD4 CTL,cytotoxic,TRUE
+dnT,t,TRUE
+CD8 Naive,cd8 naive,TRUE
+CD4 Naive,cd4 naive,TRUE
+CD4 TCM,cd4 tcm,TRUE
+gdT,tgd,TRUE
+CD8 TCM,cd8 tcm,TRUE
+MAIT,mait,TRUE
+CD4 TEM,cd4 tem,TRUE
+ILC,ilc,TRUE
+CD14 Mono,cd14 mono,TRUE
+cDC1,cdc,TRUE
+pDC,pdc,TRUE
+cDC2,cdc,TRUE
+B naive,b naive,TRUE
+B intermediate,b memory,TRUE
+B memory,b memory,TRUE
+Eryth,erythrocyte,TRUE
+CD16 Mono,cd16 mono,TRUE
+HSPC,progenitor,TRUE
+Treg,treg,TRUE
+NK_CD56bright,nk,TRUE
+Plasmablast,plasma,TRUE
+NK Proliferating,nk,TRUE
+ASDC,cdc,TRUE
+CD8 Proliferating,cd8 tem,TRUE
+CD4 Proliferating,cd4 tem,TRUE
