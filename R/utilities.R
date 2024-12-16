@@ -58,6 +58,7 @@ read_data_container <- function(file,
 #' @param container_type A character vector of length one specifies the input data type.
 #' @return An object stored in the defined path.
 #' @importFrom HDF5Array loadHDF5SummarizedExperiment saveHDF5SummarizedExperiment
+#' @importFrom SummarizedExperiment assay
 #' @export
 save_experiment_data <- function(data,
                                  dir,
@@ -77,6 +78,7 @@ save_experiment_data <- function(data,
   
   switch(container_type,
          "anndata" = {
+           if (ncol(assay(data)) == 1) data = data |> duplicate_single_column_assay()
            zellkonverter::writeH5AD(data, paste0(dir, ".h5ad"), compression = "gzip") 
            read_data_container(paste0(dir, ".h5ad"), "anndata")
          },
@@ -91,6 +93,41 @@ save_experiment_data <- function(data,
                                                 paste0(dir, ".h5Seurat"),
                                                 overwrite = TRUE)
   )
+}
+
+#' Duplicate Single-Column Assay in SingleCellExperiment Object
+#'
+#' This function handles SingleCellExperiment (SCE) objects where a specified assay 
+#' contains only one column. It duplicates the single-column assay to avoid potential 
+#' errors during saving or downstream analysis that require at least two columns. 
+#' The duplicated column is marked with a prefix `DUMMY___` to distinguish it. 
+#' Corresponding entries in the column metadata (`colData`) are also duplicated.
+#'
+#' @param sce A `SingleCellExperiment` object.
+#' @importFrom SummarizedExperiment assay assays colData
+#' @importFrom SingleCellExperiment SingleCellExperiment
+#' @return A modified `SingleCellExperiment` object with the single-column assay 
+#' duplicated if applicable. If the assay already has more than one column, the 
+#' function returns the original object unchanged.
+duplicate_single_column_assay <- function(sce) {
+  
+  assay = sce |> assays() |> names() |> magrittr::extract2(1)
+  
+  if(ncol(assay(sce)) == 1) {
+    
+    # Duplicate the assay to prevent saving errors due to single-column matrices
+    my_assay = cbind(assay(sce), assay(sce))
+    # Rename the second column to distinguish it
+    colnames(my_assay)[2] = paste0("DUMMY", "___", colnames(my_assay)[2])
+    
+    cd = colData(sce)
+    cd = cd |> rbind(cd)
+    rownames(cd)[2] = paste0("DUMMY", "___", rownames(cd)[2])
+    
+    sce =  SingleCellExperiment(assay = list(X = my_assay ), colData = cd)
+    sce
+  } 
+  sce
 }
 
 #' Gene name conversion using ensembl database
