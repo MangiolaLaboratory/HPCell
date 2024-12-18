@@ -1048,12 +1048,575 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   #     # Drop alive columns
   #     select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
   # }
+}
+
+#' Preprocess metacells with the SuperCell approach
+#' 
+#' This function preprocesses a single-cell gene expression matrix for downstream simplification using PCA 
+#' and k-nearest neighbor (kNN) graph construction. It includes options for scaling, feature selection, 
+#' approximate sampling, and PCA computation methods.
+#'
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
+#' @param empty_droplets_tbl A tibble identifying empty droplets.
+#' @param alive_identification_tbl A tibble from alive cell identification.
+#' @param cell_cycle_score_tbl A tibble from cell cycle scoring.
+#' @param assay assay used, default = "RNA" 
+#' @param genes.use a vector of genes used to compute PCA
+#' @param genes.exclude a vector of genes to be excluded when computing PCA
+#' @param n.var.genes if \code{"genes.use"} is not provided, \code{"n.var.genes"} genes with the largest variation are used
+#' @param k.knn parameter to compute single-cell kNN network
+#' @param do.scale whether to scale gene expression matrix when computing PCA
+#' @param n.pc number of principal components to use for construction of single-cell kNN network
+#' @param fast.pca use \link[irlba]{irlba} as a faster version of prcomp (one used in Seurat package)
+#' @param do.approx compute approximate kNN in case of a large dataset (>50'000)
+#' @param approx.N number of cells to subsample for an approximate approach. By default, 5000 cells are used 
+#'   for approximation to capture biological meaningful result.
+#' @param seed seed to use to subsample cells for an approximate approach
+#' @param ... other parameters of \link{build_knn_graph} function
+#' @return A list of variables to be passed to the `SuperCell::SCimplify` gamma involved function. 
+#' @importFrom Matrix t
+#' @importFrom stats var prcomp
+#' @importFrom irlba irlba
+#' @importFrom SuperCell build_knn_graph
+#' @export
+preprocess_SCimplify <- function(input_read_RNA_assay,
+                                 empty_droplets_tbl = NULL, 
+                                 alive_identification_tbl = NULL, 
+                                 cell_cycle_score_tbl = NULL,
+                                 assay = NULL,
+                                 genes.use = NULL,
+                                 genes.exclude = NULL,
+                                 n.var.genes = min(1000, nrow(input_read_RNA_assay)),
+                                 k.knn = 5,
+                                 do.scale = TRUE,
+                                 n.pc = 10,
+                                 fast.pca = TRUE,
+                                 do.approx = FALSE,
+                                 approx.N = 5000,
+                                 seed = 12345,
+                                 ...){
+  
+  #Fix GChecks 
+  empty_droplet = NULL 
+  .cell <- NULL 
+  
+  # Your code for non_batch_variation_removal function here
+  class_input = input_read_RNA_assay |> class()
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> magrittr::extract2(1)
+  
+  # Convert to SE if the input is SCE
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
+    
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, 
+                                                              counts = assay) 
+    
+    # Rename assay
+    assay_name_old = DefaultAssay(input_read_RNA_assay)
+    input_read_RNA_assay_transform = input_read_RNA_assay |>
+      RenameAssays(
+        assay.name = assay_name_old,
+        new.assay.name = assay)
+  }
+  
+  # avoid small number of cells 
+  if (!is.null(empty_droplets_tbl)) {
+    input_read_RNA_assay_transform <- input_read_RNA_assay_transform |>
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      dplyr::filter(!empty_droplet)
+  } 
+  
+  if (!is.null(alive_identification_tbl)) {
+    input_read_RNA_assay_transform =
+      input_read_RNA_assay_transform |>
+      left_join(
+        alive_identification_tbl ,
+        by=".cell"
+      ) 
+  }
+  
+  if(!is.null(cell_cycle_score_tbl)) 
+    input_read_RNA_assay_transform = input_read_RNA_assay_transform |>
+    
+    left_join(
+      cell_cycle_score_tbl ,
+      by=".cell"
+    )
+  
+  # Get normalise and scale gene expression matrix with rows to be genes and cols to be cells
+  normalized_rna <- 
+    input_read_RNA_assay |> 
+    NormalizeData(normalization.method = "LogNormalize") |> 
+    FindVariableFeatures(nfeatures = 2000) |>
+    ScaleData() |>
+    RunPCA(npcs = 50, verbose = F) |> 
+    RunUMAP(reduction = "pca", dims = c(1:30), n.neighbors = 30, verbose = F) |> 
+    Seurat::GetAssayData(slot = "data")
+  
+  N.c <- ncol(normalized_rna)
+  
+  # if(gamma > 100 & N.c < 100000){
+  #   warning(paste0("Graining level (gamma = ", gamma, ") seems to be very large! Please, consider using smaller gamma, the suggested range is 10-50."))
+  # }
+  
+  if(is.null(rownames(normalized_rna))){
+    if(!(is.null(genes.use) | is.null(genes.exclude))){
+      stop("rownames(normalized_rna) is Null \nGene expression matrix normalized_rna is expected to have genes as rownames")
+    } else {
+      warning("colnames(normalized_rna) is Null, \nGene expression matrix normalized_rna is expected to have genes as rownames! \ngenes will be created automatically in a form 'gene_i' ")
+      rownames(normalized_rna) <- paste("gene", 1:nrow(normalized_rna), sep = "_")
+    }
+  }
+  
+  if(is.null(colnames(normalized_rna))){
+    warning("colnames(normalized_rna) is Null, \nGene expression matrix normalized_rna is expected to have cellIDs as colnames! \nCellIDs will be created automatically in a form 'cell_i' ")
+    colnames(normalized_rna) <- paste("cell", 1:N.c, sep = "_")
+  }
+  
+  cell.ids <- colnames(normalized_rna)
+  
+  keep.genes    <- setdiff(rownames(normalized_rna), genes.exclude)
+  normalized_rna             <- normalized_rna[keep.genes,]
   
   
+  if(is.null(genes.use)){
+    n.var.genes <- min(n.var.genes, nrow(normalized_rna))
+    if(N.c > 50000){
+      set.seed(seed)
+      idx         <- sample(N.c, 50000)
+      gene.var    <- apply(normalized_rna[,idx], 1, stats::var)
+    } else {
+      gene.var    <- apply(normalized_rna, 1, stats::var)
+    }
+    
+    genes.use   <- names(sort(gene.var, decreasing = TRUE))[1:n.var.genes]
+  }
+  
+  if(length(intersect(genes.use, genes.exclude)) > 0){
+    stop("Sets of genes.use and genes.exclude have non-empty intersection")
+  }
+  
+  genes.use <- genes.use[genes.use %in% rownames(normalized_rna)]
+  normalized_rna <- normalized_rna[genes.use,]
+  
+  if(do.approx & approx.N >= N.c){
+    do.approx <- FALSE
+    warning("approx.N is larger or equal to the number of single cells, thus, an exact simplification will be performed")
+  }
+  
+  # if(do.approx & (approx.N < round(N.c/gamma))){
+  #   approx.N <- round(N.c/gamma)
+  #   warning(paste("approx.N is set to N.SC", approx.N))
+  # }
+  # 
+  # if(do.approx & ((N.c/gamma) > (approx.N/3))){
+  #   warning("approx.N is not much larger than desired number of super-cells, so an approximate simplification may take londer than an exact one!")
+  # }
+  
+  if(do.approx){
+    set.seed(seed)
+    approx.N            <- min(approx.N, N.c)
+    presample           <- sample(1:N.c, size = approx.N, replace = FALSE)
+    presampled.cell.ids <- cell.ids[sort(presample)]
+    rest.cell.ids       <- setdiff(cell.ids, presampled.cell.ids)
+  } else {
+    presampled.cell.ids <- cell.ids
+    rest.cell.ids       <- c()
+  }
+  
+  normalized_rna.for.pca            <- Matrix::t(normalized_rna[genes.use, presampled.cell.ids])
+  if(do.scale){ normalized_rna.for.pca            <- scale(normalized_rna.for.pca) }
+  normalized_rna.for.pca[is.na(normalized_rna.for.pca)] <- 0
+  
+  if(is.null(n.pc[1]) | min(n.pc) < 1){stop("Please, provide a range or a number of components to use: n.pc")}
+  if(length(n.pc)==1) n.pc <- 1:n.pc
+  
+  if(fast.pca & (N.c < 1000)){
+    warning("Normal pca is computed because number of cell is low for irlba::irlba()")
+    fast.pca <- FALSE
+  }
+  
+  if(!fast.pca){
+    PCA.presampled          <- stats::prcomp(normalized_rna.for.pca, rank. = max(n.pc), scale. = F, center = F)
+  } else {
+    set.seed(seed)
+    PCA.presampled          <- irlba::irlba(normalized_rna.for.pca, nv = max(n.pc, 25))
+    PCA.presampled$x        <- PCA.presampled$u %*% diag(PCA.presampled$d)
+    PCA.presampled$rotation <- PCA.presampled$v
+  }
   
   
+  sc.nw <- SuperCell::build_knn_graph(
+    X = PCA.presampled$x[,n.pc],
+    k = k.knn, from = "coordinates",
+    #use.nn2 = use.nn2,
+    dist_method = "euclidean",
+    #directed = directed,
+    #DoSNN = DoSNN,
+    #pruning = pruning,
+    #which.snn = which.snn,
+    #kmin = kmin,
+    ...
+  )
+  
+  list(sc.nw = sc.nw, PCA.presampled = PCA.presampled, 
+       normalized_rna.for.pca = normalized_rna.for.pca, presampled.cell.ids = presampled.cell.ids, 
+       rest.cell.ids = rest.cell.ids, genes.use = genes.use, cell.ids = cell.ids,
+       do.approx = do.approx, n.pc = n.pc, k.knn = k.knn)
   
 }
+
+#' Detection of metacells with the SuperCell approach
+#'
+#' This function detects metacells (former super-cells) from single-cell gene expression matrix
+#'
+#'
+#' @param preprocessed A list returned by `preprocess_SCimplify` containing preprocessed single-cell data, 
+#'        PCA results, and kNN graph.
+#' @param cell.annotation a vector of cell type annotation, if provided, metacells that contain single cells of different cell type annotation will be split in multiple pure metacell (may result in slightly larger numbe of metacells than expected with a given gamma)
+#' @param cell.split.condition a vector of cell conditions that must not be mixed in one metacell. If provided, metacells will be split in condition-pure metacell (may result in significantly(!) larger number of metacells than expected)
+#' @param gamma graining level of data (proportion of number of single cells in the initial dataset to the number of metacells in the final dataset)
+#' @param block.size number of cells to map to the nearest metacell at the time (for approx coarse-graining)
+#' @param igraph.clustering clustering method to identify metacells (available methods "walktrap" (default) and "louvain" (not recommended, gamma is ignored)).
+#' @param return.singlecell.NW whether return single-cell network (which consists of approx.N if \code{"do.approx"} or all cells otherwise)
+#' @param return.hierarchical.structure whether return hierarchical structure of metacell
+#' @param ... other parameters of \link{build_knn_graph} function
+#'
+#' @return A tibble with column 'cell' and 'membership' indicating which metacell cluster each cell belongs to.
+#' @importFrom igraph cluster_walktrap cluster_louvain contract simplify E V
+#' @importFrom Matrix t
+#' @importFrom proxy dist
+#' @export
+SCimplify <- function(preprocessed,
+                      cell.annotation = NULL,
+                      cell.split.condition = NULL,
+                      gamma,
+                      block.size = 10000,
+                      igraph.clustering = c("walktrap", "louvain"),
+                      return.singlecell.NW = TRUE,
+                      return.hierarchical.structure = TRUE,
+                      ...) {
+  
+  sc.nw = preprocessed$sc.nw
+  PCA.presampled = preprocessed$PCA.presampled
+  normalized_rna.for.pca = preprocessed$normalized_rna.for.pca
+  presampled.cell.ids = preprocessed$presampled.cell.ids
+  rest.cell.ids = preprocessed$rest.cell.ids
+  genes.use = preprocessed$genes.use
+  cell.ids = preprocessed$cell.ids
+  do.approx = preprocessed$do.approx
+  n.pc = preprocessed$n.pc
+  k.knn = preprocessed$k.knn
+  #normalized_rna = preprocessed$normalized_rna
+  
+  N.c <- length(preprocessed$cell.ids)
+  
+  k   <- round(N.c / gamma)
+  
+  if (igraph.clustering[1] == "walktrap") {
+    g.s              <- igraph::cluster_walktrap(sc.nw$graph.knn)
+    g.s$membership   <- igraph::cut_at(g.s, k)
+    
+  } else if (igraph.clustering[1] == "louvain") {
+    warning(paste(
+      "igraph.clustering =",
+      igraph.clustering,
+      ", gamma is ignored"
+    ))
+    g.s    <- igraph::cluster_louvain(sc.nw$graph.knn)
+    
+  } else {
+    stop(
+      paste(
+        "Unknown clustering method (",
+        igraph.clustering,
+        "), please use louvain or walkrtap"
+      )
+    )
+  }
+  
+  membership.presampled        <- g.s$membership
+  names(membership.presampled) <- presampled.cell.ids
+  
+  ## Split super-cells containing cells from different annotations or conditions
+  if (!is.null(cell.annotation) | !is.null(cell.split.condition)) {
+    if (is.null(cell.annotation))
+      cell.annotation <- rep("a", N.c)
+    if (is.null(cell.split.condition))
+      cell.split.condition <- rep("s", N.c)
+    names(cell.annotation) <- names(cell.split.condition) <- cell.ids
+    
+    split.cells <- interaction(cell.annotation[presampled.cell.ids], cell.split.condition[presampled.cell.ids], drop = TRUE)
+    
+    membership.presampled.intr <- interaction(membership.presampled, split.cells, drop = TRUE)
+    membership.presampled <- as.numeric(membership.presampled.intr)
+    names(membership.presampled) <- presampled.cell.ids
+  }
+  
+  
+  
+  SC.NW                        <- igraph::contract(sc.nw$graph.knn, membership.presampled)
+  if (!do.approx) {
+    SC.NW                        <- igraph::simplify(SC.NW,
+                                                     remove.loops = T,
+                                                     edge.attr.comb = "sum")
+  }
+  
+  
+  if (do.approx) {
+    PCA.averaged.SC      <- as.matrix(Matrix::t(supercell_GE(t(
+      PCA.presampled$x[, n.pc]
+    ), groups = membership.presampled)))
+    normalized_rna.for.roration       <- Matrix::t(normalized_rna[genes.use, rest.cell.ids])
+    
+    
+    
+    if (do.scale) {
+      normalized_rna.for.roration <- scale(normalized_rna.for.roration)
+    }
+    normalized_rna.for.roration[is.na(normalized_rna.for.roration)] <- 0
+    
+    
+    membership.omitted   <- c()
+    if (is.null(block.size) | is.na(block.size))
+      block.size <- 10000
+    
+    N.blocks <- length(rest.cell.ids) %/% block.size
+    if (length(rest.cell.ids) %% block.size > 0)
+      N.blocks <- N.blocks + 1
+    
+    
+    if (N.blocks > 0) {
+      for (i in 1:N.blocks) {
+        # compute knn by blocks
+        idx.begin <- (i - 1) * block.size + 1
+        idx.end   <- min(i * block.size, length(rest.cell.ids))
+        
+        cur.rest.cell.ids    <- rest.cell.ids[idx.begin:idx.end]
+        
+        PCA.ommited          <- normalized_rna.for.roration[cur.rest.cell.ids, ] %*% PCA.presampled$rotation[, n.pc] ###
+        
+        D.omitted.subsampled <- proxy::dist(PCA.ommited, PCA.averaged.SC) ###
+        
+        membership.omitted.cur        <- apply(D.omitted.subsampled, 1, which.min) ###
+        names(membership.omitted.cur) <- cur.rest.cell.ids ###
+        
+        membership.omitted   <- c(membership.omitted, membership.omitted.cur)
+      }
+    }
+    
+    membership.all_       <- c(membership.presampled, membership.omitted)
+    membership.all        <- membership.all_
+    
+    
+    names_membership.all <- names(membership.all_)
+    ## again split super-cells containing cells from different annotation or split conditions
+    if (!is.null(cell.annotation) | !is.null(cell.split.condition)) {
+      split.cells <- interaction(cell.annotation[names_membership.all], cell.split.condition[names_membership.all], drop = TRUE)
+      
+      
+      membership.all.intr <- interaction(membership.all_, split.cells, drop = TRUE)
+      
+      membership.all      <- as.numeric(membership.all.intr)
+      
+    }
+    
+    
+    SC.NW                        <- igraph::simplify(SC.NW,
+                                                     remove.loops = T,
+                                                     edge.attr.comb = "sum")
+    names(membership.all) <- names_membership.all
+    membership.all <- membership.all[cell.ids]
+    
+  } else {
+    membership.all       <- membership.presampled[cell.ids]
+  }
+  membership       <- membership.all
+  
+  supercell_size   <- as.vector(table(membership))
+  
+  igraph::E(SC.NW)$width         <- sqrt(igraph::E(SC.NW)$weight / 10)
+  
+  if (igraph::vcount(SC.NW) == length(supercell_size)) {
+    igraph::V(SC.NW)$size          <- supercell_size
+    igraph::V(SC.NW)$sizesqrt      <- sqrt(igraph::V(SC.NW)$size)
+  } else {
+    igraph::V(SC.NW)$size          <- as.vector(table(membership.all_))
+    igraph::V(SC.NW)$sizesqrt      <- sqrt(igraph::V(SC.NW)$size)
+    warning("Supercell graph was not splitted")
+  }
+  
+  res <- list(
+    graph.supercells = SC.NW,
+    gamma = gamma,
+    N.SC = length(unique(membership)),
+    membership = membership,
+    supercell_size = supercell_size,
+    genes.use = genes.use,
+    simplification.algo = igraph.clustering[1],
+    do.approx = do.approx,
+    n.pc = n.pc,
+    k.knn = k.knn,
+    sc.cell.annotation. = cell.annotation,
+    sc.cell.split.condition. = cell.split.condition
+  )
+  
+  if (return.singlecell.NW) {
+    res$graph.singlecell <- sc.nw$graph.knn
+  }
+  if (!is.null(cell.annotation) | !is.null(cell.split.condition)) {
+    res$SC.cell.annotation. <- supercell_assign(cell.annotation, res$membership)
+    res$SC.cell.split.condition. <- supercell_assign(cell.split.condition, res$membership)
+  }
+  
+  if (igraph.clustering[1] == "walktrap" &
+      return.hierarchical.structure)
+    res$h_membership <- g.s
+  
+  metacell_classification <- tibble(cell = res$membership |> names(), 
+                                    membership = res$membership)
+  
+  metacell_classification
+}
+
+
+
+#' #' Metacell Clustering 
+#' #'
+#' #' @description
+#' #' This function processes single-cell RNA sequencing data to cluster cells into metacells,
+#' #' a higher resolution of clustering that groups cells sharing similar gene expression patterns.
+#' #'
+#' #' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
+#' #' @param empty_droplets_tbl A tibble identifying empty droplets.
+#' #' @param alive_identification_tbl A tibble from alive cell identification.
+#' #' @param cell_cycle_score_tbl A tibble from cell cycle scoring.
+#' #' @param assay assay used, default = "RNA" 
+#' #'
+#' #' @return A tibble with column 'cell' and 'membership' indicating which metacell cluster each cell belongs to.
+#' #'
+#' #' @importFrom dplyr left_join filter
+#' #' @importFrom Seurat NormalizeData FindVariableFeatures ScaleData RunPCA RunUMAP
+#' #' @importFrom SummarizedExperiment assay assay<-
+#' #' @importFrom magrittr extract2
+#' #' @export
+#' cluster_metacell <- function(input_read_RNA_assay, 
+#'                                 empty_droplets_tbl = NULL, 
+#'                                 alive_identification_tbl = NULL, 
+#'                                 cell_cycle_score_tbl = NULL,
+#'                                 assay = NULL){
+#'   #Fix GChecks 
+#'   empty_droplet = NULL 
+#'   .cell <- NULL 
+#'   
+#'   # Metacell config
+#'   gamma = 50 # the requested graining level.
+#'   k_knn = 30 # the number of neighbors considered to build the knn network.
+#'   nb_var_genes = 2000 # number of the top variable genes to use for dimensionality reduction 
+#'   nb_pc = 50 # the number of principal components to use.   
+#'   
+#'   # Your code for non_batch_variation_removal function here
+#'   class_input = input_read_RNA_assay |> class()
+#'   
+#'   # Get assay
+#'   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+#'   
+#'   if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+#'     assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
+#'     
+#'     input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, 
+#'                                                               counts = assay) 
+#'     
+#'     # Rename assay
+#'     assay_name_old = DefaultAssay(input_read_RNA_assay)
+#'     input_read_RNA_assay_transform = input_read_RNA_assay |>
+#'       RenameAssays(
+#'         assay.name = assay_name_old,
+#'         new.assay.name = assay)
+#'   }
+#'   
+#'   # avoid small number of cells 
+#'   if (!is.null(empty_droplets_tbl)) {
+#'     input_read_RNA_assay_transform <- input_read_RNA_assay_transform |>
+#'       left_join(empty_droplets_tbl, by = ".cell") |>
+#'       dplyr::filter(!empty_droplet)
+#'   } 
+#'   
+#'   if (!is.null(alive_identification_tbl)) {
+#'     input_read_RNA_assay_transform =
+#'       input_read_RNA_assay_transform |>
+#'       left_join(
+#'         alive_identification_tbl ,
+#'         by=".cell"
+#'       ) 
+#'   }
+#' 
+#'   if(!is.null(cell_cycle_score_tbl)) 
+#'     input_read_RNA_assay_transform = input_read_RNA_assay_transform |>
+#'     
+#'     left_join(
+#'       cell_cycle_score_tbl ,
+#'       by=".cell"
+#'     )
+#'   
+#'   
+#'   # Normalise RNA
+#'   # (To Do: Let users decide the normalisation factors OR supercell factors by ellipsis)
+#'   normalized_rna <- 
+#'     input_read_RNA_assay |> 
+#'     NormalizeData(normalization.method = "LogNormalize") |> 
+#'     FindVariableFeatures(nfeatures = 2000) |>
+#'     ScaleData() |>
+#'     RunPCA(npcs = 50, verbose = F) |> 
+#'     RunUMAP(reduction = "pca", dims = c(1:30), n.neighbors = 30, verbose = F)
+#'   
+#'   
+#'   MC <- SuperCell::SCimplify(Seurat::GetAssayData(normalized_rna, slot = "data"),  # single-cell log-normalized gene expression data
+#'                              k.knn = k_knn,
+#'                              gamma = gamma,
+#'                              n.var.genes = nb_var_genes,  
+#'                              n.pc = nb_pc,
+#'                              genes.use = Seurat::VariableFeatures(normalized_rna)
+#'   )
+#'   
+#'   # MC.GE <- supercell_GE(Seurat::GetAssayData(normalized_rna, slot = "counts"),
+#'   #                       MC$membership,
+#'   #                       mode =  "sum")
+#'   # 
+#'   # # Construct the object using metacell
+#'   # colnames(MC.GE) <- as.character(1:ncol(MC.GE))
+#'   # MC.seurat <- CreateSeuratObject(counts = MC.GE, 
+#'   #                                 meta.data = data.frame(size = as.vector(table(MC$membership)))
+#'   #                                 )
+#'   # MC.seurat[[annotation_label]] <- MC$annotation
+#'   # 
+#'   # # save single-cell membership to metacells in the MC.seurat object
+#'   # MC.seurat@misc$cell_membership <- data.frame(row.names = names(MC$membership), membership = MC$membership)
+#'   # MC.seurat@misc$var_features <- MC$genes.use 
+#'   # 
+#'   # # Save the PCA components and genes used in SCimplify  
+#'   # PCA.res <- irlba::irlba(scale(Matrix::t(se.data@assays$RNA@data[MC$genes.use, ])), nv = nb_pc)
+#'   # pca.x <- PCA.res$u %*% diag(PCA.res$d)
+#'   # rownames(pca.x) <- colnames(se.data@assays$RNA@data)
+#'   # MC.seurat@misc$sc.pca <- CreateDimReducObject(
+#'   #   embeddings = pca.x,
+#'   #   loadings = PCA.res$v,
+#'   #   key = "PC_",
+#'   #   assay = "RNA"
+#'   # )
+#'   # 
+#'   # MC.seurat[["RNA"]] <- as(object = MC.seurat[["RNA"]], Class = "Assay")
+#'   
+#'   # Return a tibble showing which cell belongs to which metacell cluster
+#'   metacell_classification <- tibble(cell = MC$membership |> names(), 
+#'                                     membership = MC$membership)
+#'   
+#'   metacell_classification
+#'   
+#' }
+
 
 #' Preprocessing Output
 #'

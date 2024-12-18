@@ -78,10 +78,10 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
       names(assays(input_read_RNA_assay)) != "X") names(assays(input_read_RNA_assay)) <- "X"
   
   # strip metadata that we don't need
-  input_read_RNA_assay = 
-    input_read_RNA_assay |> 
-    select(.cell, observation_joinid, observation_originalid, donor_id, dataset_id, sample_id, cell_type) 
-  
+  input_read_RNA_assay =
+    input_read_RNA_assay |>
+    select(.cell, observation_joinid, observation_originalid, donor_id, dataset_id, sample_id, cell_type)
+
   # Remove reduced dimensions
   reducedDim(input_read_RNA_assay) = NULL
   

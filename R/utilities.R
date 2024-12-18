@@ -2933,7 +2933,7 @@ check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY <- function(input_rea
     assay_data <- GetAssayData(input_read_RNA_assay, assay = assay_name, slot = "data")
     
     my_min = min(assay_data)
-              
+    
     # Check if all values are > 0
     if (my_min > 0) {
       # Subtract 1 from each value
