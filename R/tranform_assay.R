@@ -23,7 +23,6 @@ transform_assay.HPCell = function(
     
     # Track the file
     hpc_single("transform_file", "temp_fx.rds", format = "file") |> 
-
     hpc_iterate(
       target_output = "transform", 
       user_function = readRDS |> quote() ,
@@ -40,7 +39,7 @@ transform_assay.HPCell = function(
       transform_fx = "transform" |> is_target()  ,
       external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
       container_type = "data_container_type" |> is_target() 
-
+      
     )
   
 }
@@ -66,23 +65,23 @@ transform_assay.HPCell = function(
 #' @importFrom glue glue
 #' @importFrom digest digest
 #' @importFrom stats density
-#' @importFrom stats which.max
 #'
 #' @export
 transform_utility  = function(input_read_RNA_assay, transform_fx, external_path, container_type) {
-
+  
   numer_of_cells_to_sample = 5e3
   
   if(ncol(input_read_RNA_assay) == 0) return(NULL)
   
   # Rename assay names to for consistency
-  if (names(assays(input_read_RNA_assay)) != "X") names(assays(input_read_RNA_assay)) <- "X"
+  if (length(names(assays(input_read_RNA_assay))) == 1 && 
+      names(assays(input_read_RNA_assay)) != "X") names(assays(input_read_RNA_assay)) <- "X"
   
   # strip metadata that we don't need
-  input_read_RNA_assay = 
-    input_read_RNA_assay |> 
-    select(.cell, observation_joinid, observation_originalid, donor_id, dataset_id, sample_id, cell_type) 
-  
+  input_read_RNA_assay =
+    input_read_RNA_assay |>
+    select(.cell, observation_joinid, observation_originalid, donor_id, dataset_id, sample_id, cell_type)
+
   # Remove reduced dimensions
   reducedDim(input_read_RNA_assay) = NULL
   
@@ -131,26 +130,25 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   # Find the mode (peak) value of the counts
   mode_value <- density_est$x[which.max(density_est$y)]
   
-  # If the mode value is negative, shift counts and counts used for estimation to make the mode zero
+  # If the mode value is negative, shift counts to make the mode zero
   if (mode_value < 0) {
     counts <- counts + abs(mode_value)
-    counts_light_for_checks_apply_mode <- counts_light_for_checks + abs(mode_value)
-  } else {counts_light_for_checks_apply_mode <- counts_light_for_checks}
+    counts_light_for_checks = counts_light_for_checks + abs(mode_value)
+  }
   
   # Round counts to avoid potential subtraction errors due to floating-point precision
   counts <- round(counts, 5)
-  counts_light_for_checks_apply_mode <- round(counts_light_for_checks_apply_mode, 5)
+  counts_light_for_checks = round(counts_light_for_checks, 5)
   
   # Find the most frequent count value (mode) in the counts
-  majority_gene_counts <- compute_mode_delayedarray(counts_light_for_checks_apply_mode)$mode
+  majority_gene_counts <- compute_mode_delayedarray(counts_light_for_checks)$mode
   
   # Subtract the mode value from counts if it is not zero
   if (majority_gene_counts != 0) {
     counts <- counts - majority_gene_counts
   }
   
-  # Replace negative counts with zero to avoid downstream failures. 
-  # Use counts_light_for_checks here instead of the potential shifted value
+  # Replace negative counts with zero to avoid downstream failures
   if (min(counts_light_for_checks) < 0) {
     counts[counts < 0] <- 0
   }
@@ -162,9 +160,16 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   assay(input_read_RNA_assay, assay_name) <- counts
   
   # Remove cells with zero total counts
+  # !!! MAYBE WE SHOULD LKEEP THESE CELLS AND LEAVE THEM TO THE FILTERING STEP
   input_read_RNA_assay <- input_read_RNA_assay[, colSums(counts) > 0]
   
   if (ncol(input_read_RNA_assay) == 0) return(NULL)
+  
+  # Rebuild the SCE to stay light, and to set the assay with the right name
+  input_read_RNA_assay = SingleCellExperiment(
+    assays = list(X = input_read_RNA_assay |> assay() ), 
+    colData = colData(input_read_RNA_assay)
+  )
   
   # Return the modified data object
   input_read_RNA_assay |> 
@@ -201,6 +206,5 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   # file_name = paste0(file_name, extension)
   
   # Return data as target instead of file_name pointer
-
+  
 }
-

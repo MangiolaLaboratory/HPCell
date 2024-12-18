@@ -1057,7 +1057,11 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
 #' and k-nearest neighbor (kNN) graph construction. It includes options for scaling, feature selection, 
 #' approximate sampling, and PCA computation methods.
 #'
-#' @param normalized_rna log-normalized gene expression matrix with rows to be genes and cols to be cells
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
+#' @param empty_droplets_tbl A tibble identifying empty droplets.
+#' @param alive_identification_tbl A tibble from alive cell identification.
+#' @param cell_cycle_score_tbl A tibble from cell cycle scoring.
+#' @param assay assay used, default = "RNA" 
 #' @param genes.use a vector of genes used to compute PCA
 #' @param genes.exclude a vector of genes to be excluded when computing PCA
 #' @param n.var.genes if \code{"genes.use"} is not provided, \code{"n.var.genes"} genes with the largest variation are used
@@ -1075,6 +1079,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
 #' @importFrom stats var prcomp
 #' @importFrom irlba irlba
 #' @importFrom SuperCell build_knn_graph
+#' @export
 preprocess_SCimplify <- function(input_read_RNA_assay,
                                  empty_droplets_tbl = NULL, 
                                  alive_identification_tbl = NULL, 
@@ -1082,7 +1087,7 @@ preprocess_SCimplify <- function(input_read_RNA_assay,
                                  assay = NULL,
                                  genes.use = NULL,
                                  genes.exclude = NULL,
-                                 n.var.genes = min(1000, nrow(normalized_rna)),
+                                 n.var.genes = min(1000, nrow(input_read_RNA_assay)),
                                  k.knn = 5,
                                  do.scale = TRUE,
                                  n.pc = 10,
@@ -1100,8 +1105,9 @@ preprocess_SCimplify <- function(input_read_RNA_assay,
   class_input = input_read_RNA_assay |> class()
   
   # Get assay
-  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> magrittr::extract2(1)
   
+  # Convert to SE if the input is SCE
   if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
     
@@ -1140,15 +1146,15 @@ preprocess_SCimplify <- function(input_read_RNA_assay,
       by=".cell"
     )
   
-  # Normalise and scale
+  # Get normalise and scale gene expression matrix with rows to be genes and cols to be cells
   normalized_rna <- 
     input_read_RNA_assay |> 
     NormalizeData(normalization.method = "LogNormalize") |> 
     FindVariableFeatures(nfeatures = 2000) |>
     ScaleData() |>
     RunPCA(npcs = 50, verbose = F) |> 
-    RunUMAP(reduction = "pca", dims = c(1:30), n.neighbors = 30, verbose = F)
-  
+    RunUMAP(reduction = "pca", dims = c(1:30), n.neighbors = 30, verbose = F) |> 
+    Seurat::GetAssayData(slot = "data")
   
   N.c <- ncol(normalized_rna)
   
@@ -1244,7 +1250,7 @@ preprocess_SCimplify <- function(input_read_RNA_assay,
   
   
   sc.nw <- SuperCell::build_knn_graph(
-    normalized_rna = PCA.presampled$x[,n.pc],
+    X = PCA.presampled$x[,n.pc],
     k = k.knn, from = "coordinates",
     #use.nn2 = use.nn2,
     dist_method = "euclidean",
@@ -1283,6 +1289,7 @@ preprocess_SCimplify <- function(input_read_RNA_assay,
 #' @importFrom igraph cluster_walktrap cluster_louvain contract simplify E V
 #' @importFrom Matrix t
 #' @importFrom proxy dist
+#' @export
 SCimplify <- function(preprocessed,
                       cell.annotation = NULL,
                       cell.split.condition = NULL,
