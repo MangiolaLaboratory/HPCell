@@ -23,7 +23,6 @@ transform_assay.HPCell = function(
     
     # Track the file
     hpc_single("transform_file", "temp_fx.rds", format = "file") |> 
-
     hpc_iterate(
       target_output = "transform", 
       user_function = readRDS |> quote() ,
@@ -40,7 +39,7 @@ transform_assay.HPCell = function(
       transform_fx = "transform" |> is_target()  ,
       external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
       container_type = "data_container_type" |> is_target() 
-
+      
     )
   
 }
@@ -69,13 +68,14 @@ transform_assay.HPCell = function(
 #'
 #' @export
 transform_utility  = function(input_read_RNA_assay, transform_fx, external_path, container_type) {
-
+  
   numer_of_cells_to_sample = 5e3
   
   if(ncol(input_read_RNA_assay) == 0) return(NULL)
   
   # Rename assay names to for consistency
-  if (names(assays(input_read_RNA_assay)) != "X") names(assays(input_read_RNA_assay)) <- "X"
+  if (length(names(assays(input_read_RNA_assay))) == 1 && 
+      names(assays(input_read_RNA_assay)) != "X") names(assays(input_read_RNA_assay)) <- "X"
   
   # strip metadata that we don't need
   input_read_RNA_assay = 
@@ -133,10 +133,12 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   # If the mode value is negative, shift counts to make the mode zero
   if (mode_value < 0) {
     counts <- counts + abs(mode_value)
+    counts_light_for_checks = counts_light_for_checks + abs(mode_value)
   }
   
   # Round counts to avoid potential subtraction errors due to floating-point precision
   counts <- round(counts, 5)
+  counts_light_for_checks = round(counts_light_for_checks, 5)
   
   # Find the most frequent count value (mode) in the counts
   majority_gene_counts <- compute_mode_delayedarray(counts_light_for_checks)$mode
@@ -204,6 +206,5 @@ transform_utility  = function(input_read_RNA_assay, transform_fx, external_path,
   # file_name = paste0(file_name, extension)
   
   # Return data as target instead of file_name pointer
-
+  
 }
-
