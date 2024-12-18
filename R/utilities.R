@@ -106,12 +106,13 @@ save_experiment_data <- function(data,
 #' @param sce A `SingleCellExperiment` object.
 #' @importFrom SummarizedExperiment assay assays colData
 #' @importFrom SingleCellExperiment SingleCellExperiment
+#' @importFrom rlang set_names
 #' @return A modified `SingleCellExperiment` object with the single-column assay 
 #' duplicated if applicable. If the assay already has more than one column, the 
 #' function returns the original object unchanged.
 duplicate_single_column_assay <- function(sce) {
   
-  assay = sce |> assays() |> names() |> magrittr::extract2(1)
+  assay_name = sce |> assays() |> names() |> magrittr::extract2(1)
   
   if(ncol(assay(sce)) == 1) {
     
@@ -124,7 +125,7 @@ duplicate_single_column_assay <- function(sce) {
     cd = cd |> rbind(cd)
     rownames(cd)[2] = paste0("DUMMY", "___", rownames(cd)[2])
     
-    sce =  SingleCellExperiment(assay = list(X = my_assay ), colData = cd)
+    sce =  SingleCellExperiment(assay = list(my_assay) |> set_names(assay_name), colData = cd)
     sce
   } 
   sce
