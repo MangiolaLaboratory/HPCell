@@ -12,29 +12,39 @@ input_seurat_abc =
   as.Seurat(data = NULL) |>
   subset(subset = Tissue %in% c("Blood")) 
 
+cell_type_column <- "Cell_type_in_each_tissue"
 # sample_column<- "Tissue"
 ## Defining functions 
 # 
 reference_label_fine = HPCell:::reference_label_fine_id(tissue)
 
-empty_droplets_tbl = HPCell:::empty_droplet_id(input_seurat_abc, filter_empty_droplets = TRUE)
+empty_droplets_tbl = HPCell:::empty_droplet_threshold(input_seurat_abc, 
+                                                      feature_nomenclature = "symbol")
 
 # Define output from annotation_label_transfer 
 annotation_label_transfer_tbl = HPCell:::annotation_label_transfer(input_seurat_abc,
-                                                          empty_droplets_tbl)
+                                                          empty_droplets_tbl,
+                                                          reference_azimuth = "pbmcref",
+                                                          feature_nomenclature = "symbol")
+
+# Define output from cell_type_ensembl_harmonised
+cell_type_ensemble_tbl = HPCell:::cell_type_ensembl_harmonised(input_seurat_abc, 
+                                                              annotation_label_transfer_tbl)
 
 # Define output from alive_identification
 alive_identification_tbl = HPCell:::alive_identification(input_seurat_abc,
                                                 empty_droplets_tbl,
-                                                annotation_label_transfer_tbl)
+                                                cell_type_ensemble_tbl,
+                                                cell_type_column = "cell_type_unified_ensemble",
+                                                feature_nomenclature = "symbol")
 
 
 # Define output from doublet_identification
 doublet_identification_tbl = HPCell:::doublet_identification(input_seurat_abc,
                                                     empty_droplets_tbl,
                                                     alive_identification_tbl,
-                                                    annotation_label_transfer_tbl,
-                                                    reference_label_fine)
+                                                    cell_type_ensemble_tbl,
+                                                    reference_label_fine = "cell_type_unified_ensemble")
 
 # Define output from cell_cycle_scoring
 cell_cycle_score_tbl = HPCell:::cell_cycle_scoring(input_seurat_abc, empty_droplets_tbl)
@@ -52,6 +62,34 @@ preprocessing_output_S = HPCell:::preprocessing_output(tissue,
                                               cell_cycle_score_tbl,
                                               annotation_label_transfer_tbl,
                                               doublet_identification_tbl)
+
+# Calculate metacell for a sample cell type
+metacell_per_cell_type <- HPCell:::calculate_metacell_for_a_sample_per_cell_type(input_seurat_abc,
+                                                                                 min_cells_per_metacell = 10)
+
+# Calculate metacell membership
+metacell_tbl <- split_sample_cell_type_calculate_metacell_membership(input_seurat_abc, 
+                                                                     input_seurat_abc[[]] |> 
+                                                                       rownames_to_column(var = ".cell") |> 
+                                                                       as_tibble(),
+                                                                     empty_droplets_tbl,
+                                                                     alive_identification_tbl,
+                                                                     doublet_identification_tbl,
+                                                                     x = cell_type_column,
+                                                                     min_cells_per_metacell = 10)
+
+# Define output from cell_communication
+cell_communication_tbl = HPCell:::cell_communication(input_seurat_abc,
+                                                     empty_droplets_tbl = NULL,
+                                                     alive_identification_tbl = NULL,
+                                                     doublet_identification_tbl = NULL,
+                                                     cell_type_tbl = input_seurat_abc[[]] |> 
+                                                       rownames_to_column(var = ".cell") |> 
+                                                       as_tibble() |> mutate(sample_id = "sample1"),
+                                                     assay = NULL,
+                                                     cell_type_column = "Cell_type_in_each_tissue",
+                                                     feature_nomenclature = "symbol")
+
 # empty_droplets_tbl = HPCell:::empty_droplet_id(input_seurat_list[[1]], filter_empty_droplets = TRUE)
 # 
 # # Define output from annotation_label_transfer 
@@ -361,11 +399,21 @@ path<- paste0(system.file(package = "HPCell"), "extdata/Test.Rmd")
 
 ## Testing in Targets 
 
+file_paths <- tar_read(read_file_files, store = store)
+data_container_type <- tar_read(data_container_type_file, store = store)
+
+input_file <- list()
+
+# Loop over elements in file_paths list
+for (i in seq_along(file_paths)) {
+  input_file[[i]] <- read_data_container(file_paths[[i]], container_type = data_container_type)
+}
+
 ## Empty Droplets
 rmarkdown::render(
   input =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/Empty_droplet_report.html"),
-  params = list(x1 = tar_read(input_read, store = store), 
+  params = list(x1 = read_data_container(tar_read(file_path, store = store), container_type = tar_read(data_container_type_file, store = store)), 
                 x2 = tar_read(empty_droplets_tbl, store = store),
                 x3 = tar_read(annotation_label_transfer_tbl, store = store),
                 x4 = tar_read(unique_tissues, store = store), 
@@ -397,7 +445,6 @@ rmarkdown::render(
 )
 
 ## Pseudobulk analysis report 
-
 rmarkdown::render(
   input = paste0(system.file(package = "HPCell"), "/rmd/pseudobulk_analysis_report.Rmd"),
   output_file = paste0(system.file(package = "HPCell"), "/pseudobulk_analysis_report.html"),
@@ -462,9 +509,9 @@ library(crew.cluster)
 # library(SeuratData)
 # InstallData("pbmc3k")
 # options(Seurat.object.assay.version = "v5")
-# input_seurat <-
-#   LoadData("pbmc3k") |>
-#   _[,1:500]
+input_seurat <-
+  LoadData("pbmc3k") |>
+  _[,1:500]
 # 
 # change_seurat_counts = function(data){
 # 
@@ -482,12 +529,61 @@ library(crew.cluster)
 # input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_1_SCE.rds")
 # input_seurat |> mutate(condition = "untreated") |> change_seurat_counts() |> as.SingleCellExperiment() |>  saveRDS("dev/input_seurat_UNtreated_2_SCE.rds")
 
-
-
 # library(SeuratData)
 # InstallData("pbmcsca")
 # pbmcsca <- LoadData("pbmcsca") # save this to disk, so you can recall every time you execute HPCell
 
+computing_resources = crew_controller_local(workers = 8) #resource_tuned_slurm
+
+# tier = rep(c("tier_1", "tier_2"), times = 6),
+# computing_resources = list(
+#   
+#   crew_controller_local(
+#     name = "tier_1",
+#     workers = 4
+#   ),
+#   crew_controller_local(
+#     name = "tier_2",
+#     workers = 4
+#   )
+# )
+
+  computing_resources = list(
+
+  crew_controller_slurm(
+    name = "tier_1",
+    slurm_memory_gigabytes_per_cpu = 5,
+    slurm_cpus_per_task = 1,
+    workers = 50,
+    tasks_max = 5,
+    verbose = T, 
+    seconds_idle = 30
+  ),
+  crew_controller_slurm(
+    name = "tier_2",
+    slurm_memory_gigabytes_per_cpu = 10,
+    slurm_cpus_per_task = 1,
+    workers = 50,
+    tasks_max = 5,
+    verbose = T, 
+    seconds_idle = 30
+  )
+)
+
+#  Slurm resources
+# computing_resources =
+#   crew.cluster::crew_controller_slurm(
+#     slurm_memory_gigabytes_per_cpu = 5,
+#     workers = 500,
+#     tasks_max = 5,
+#     verbose = T,
+#     slurm_cpus_per_task = 1
+#   )
+
+{ foo_function = function(x, y){x |> dplyr::mutate(foo = y)} } |> 
+  substitute() |> 
+  deparse() |> 
+  readr::write_lines("dev/my_custom_script.R")
 
 # # Define and execute the pipeline
 file_list = 
@@ -498,85 +594,52 @@ file_list =
 #   purrr::map_chr(here::here) |>
 #   magrittr::set_names(c("pbmc3k1_1", "pbmc3k1_2", "pbmc3k1_3", "pbmc3k1_4")) 
 #   
-  
-    dir("dev/CAQ_sce/", full.names = T) 
-
+   dir("dev/CAQ_sce/", full.names = T) |> head(2)
 
   # Initialise pipeline characteristics
-file_list |> 
+# file_list |> 
+input_hpc |> 
   initialise_hpc(
     gene_nomenclature = "symbol",
     data_container_type = "sce_hdf5",
-    
+    store = "~/scratch/Census/temp5/",
+    tier = c("tier_1","tier_1"),
+    computing_resources = computing_resources,
+    #debug_step ="empty_tbl_0cf8d597acd380df"
     # debug_step = "non_batch_variation_removal_S_1",
 
+
     # Default resourced 
-   computing_resources = crew_controller_local(workers = 8), #resource_tuned_slurm
-  
-   # tier = rep(c("tier_1", "tier_2"), times = 6),
-   # computing_resources = list(
-   #   
-   #   crew_controller_local(
-   #     name = "tier_1",
-   #     workers = 4
-   #   ),
-   #   crew_controller_local(
-   #     name = "tier_2",
-   #     workers = 4
-   #   )
-   # )
-   
-  #   computing_resources = list(
-  # 
-  #   crew_controller_slurm(
-  #     name = "tier_1",
-  #     slurm_memory_gigabytes_per_cpu = 5,
-  #     slurm_cpus_per_task = 1,
-  #     workers = 50,
-  #     tasks_max = 5,
-  #     verbose = T
-  #   ),
-  #   crew_controller_slurm(
-  #     name = "tier_2",
-  #     slurm_memory_gigabytes_per_cpu = 10,
-  #     slurm_cpus_per_task = 1,
-  #     workers = 50,
-  #     tasks_max = 5,
-  #     verbose = T
-  #   )
-  # )
-    
-  # #  Slurm resources
-    # computing_resources =
-    #   crew.cluster::crew_controller_slurm(
-    #     slurm_memory_gigabytes_per_cpu = 5,
-    #     workers = 500,
-    #     tasks_max = 5,
-    #     verbose = T,
-    #     slurm_cpus_per_task = 1
-    #   )
-  ) |> 
-  
-  
-  hpc_report(
-    "empty_report", 
-    rmd_path = paste0(system.file(package = "HPCell"), "/rmd/test.Rmd"), 
-    empty_list = "empty_tbl" |> is_target(),
-    sample_names = "sample_names" |> is_target()
   ) |> 
   
   # ONLY APPLICABLE TO SCE FOR NOW
-  tranform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
+  transform_assay(fx = file_list |> purrr::map(~identity), target_output = "sce_transformed") |> 
   
-  hpc_iterate(
-    target_output = "o",
-    user_function = function(x, y){x |> dplyr::mutate(bla = y)},
-    x = "data_object" |> is_target(),
-    y = "works"
-  ) |>
+  # hpc_report(
+  #   "empty_report", 
+  #   rmd_path = paste0(system.file(package = "HPCell"), "/rmd/test.Rmd"), 
+  #   empty_list = "empty_tbl" |> is_target(),
+  #   sample_names = "sample_names" |> is_target()
+  # ) |> 
+  # 
+  # 
+  # hpc_iterate(
+  #   target_output = "o",
+  #   user_function = function(x, y){x |> dplyr::mutate(bla = y)},
+  #   x = "data_object" |> is_target(),
+  #   y = "works"
+  # ) |>
 
+  hpc_iterate(
+    target_output = "foo",
+    user_function = foo_function |> quote(),
+    x = "data_object" |> is_target(),
+    y = "works", 
+    user_function_source_path = "dev/my_custom_script.R" |> here::here()
+  ) |>
+  
   # Remove empty outliers
-  remove_empty_DropletUtils( target_input = "data_object") |> 
+  remove_empty_DropletUtils( target_input = "sce_transformed") |> 
   
   # Annotation
   annotate_cell_type(
@@ -594,10 +657,9 @@ file_list |>
   # Remove doublets
   remove_doublets_scDblFinder(target_input = "data_object") |> 
   
-
   normalise_abundance_seurat_SCT(factors_to_regress = c(
-    "subsets_Mito_percent", 
-    "subsets_Ribo_percent", 
+    "subsets_Mito_percent",
+    "subsets_Ribo_percent",
     "G2M.Score"
   ), 
   target_input = "data_object") |> 
@@ -605,8 +667,200 @@ file_list |>
   calculate_pseudobulk(group_by = "monaco_first.labels.fine", target_input = "data_object") |> 
   
   # test_differential_abundance(~ age_days + (1|collection_id), .abundance="counts") |> 
-   test_differential_abundance(~ age_days, .abundance="counts", group_by_column = "monaco_first.labels.fine") |> 
+  test_differential_abundance(~ age_days, .abundance="counts", group_by_column = "monaco_first.labels.fine") |> 
 
   # For the moment only available for single cell
   get_single_cell(target_input = "data_object") 
+
+
+## Report testing 
+  
+library(HPCell)
+library(targets)
+library(Seurat)
+library(SeuratData)
+library(crew)
+library(crew.cluster)
+
+bp<- scRNAseq::fetchDataset("baron-pancreas-2016", "2023-12-14", path="human") 
+  
+file.path <- ("~/HPCell/bp.rds")
+split_values <- unique(bp$label)
+
+# Create a list of SCE objects split by the column
+sce_list <- lapply(split_values, function(value) {
+  bp[, bp$label == value]
+})
+
+
+##### Testing args 
+# empty_tbl <- tar_read(empty_tbl)
+# data_object <- tar_read(data_object)
+# alive_tbl <- tar_read(alive_tbl)
+# sample_name <- tar_read(sample_names)
+# cell_cycle_tbl <- tar_read(cell_cycle_tbl)
+# annotation_tbl <- tar_read(annotation_tbl)
+# doublet_tbl <- tar_read(doublet_tbl)
+# data_object <- tar_read(data_object)
+#########################################
+library(HPCell)
+library(targets)
+library(Seurat)
+library(SeuratData)
+library(crew)
+library(crew.cluster)
+
+InstallData("ifnb")
+ifnb <- UpdateSeuratObject(ifnb)
+ifnb.list <- SplitObject(ifnb, split.by = "stim")
+file_paths <- c("~/CTRL_seurat_tibble.rds", "~/STIM_seurat_tibble.rds")
+
+#Subset 300 cells 
+ctrl_subset <- subset(ifnb.list$CTRL, cells = sample(Cells(ifnb.list$CTRL), size = 300))
+stim_subset <- subset(ifnb.list$STIM, cells = sample(Cells(ifnb.list$STIM), size = 300))
+
+# Save the Seurat objects to the specified file paths
+saveRDS(ctrl_subset, file_paths[1])  # Save CTRL object
+saveRDS(stim_subset, file_paths[2])  # Save STIM object
+
+input_hpc =
+  file_paths |> 
+  magrittr::set_names(c("CTRL", "STIM"))
+
+input_hpc |> 
+  initialise_hpc(
+  gene_nomenclature = "symbol",
+  data_container_type = "seurat_rds", 
+  computing_resources = crew_controller_local(workers = 8),
+  ) |> 
+  remove_empty_DropletUtils() |>          # Remove empty outliers
+  remove_dead_scuttle() |>                # Remove dead cells
+  score_cell_cycle_seurat() |>            # Score cell cycle
+  remove_doublets_scDblFinder() |>        # Remove doublets
+  annotate_cell_type() |>                 # Annotation across SingleR and Seurat Azimuth
+  normalise_abundance_seurat_SCT(factors_to_regress = c(
+    "subsets_Mito_percent", 
+    "subsets_Ribo_percent", 
+    "G2M.Score"
+  )) |> 
+
+  hpc_report(
+    "empty_report",
+    rmd_path = system.file("rmd", "Empty_droptlet_report.qmd", package = "HPCell"),
+    empty_tbl = "empty_tbl" |> is_target(),
+    data_object = "data_object" |> is_target(),
+    alive_tbl = "alive_tbl" |> is_target(),
+    sample_name = "sample_names" |> is_target()
+  ) 
+# |>
+  hpc_report(
+    "doublet_report",
+    rmd_path = system.file("rmd", "Doublet_identification_report.qmd", package = "HPCell"),
+    data_object = "data_object" |> is_target(),
+    doublet_tbl = "doublet_tbl" |> is_target(),
+    annotation_tbl = "annotation_tbl" |> is_target(),
+    sample_names = "sample_names" |> is_target()
+  ) |>
+  hpc_report(
+    "Technical_variation_report",
+    rmd_path = system.file("rmd", "technical_variation_report.qmd", package = "HPCell"),
+    data_object = "data_object" |> is_target(),
+    empty_tbl = "empty_tbl" |> is_target(),
+    sample_name = "sample_names" |> is_target()
+  ) |>
+  hpc_report(
+  "pseudo_bulk_report",
+  rmd_path = system.file("rmd", "pseudobulk_analysis_report.qmd", package = "HPCell"),
+  data_object = "data_object" |>  is_target(),
+  empty_tbl = "empty_tbl" |> is_target(),
+  alive_tbl = "alive_tbl" |> is_target(),
+  cell_cycle_tbl = "cell_cycle_tbl" |> is_target(),
+  annotation_tbl = "annotation_tbl" |> is_target(),
+  doublet_tbl = "doublet_tbl" |> is_target(),
+  sample_name = "sample_names" |> is_target()
+  )
+
+
+
+
+
+library(HPCell)
+library(targets)
+library(Seurat)
+library(SeuratData)
+library(crew)
+library(crew.cluster)
+
+file_paths <- file.path(getwd(), c("CTRL_seurat_tibble.rds", "STIM_seurat_tibble.rds"))
+names(file_paths) <- c("CTRL", "STIM")
+
+# Install and prepare IFNB demo dataset
+SeuratData::InstallData("ifnb")
+ifnb <- ifnb |> UpdateSeuratObject()
+ifnb.list <- SplitObject(ifnb, split.by = "stim")
+
+# Sample 300 cells per condition 
+set.seed(42)
+ctrl_subset <- subset(ifnb.list$CTRL, cells = sample(Cells(ifnb.list$CTRL), size = 300))
+stim_subset <- subset(ifnb.list$STIM, cells = sample(Cells(ifnb.list$STIM), size = 300))
+
+saveRDS(ctrl_subset, file_paths["CTRL"])
+saveRDS(stim_subset, file_paths["STIM"])
+
+input_hpc <- file_paths
+
+input_hpc =
+  file_paths |> 
+  magrittr::set_names(c("CTRL", "STIM"))
+
+input_hpc |> 
+  initialise_hpc(
+    gene_nomenclature = "symbol",
+    data_container_type = "seurat_rds", 
+    computing_resources = crew_controller_local(workers = 8),
+  ) |> 
+  remove_empty_DropletUtils() |>          # Remove empty outliers
+  remove_dead_scuttle() |>                # Remove dead cells
+  score_cell_cycle_seurat() |>            # Score cell cycle
+  remove_doublets_scDblFinder() |>        # Remove doublets
+  annotate_cell_type() |>                 # Annotation across SingleR and Seurat Azimuth
+  normalise_abundance_seurat_SCT(factors_to_regress = c(
+    "subsets_Mito_percent", 
+    "subsets_Ribo_percent", 
+    "G2M.Score"
+  )) |> 
+  hpc_report(
+    "empty_report",
+    rmd_path = system.file("rmd", "Empty_droptlet_report.qmd", package = "HPCell"),
+    empty_tbl = "empty_tbl" |> is_target(),
+    data_object = "data_object" |> is_target(),
+    alive_tbl = "alive_tbl" |> is_target(),
+    sample_name = "sample_names" |> is_target()
+  ) |>
+  hpc_report(
+    "doublet_report",
+    rmd_path = system.file("rmd", "Doublet_identification_report.qmd", package = "HPCell"),
+    data_object = "data_object" |> is_target(),
+    doublet_tbl = "doublet_tbl" |> is_target(),
+    annotation_tbl = "annotation_tbl" |> is_target(),
+    sample_names = "sample_names" |> is_target()
+  ) |>
+  hpc_report(
+    "Technical_variation_report",
+    rmd_path = system.file("rmd", "technical_variation_report.qmd", package = "HPCell"),
+    data_object = "data_object" |> is_target(),
+    empty_tbl = "empty_tbl" |> is_target(),
+    sample_name = "sample_names" |> is_target()
+  ) |>
+  hpc_report(
+    "pseudo_bulk_report",
+    rmd_path = system.file("rmd", "pseudobulk_analysis_report.qmd", package = "HPCell"),
+    data_object = "data_object" |>  is_target(),
+    empty_tbl = "empty_tbl" |> is_target(),
+    alive_tbl = "alive_tbl" |> is_target(),
+    cell_cycle_tbl = "cell_cycle_tbl" |> is_target(),
+    annotation_tbl = "annotation_tbl" |> is_target(),
+    doublet_tbl = "doublet_tbl" |> is_target(),
+    sample_name = "sample_names" |> is_target()
+  )
 

@@ -1,6 +1,6 @@
 Package: HPCell
 Title: Massively-parallel R native pipeline for single-cell analysis
-Version: 0.2.1
+Version: 0.3.14
 Authors@R: c(person("Stefano", "Mangiola", email = "mangiolastefano@gmail.com",
                   role = c("aut", "cre")),
                   person("Jiayi", "Si", email = "si.j@wehi.edu.au",
@@ -11,7 +11,12 @@ License: GPL-3
 Roxygen: list(markdown = TRUE)
 Depends: 
     R (>= 4.2.0)
-Remotes: sqjin/CellChat
+Remotes: 
+    sqjin/CellChat,
+    satijalab/seurat@seurat5,
+    satijalab/seurat-data@seurat5,
+    satijalab/azimuth@master,
+    mojaveazure/seurat-disk@master
 Biarch: true
 Imports:
   targets,
@@ -29,7 +34,7 @@ Imports:
   tidyr, 
   glue,
   stringr,
-  tidyseurat,
+  tidyseurat (>= 0.8.0),
   purrr,
   readr,
   patchwork,
@@ -40,7 +45,6 @@ Imports:
   SingleR,
   celldex,
   scuttle,
-  CellChat,
   gridGraphics,
   scDblFinder,
   magrittr,
@@ -57,22 +61,25 @@ Imports:
   future.apply, 
   ids, 
   RColorBrewer,
-  digest, 
-  cowplot, 
-  igraph, 
   reshape2,
-  callr,
   future,
   methods,
   pbapply,
-  reshape2,
   scales,
   data.table, 
   ggplot2, 
   ggupset, 
   here, 
   qs,
-  ensembldb
+  ensembldb,
+  Azimuth,
+  DelayedArray,
+  HDF5Array, 
+  SeuratObject,
+  SingleCellExperiment, 
+  biomaRt, 
+  lme4, 
+  tidyselect
 Suggests: 
     testthat(>= 3.0.0), 
     scRNAseq,

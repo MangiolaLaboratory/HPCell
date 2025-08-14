@@ -1,0 +1,45 @@
+from,to,is_immune
+Neutrophils,granulocyte,TRUE
+Monocytes,monocytic,TRUE
+MEP,progenitor,TRUE
+CD4+ T-cells,t cd4,TRUE
+Tregs,treg,TRUE
+CD4+ Tcm,cd4 tcm,TRUE
+CD4+ Tem,cd4 tem,TRUE
+CD8+ Tcm,cd8 tcm,TRUE
+CD8+ Tem,cd8 tem,TRUE
+NK cells,nk,TRUE
+naive B-cells,b naive,TRUE
+Memory B-cells,b memory,TRUE
+Class-switched memory B-cells,b memory,TRUE
+HSC,progenitor,TRUE
+MPP,progenitor,TRUE
+CLP,progenitor,TRUE
+GMP,progenitor,TRUE
+Macrophages,macrophage,TRUE
+CD8+ T-cells,t cd8,TRUE
+CD8 T,t cd8,TRUE
+Erythrocytes,erythrocyte,TRUE
+Megakaryocytes,non immune,TRUE
+CMP,progenitor,TRUE
+Macrophages M1,macrophage,TRUE
+Macrophages M2,macrophage,TRUE
+Endothelial cells,non immune,TRUE
+DC,cdc,TRUE
+Eosinophils,granulocyte,TRUE
+Plasma cells,plasma,TRUE
+Chondrocytes,non immune,TRUE
+Fibroblasts,non immune,TRUE
+Smooth muscle,non immune,TRUE
+Epithelial cells,non immune,TRUE
+Melanocytes,non immune,TRUE
+Skeletal muscle,non immune,TRUE
+Keratinocytes,non immune,TRUE
+mv Endothelial cells,non immune,TRUE
+Myocytes,non immune,TRUE
+Adipocytes,non immune,TRUE
+Neurons,non immune,TRUE
+Pericytes,non immune,TRUE
+Preadipocytes,non immune,TRUE
+Astrocytes,non immune,TRUE
+Mesangial cells,non immune,TRUE

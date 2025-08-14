@@ -6,9 +6,10 @@
 \usage{
 annotation_label_transfer(
   input_read_RNA_assay,
-  empty_droplets_tbl,
+  empty_droplets_tbl = NULL,
   reference_azimuth = NULL,
-  assay = NULL
+  assay = NULL,
+  feature_nomenclature
 )
 }
 \arguments{

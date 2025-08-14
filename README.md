@@ -50,7 +50,7 @@ The key features of HPCell include:
 ## Installation
 
 ``` r
-remote::install_github("MangiolaLaboratory/HPCell")
+remotes::install_github("MangiolaLaboratory/HPCell")
 ```
 
 ## The input

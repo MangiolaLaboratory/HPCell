@@ -1,0 +1,171 @@
+---
+title: "Doublet Identification Report"
+author: "SS"
+date: "2024-04-29"
+title-block-banner: true
+format: 
+  html:
+    theme: minty
+    df-print: paged
+    code-line-numbers: true
+    embed-resources: true
+knitr: 
+  opts_chunk: 
+    message: false
+    warning: false
+    echo: false
+comments:
+  hypothesis: 
+    theme: clean
+editor: visual
+params:
+  data_object: "NA"
+  doublet_tbl: "NA"
+  annotation_tbl: "NA"
+  sample_names: "NA"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Load libraries
+library(purrr)
+library(dplyr)
+library(tidyr)
+library(ggrepel)
+library(Seurat)
+library(glue)
+library(scDblFinder)
+library(tidyseurat)
+library(tidySingleCellExperiment)
+library(patchwork)
+library(tibble)
+library(scran)
+library(magrittr)
+
+# Set consistent theme
+theme_set(theme_minimal())
+
+# Parameters
+cell_ann_col <- "seurat_annotations"
+
+# UMAP Calculation
+calc_UMAP <- function(input_seurat) {
+  assay_name <- input_seurat@assays |> names() |> extract2(1)
+  if (length(VariableFeatures(input_seurat)) == 0) {
+    input_seurat <- FindVariableFeatures(input_seurat)
+  }
+  var_genes <- VariableFeatures(input_seurat)
+  if (length(var_genes) > 0) {
+    ScaleData(input_seurat) |>
+      RunPCA(features = var_genes) |>
+      FindNeighbors(dims = 1:30) |>
+      FindClusters(resolution = 0.5) |>
+      RunUMAP(dims = 1:30, spread = 0.5, min.dist = 0.01, n.neighbors = 10L) |>
+      as_tibble()
+  } else {
+    stop("No variable features available for UMAP calculation.")
+  }
+}
+
+# Helper function for cluster label positions
+get_labels_clusters <- function(.data, label_column, dim1, dim2){
+  label_column <- enquo(label_column)
+  dim1 <- enquo(dim1)
+  dim2 <- enquo(dim2)
+  .data %>%
+    nest(data = -!!label_column) %>%
+    mutate(
+      !!dim1 := map_dbl(data, ~ median(pull(.x, !!dim1))),
+      !!dim2 := map_dbl(data, ~ median(pull(.x, !!dim2)))
+    ) %>%
+    select(-data)
+}
+
+# Generate UMAP
+calc_UMAP_dbl_report <- map(params$data_object, calc_UMAP)
+```
+
+## Introduction
+
+This report contains UMAP representation of cell clusters and visualization of the distribution of doublets across processed samples.
+
+## UMAP Visualization of Cell Typing and Doublet Detection
+
+```{r, out.width='100%', fig.width=15, fig.height=10}
+# Merge metadata
+merged_data <- list(
+  calc_UMAP_dbl_report,
+  params$doublet_tbl,
+  params$annotation_tbl,
+  params$sample_names
+) |> 
+  pmap(~ ..1 |> 
+         mutate(sample_column = ..4) |>
+         left_join(..2 |> mutate(sample_column = ..4), by = ".cell") |>
+         left_join(..3 |> mutate(sample_column = ..4), by = ".cell")) |>
+  enframe(name = "sample_id", value = "annotated_metadata") |>
+  mutate(sample_column = params$sample_names)
+
+# Plot UMAPs
+plots_by_doublet <- merged_data |> 
+  mutate(plot = map2(
+    annotated_metadata, sample_column,
+    ~ .x |>
+      ggplot(aes(umap_1, umap_2, color = scDblFinder.class)) +
+      geom_point(shape = ".", size = 1) +
+      labs(
+        title = paste("Doublet Detection -", .y),
+        x = "UMAP 1",
+        y = "UMAP 2",
+        color = "Classification"
+      ) +
+      ggrepel::geom_text_repel(
+        data = get_labels_clusters(.x, scDblFinder.class, umap_1, umap_2),
+        aes(label = scDblFinder.class),
+        size = 3
+      ) +
+      guides(color = "none")
+  )) |> 
+  pull(plot) |> 
+  wrap_plots(ncol = 1)
+
+plots_by_doublet
+```
+
+## Singlet and Doublet Composition Across Samples
+
+```{r, out.width='100%', fig.width=15, fig.height=10}
+# Bar Plot of Doublet vs Singlet proportions
+composition_plot <- merged_data |> 
+  mutate(composition = map(
+    annotated_metadata,
+    ~ .x |>
+      count(sample_column, !!sym(cell_ann_col), scDblFinder.class, name = "count") |>
+      group_by(sample_column, !!sym(cell_ann_col)) |>
+      mutate(proportion = count / sum(count)) |>
+      ungroup()
+  )) |> 
+  mutate(plot = map(composition, ~ ggplot(.x, aes(x = !!sym(cell_ann_col), y = proportion, fill = scDblFinder.class)) +
+                      geom_bar(stat = "identity") +
+                      facet_wrap(~ sample_column, scales = "free_x") +
+                      labs(
+                        title = "Proportion of Singlets and Doublets per Cell Type",
+                        x = "Cell Type",
+                        y = "Proportion",
+                        fill = "Classification"
+                      ) +
+                      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  )) |> 
+  pull(plot) |> 
+  wrap_plots(ncol = 1)
+
+composition_plot
+```
+
+# Session Information
+
+```{r}
+sessionInfo()
+```
+```
+

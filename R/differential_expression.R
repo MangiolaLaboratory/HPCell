@@ -15,7 +15,7 @@
 #' @importFrom dplyr distinct
 #' @importFrom dplyr filter
 #' @importFrom dplyr pull
-#' @importFrom dplyr enframe
+#' @importFrom tibble enframe
 #' @importFrom purrr map
 #' @importFrom purrr map_int
 #' @importFrom stringr str_subset
@@ -200,9 +200,10 @@ map_de = function(se, my_formula, assay, method, max_rows_for_matrix_multiplicat
   
 }
 
+#' @importFrom tidybulk test_differential_abundance
 #' @export
 #' @noRd
-internal_de_function = function(x, fi, a, f, m){
+internal_de_function = function(x, fi, a, formul, m){
   
   # Skip if not enough samples
   if(x |> ncol() < 3) warning("HPCell says: your dataset has less than 3 samples, the differential expression analysis was skipped")
@@ -210,7 +211,7 @@ internal_de_function = function(x, fi, a, f, m){
   
   x |>
     keep_abundant(factor_of_interest = fi, .abundance = !!sym(a)) |> 
-    test_differential_abundance(f, .abundance = !!sym(a),  method = m) |> 
+    test_differential_abundance(formul, .abundance = !!sym(a),  method = m) |> 
     pivot_transcript() |> 
     
     # This because fi can be NULL. 
@@ -282,10 +283,10 @@ factory_de_fix_effect = function(se_list_input, output_se, formula, method, tier
 
 #' @importFrom rlang sym
 #' @importFrom dplyr left_join
-#' @importFrom dplyr nest
+#' @importFrom tidyr nest
 #' @importFrom dplyr group_by
 #' @importFrom dplyr mutate
-#' @importFrom dplyr unnest
+#' @importFrom tidyr unnest
 #' @importFrom purrr map
 #' @importFrom S4Vectors split
 #' @importFrom purrr compact

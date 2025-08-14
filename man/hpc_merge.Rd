@@ -4,7 +4,13 @@
 \alias{hpc_merge}
 \title{Add HPC step to pipeline}
 \usage{
-hpc_merge(input_hpc, target_output = NULL, user_function = NULL, ...)
+hpc_merge(
+  input_hpc,
+  target_output = NULL,
+  user_function = NULL,
+  user_function_source_path = NULL,
+  ...
+)
 }
 \arguments{
 \item{input_hpc}{The input HPC object.}

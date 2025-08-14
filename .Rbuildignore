@@ -11,3 +11,5 @@ pipeline_stores
 ^inst/rmd/.*\\.html$
 ^[^/]*\.r$
 ^tests$
+_targets
+target_framework

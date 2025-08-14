@@ -7,14 +7,16 @@
 create_pseudobulk(
   input_read_RNA_assay,
   sample_names_vec,
-  empty_droplets_tbl,
-  alive_identification_tbl,
-  cell_cycle_score_tbl,
-  annotation_label_transfer_tbl,
-  doublet_identification_tbl,
+  empty_droplets_tbl = NULL,
+  alive_identification_tbl = NULL,
+  cell_cycle_score_tbl = NULL,
+  annotation_label_transfer_tbl = NULL,
+  cell_type_ensembl_harmonised_tbl = NULL,
+  doublet_identification_tbl = NULL,
   x = c(),
   external_path,
-  assays = NULL
+  assays = NULL,
+  container_type
 )
 }
 \arguments{
@@ -24,6 +26,8 @@ typically represents a factor such as sample ID or condition.}
 
 \item{assays}{A character vector specifying the assays to be included in the
 pseudobulk creation process, such as c("RNA", "ADT").}
+
+\item{container_type}{A character vector specifying the output file type. Ideally it should match to the input file type.}
 
 \item{preprocessing_output_S}{Processed dataset from preprocessing.}
 

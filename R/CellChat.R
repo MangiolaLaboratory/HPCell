@@ -952,7 +952,7 @@ grab_grob <- function(){
 #' @importFrom CellChat subsetData
 #' @importFrom CellChat identifyOverExpressedGenes
 #' @importFrom CellChat identifyOverExpressedInteractions
-#' @importFrom CellChat projectData
+#' @importFrom CellChat smoothData
 #' @importFrom CellChat filterCommunication
 #' @importFrom CellChat aggregateNet
 #' @importFrom rlang quo_name
@@ -1009,7 +1009,7 @@ seurat_to_ligand_receptor_count = function(counts, .cell_group, assay, sample_fo
           subsetData() |>
           identifyOverExpressedGenes() |>
           identifyOverExpressedInteractions() |>
-          projectData(CellChat::PPI.human)
+          smoothData(CellChat::PPI.human)
         
         if(nrow(x@LR$LRsig)==0) return(NA)
         

@@ -46,7 +46,13 @@ initialise_hpc <- function(input_hpc,
                            debug_step = NULL,
                            RNA_assay_name = "RNA",
                            gene_nomenclature = "symbol",
-                           data_container_type) {
+                           data_container_type,
+                           verbosity = targets::tar_config_get("reporter_make"),
+                           error = NULL,
+                           update = "thorough",
+                           garbage_collection = 0,
+                           workspace_on_error = FALSE
+                          ) {
   
   # Capture all arguments including defaults
   args_list <- as.list(environment())
@@ -55,9 +61,7 @@ initialise_hpc <- function(input_hpc,
   if(input_hpc |> names() |> is.null())
     input_hpc = input_hpc |> set_names(seq_len(length(input_hpc)))
   
-  input_hpc |> names() |> saveRDS("sample_names.rds")
-  #cell_count |> saveRDS("cell_count.rds")
-  
+
   # Optionally, you can evaluate the arguments if they are expressions
   args_list <- lapply(args_list, eval, envir = parent.frame())
   
@@ -65,15 +69,16 @@ initialise_hpc <- function(input_hpc,
   dir.create(store, showWarnings = FALSE, recursive = TRUE)
   data_file_names = glue("{store}/{names(input_hpc)}.rds")
   
+  # Save parameters to files?
   input_hpc |> as.list() |>  saveRDS("input_file.rds")
+  input_hpc |> names() |> saveRDS("sample_names.rds")
+  
   gene_nomenclature |> saveRDS("temp_gene_nomenclature.rds")
   data_container_type |> saveRDS("data_container_type.rds")
-  
   computing_resources |> saveRDS("temp_computing_resources.rds")
+  # Get the index of jobs of different priority 
   tiers = tier |> 
     get_positions() 
-  tiers |> 
-    saveRDS("temp_tiers.rds")
   
   # Write pipeline to a file
   {
@@ -88,50 +93,72 @@ initialise_hpc <- function(input_hpc,
     
     tar_option_set(
       memory = "transient",
-      garbage_collection = TRUE,
+      garbage_collection = g,
       storage = "worker",
       retrieval = "worker",
-      #error = "continue",
-      format = "qs",
+      error = e,
+      # format = "qs",
       debug = d, # Set the target you want to debug.
-      # cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
+      cue = tar_cue(mode = u), # Force skip non-debugging outdated targets.
       controller = crew_controller_group ( readRDS("temp_computing_resources.rds") ), 
-      packages = c("HPCell")
+      packages = c("HPCell"),
+      trust_object_timestamps = TRUE, 
+      workspace_on_error = w
     )
-    
-    target_list = list(
-      tar_target(gene_nomenclature, readRDS("temp_gene_nomenclature.rds"), iteration = "list", deployment = "main"),
-      tar_target(data_container_type, readRDS("data_container_type.rds"), deployment = "main")
-      
-    )
-    
+     
+    target_list = list(  )
     
     } |> 
-    substitute(env = list(d = debug_step)) |> 
+    substitute(env = list(d = debug_step, e = error, u = update, g = garbage_collection, w = workspace_on_error)) |> 
     tar_script_append2(script = glue("{store}.R"), append = FALSE)
 
   
   input_hpc = 
     list(initialisation = args_list ) |>
-    c(list(sample_names = list(iterate = "map")) ) |> 
-    
+
     add_class("HPCell")
   
   
   input_hpc |> 
     
+    # Nomenclature
+    hpc_single("temp_gene_nomenclature_file", "temp_gene_nomenclature.rds", format = "file") |> 
+    
+    hpc_single(
+      target_output = "gene_nomenclature", 
+      user_function = readRDS |> quote(),
+      file = "temp_gene_nomenclature_file" |> is_target(), 
+      deployment = "main"
+    ) |>
+    
+    # Container class
+    hpc_single("data_container_type_file", "data_container_type.rds", format = "file") |> 
+    
+    hpc_single(
+      target_output = "data_container_type", 
+      user_function = readRDS |> quote(),
+      file = "data_container_type_file" |> is_target(), 
+      deployment = "main"
+    ) |>
+    
+    # Sample names
+    hpc_single("sample_names_file", "sample_names.rds", format = "file") |> 
+    
     hpc_single(
       target_output = "sample_names", 
       user_function = readRDS |> quote(),
-      file = "sample_names.rds", 
+      file = "sample_names_file" |> is_target(), 
       deployment = "main", 
       iterate = "map"
     ) |> 
     
+    # Files
+    hpc_single("read_file_list_file", "input_file.rds", format = "file") |> 
+    
     hpc_single(
       target_output = "read_file_list", 
       user_function = readRDS |> quote(),
-      file = "input_file.rds", 
+      file = "read_file_list_file" |> is_target(), 
       deployment = "main", 
       iterate = "map"
     ) |> 
@@ -144,7 +171,6 @@ initialise_hpc <- function(input_hpc,
     )
   
 }
-
 
 
 
@@ -177,13 +203,59 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
       target_output = target_output, 
       user_function = empty_droplet_id |> quote() , 
       input_read_RNA_assay = target_input |> is_target(),
-      total_RNA_count_check = total_RNA_count_check
+      total_RNA_count_check = total_RNA_count_check,
+      feature_nomenclature = "gene_nomenclature" |> is_target()
     )
   
 }
 
-target_chunk_undefined_remove_empty_DropletUtils = function(input_hpc){
+#' @export
+remove_empty_threshold <- function(input_hpc, RNA_feature_threshold = input_hpc$initialisation$input_hpc |> map(~200), target_input = "data_object", target_output = "empty_tbl", ...) {
+  UseMethod("remove_empty_threshold")
+}
+
+#' @export
+remove_empty_threshold.Seurat = function(input_hpc, RNA_feature_threshold = NULL, target_input = "data_object", target_output = "empty_tbl", ...) {
+  # Capture all arguments including defaults
+  args_list <- as.list(environment())
   
+  # Optionally, you can evaluate the arguments if they are expressions
+  args_list <- lapply(args_list, eval, envir = parent.frame())
+  
+  list(initialisation = list(input_hpc = input_hpc)) |>
+    add_class("HPCell") |>
+    remove_empty_threshold()
+  
+}
+
+#' @export
+remove_empty_threshold.HPCell = function(input_hpc,  RNA_feature_threshold = input_hpc$initialisation$input_hpc |> map(~200),
+                                         target_input = "data_object", target_output = "empty_tbl",...) {
+  
+  RNA_feature_threshold |> saveRDS("RNA_feature_thresh.rds")
+  
+  input_hpc |> 
+    
+    # Track the file
+    hpc_single("RNA_feature_thresh_file", "RNA_feature_thresh.rds", format = "file") |> 
+    hpc_iterate(
+      target_output = "RNA_feature_thresh", 
+      user_function = readRDS |> quote() ,
+      file = "RNA_feature_thresh_file" |> is_target() 
+    ) |>
+    
+    hpc_iterate(
+      target_output = target_output, 
+      user_function = empty_droplet_threshold |> quote() , 
+      input_read_RNA_assay = target_input |> is_target(),
+      RNA_feature_threshold = "RNA_feature_thresh" |> is_target(),
+      feature_nomenclature = "gene_nomenclature" |> is_target()
+    )
+  
+  
+}
+
+target_chunk_undefined_remove_empty_threshold = function(input_hpc){
   input_hpc |> 
     hpc_iterate(
       target_output = "empty_tbl", 
@@ -191,9 +263,7 @@ target_chunk_undefined_remove_empty_DropletUtils = function(input_hpc){
       x = "data_object" |> is_target(),
       packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
     )
-  
 }
-
 
 # Define the generic function
 #' @export
@@ -223,25 +293,12 @@ remove_dead_scuttle.HPCell = function(
       user_function = alive_identification |> quote() , 
       input_read_RNA_assay = target_input |> safe_as_name(), 
       empty_droplets_tbl = target_empty_droplets |> safe_as_name() ,
-      annotation_label_transfer_tbl = target_annotation |> safe_as_name() ,
-      annotation_column = group_by 
+      cell_type_ensembl_harmonised_tbl = target_annotation |> safe_as_name() ,
+      cell_type_column = group_by,
+      feature_nomenclature = "gene_nomenclature" |> is_target() 
     )
   
 }
-
-#' @importFrom dplyr mutate
-target_chunk_undefined_remove_dead_scuttle = function(input_hpc){
-  
-  input_hpc |> 
-    hpc_iterate(
-      target_output = "alive_tbl", 
-      user_function = (function(x) x |> as_tibble() |>  select(.cell) |> mutate(alive = TRUE)) |> quote() , 
-      x = "data_object" |> is_target(),
-      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
-    )
-  
-}
-
 
 
 # Define the generic function
@@ -259,97 +316,65 @@ score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "data_object
       user_function = cell_cycle_scoring |> quote() , 
       input_read_RNA_assay = target_input |> is_target(), 
       empty_droplets_tbl = "empty_tbl" |> is_target() ,
-      gene_nomenclature = input_hpc$initialisation$gene_nomenclature
+      feature_nomenclature = "gene_nomenclature" |> is_target() 
     )
   
 }
-
-target_chunk_undefined_score_cell_cycle_seurat = function(input_hpc, target_input = "data_object"){
-  
-  input_hpc |> 
-    hpc_iterate(
-      target_output = "cell_cycle_tbl", 
-      user_function = function(x) NULL  , 
-      x = "read_file_list" |> is_target()
-    )
-  
-}
-
 
 # Define the generic function
 #' @export
-remove_doublets_scDblFinder <- function(input_hpc, target_input = "data_object", target_output = "doublet_tbl") {
+remove_doublets_scDblFinder <- function(
+    input_hpc, target_input = "data_object", target_output = "doublet_tbl",
+    target_empry_droplets = "empty_tbl"
+    # , target_annotation = "annotation_tbl", reference_label_group_by = "monaco_first.labels.fine"
+  ) {
   UseMethod("remove_doublets_scDblFinder")
 }
 
 #' @export
-remove_doublets_scDblFinder.HPCell = function(input_hpc, target_input = "data_object", target_output = "doublet_tbl") {
-  
-  input_hpc |> 
-    hpc_iterate(
-      target_output = target_output, 
-      user_function = doublet_identification |> quote() , 
-      input_read_RNA_assay = target_input |> is_target(), 
-      empty_droplets_tbl = "empty_tbl" |> is_target() ,
-      alive_identification_tbl = "alive_tbl" |> is_target()
-    )
-  
-}
+remove_doublets_scDblFinder.HPCell = function(
+    input_hpc, target_input = "data_object", target_output = "doublet_tbl",
+    target_empry_droplets = "empty_tbl"
+    # , target_annotation = "annotation_tbl",
+    # reference_label_group_by = "monaco_first.labels.fine"
+  ) {
 
-target_chunk_undefined_remove_doublets_scDblFinder = function(input_hpc){
-  
-  input_hpc |> 
+  input_hpc |>
     hpc_iterate(
-      target_output = "doublet_tbl", 
-      user_function = (function(x) x |> as_tibble() |>  select(.cell) |> mutate(scDblFinder.class="singlet")) |> quote() , 
-      x = "data_object" |> is_target(),
-      packages = c("dplyr", "tidySingleCellExperiment", "tidyseurat")
+      target_output = target_output,
+      user_function = doublet_identification |> quote() ,
+      input_read_RNA_assay = target_input |> is_target(),
+      empty_droplets_tbl = target_empry_droplets |> is_target() ,
+      # annotation_label_transfer_tbl = target_annotation |> is_target(),
+      # reference_label_fine = reference_label_group_by
     )
-  
+
 }
 
 # Define the generic function
 #' @export
-annotate_cell_type <- function(input_hpc, azimuth_reference = NULL, target_input = "data_object", target_output = "annotation_tbl",...) {
+annotate_cell_type <- function(input_hpc, azimuth_reference = NULL, target_input = "data_object", 
+                               target_output = "annotation_tbl", target_empty_droplets = "empty_tbl", ...) {
   UseMethod("annotate_cell_type")
 }
 
 #' @export
-annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target_input = "data_object", target_output = "annotation_tbl", ...) {
+annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target_input = "data_object", 
+                                     target_output = "annotation_tbl", target_empty_droplets = "empty_tbl", ...) {
   
-  
-  azimuth_reference |> saveRDS("input_reference.rds")
-  
+
   input_hpc |> 
-    
-    hpc_single(
-      target_output = "reference_read", 
-      user_function = readRDS |> quote(),
-      file = "input_reference.rds" 
-    ) |> 
   
     hpc_iterate(
       target_output = target_output, 
       user_function = annotation_label_transfer |> quote() , 
       input_read_RNA_assay = target_input |> is_target(), 
-      empty_droplets_tbl = "empty_tbl" |> is_target() ,
-      reference_azimuth = reference_read |> quote()
+      empty_droplets_tbl = target_empty_droplets |> safe_as_name() ,
+      reference_azimuth = azimuth_reference,
+      feature_nomenclature = "gene_nomenclature" |> is_target() 
     )
   
 }
-
-target_chunk_undefined_annotate_cell_type = function(input_hpc){
-  
-  input_hpc |> 
-    hpc_iterate(
-      target_output = "annotation_tbl", 
-      user_function = function(x) NULL ,
-      x = read_file_list |> quote()
-    )
-  
- 
-}
-
 
 # Define the generic function
 #' @export
@@ -373,33 +398,59 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
     ...
   )
   
-  
-}
-
-target_chunk_undefined_normalise_abundance_seurat_SCT = function(input_hpc){
-  
-  input_hpc |> 
-    hpc_iterate(
-      target_output = "sct_matrix", 
-      user_function = function(x) NULL ,
-      x = read_file_list |> quote()
-    )
-  
-
 }
 
 # Define the generic function
 #' @export
-calculate_pseudobulk <- function(input_hpc, group_by = NULL, target_input = "data_object", target_output = "pseudobulk_se") {
+cluster_metacell <- function(input_hpc, target_input = "data_object", 
+                             target_celltype_ensembl = "cell_type_concensus_tbl",
+                             target_output = "metacell_tbl", target_empry_droplets = "empty_tbl",
+                             target_alive = "alive_tbl", target_doublet = "doublet_tbl",
+                             group_by = NULL, 
+                             cell_per_metacell = 30,
+                             ...) {
+  UseMethod("cluster_metacell")
+}
+
+#' @export
+cluster_metacell.HPCell = function(input_hpc,  target_input = "data_object", 
+                                   target_celltype_ensembl = "cell_type_concensus_tbl",
+                                   target_output = "metacell_tbl",  target_empry_droplets = "empty_tbl",
+                                   target_alive = "alive_tbl", target_doublet = "doublet_tbl",
+                                   group_by = NULL, 
+                                   cell_per_metacell = 30,
+                                   ...) {
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = target_output, 
+      user_function = split_sample_cell_type_calculate_metacell_membership |> quote() , 
+      sample_sce = target_input |> is_target(), 
+      cell_type_tbl = target_celltype_ensembl |> is_target(),
+      empty_droplets_tbl = target_empry_droplets |> is_target(),
+      alive_identification_tbl = target_alive |> is_target(),
+      doublet_identification_tbl = target_doublet |> is_target(),
+      x = group_by,
+      min_cells_per_metacell = cell_per_metacell,
+      ...
+    )
+}
+
+# Define the generic function
+#' @export
+calculate_pseudobulk <- function(input_hpc, group_by = NULL, target_input = "data_object", 
+                                 target_celltype_ensembl = "cell_type_concensus_tbl",
+                                 target_output = "pseudobulk_se") {
   UseMethod("calculate_pseudobulk")
 }
 
 #' @export
-calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input = "data_object", target_output = "pseudobulk_se") {
+calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input = "data_object", 
+                                       target_celltype_ensembl = "cell_type_concensus_tbl",
+                                       target_output = "pseudobulk_se") {
   
   pseudobulk_sample = 
     glue("{target_output}_iterated") |> 
-    
     # This is important otherwise targets fails with glue
     as.character()
   
@@ -415,20 +466,56 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input 
       alive_identification_tbl = "alive_tbl" |> is_target(),
       cell_cycle_score_tbl = "cell_cycle_tbl" |> is_target(),
       annotation_label_transfer_tbl = "annotation_tbl" |> is_target(),
+      cell_type_ensembl_harmonised_tbl = target_celltype_ensembl |> is_target(),
       doublet_identification_tbl = "doublet_tbl" |> is_target(),
       x = group_by,
-      external_path = glue("{input_hpc$initialisation$store}/external")
-    ) |> 
+      external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
+      container_type = "data_container_type" |> is_target() 
+    ) |>
     
     # merge
     hpc_merge(
-      target_output = target_output, 
-      user_function = pseudobulk_merge |> quote(), 
-      external_path = glue("{input_hpc$initialisation$store}/external"),
+      target_output = target_output,
+      user_function = pseudobulk_merge |> quote(),
+      external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
       pseudobulk_list = pseudobulk_sample |> is_target(),
       packages = c("tidySummarizedExperiment", "HPCell")
     )
   
+  
+}
+
+# Define the generic function
+#' @export
+ligand_receptor_cellchat <- function(
+    input_hpc, target_input = "data_object", target_output = "ligand_receptor_tbl",  
+    target_empty_droplets = "empty_tbl",  target_alive_tbl = "alive_tbl", 
+    target_doublet_tbl = "doublet_tbl", target_cell_type = "cell_type_concensus_tbl", 
+    species_db = "human", group_by = "cell_type", ...) {
+  UseMethod("ligand_receptor_cellchat")
+}
+
+#' @export
+ligand_receptor_cellchat.HPCell = function(
+    input_hpc, target_input = "data_object", target_output = "ligand_receptor_tbl", 
+    target_empty_droplets = "empty_tbl", target_alive_tbl = "alive_tbl", 
+    target_doublet_tbl = "doublet_tbl", target_cell_type = "cell_type_concensus_tbl", 
+    species_db = "human", group_by = "cell_type", ...) {
+  
+  input_hpc |> 
+    hpc_iterate(
+      target_output = target_output, 
+      user_function = cell_communication |> quote() , 
+      input_read_RNA_assay = target_input |> is_target(), 
+      empty_droplets_tbl = target_empty_droplets |> is_target() ,
+      alive_identification_tbl = target_alive_tbl |> is_target(),
+      doublet_identification_tbl = target_doublet_tbl |> is_target(),
+      cell_type_tbl = target_cell_type |> is_target(),
+      cell_type_column = group_by,
+      feature_nomenclature = "gene_nomenclature" |> is_target(),
+      reference_db = species_db,
+      ...
+    )
   
 }
 
@@ -449,7 +536,7 @@ get_single_cell.HPCell = function(input_hpc, target_input = "data_object", targe
       user_function = preprocessing_output |> quote() , 
       input_read_RNA_assay = target_input |> is_target(), 
       empty_droplets_tbl = "empty_tbl" |> is_target() ,
-      non_batch_variation_removal_S = sct_matrix |> quote(), 
+      non_batch_variation_removal_S = "sct_matrix" |> is_target(), 
       alive_identification_tbl = "alive_tbl" |> is_target(),
       cell_cycle_score_tbl = "cell_cycle_tbl" |> is_target(),
       annotation_label_transfer_tbl = "annotation_tbl" |> is_target(),
@@ -464,9 +551,8 @@ get_single_cell.HPCell = function(input_hpc, target_input = "data_object", targe
 #'
 #' This function tests differential abundance for HPCell objects.
 #'
-#' @name test_differential_abundance,HPCell-method
+#' @name test_differential_abundance-HPCell-method
 #' @rdname test_differential_abundance
-#' @inherit tidybulk::test_differential_abundance
 #'
 #' @importFrom tidybulk test_differential_abundance
 #' @exportMethod test_differential_abundance
@@ -488,65 +574,120 @@ get_single_cell.HPCell = function(input_hpc, target_input = "data_object", targe
 #' @param .contrasts Contrasts parameter.
 #' @return The result of the differential abundance test.
 #'
-setMethod(
-  "test_differential_abundance",
-  signature(.data = "HPCell"),
-  function(.data, .formula, .sample = NULL, .transcript = NULL, 
-           .abundance = NULL, contrasts = NULL, method = "edgeR_quasi_likelihood", 
-           test_above_log2_fold_change = NULL, scaling_method = "TMM", 
-           omit_contrast_in_colnames = FALSE, prefix = "", action = "add", factor_of_interest = NULL,
-           target_input = "pseudobulk_se", target_output = "de", group_by_column = NULL,
-           ..., significance_threshold = NULL, fill_missing_values = NULL, 
-           .contrasts = NULL) {
-    
-      if(.formula |> deparse() |> str_detect("\\|"))
-        factory_de_random_effect(
-          se_list_input = target_input, 
-          output_se = target_output, 
-          formula=.formula,
-          #method="edger_robust_likelihood_ratio", 
-          tiers = tiers,
-          factor_of_interest = factor_of_interest,
-          .abundance = .abundance
-        )
-      
-      else
-       
-        .data |> 
-          
-          hpc_single(
-            target_output = "chunk_tbl", 
-            user_function = function(x){ x |> rownames() |> feature_chunks()} |> quote(),
-            x = "pseudobulk_se" |> is_target() 
-          ) |> 
-        
-          hpc_single(
-            target_output = "pseudobulk_group_list", 
-            user_function = group_split |> quote(),
-            .tbl  = target_input  |> is_target(),
-            gr = as.name(gr) |> substitute(env = list(gr = group_by_column)),
-            packages = c("tidySummarizedExperiment", "S4Vectors", "targets"), 
-            
-            # I need this because targets does not know the output 
-            # is a list I need to iterate on outside the tiers
-            iterate = "map"
-          ) |> 
-          
+# setMethod(
+#   "test_differential_abundance",
+#   signature(.data = "HPCell"),
+#   function(.data, .formula, .sample = NULL, .transcript = NULL,
+#            .abundance = NULL, contrasts = NULL, method = "edgeR_quasi_likelihood",
+#            test_above_log2_fold_change = NULL, scaling_method = "TMM",
+#            omit_contrast_in_colnames = FALSE, prefix = "", action = "add", factor_of_interest = NULL,
+#            target_input = "pseudobulk_se", target_output = "de", group_by_column = NULL,
+#            ..., significance_threshold = NULL, fill_missing_values = NULL,
+#            .contrasts = NULL) {
+# 
+#       if(.formula |> deparse() |> str_detect("\\|"))
+#         factory_de_random_effect(
+#           se_list_input = target_input,
+#           output_se = target_output,
+#           formula=.formula,
+#           #method="edger_robust_likelihood_ratio",
+#           tiers = tiers,
+#           factor_of_interest = factor_of_interest,
+#           .abundance = .abundance
+#         )
+# 
+#       else
+# 
+#         .data |>
+# 
+#           hpc_single(
+#             target_output = "chunk_tbl",
+#             user_function = function(x){ x |> rownames() |> feature_chunks()} |> quote(),
+#             x = "pseudobulk_se" |> is_target()
+#           ) |>
+# 
+#           hpc_single(
+#             target_output = "pseudobulk_group_list",
+#             user_function = group_split |> quote(),
+#             .tbl  = target_input  |> is_target(),
+#             gr = as.name(gr) |> substitute(env = list(gr = group_by_column)),
+#             packages = c("tidySummarizedExperiment", "S4Vectors", "targets"),
+# 
+#             # I need this because targets does not know the output
+#             # is a list I need to iterate on outside the tiers
+#             iterate = "map"
+#           ) |>
+# 
+# 
+#           hpc_iterate(
+#             target_output = target_output,
+#             user_function = internal_de_function |> quote() ,
+#             x = "pseudobulk_group_list" |> is_target(),
+#             fi = factor_of_interest,
+#             a = .abundance,
+#             formul = .formula,
+#             m = method,
+#             packages="tidybulk"
+#           )
+# 
+# 
+# 
+# })
 
-          hpc_iterate(
-            target_output = target_output, 
-            user_function = internal_de_function |> quote() , 
-            x = "pseudobulk_group_list" |> is_target(),
-            fi = factor_of_interest,
-            a = .abundance,
-            f = .formula,
-            m = method,
-            packages="tidybulk"
-          ) 
-        
-      
-        
-})
+
+
+    #   
+    #   factory_collapse(
+    #     "colapsed_preprocessing_output",
+    #     bind_rows(preprocessing_output_S) ,
+    #     "preprocessing_output_S",
+    #     tiers
+    #   ),
+    #   
+    #   tar_render(
+    #     name = preprocessing_report,
+    #     path = paste0(system.file(package = "HPCell"), "/rmd/preprocessing_report.Rmd"),
+    #     params = list(
+    #       x1 = collapsed_preprocessing_output, 
+    #       x2 = group_by|> quo_name()
+    #     )
+    # ) 
+
+
+#' generate_report = function(tiers){
+#' 
+#'   list(
+#'     factory_split(
+#'       "final_report",
+#'       command = {read_file |>
+#'         read_data_container(container_type = data_container_type) |>
+        # tar_render(
+        #   name = empty_droplets_report,
+        #   path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
+        #   params = list(x1 = empty_droplets_tbl,
+        #                 # x2 = empty_droplets_tbl,
+        #                 # x3 = annotation_label_transfer_tbl
+        #                 # x4 = tar_read(unique_tissues, store = store),
+        #                 # x5 = sample_column |> quo_name()
+        #                 )) |>
+#'           quote()
+#'         },
+#'         tiers,
+#'         arguments_to_tier = "read_file",
+#'         other_arguments_to_tier = c("empty_droplets_tbl"
+#'                                     # "annotation_label_transfer_tbl",
+#'                                     # "doublet_identification_tbl"),
+#'         ),
+#'         other_arguments_to_map = c("empty_droplets_tbl"
+#'                                    # "annotation_label_transfer_tbl",
+#'                                    # "doublet_identification_tbl")
+#'       )
+#'     )
+#' 
+#'   )
+#' 
+#' }
+
 
 
 # Define the generic function
@@ -561,58 +702,12 @@ evaluate_hpc <- function(input_hpc) {
 evaluate_hpc.HPCell = function(input_hpc) {
   
   #-----------------------#
-  # Empty droplets
-  #-----------------------#
-  
-  if(! "empty_tbl" %in% names(input_hpc))
-    target_chunk_undefined_remove_empty_DropletUtils(input_hpc)
-  
-  #-----------------------#
-  # Annotate cell type
-  #-----------------------#
-  
-  if(
-    !("annotation_tbl" %in% names(input_hpc) |
-      ( "alive_tbl" %in% names(input_hpc) & !is.null(input_hpc$remove_dead_scuttle$group_by))
-    ))
-    target_chunk_undefined_annotate_cell_type(input_hpc)
-  
-  #-----------------------#
-  # Remove dead
-  #-----------------------#
-  
-  if(! "alive_tbl" %in% names(input_hpc))
-    target_chunk_undefined_remove_dead_scuttle(input_hpc)
-  
-  
-  #-----------------------#
-  # score cell cycle
-  #-----------------------#
-  if(! "cell_cycle_tbl" %in% names(input_hpc))
-    target_chunk_undefined_score_cell_cycle_seurat(input_hpc)
-  
-  #-----------------------#
-  # Doublets
-  #-----------------------#
-  
-  if(! "doublet_tbl" %in% names(input_hpc))
-    target_chunk_undefined_remove_doublets_scDblFinder(input_hpc)
-  
-  #-----------------------#
-  # SCT
-  #-----------------------#
-  
-  if(! "sct_matrix" %in% names(input_hpc))
-    target_chunk_undefined_normalise_abundance_seurat_SCT(input_hpc)
-  
-  
-  #-----------------------#
   # Close pipeline
   #-----------------------#
   
   # Call final list
   tar_script_append({
-    target_list
+    target_list 
   }, script = glue("{input_hpc$initialisation$store}.R"))
   
   if(input_hpc$initialisation$debug_step |> is.null())
@@ -622,25 +717,24 @@ evaluate_hpc.HPCell = function(input_hpc) {
   
   tar_make(
     callr_function = my_callr_function,
-    reporter = "verbose_positives",
     script = glue("{input_hpc$initialisation$store}.R"),
-    store = input_hpc$initialisation$store
+    store = input_hpc$initialisation$store, 
+    reporter = input_hpc$initialisation$verbosity 
   )
   
-  # Example usage:
-  c(
-    "input_file.rds",
-    "temp_computing_resources.rds",
-    "temp_debug_step.rds",
-    "sample_names.rds",
-    "total_RNA_count_check.rds",
-    "temp_group_by.rds",
-    "factors_to_regress.rds",
-    "pseudobulk_group_by.rds",
-    "temp_tiers.rds",
-    "temp_gene_nomenclature.rds"
-  ) |> 
-    remove_files_safely()
+  # # Example usage:
+  # c(
+  #   "input_file.rds",
+  #   "temp_computing_resources.rds",
+  #   "temp_debug_step.rds",
+  #   "sample_names.rds",
+  #   "total_RNA_count_check.rds",
+  #   "temp_group_by.rds",
+  #   "factors_to_regress.rds",
+  #   "pseudobulk_group_by.rds",
+  #   "temp_gene_nomenclature.rds"
+  # ) |> 
+  #   remove_files_safely()
   
   # If get_single_cell is called then return the object 
   if(input_hpc$last_call |> is.null() |> not())

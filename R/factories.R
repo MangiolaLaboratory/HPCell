@@ -38,7 +38,6 @@ parse_function_call <- function(command) {
 }
 
 
-
 #' @export
 hpc_internal = function(
     tiers = NULL, 
@@ -49,26 +48,32 @@ hpc_internal = function(
     other_arguments_to_map = c(), 
     packages = targets::tar_option_get("packages") , 
     deployment = targets::tar_option_get("deployment"),
+    format = targets::tar_option_get("format"),
     ...
 ){
   
   args <- list(...)  # Capture the ... arguments as a list
   
-  # Construct the full call expression with the pipeline substituted into the function
-  fx_call <- as.call(c(user_function, args))
+  
+  # If format is file just pass the argument
+  if(format != "file")
+    
+    # Construct the full call expression with the pipeline substituted into the function
+    user_function <- as.call(c(user_function, args))
   
   if(tiers |> is.null() || tiers |> length() < 2){
     
       tar_target_raw(
         name = target_output |> as.character(), 
-        command = fx_call,
+        command = user_function,
         
         # This is in case I am not tiering (e.g. DE analyses) but I need to map
         pattern = build_pattern(other_arguments_to_map = other_arguments_to_map),
         
         iteration = "list", 
         packages = packages,
-        deployment = deployment
+        deployment = deployment,
+        format = format
 
 
       )
@@ -78,7 +83,7 @@ hpc_internal = function(
   
   else {
     
-    if(fx_call |> deparse() |> str_detect("%>%") |> any()) 
+    if(user_function |> deparse() |> str_detect("%>%") |> any()) 
       stop("HPCell says: no \"%>%\" allowed in the command, please use \"|>\" ")
     
     # Filter out arguments to be tiered from the input command
@@ -93,7 +98,7 @@ hpc_internal = function(
           
           # This is needed because using glue
           as.character() , 
-        command = fx_call |>  add_tier_inputs(arguments_already_tiered, .y),
+        command = user_function |>  add_tier_inputs(arguments_already_tiered, .y),
         pattern = 
           build_pattern(
             other_arguments_to_map = glue("{other_arguments_to_map}_{.y}"), 
@@ -103,7 +108,8 @@ hpc_internal = function(
         iteration = "list",
         packages = packages, 
         deployment = deployment,
-        resources = tar_resources(crew = tar_resources_crew(.y)) 
+        resources = tar_resources(crew = tar_resources_crew(.y)) ,
+        format = format
       )
     })
     
@@ -129,11 +135,11 @@ hpc_internal_report = function(
 
   if(tiers |> is.null() || tiers |> length() < 2){
     
-    tar_render_raw(
+    tar_quarto_raw(
       name = target_output |> as.character(), 
       path = rmd_path,
       output_file = output_file,
-      render_arguments = render_arguments,
+      execute_params = render_arguments,
       # This is in case I am not tiering (e.g. DE analyses) but I need to map
       # pattern = build_pattern(other_arguments_to_map = other_arguments_to_map),
       
@@ -155,7 +161,7 @@ hpc_internal_report = function(
     
     map2(tiers, names(tiers), ~ {
       
-      tar_render_raw(
+      tar_quarto_raw(
         name = 
           glue("{target_output}_{.y}") |> 
           
@@ -194,7 +200,13 @@ hpc_internal_report = function(
 #' @importFrom purrr set_names
 #' @export
 hpc_iterate = 
-  function(input_hpc, target_output = NULL, user_function = NULL, ...) {
+  function(
+    input_hpc, 
+    target_output = NULL, 
+    user_function = NULL, 
+    user_function_source_path = NULL,
+    ...
+  ) {
     
     # Check for argument consistency
     check_for_name_value_conflicts(...)
@@ -205,6 +217,9 @@ hpc_iterate =
     # Delete line with target in case the user execute the command, without calling initialise_hpc
     target_output |>  delete_lines_with_word(target_script)
     
+    # Append source if any
+    write_source(user_function_source_path, target_script)
+      
     # please, because sometime we set up list target that do not depend on any other ones
     # if tiers is set to NULL, then the target will not acquire the _<tier> suffix
     # I HAVE TO MAKE THIS MORE ELEGANT, AND NOT RELY ON tiers ARGUMENT
@@ -269,13 +284,23 @@ hpc_iterate =
 #' @importFrom purrr set_names
 #' @export
 hpc_single = 
-  function(input_hpc, target_output = NULL, user_function = NULL, iterate = "none", ...) {
+  function(
+    input_hpc, 
+    target_output = NULL, 
+    user_function = NULL, 
+    user_function_source_path = NULL,
+    iterate = "none", 
+    ...) {
     
     # Target script
     target_script = glue("{input_hpc$initialisation$store}.R")
     
     # Delete line with target in case the user execute the command, without calling initialise_hpc
     target_output |>  delete_lines_with_word(target_script)
+    
+    # Append source if any
+    write_source(user_function_source_path, target_script)
+    
     
     tar_append(
       fx = hpc_internal |> quote(),
@@ -314,7 +339,13 @@ hpc_single =
 #' @importFrom purrr set_names
 #' @export
 hpc_merge = 
-  function(input_hpc, target_output = NULL, user_function = NULL, ...) {
+  function(
+    input_hpc, 
+    target_output = NULL, 
+    user_function = NULL, 
+    user_function_source_path = NULL,
+    ...
+  ) {
     
     # Check for argument consistency
     check_for_name_value_conflicts(...)
@@ -325,17 +356,8 @@ hpc_merge =
     # Delete line with target in case the user execute the command, without calling initialise_hpc
     target_output |>  delete_lines_with_word(target_script)
     
-    # name_target_intermediate = glue("{target_output}_merge_within_tier")
-    
-    # tar_append(
-    #   fx = hpc_internal |> quote(),
-    #   tiers = input_hpc$initialisation$tier |> get_positions() ,
-    #   target_output = name_target_intermediate,
-    #   script = target_script,
-    #   user_function = user_function,
-    #   arguments_already_tiered = list(...) |> arguments_to_action(input_hpc, "tiered") , # This "tiered" value is decided for each new target below. Ususally every other list targets.
-    #   ...
-    # )
+    # Append source if any
+    write_source(user_function_source_path, target_script)
     
     
     # If no tiers
@@ -405,8 +427,7 @@ hpc_merge =
 #' 
 #' 
 #' @export
-hpc_report = 
-  function(input_hpc, target_output = NULL, rmd_path = NULL, ...) {
+hpc_report = function(input_hpc, target_output = NULL, rmd_path = NULL, ...) {
     
     # # Check for argument consistency
     # check_for_name_value_conflicts(...)

@@ -6,10 +6,11 @@
 \usage{
 alive_identification(
   input_read_RNA_assay,
-  empty_droplets_tbl,
-  annotation_label_transfer_tbl = NULL,
-  annotation_column = NULL,
-  assay = NULL
+  empty_droplets_tbl = NULL,
+  cell_type_ensembl_harmonised_tbl = NULL,
+  cell_type_column = NULL,
+  assay = NULL,
+  feature_nomenclature
 )
 }
 \arguments{
@@ -17,7 +18,9 @@ alive_identification(
 
 \item{empty_droplets_tbl}{A tibble identifying empty droplets.}
 
-\item{annotation_label_transfer_tbl}{A tibble with annotation label transfer data.}
+\item{cell_type_ensembl_harmonised_tbl}{A tibble with annotated cell type label data.}
+
+\item{cell_type_column}{A character vector indicating the cell type column used for grouping during quality control and dead cell removal.}
 
 \item{assay}{assay used, default = "RNA"}
 }

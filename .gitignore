@@ -15,6 +15,11 @@ input_reference.rds
 reference_azimuth.rds
 temp_computing_resources.rds
 tissue.rds
+data_container_type.rds
+sample_names.rds
+temp_fx.rds
+temp_gene_nomenclature.rds
+RNA_feature_thresh.rds
 # Exclude pipeline and scripts directories and files
 pipeline_store
 pipeline_store.R
@@ -28,3 +33,4 @@ fibrosis_data
 !README.md
 _target*
 dev
+meta

@@ -1,0 +1,192 @@
+---
+title: "Technical Variation Report"
+format: 
+  html: 
+    theme: minty
+    title-block-banner: true
+    df-print: paged
+    code-line-numbers: true
+    embed-resources: true
+    toc: true
+    toc-depth: 3 
+    toc-location: left
+    number-sections: true 
+    smooth-scroll: true
+abstract: > 
+  This report summarises the assessment of technical variation across samples. Sample-level UMAP projections are used to evaluate clustering structure and detect potential batch effects between different samples/ conditions.
+knitr: 
+  opts_chunk: 
+    message: false
+    warning: false
+    echo: false
+comments:
+  hypothesis: 
+    theme: clean
+editor: visual
+author: "SS"
+date: "2023-12-07"
+output: html_document
+params: 
+  data_object: "NA"
+  empty_tbl: "NA"
+  sample_name: "NA"
+---
+
+```{r setup, include=FALSE}
+library(purrr)
+library(magrittr)
+library(Seurat)
+library(dplyr)
+
+# Global plot theme
+theme_set(theme_minimal(base_size = 12))
+common_theme <- theme(
+  plot.title = element_text(size = 14, face = "bold"),
+  axis.title = element_text(size = 12),
+  axis.text = element_text(size = 10),
+  legend.title = element_text(size = 11),
+  legend.text = element_text(size = 10),
+  strip.text = element_text(size = 11),
+  legend.position = "bottom"
+)
+
+```
+
+```{r, include=FALSE}
+find_variable_genes <- function(input_seurat, empty_droplet){
+
+  # Set the assay of choice
+  assay_of_choice = input_seurat@assays |> names() |> extract2(1)
+
+  # Ensure "HTO" and "ADT" assays are removed if present
+  if("HTO" %in% names(input_seurat@assays)) input_seurat[["HTO"]] = NULL
+  if("ADT" %in% names(input_seurat@assays)) input_seurat[["ADT"]] = NULL
+
+  # Filter out empty droplets
+  seu<- dplyr::left_join(input_seurat, empty_droplet) |>
+    dplyr::filter(!empty_droplet)
+
+  # Update Seurat object meta.data after filtering
+  # input_seurat@meta.data <- seu
+
+  # Scale data
+  input_seurat <- ScaleData(seu, assay=assay_of_choice, return.only.var.genes=FALSE)
+
+  # Find and retrieve variable features
+  input_seurat <- Seurat::FindVariableFeatures(input_seurat, assay=assay_of_choice, nfeatures = 500)
+  my_variable_genes <- Seurat::VariableFeatures(input_seurat, assay=assay_of_choice)
+
+  return(my_variable_genes)
+}
+
+variable_gene_list <- map2(params$data_object, params$empty_tbl, find_variable_genes)
+
+```
+
+```{r, include=FALSE}
+calc_UMAP <- function(data_object, sample_name) {
+  assay_name <- data_object@assays |> names() |> extract2(1)
+
+  # Check if variable features are already present, if not calculate them
+  if (length(VariableFeatures(data_object)) == 0) {
+    data_object <- FindVariableFeatures(data_object)
+  }
+
+  # Extract variable features using VariableFeatures() for Seurat v5
+  var_genes <- VariableFeatures(data_object)
+
+  # Ensure that there are variable features before proceeding
+  if (length(var_genes) > 0) {
+    # Scale data and run PCA on variable genes
+    x <- ScaleData(data_object) |>
+      RunPCA(features = var_genes) |>
+      FindNeighbors(dims = 1:30) |>
+      FindClusters(resolution = 0.5) |>
+      RunUMAP(dims = 1:30, spread = 0.5, min.dist = 0.01, n.neighbors = 10L) |>
+      as_tibble() |>
+      mutate(sample_column = sample_name)
+  } else {
+    stop("No variable features available for UMAP calculation.")
+  }
+
+  return(x)
+}
+
+calc_UMAP_dbl_report <- map2(params$data_object, params$sample_name, calc_UMAP)
+```
+
+## UMAP projection of All Samples 
+This plot displays the UMAP projection of all cells across samples. Each point represents a single cell, and different colors indicate sample of origin. 
+UMAP was computed based on the top 500 variable genes identified per sample.
+
+```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
+data_umap<- calc_UMAP_dbl_report %>% bind_rows()
+# Plot
+plot_tissue_color =
+    data_umap |>
+    dplyr::mutate(batch = 1) |>
+    ggplot(aes(umap_1, umap_2, color = data_umap$sample_column )) +
+    geom_point(size = 0.2) +
+    facet_wrap(~data_umap$sample_column) +
+    common_theme +
+    # theme_minimal() +
+    labs(title = "UMAP visualisation of Samples", color = "orig.ident")
+
+print(plot_tissue_color)
+```
+
+<!-- ::: {.panel-tabset} -->
+
+```{r, fig.width=10, fig.height=8, echo=FALSE, message=FALSE, warning=FALSE}
+data_umap<- calc_UMAP_dbl_report %>% bind_rows()
+# Plot
+plot_tissue_color =
+    data_umap |>
+    dplyr::mutate(batch = 1) |>
+    ggplot(aes(umap_1, umap_2, color = data_umap$sample_column )) +
+    geom_point(size = 0.2) +
+    facet_wrap(~data_umap$sample_column) +
+    common_theme +
+    # theme_minimal() +
+    labs(title = "UMAP visualisation of Samples", color = "orig.ident")
+
+print(plot_tissue_color)
+```
+
+```{r, fig.width=10, fig.height=8, echo=FALSE, message=FALSE, warning=FALSE}
+data_umap<- calc_UMAP_dbl_report %>% bind_rows()
+# Plot
+plot_tissue_color =
+    data_umap |>
+    dplyr::mutate(batch = 1) |>
+    ggplot(aes(umap_1, umap_2, color = data_umap$sample_column )) +
+    geom_point(size = 0.2) +
+    facet_wrap(~data_umap$sample_column) +
+    theme_minimal() +
+    labs(title = "UMAP visualisation of Samples", color = "orig.ident")
+
+print(plot_tissue_color)
+```
+
+
+<!-- ```{r fig.height=10, fig.width=8} -->
+<!-- #| output: asis -->
+<!-- #| echo: false -->
+
+<!-- cat(sprintf("\n\n# %s {.unnumbered}\n\n", "cluster")) -->
+<!-- # p1 = spatialCoords(spe) |> -->
+<!-- #   as.data.frame() |> -->
+<!-- #   mutate(cluster = as.factor(spe$cluster)) |> -->
+<!-- #   ggplot(aes(x, y, colour = cluster)) + -->
+<!-- #   geom_point(pch = ".") + -->
+<!-- #   ggthemes::scale_colour_tableau(palette = "Tableau 20", guide = guide_legend(override.aes = list(shape = 15, size = 5), nrow = 2)) + -->
+<!-- #   vissE::bhuvad_theme() + -->
+<!-- #   theme(legend.position = "bottom", axis.title = element_blank()) -->
+<!-- p1 = ggplot(data = data.frame(x=1, y = 1:10), mapping = aes(x = x, y = y)) + -->
+<!--   geom_point() -->
+
+<!-- print(p1) -->
+<!-- ``` -->
+
+<!-- ::: -->
+
