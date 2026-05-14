@@ -481,16 +481,34 @@ get_single_cell.HPCell = function(input_hpc, target_input = "data_object", targe
 #' @param .contrasts Contrasts parameter.
 #' @return The result of the differential abundance test.
 #'
+methods::setOldClass("HPCell")
+
 setMethod(
   "test_differential_abundance",
   signature(.data = "HPCell"),
-  function(.data, .formula, .sample = NULL, .transcript = NULL, 
-           .abundance = NULL, contrasts = NULL, method = "edgeR_quasi_likelihood", 
-           test_above_log2_fold_change = NULL, scaling_method = "TMM", 
-           omit_contrast_in_colnames = FALSE, prefix = "", action = "add", factor_of_interest = NULL,
-           target_input = "pseudobulk_se", target_output = "de", group_by_column = NULL,
-           ..., significance_threshold = NULL, fill_missing_values = NULL, 
-           .contrasts = NULL) {
+  function(.data, .formula,
+           abundance = NULL,
+           contrasts = NULL,
+           method = "edgeR_quasi_likelihood",
+           test_above_log2_fold_change = NULL,
+           scaling_method = "TMM",
+           omit_contrast_in_colnames = FALSE,
+           prefix = "",
+           ...,
+           significance_threshold = NULL,
+           fill_missing_values = NULL,
+           .contrasts = NULL,
+           .abundance = NULL) {
+
+    if (is.null(.abundance) && !is.null(abundance)) {
+      .abundance <- abundance
+    }
+
+    dots <- list(...)
+    factor_of_interest <- dots$factor_of_interest
+    target_input <- if (!is.null(dots$target_input)) dots$target_input else "pseudobulk_se"
+    target_output <- if (!is.null(dots$target_output)) dots$target_output else "de"
+    group_by_column <- dots$group_by_column
     
       if(.formula |> deparse() |> str_detect("\\|"))
         factory_de_random_effect(

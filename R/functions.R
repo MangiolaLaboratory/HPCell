@@ -27,7 +27,8 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(c("."))
 empty_droplet_id <- function(input_read_RNA_assay,
                              total_RNA_count_check  = -Inf,
                              assay = NULL,
-                             feature_nomenclature){
+                             feature_nomenclature = "symbol",
+                             filter_empty_droplets = NULL){
   
   if(input_read_RNA_assay |> is.null()) return(NULL)
   if(ncol(input_read_RNA_assay) == 0) return(NULL)
@@ -41,7 +42,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
   
   # Get counts
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay = assay, layer = "counts")
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     counts <- assay(input_read_RNA_assay, assay)
   }
@@ -83,7 +84,11 @@ empty_droplet_id <- function(input_read_RNA_assay,
   
   n_expressed_genes_non_zero = (filtered_counts > 0) |> colSums()
   
-  filter_empty_droplets = n_expressed_genes_non_zero |> min() < 200
+  filter_empty_droplets <- if (is.null(filter_empty_droplets)) {
+    n_expressed_genes_non_zero |> min() < 200
+  } else {
+    isTRUE(filter_empty_droplets)
+  }
   
   if(!filter_empty_droplets)
     return(  input_read_RNA_assay |> 
@@ -252,7 +257,7 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
   
   # Get counts
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay = assay, layer = "counts")
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     counts <- assay(input_read_RNA_assay, assay)
   }
@@ -322,7 +327,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
                                       empty_droplets_tbl = NULL, 
                                       reference_azimuth = NULL,
                                       assay = NULL,
-                                      feature_nomenclature
+                                      feature_nomenclature = "symbol"
 ){
   # Fix github checks 
   empty_droplet = NULL 
@@ -351,13 +356,18 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   if (inherits(input_read_RNA_assay, "Seurat")) {
     sce =
       input_read_RNA_assay |>
-      as.SingleCellExperiment() |>
-      logNormCounts(assay.type = assay)
+      as.SingleCellExperiment()
+    if (is.null(assay) || !(assay %in% SummarizedExperiment::assayNames(sce))) {
+      assay <- SummarizedExperiment::assayNames(sce)[1]
+    }
+    sce <- logNormCounts(sce, assay.type = assay)
+    annotation_reference <- sce
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")){
     sce =
       # Filter empty
       input_read_RNA_assay|>
       logNormCounts(assay.type = assay)
+    annotation_reference <- sce
   }
   
   # This because an error is num cell = 1
@@ -373,7 +383,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   
   data_annotated =
     
-    input_read_RNA_assay |>
+    annotation_reference |>
     SingleR(
       ref = blueprint,
       assay.type.test= 1,
@@ -386,7 +396,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     
     left_join(
       
-      input_read_RNA_assay |>
+      annotation_reference |>
         SingleR(
           ref = blueprint,
           assay.type.test= 1,
@@ -410,7 +420,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     data_annotated |>
     
     left_join(
-      input_read_RNA_assay |>
+      annotation_reference |>
         SingleR(
           ref = MonacoImmuneData,
           assay.type.test= 1,
@@ -424,7 +434,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     ) |>
     
     left_join(
-      input_read_RNA_assay |>
+      annotation_reference |>
         SingleR(
           ref = MonacoImmuneData,
           assay.type.test= 1,
@@ -559,7 +569,7 @@ alive_identification <- function(input_read_RNA_assay,
                                  annotation_label_transfer_tbl = NULL,
                                  annotation_column = NULL,
                                  assay = NULL,
-                                 feature_nomenclature) {
+                                 feature_nomenclature = "symbol") {
   
   # Fix GCHECK notes
   empty_droplet = NULL
@@ -589,7 +599,7 @@ alive_identification <- function(input_read_RNA_assay,
   
   
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay = assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay = assay, layer = "counts")
     if (!any(str_which(colnames(input_read_RNA_assay[[]]), nFeature_name)) ||
         !any(str_which(colnames(input_read_RNA_assay[[]]), nCount_name))) {
       input_read_RNA_assay[[nFeature_name]] <-
@@ -789,7 +799,8 @@ doublet_identification <- function(input_read_RNA_assay,
                                    alive_identification_tbl = NULL, 
                                    #annotation_label_transfer_tbl, 
                                    #reference_label_fine,
-                                   assay = NULL){
+                                   assay = NULL,
+                                   ...){
   
   # Fix GChecks 
   .cell = NULL 
@@ -865,7 +876,7 @@ doublet_identification <- function(input_read_RNA_assay,
 #' @export
 cell_cycle_scoring <- function(input_read_RNA_assay, 
                                empty_droplets_tbl = NULL,
-                               feature_nomenclature,
+                               feature_nomenclature = "symbol",
                                assay = NULL){
   #Fix GCHECK
   empty_droplet = NULL 
@@ -1132,7 +1143,7 @@ preprocessing_output <- function(input_read_RNA_assay,
   # Filtering dead
   if(alive_identification_tbl |> is.null() |> not())
     input_read_RNA_assay = input_read_RNA_assay |>
-    left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
+    left_join(alive_identification_tbl, by = ".cell") |>
     filter(alive) 
   
   
@@ -1200,7 +1211,7 @@ preprocessing_output <- function(input_read_RNA_assay,
 #' @importFrom stringr str_remove
 #' @importFrom tidyr unite
 #' @importFrom tidyr pivot_longer
-#' @importFrom tidyseurat aggregate_cells
+#' @importFrom ttservice aggregate_cells
 #' @importFrom tidybulk as_SummarizedExperiment
 #' @importFrom S4Vectors cbind
 #' @importFrom purrr map
@@ -1257,8 +1268,8 @@ create_pseudobulk <- function(input_read_RNA_assay,
     mutate(sample_hpc = sample_names_vec) |> 
     
     # Aggregate
-    tidySingleCellExperiment::aggregate_cells(c(sample_hpc, !!sym(x)), 
-                                              slot = "data", assays = assays) 
+    aggregate_cells(c(sample_hpc, !!sym(x)), 
+                    slot = "data", assays = assays) 
   
   # If I start from Seurat
   if(pseudobulk |> is("data.frame"))
@@ -1463,40 +1474,43 @@ map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
 #' @import dplyr 
 #' @export
 map_test_differential_abundance = function(
-    
-  se, .col, .formula, .abundance = NULL, max_rows_for_matrix_multiplication = NULL,
-  cores = 1, ...
-  
+  se, .col, .formula, .abundance = NULL, ...
 ){
-  
+
   .col = enquo(.col)
   .formula = enquo(.formula)
-  
+
   se |> mutate(!!.col := map2(
     !!.col, !!.formula,
     ~ {
-      
-      if(ncol(.x) > 2000) method = "glmmseq_glmmTMB"
-      else method = "glmmSeq_lme4"
-      
-      
-      # Test
-      test_differential_abundance(
+
+      formula_chr <- paste(deparse(.y), collapse = " ")
+      method <-
+        if (stringr::str_detect(formula_chr, "\\|")) {
+          if (ncol(.x) > 2000) "glmmseq_glmmtmb" else "glmmseq_lme4"
+        } else {
+          "edgeR_quasi_likelihood"
+        }
+
+      original_cols <- colnames(SummarizedExperiment::rowData(.x))
+
+      result <- tidybulk::test_differential_abundance(
         .x,
-        .y, 
-        .abundance = !!as.symbol(.abundance),
-        method = method,
-        cores = cores,
-        max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,
-        .dispersion = dispersion,
-        ...
+        .y,
+        abundance = .abundance,
+        method = method
       )
-    },
-    ...
-    
+
+      new_cols <- setdiff(
+        colnames(SummarizedExperiment::rowData(result)),
+        original_cols
+      )
+
+      SummarizedExperiment::rowData(result)[, new_cols, drop = FALSE] |>
+        as.data.frame()
+    }
   ))
-  
-  
+
 }
 
 

@@ -73,7 +73,7 @@ map2_test_differential_abundance_hpc = function(
   
   # convert to character because formula captures some 
   # of the local environment and creates very big files
-  formula_list |> map(as.character) |>  saveRDS("temp_formula.rds")
+  formula_list |> saveRDS("temp_formula.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
   debug_job_id |> saveRDS("temp_debug_job_id.rds")
   .abundance |> saveRDS("temp_abundance_column_name.rds")
@@ -88,8 +88,8 @@ map2_test_differential_abundance_hpc = function(
     #-----------------------#
     # Input
     #-----------------------#
-    # library(targets)
-    # library(tarchetypes)
+    library(targets)
+    library(tarchetypes)
     
     computing_resources = readRDS("temp_computing_resources.rds")
     debug_job_id = readRDS("temp_debug_job_id.rds")
@@ -97,7 +97,7 @@ map2_test_differential_abundance_hpc = function(
     #-----------------------#
     # Packages
     #-----------------------#
-    tar_option_set( 
+    targets::tar_option_set( 
       packages = c(
         "stringr", "tibble", "tidySingleCellExperiment", "dplyr", "tidyseurat", "glue", "purrr", "tidybulk", "tidySummarizedExperiment", "edgeR",
         "digest", "HPCell"
@@ -105,11 +105,8 @@ map2_test_differential_abundance_hpc = function(
       storage = "worker", 
       retrieval = "worker", 
       # error = "continue", 		
-      format = "qs",
+      # format = "qs",
       controller = computing_resources,
-      resources = tar_resources(
-        qs = tar_resources_qs(preset = "fast")
-      ),
       debug = debug_job_id # Set the target you want to debug.
       #cue = tar_cue(mode = "never") # Force skip non-debugging outdated targets.
     )
@@ -147,9 +144,8 @@ map2_test_differential_abundance_hpc = function(
       # Dispersion
       tar_target(
         pseudobulk_df_tissue_dispersion, 
-        pseudobulk_df_tissue |> map_add_dispersion_to_se(data, formula, abundance), 
-        pattern = map(pseudobulk_df_tissue),
-        iteration = "group"
+        pseudobulk_df_tissue |> map_add_dispersion_to_se(.col = data, abundance = abundance), 
+        pattern = map(pseudobulk_df_tissue)
       ),
       
       # Split in gene chunks
@@ -160,8 +156,7 @@ map2_test_differential_abundance_hpc = function(
           chunk_size = 100 # / number_of_datasets
         ), 
 
-        pattern = map(pseudobulk_df_tissue_dispersion),
-        iteration = "group"
+        pattern = map(pseudobulk_df_tissue_dispersion)
       ),
       
       # Parallelise rows
@@ -176,22 +171,16 @@ map2_test_differential_abundance_hpc = function(
         estimates_chunk, 
         pseudobulk_df_tissue_split_by_gene_grouped |>
           
-          # transform back to formula because I converted to character before
-          mutate(formula = map(formula, as.formula)) |> 
-          
           map_test_differential_abundance(
             data,
             .formula = formula, 
-            .abundance = abundance,
-            max_rows_for_matrix_multiplication = 10000, 
-            cores = 1, action = "get"
+            .abundance = abundance
           ) |> 
           
           # For some reason it occupies a LOT of space (29Mb) 
           # probably ecause is carrying local variable with it
           select(-formula), 
-        pattern = map(pseudobulk_df_tissue_split_by_gene_grouped),
-        iteration = "group"
+        pattern = map(pseudobulk_df_tissue_split_by_gene_grouped)
       )
       
     ))

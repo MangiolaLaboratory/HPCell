@@ -2931,7 +2931,7 @@ check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY <- function(input_rea
     
   } else if (inherits(input_read_RNA_assay, "Seurat")) {
     # For Seurat
-    assay_data <- GetAssayData(input_read_RNA_assay, assay = assay_name, slot = "data")
+    assay_data <- GetAssayData(input_read_RNA_assay, assay = assay_name, layer = "data")
     
     my_min = min(assay_data)
               
