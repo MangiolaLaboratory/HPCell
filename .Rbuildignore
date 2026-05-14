@@ -13,3 +13,5 @@ pipeline_stores
 ^tests$
 _targets
 target_framework
+^Dockerfile$
+^\\.dockerignore$

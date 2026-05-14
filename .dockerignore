@@ -1,0 +1,7 @@
+.git
+.github
+.Rproj.user
+renv
+renv.lock
+pipeline_store
+_targets
