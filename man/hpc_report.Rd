@@ -2,21 +2,20 @@
 % Please edit documentation in R/factories.R
 \name{hpc_report}
 \alias{hpc_report}
-\title{Add HPC step to pipeline}
+\title{Add a Report Step to the HPCell Pipeline}
 \usage{
 hpc_report(input_hpc, target_output = NULL, rmd_path = NULL, ...)
 }
 \arguments{
-\item{input_hpc}{The input HPC object.}
+\item{input_hpc}{An \code{HPCell} object.}
 
-\item{target_output}{The output target name (default: NULL).}
+\item{target_output}{Character name of the output target for the rendered report.}
 
-\item{...}{Additional arguments to pass to the internal functions.}
+\item{rmd_path}{Character path to the \code{.qmd} or \code{.Rmd} report file.}
 
-\item{user_function}{A custom function provided by the user (default: NULL).}
+\item{...}{Named arguments passed as report parameters.}
 }
 \description{
-This function adds a new step to the HPC pipeline by appending the appropriate
-targets to the target script. It allows the user to specify the input and output
-targets, as well as a custom user function to be applied.
+Appends a Quarto/R Markdown rendering step to the HPCell pipeline, which
+generates an HTML report using \code{tarchetypes::tar_quarto_raw()}.
 }

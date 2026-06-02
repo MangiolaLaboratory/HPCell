@@ -13,16 +13,24 @@ annotation_label_transfer(
 )
 }
 \arguments{
-\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object containing RNA assay data.}
+\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object
+containing RNA assay data.}
 
-\item{empty_droplets_tbl}{A tibble identifying empty droplets.}
+\item{empty_droplets_tbl}{A tibble identifying empty droplets (output of
+\code{empty_droplet_id()}). \code{NULL} skips filtering.}
 
-\item{reference_azimuth}{Optional reference data for Azimuth.}
+\item{reference_azimuth}{Optional Azimuth reference object or reference name
+string. \code{NULL} uses the default BlueprintEncode + Monaco immune references.
+Requires the \pkg{Azimuth} package (GitHub-only:
+\code{remotes::install_github("satijalab/azimuth@master")}).}
 
-\item{assay}{assay used, default = "RNA"}
+\item{assay}{Name of the assay to use. \code{NULL} uses the first assay.}
+
+\item{feature_nomenclature}{Character scalar indicating gene identifier type.
+One of \code{"symbol"} or \code{"ensembl"}.}
 }
 \value{
-A tibble with cell type annotation data.
+A tibble with cell-type annotation data.
 }
 \description{
 \code{annotation_label_transfer} utilizes SingleR for cell-type identification using reference datasets

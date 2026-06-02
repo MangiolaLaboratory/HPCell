@@ -24,6 +24,8 @@ and postprocesses each gamma setting to assign cells to metacells. It then aggre
 handles missing values by taking the maximum value in each group, ignoring NAs.
 }
 \examples{
+\dontrun{
 # Assume 'sce' is a SingleCellExperiment object with a cell type
-calculate_metacell(sce)
+calculate_metacell_for_a_sample_per_cell_type(sce)
+}
 }

@@ -1,4 +1,20 @@
-# Define the generic function
+#' Apply a Custom Assay Transformation
+#'
+#' @description
+#' Adds a custom per-cell assay transformation step to the HPCell pipeline.
+#' The transformation function (e.g. log1p, identity) is applied to each
+#' sample's count matrix, optionally capping values at a maximum scale.
+#'
+#' @param input_hpc An `HPCell` object.
+#' @param fx A list of transformation functions (one per sample) to apply to
+#'   the assay matrix. Defaults to `identity` for all samples.
+#' @param target_input Name of the targets target providing the data object.
+#' @param target_output Name of the targets target to write the transformed
+#'   data to.
+#' @param scale_max A list of numeric upper-bound values (one per sample)
+#'   passed to `limit_max_to_scale()`. Default: `10` per sample.
+#' @param ... Additional arguments (unused; for method dispatch).
+#' @return The updated `HPCell` object with the transformation step appended.
 #' @export
 transform_assay <- function(input_hpc, fx = input_hpc$initialisation$input_hpc |> map(~identity), 
                             target_input = "data_object", target_output = "sce_transformed", 
@@ -7,8 +23,8 @@ transform_assay <- function(input_hpc, fx = input_hpc$initialisation$input_hpc |
   UseMethod("transform_assay")
 }
 
+#' @rdname transform_assay
 #' @importFrom purrr map
-#' 
 #' @export
 transform_assay.HPCell = function(
     input_hpc,

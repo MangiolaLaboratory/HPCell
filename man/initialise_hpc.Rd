@@ -2,7 +2,7 @@
 % Please edit documentation in R/modules_grammar_hpc.R
 \name{initialise_hpc}
 \alias{initialise_hpc}
-\title{Run Targets Pipeline for HPCell}
+\title{Initialise an HPCell Targets Pipeline}
 \usage{
 initialise_hpc(
   input_hpc,
@@ -26,7 +26,16 @@ initialise_hpc(
 
 \item{store}{Directory path for storing the pipeline files.}
 
-\item{computing_resources}{Configuration for computing resources.}
+\item{computing_resources}{A \code{crew} controller object (or list of controllers)
+specifying the computing back-end. Defaults to a local single-worker controller.}
+
+\item{default_controller}{Optional character name of the default \code{crew}
+controller to use for targets that do not specify their own controller.
+Passed to \code{targets::tar_resources(crew = tar_resources_crew(controller = ...))}.
+\code{NULL} uses targets defaults.}
+
+\item{tier}{Integer vector (same length as \code{input_hpc}) assigning each sample
+to a processing tier for tiered execution. Default: all samples in tier 1.}
 
 \item{debug_step}{Optional step for debugging.}
 
@@ -41,15 +50,20 @@ seurat_rds for \code{Seurat} RDS,
 sce_hdf5 for \code{SingleCellExperiment} HDF5-based object
 seurat_h5 for \code{Seurat} HDF5-based object}
 
-\item{input_reference}{Optional reference data.}
+\item{verbosity}{Reporter string passed to \code{targets::tar_make()}. Defaults to
+the current targets configuration value.}
 
-\item{tissue}{Tissue type for the analysis.}
+\item{error}{Error-handling strategy passed to \code{targets::tar_option_set()}.
+\code{NULL} uses the targets default.}
 
-\item{filter_empty_droplets}{Flag to indicate if input filtering is needed.}
+\item{update}{Cue mode string for \code{targets::tar_cue()}, controlling when
+targets are re-run. Default: \code{"thorough"}.}
 
-\item{sample_column}{Column name for sample identification.}
+\item{garbage_collection}{Numeric interval at which R garbage collection is
+triggered during the pipeline run. Default: \code{0} (disabled).}
 
-\item{cell_type_annotation_column}{Column name for cell type annotation in input data}
+\item{workspace_on_error}{Logical; if \code{TRUE}, saves a workspace snapshot when
+a target errors. Default: \code{FALSE}.}
 }
 \value{
 The output of the \code{targets} pipeline, typically a pre-processed data set.

@@ -14,15 +14,22 @@ alive_identification(
 )
 }
 \arguments{
-\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object containing RNA assay data.}
+\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object
+containing RNA assay data.}
 
-\item{empty_droplets_tbl}{A tibble identifying empty droplets.}
+\item{empty_droplets_tbl}{A tibble identifying empty droplets (output of
+\code{empty_droplet_id()}). \code{NULL} skips filtering.}
 
-\item{cell_type_ensembl_harmonised_tbl}{A tibble with annotated cell type label data.}
+\item{cell_type_ensembl_harmonised_tbl}{A tibble with harmonised cell-type
+annotations. \code{NULL} skips annotation-based grouping.}
 
-\item{cell_type_column}{A character vector indicating the cell type column used for grouping during quality control and dead cell removal.}
+\item{cell_type_column}{Character column name used to stratify QC thresholds
+per cell type. \code{NULL} applies global thresholds.}
 
-\item{assay}{assay used, default = "RNA"}
+\item{assay}{Name of the assay to use. \code{NULL} uses the first assay.}
+
+\item{feature_nomenclature}{Character scalar indicating gene identifier type.
+One of \code{"symbol"} or \code{"ensembl"}.}
 }
 \value{
 A tibble identifying alive cells.

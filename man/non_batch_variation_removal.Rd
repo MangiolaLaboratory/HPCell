@@ -17,26 +17,30 @@ non_batch_variation_removal(
 )
 }
 \arguments{
-\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object containing RNA assay data.}
+\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object
+containing RNA assay data.}
 
-\item{empty_droplets_tbl}{A tibble identifying empty droplets.}
+\item{empty_droplets_tbl}{A tibble identifying empty droplets. \code{NULL} skips.}
 
-\item{alive_identification_tbl}{A tibble from alive cell identification.}
+\item{alive_identification_tbl}{A tibble from alive cell identification. \code{NULL} skips.}
 
-\item{doublet_identification_tbl}{A tibble from doublet identification.}
+\item{doublet_identification_tbl}{A tibble from doublet identification. \code{NULL} skips.}
 
-\item{cell_cycle_score_tbl}{A tibble from cell cycle scoring.}
+\item{cell_cycle_score_tbl}{A tibble from cell cycle scoring. \code{NULL} skips.}
 
-\item{assay}{assay used, default = "RNA"}
+\item{assay}{Name of the assay to use. \code{NULL} uses the first assay.}
 
-\item{factors_to_regress}{A character vector specifying cell-level covariates to regress out during \code{SCTransform} normalization.}
+\item{factors_to_regress}{Character vector of cell-level covariates to regress
+out during SCTransform normalisation. \code{NULL} applies no regression.}
 
-\item{external_path}{A character vector of directory that the data to be stored}
+\item{external_path}{Character path to the directory where intermediate data
+are stored.}
 
-\item{data_container_type}{A character vector specifying the output file type. Ideally it should match to the input file type.}
+\item{container_type}{Character scalar specifying the output file format.
+Should match the input data container type.}
 }
 \value{
-Normalized and adjusted data.
+Normalised and covariate-adjusted single-cell object.
 }
 \description{
 Regresses out variations due to mitochondrial content, ribosomal content, and

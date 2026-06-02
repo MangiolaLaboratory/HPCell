@@ -13,13 +13,19 @@ hpc_iterate(
 )
 }
 \arguments{
-\item{input_hpc}{The input HPC object.}
+\item{input_hpc}{An \code{HPCell} object.}
 
-\item{target_output}{The output target name (default: NULL).}
+\item{target_output}{Character name of the output target. \code{NULL} uses an
+auto-generated name.}
 
-\item{user_function}{A custom function provided by the user (default: NULL).}
+\item{user_function}{A quoted function call to execute per iteration.}
 
-\item{...}{Additional arguments to pass to the internal functions.}
+\item{user_function_source_path}{Optional character path to an R script that
+should be sourced in the worker before calling \code{user_function}. \code{NULL}
+sources nothing.}
+
+\item{...}{Named arguments passed as target inputs; use \code{is_target()} to
+reference upstream targets by name.}
 }
 \description{
 This function adds a new step to the HPC pipeline by appending the appropriate

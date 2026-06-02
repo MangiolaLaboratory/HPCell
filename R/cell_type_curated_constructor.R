@@ -1,4 +1,23 @@
-# Define the generic function
+#' Build Consensus Cell-Type Annotations
+#'
+#' @description
+#' Adds a consensus cell-type annotation step to the HPCell pipeline. Integrates
+#' Azimuth, Blueprint, Monaco, and/or CellxGene annotations into a single
+#' harmonised label per cell.
+#'
+#' @param input_hpc An `HPCell` object.
+#' @param target_input Name of the targets target providing the data object.
+#' @param target_output Name of the targets target to write consensus annotations to.
+#' @param target_annotation Name of the targets target with label-transfer
+#'   annotation results.
+#' @param annotation_unified_names Character vector of annotation sources to
+#'   include. Supported: `"azimuth"`, `"blueprint"`, `"monaco"`, `"cellxgene"`.
+#' @param celltype_unification_list Optional list of custom unification mapping
+#'   data frames. `NULL` uses the HPCell defaults.
+#' @param nonimmune_cellxgene Optional character vector of non-immune cell-type
+#'   labels from CellxGene. `NULL` uses HPCell defaults.
+#' @param ... Additional arguments (unused; for method dispatch).
+#' @return The updated `HPCell` object with the consensus annotation step appended.
 #' @export
 celltype_consensus_constructor <- function(input_hpc, 
                                          target_input = "data_object", 
@@ -11,8 +30,8 @@ celltype_consensus_constructor <- function(input_hpc,
   UseMethod("celltype_consensus_constructor")
 }
 
+#' @rdname celltype_consensus_constructor
 #' @importFrom purrr map
-#' 
 #' @export
 celltype_consensus_constructor.HPCell <- function(input_hpc, 
                                                 target_input = "data_object", 

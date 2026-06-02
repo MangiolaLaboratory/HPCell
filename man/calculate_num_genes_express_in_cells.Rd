@@ -8,7 +8,7 @@ calculate_num_genes_express_in_cells(m, min_cells, step = 5L)
 }
 \arguments{
 \item{m}{A gene-by-cell matrix of counts or expression values. Typically a
-sparse matrix of class \code{\link[Matrix]{dgCMatrix}}.}
+sparse matrix of class \code{\linkS4class{dgCMatrix}}.}
 
 \item{min_cells}{Integer scalar. Desired starting minimum number of cells in
 which a gene must be detected.}

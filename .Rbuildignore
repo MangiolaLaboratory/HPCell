@@ -1,5 +1,6 @@
 ^renv$
 ^renv\.lock$
+^\.Rprofile$
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^R_scripts$
@@ -11,6 +12,7 @@ pipeline_stores
 ^inst/rmd/.*\\.html$
 ^[^/]*\.r$
 ^tests$
+^dev$
 _targets
 target_framework
 ^\.positai$

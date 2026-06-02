@@ -1,4 +1,4 @@
-#' Run Targets Pipeline for HPCell
+#' Initialise an HPCell Targets Pipeline
 #'
 #' @description
 #' This function sets up and executes a `targets` pipeline for HPCell. It saves input data and configurations,
@@ -6,14 +6,16 @@
 #'
 #' @param input_hpc Character vector of input data path for the pipeline.
 #' @param store Directory path for storing the pipeline files.
-#' @param input_reference Optional reference data.
-#' @param tissue Tissue type for the analysis.
-#' @param computing_resources Configuration for computing resources.
+#' @param computing_resources A `crew` controller object (or list of controllers)
+#'   specifying the computing back-end. Defaults to a local single-worker controller.
+#' @param default_controller Optional character name of the default `crew`
+#'   controller to use for targets that do not specify their own controller.
+#'   Passed to `targets::tar_resources(crew = tar_resources_crew(controller = ...))`.
+#'   `NULL` uses targets defaults.
+#' @param tier Integer vector (same length as `input_hpc`) assigning each sample
+#'   to a processing tier for tiered execution. Default: all samples in tier 1.
 #' @param debug_step Optional step for debugging.
-#' @param filter_empty_droplets Flag to indicate if input filtering is needed.
 #' @param RNA_assay_name Name of the RNA assay.
-#' @param sample_column Column name for sample identification.
-#' @param cell_type_annotation_column Column name for cell type annotation in input data
 #' @param gene_nomenclature Character vector indicating gene nomenclature in input_data
 #' @param data_container_type A character vector of length one specifies the input data type.
 #' The accepted input data type are: 
@@ -21,19 +23,26 @@
 #' seurat_rds for `Seurat` RDS,
 #' sce_hdf5 for `SingleCellExperiment` HDF5-based object
 #' seurat_h5 for `Seurat` HDF5-based object
+#' @param verbosity Reporter string passed to `targets::tar_make()`. Defaults to
+#'   the current targets configuration value.
+#' @param error Error-handling strategy passed to `targets::tar_option_set()`.
+#'   `NULL` uses the targets default.
+#' @param update Cue mode string for `targets::tar_cue()`, controlling when
+#'   targets are re-run. Default: `"thorough"`.
+#' @param garbage_collection Numeric interval at which R garbage collection is
+#'   triggered during the pipeline run. Default: `0` (disabled).
+#' @param workspace_on_error Logical; if `TRUE`, saves a workspace snapshot when
+#'   a target errors. Default: `FALSE`.
 #' @return The output of the `targets` pipeline, typically a pre-processed data set.
 #'
 #' @importFrom glue glue
 #' @importFrom targets tar_script
-#' @importFrom magrittr set_names
 #' @import crew.cluster
 #' @import tarchetypes
 #' @import targets
-#' @import broom
 #' @import ggplot2
 #' @import ggupset
 #' @import here
-#' @import qs
 #' @import crew
 #' @importFrom future tweak
 #' @import crew
@@ -84,13 +93,13 @@ initialise_hpc <- function(input_hpc,
   # Write pipeline to a file
   {
     library(HPCell)
-    library(dplyr)
-    library(magrittr)
-    library(tibble)
-    library(targets)
-    library(tarchetypes)
-    library(crew)
-    library(crew.cluster)
+    do.call("library", list("dplyr"))
+    do.call("library", list("magrittr"))
+    do.call("library", list("tibble"))
+    do.call("library", list("targets"))
+    do.call("library", list("tarchetypes"))
+    do.call("library", list("crew"))
+    do.call("library", list("crew.cluster"))
     
     tar_option_set(
       memory = "transient",
@@ -177,12 +186,25 @@ initialise_hpc <- function(input_hpc,
 
 
 
-# Define the generic function
+#' Identify Empty Droplets Using DropletUtils
+#'
+#' @description
+#' Adds an empty-droplet identification step to the HPCell pipeline using
+#' `DropletUtils::emptyDrops()`.
+#'
+#' @param input_hpc An `HPCell` object (or a `Seurat` object for the Seurat method).
+#' @param total_RNA_count_check Minimum total RNA count threshold used as the
+#'   lower bound for empty-droplet testing. `NULL` uses the default.
+#' @param target_input Name of the targets target providing the data object.
+#' @param target_output Name of the targets target to write results to.
+#' @param ... Additional arguments passed to the underlying method.
+#' @return The updated `HPCell` object with the empty-droplet step appended.
 #' @export
 remove_empty_DropletUtils <- function(input_hpc, total_RNA_count_check = NULL, target_input = "data_object", target_output = "empty_tbl", ...) {
   UseMethod("remove_empty_DropletUtils")
 }
 
+#' @rdname remove_empty_DropletUtils
 #' @export
 remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = NULL, target_input = "data_object", target_output = "empty_tbl", ...) {
   # Capture all arguments including defaults
@@ -197,6 +219,7 @@ remove_empty_DropletUtils.Seurat = function(input_hpc, total_RNA_count_check = N
   
 }
 
+#' @rdname remove_empty_DropletUtils
 #' @export
 remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = NULL, target_input = "data_object", target_output = "empty_tbl",...) {
   
@@ -211,11 +234,25 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
   
 }
 
+#' Filter Empty Droplets by RNA Feature Threshold
+#'
+#' @description
+#' Adds an empty-droplet filtering step based on a minimum RNA feature count
+#' threshold rather than the statistical DropletUtils test.
+#'
+#' @param input_hpc An `HPCell` object (or a `Seurat` object for the Seurat method).
+#' @param RNA_feature_threshold List of per-sample minimum feature thresholds.
+#'   Defaults to 200 features per sample.
+#' @param target_input Name of the targets target providing the data object.
+#' @param target_output Name of the targets target to write results to.
+#' @param ... Additional arguments passed to the underlying method.
+#' @return The updated `HPCell` object with the threshold-based filtering step appended.
 #' @export
 remove_empty_threshold <- function(input_hpc, RNA_feature_threshold = input_hpc$initialisation$input_hpc |> map(~200), target_input = "data_object", target_output = "empty_tbl", ...) {
   UseMethod("remove_empty_threshold")
 }
 
+#' @rdname remove_empty_threshold
 #' @export
 remove_empty_threshold.Seurat = function(input_hpc, RNA_feature_threshold = NULL, target_input = "data_object", target_output = "empty_tbl", ...) {
   # Capture all arguments including defaults
@@ -230,6 +267,7 @@ remove_empty_threshold.Seurat = function(input_hpc, RNA_feature_threshold = NULL
   
 }
 
+#' @rdname remove_empty_threshold
 #' @export
 remove_empty_threshold.HPCell = function(input_hpc,  RNA_feature_threshold = input_hpc$initialisation$input_hpc |> map(~200),
                                          target_input = "data_object", target_output = "empty_tbl",...) {
@@ -267,17 +305,34 @@ target_chunk_undefined_remove_empty_threshold = function(input_hpc){
     )
 }
 
-# Define the generic function
+#' Remove Dead Cells Using scuttle
+#'
+#' @description
+#' Adds a dead-cell removal step to the HPCell pipeline using `scuttle` QC
+#' metrics (mitochondrial fraction, library size, etc.).
+#'
+#' @param input_hpc An `HPCell` object.
+#' @param group_by Optional character column name used to stratify QC thresholds
+#'   per group (e.g. sample or cell type). `NULL` applies global thresholds.
+#' @param target_output Name of the targets target to write alive-cell results to.
+#' @param target_input Name of the targets target providing the data object.
+#' @param target_empty_droplets Name of the targets target with empty-droplet calls.
+#' @param target_annotation Name of the targets target with cell-type annotation
+#'   (used when `group_by` is annotation-based). `NULL` skips annotation grouping.
+#' @param ... Additional arguments (unused; for method dispatch).
+#' @return The updated `HPCell` object with the dead-cell removal step appended.
 #' @export
-remove_dead_scuttle <- function(input_hpc, 
-                                group_by = NULL, 
+remove_dead_scuttle <- function(input_hpc,
+                                group_by = NULL,
                                 target_output = "alive_tbl",
-                                target_input = "data_object", 
+                                target_input = "data_object",
                                 target_empty_droplets = "empty_tbl",
-                                target_annotation = NULL) {
+                                target_annotation = NULL,
+                                ...) {
   UseMethod("remove_dead_scuttle")
 }
 
+#' @rdname remove_dead_scuttle
 #' @export
 remove_dead_scuttle.HPCell = function(
     input_hpc, 
@@ -285,8 +340,8 @@ remove_dead_scuttle.HPCell = function(
     target_output = "alive_tbl",
     target_input = "data_object", 
     target_empty_droplets = "empty_tbl",
-    target_annotation = NULL
-    
+    target_annotation = NULL,
+    ...
   ) {
   
   input_hpc |> 
@@ -303,12 +358,23 @@ remove_dead_scuttle.HPCell = function(
 }
 
 
-# Define the generic function
+#' Score Cell Cycle Phase with Seurat
+#'
+#' @description
+#' Adds a cell-cycle scoring step to the HPCell pipeline using
+#' `Seurat::CellCycleScoring()`.
+#'
+#' @param input_hpc An `HPCell` object.
+#' @param target_input Name of the targets target providing the data object.
+#' @param target_output Name of the targets target to write cell-cycle scores to.
+#' @param ... Additional arguments (unused; for method dispatch).
+#' @return The updated `HPCell` object with the cell-cycle scoring step appended.
 #' @export
 score_cell_cycle_seurat <- function(input_hpc, target_input = "data_object", target_output = "cell_cycle_tbl",...) {
   UseMethod("score_cell_cycle_seurat")
 }
 
+#' @rdname score_cell_cycle_seurat
 #' @export
 score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "data_object", target_output = "cell_cycle_tbl", ...) {
   
@@ -323,22 +389,36 @@ score_cell_cycle_seurat.HPCell = function(input_hpc, target_input = "data_object
   
 }
 
-# Define the generic function
+#' Remove Doublets Using scDblFinder
+#'
+#' @description
+#' Adds a doublet-detection and removal step to the HPCell pipeline using
+#' `scDblFinder`.
+#'
+#' @param input_hpc An `HPCell` object.
+#' @param target_input Name of the targets target providing the data object.
+#' @param target_output Name of the targets target to write doublet calls to.
+#' @param target_empry_droplets Name of the targets target with empty-droplet
+#'   calls (note: historical spelling retained for compatibility).
+#' @param ... Additional arguments (unused; for method dispatch).
+#' @return The updated `HPCell` object with the doublet-removal step appended.
 #' @export
 remove_doublets_scDblFinder <- function(
     input_hpc, target_input = "data_object", target_output = "doublet_tbl",
-    target_empry_droplets = "empty_tbl"
+    target_empry_droplets = "empty_tbl",
     # , target_annotation = "annotation_tbl", reference_label_group_by = "monaco_first.labels.fine"
-  ) {
+    ...) {
   UseMethod("remove_doublets_scDblFinder")
 }
 
+#' @rdname remove_doublets_scDblFinder
 #' @export
 remove_doublets_scDblFinder.HPCell = function(
     input_hpc, target_input = "data_object", target_output = "doublet_tbl",
-    target_empry_droplets = "empty_tbl"
+    target_empry_droplets = "empty_tbl",
     # , target_annotation = "annotation_tbl",
     # reference_label_group_by = "monaco_first.labels.fine"
+    ...
   ) {
 
   input_hpc |>
@@ -353,13 +433,26 @@ remove_doublets_scDblFinder.HPCell = function(
 
 }
 
-# Define the generic function
+#' Annotate Cell Types via Azimuth Label Transfer
+#'
+#' @description
+#' Adds an Azimuth-based cell-type annotation step to the HPCell pipeline.
+#'
+#' @param input_hpc An `HPCell` object.
+#' @param azimuth_reference Optional Azimuth reference object or reference name
+#'   string. `NULL` uses the default Azimuth PBMC reference.
+#' @param target_input Name of the targets target providing the data object.
+#' @param target_output Name of the targets target to write annotation results to.
+#' @param target_empty_droplets Name of the targets target with empty-droplet calls.
+#' @param ... Additional arguments (unused; for method dispatch).
+#' @return The updated `HPCell` object with the annotation step appended.
 #' @export
 annotate_cell_type <- function(input_hpc, azimuth_reference = NULL, target_input = "data_object", 
                                target_output = "annotation_tbl", target_empty_droplets = "empty_tbl", ...) {
   UseMethod("annotate_cell_type")
 }
 
+#' @rdname annotate_cell_type
 #' @export
 annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target_input = "data_object", 
                                      target_output = "annotation_tbl", target_empty_droplets = "empty_tbl", ...) {
@@ -378,13 +471,28 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target
   
 }
 
-# Define the generic function
+#' Normalise Abundance with Seurat SCTransform
+#'
+#' @description
+#' Adds a Seurat SCTransform normalisation step to the HPCell pipeline for
+#' variance-stabilising normalisation and optional batch/covariate regression.
+#'
+#' @param input_hpc An `HPCell` object.
+#' @param target_input Name of the targets target providing the data object.
+#' @param target_output Name of the targets target to write the SCT matrix to.
+#' @param ... Additional arguments (unused; for method dispatch).
+#' @return The updated `HPCell` object with the SCTransform step appended.
 #' @export
-normalise_abundance_seurat_SCT <- function(input_hpc, target_input = "data_object", 
+normalise_abundance_seurat_SCT <- function(input_hpc, factors_to_regress = NULL,
+                                           target_input = "data_object",
                                            target_output = "sct_matrix", ...) {
   UseMethod("normalise_abundance_seurat_SCT")
 }
 
+#' @rdname normalise_abundance_seurat_SCT
+#' @param factors_to_regress Character vector of column names in the Seurat
+#'   object metadata to regress out during SCTransform. `NULL` applies no
+#'   regression.
 #' @export
 normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress = NULL, target_input = "data_object", 
                                                  target_output = "sct_matrix", ...) {
@@ -406,7 +514,27 @@ normalise_abundance_seurat_SCT.HPCell = function(input_hpc, factors_to_regress =
   
 }
 
-# Define the generic function
+#' Cluster Cells into Metacells
+#'
+#' @description
+#' Adds a metacell clustering step to the HPCell pipeline using SuperCell.
+#' Cells are grouped by cell type and then aggregated into metacells.
+#'
+#' @param input_hpc An `HPCell` object.
+#' @param target_input Name of the targets target providing the data object.
+#' @param target_celltype_ensembl Name of the targets target with consensus
+#'   cell-type annotation.
+#' @param target_output Name of the targets target to write metacell membership to.
+#' @param target_empry_droplets Name of the targets target with empty-droplet calls
+#'   (note: historical spelling retained for compatibility).
+#' @param target_alive Name of the targets target with alive-cell calls.
+#' @param target_doublet Name of the targets target with doublet calls.
+#' @param group_by Optional character column name used to stratify metacell
+#'   construction by cell type or other grouping variable.
+#' @param cell_per_metacell Target number of cells per metacell. Default: `1`
+#'   (one-to-one; effectively no aggregation).
+#' @param ... Additional arguments (unused; for method dispatch).
+#' @return The updated `HPCell` object with the metacell clustering step appended.
 #' @export
 cluster_metacell <- function(input_hpc, target_input = "data_object", 
                              target_celltype_ensembl = "cell_type_concensus_tbl",
@@ -418,6 +546,7 @@ cluster_metacell <- function(input_hpc, target_input = "data_object",
   UseMethod("cluster_metacell")
 }
 
+#' @rdname cluster_metacell
 #' @export
 cluster_metacell.HPCell = function(input_hpc,  target_input = "data_object", 
                                    target_celltype_ensembl = "cell_type_concensus_tbl",
@@ -442,7 +571,23 @@ cluster_metacell.HPCell = function(input_hpc,  target_input = "data_object",
     )
 }
 
-# Define the generic function
+#' Calculate Pseudobulk Aggregates
+#'
+#' @description
+#' Adds a pseudobulk aggregation step to the HPCell pipeline. Cells are
+#' grouped by sample and optionally by cell type before summing counts into
+#' a `SummarizedExperiment`.
+#'
+#' @param input_hpc An `HPCell` object.
+#' @param group_by Optional character column name by which cells are further
+#'   grouped within each sample (e.g. cell type). `NULL` aggregates all cells
+#'   per sample.
+#' @param target_input Name of the targets target providing the data object.
+#' @param target_celltype_ensembl Name of the targets target with consensus
+#'   cell-type annotation.
+#' @param target_output Name of the targets target to write the pseudobulk
+#'   `SummarizedExperiment` to.
+#' @return The updated `HPCell` object with the pseudobulk step appended.
 #' @export
 calculate_pseudobulk <- function(input_hpc, group_by = NULL, target_input = "data_object", 
                                  target_celltype_ensembl = "cell_type_concensus_tbl",
@@ -450,6 +595,7 @@ calculate_pseudobulk <- function(input_hpc, group_by = NULL, target_input = "dat
   UseMethod("calculate_pseudobulk")
 }
 
+#' @rdname calculate_pseudobulk
 #' @export
 calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input = "data_object", 
                                        target_celltype_ensembl = "cell_type_concensus_tbl",
@@ -491,7 +637,26 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input 
   
 }
 
-# Define the generic function
+#' Ligand-Receptor Analysis Using CellChat
+#'
+#' @description
+#' Adds a ligand-receptor communication analysis step to the HPCell pipeline
+#' using the CellChat framework.
+#'
+#' @param input_hpc An `HPCell` object.
+#' @param target_input Name of the targets target providing the data object.
+#' @param target_output Name of the targets target to write CellChat results to.
+#' @param target_empty_droplets Name of the targets target with empty-droplet calls.
+#' @param target_alive_tbl Name of the targets target with alive-cell calls.
+#' @param target_doublet_tbl Name of the targets target with doublet calls.
+#' @param target_cell_type Name of the targets target with consensus cell-type
+#'   annotation.
+#' @param species_db Species database to use for CellChat interactions.
+#'   One of `"human"` or `"mouse"`.
+#' @param group_by Column name in the cell metadata used to define cell groups
+#'   for communication inference. Default: `"cell_type"`.
+#' @param ... Additional arguments (unused; for method dispatch).
+#' @return The updated `HPCell` object with the CellChat step appended.
 #' @export
 ligand_receptor_cellchat <- function(
     input_hpc, target_input = "data_object", target_output = "ligand_receptor_tbl",  
@@ -501,6 +666,7 @@ ligand_receptor_cellchat <- function(
   UseMethod("ligand_receptor_cellchat")
 }
 
+#' @rdname ligand_receptor_cellchat
 #' @export
 ligand_receptor_cellchat.HPCell = function(
     input_hpc, target_input = "data_object", target_output = "ligand_receptor_tbl", 
@@ -525,12 +691,25 @@ ligand_receptor_cellchat.HPCell = function(
   
 }
 
-# Define the generic function
+#' Retrieve Preprocessed Single-Cell Object
+#'
+#' @description
+#' Adds a step to the HPCell pipeline that assembles and returns the
+#' fully preprocessed single-cell object (with QC, normalisation, and
+#' annotation metadata attached).
+#'
+#' @param input_hpc An `HPCell` object.
+#' @param target_input Name of the targets target providing the raw data object.
+#' @param target_output Name of the targets target to write the final
+#'   preprocessed single-cell object to.
+#' @param ... Additional arguments (unused; for method dispatch).
+#' @return The updated `HPCell` object with the single-cell retrieval step appended.
 #' @export
 get_single_cell <- function(input_hpc, target_input = "data_object", target_output = "single_cell",...) {
   UseMethod("get_single_cell")
 }
 
+#' @rdname get_single_cell
 #' @export
 get_single_cell.HPCell = function(input_hpc, target_input = "data_object", target_output = "single_cell", ...) {
   
@@ -559,9 +738,9 @@ get_single_cell.HPCell = function(input_hpc, target_input = "data_object", targe
 #'
 #' @name test_differential_abundance-HPCell-method
 #' @rdname test_differential_abundance
+#' @noRd
 #'
 #' @importFrom tidybulk test_differential_abundance
-#' @exportMethod test_differential_abundance
 #' @param .data An HPCell object.
 #' @param .formula A formula used to model the design matrix.
 #' @param .sample Sample parameter.
@@ -660,43 +839,54 @@ get_single_cell.HPCell = function(input_hpc, target_input = "data_object", targe
     # ) 
 
 
-#' generate_report = function(tiers){
-#' 
-#'   list(
-#'     factory_split(
-#'       "final_report",
-#'       command = {read_file |>
-#'         read_data_container(container_type = data_container_type) |>
-        # tar_render(
-        #   name = empty_droplets_report,
-        #   path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
-        #   params = list(x1 = empty_droplets_tbl,
-        #                 # x2 = empty_droplets_tbl,
-        #                 # x3 = annotation_label_transfer_tbl
-        #                 # x4 = tar_read(unique_tissues, store = store),
-        #                 # x5 = sample_column |> quo_name()
-        #                 )) |>
-#'           quote()
-#'         },
-#'         tiers,
-#'         arguments_to_tier = "read_file",
-#'         other_arguments_to_tier = c("empty_droplets_tbl"
-#'                                     # "annotation_label_transfer_tbl",
-#'                                     # "doublet_identification_tbl"),
-#'         ),
-#'         other_arguments_to_map = c("empty_droplets_tbl"
-#'                                    # "annotation_label_transfer_tbl",
-#'                                    # "doublet_identification_tbl")
-#'       )
-#'     )
-#' 
-#'   )
-#' 
-#' }
+# generate_report = function(tiers){
+# 
+#   list(
+#     factory_split(
+#       "final_report",
+#       command = {read_file |>
+#         read_data_container(container_type = data_container_type) |>
+#         # tar_render(
+#         #   name = empty_droplets_report,
+#         #   path =  paste0(system.file(package = "HPCell"), "/rmd/Empty_droplet_report.Rmd"),
+#         #   params = list(x1 = empty_droplets_tbl,
+#         #                 # x2 = empty_droplets_tbl,
+#         #                 # x3 = annotation_label_transfer_tbl
+#         #                 # x4 = tar_read(unique_tissues, store = store),
+#         #                 # x5 = sample_column |> quo_name()
+#         #                 )) |>
+#           quote()
+#         },
+#         tiers,
+#         arguments_to_tier = "read_file",
+#         other_arguments_to_tier = c("empty_droplets_tbl"
+#                                     # "annotation_label_transfer_tbl",
+#                                     # "doublet_identification_tbl"),
+#         ),
+#         other_arguments_to_map = c("empty_droplets_tbl"
+#                                    # "annotation_label_transfer_tbl",
+#                                    # "doublet_identification_tbl")
+#       )
+#     )
+# 
+#   )
+# 
+# }
 
 
 
-# Define the generic function
+#' Execute the HPCell Targets Pipeline
+#'
+#' @description
+#' Closes the pipeline target list and calls `targets::tar_make()` to execute
+#' all queued steps. If `get_single_cell()` was the last step, returns the
+#' assembled single-cell object; otherwise returns the `tar_meta()` table.
+#'
+#' @param input_hpc An `HPCell` object constructed by `initialise_hpc()` and
+#'   extended with one or more pipeline step functions.
+#' @return Either the assembled single-cell object (if `get_single_cell()` was
+#'   called) or a `tibble` with targets metadata.
+#' @name evaluate_hpc
 #' @export
 evaluate_hpc <- function(input_hpc) {
   UseMethod("evaluate_hpc")
@@ -760,6 +950,15 @@ evaluate_hpc.HPCell = function(input_hpc) {
     )
 }
 
+#' Print an HPCell Object
+#'
+#' @description
+#' Prints a summary of an `HPCell` pipeline object by evaluating it and
+#' displaying the resulting targets metadata or single-cell object.
+#'
+#' @param x An `HPCell` object.
+#' @param ... Additional arguments passed to `print()`.
+#' @return Invisibly returns the printed object (called for its side effect).
 #' @importFrom methods show
 #' @export
 print.HPCell <- function(x, ...){

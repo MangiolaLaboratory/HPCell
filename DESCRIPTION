@@ -1,7 +1,9 @@
 Package: HPCell
-Title: Massively-parallel R native pipeline for single-cell analysis
-Version: 0.4.0
+Title: Massively-Parallel R Native Pipeline for Single-Cell Analysis
+Version: 0.6.0
 Authors@R: c(person("Stefano", "Mangiola", email = "mangiolastefano@gmail.com",
+                  role = c("aut")),
+                  person("Mengyuan", "Shen", email = "shen.m@wehi.edu.au",
                   role = c("aut", "cre")),
                   person("Jiayi", "Si", email = "si.j@wehi.edu.au",
                   role = c("aut"))
@@ -10,12 +12,10 @@ Description: Massively-parallel R native pipeline for single-cell analysis.
 License: GPL-3 
 Roxygen: list(markdown = TRUE)
 Depends: 
-    R (>= 4.2.0)
+    R (>= 4.5.0)
 Remotes: 
-    sqjin/CellChat,
     satijalab/seurat@seurat5,
     satijalab/seurat-data@seurat5,
-    satijalab/azimuth@master,
     mojaveazure/seurat-disk@master
 Biarch: true
 Imports:
@@ -37,7 +37,6 @@ Imports:
   tidyseurat (>= 0.8.0),
   purrr,
   readr,
-  patchwork,
   tibble,
   DropletUtils,
   EnsDb.Hsapiens.v86,
@@ -45,47 +44,55 @@ Imports:
   SingleR,
   celldex,
   scuttle,
-  gridGraphics,
   scDblFinder,
   magrittr,
   rlang, 
   S4Vectors, 
-  BiocGenerics, 
   AnnotationDbi, 
   broom,
   digest, 
-  cowplot, 
   igraph, 
   callr, 
-  circlize, 
-  future.apply, 
   ids, 
-  RColorBrewer,
-  reshape2,
   future,
   methods,
-  pbapply,
-  scales,
   data.table, 
   ggplot2, 
   ggupset, 
   here, 
-  qs,
-  ensembldb,
-  Azimuth,
   DelayedArray,
   HDF5Array, 
   SeuratObject,
   SingleCellExperiment, 
   biomaRt, 
   lme4, 
-  tidyselect
+  tidyselect,
+  irlba,
+  proxy,
+  ensembldb,
+  AnnotationFilter,
+  BiocParallel,
+  cli,
+  rhdf5
 Suggests: 
-    testthat(>= 3.0.0), 
+    testthat (>= 3.0.0),
+    qs,
+    Azimuth,
+    CellChat,
+    SuperCell,
     scRNAseq,
-    irlba,
     SeuratDisk,
-    zellkonverter
+    zellkonverter,
+    BiocGenerics,
+    RColorBrewer,
+    circlize,
+    cowplot,
+    future.apply,
+    gridGraphics,
+    patchwork,
+    pbapply,
+    reshape2,
+    scales
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.3
