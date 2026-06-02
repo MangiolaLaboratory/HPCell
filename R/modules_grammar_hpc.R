@@ -623,16 +623,16 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input 
       x = group_by,
       external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
       container_type = "data_container_type" |> is_target() 
-    ) |>
-    
-    # merge
-    hpc_merge(
-      target_output = target_output,
-      user_function = pseudobulk_merge |> quote(),
-      external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
-      pseudobulk_list = pseudobulk_sample |> is_target(),
-      packages = c("tidySummarizedExperiment", "HPCell")
     )
+    
+    # merge: merge step is performed scalably in downstream 
+    # hpc_merge(
+    #   target_output = target_output,
+    #   user_function = pseudobulk_merge |> quote(),
+    #   external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
+    #   pseudobulk_list = pseudobulk_sample |> is_target(),
+    #   packages = c("tidySummarizedExperiment", "HPCell")
+    # )
   
   
 }

@@ -206,25 +206,6 @@ job::job({
 ```
 
 ```{r}
-  # Mengyuan says: there are 37 samples do not have any stats. investigate later:
-# They are from 6 datasets. 3 of them do not have observation_joinid in Census dataset, so unable to slice.
-# 3 datasets are acting weird, have colData, have joinid
-# need to investigate: 21722308-5091-4b63-9c07-4f116ab9a7b3, 145dcf6a-2461-4fa3-a0af-7fc56db0bd33, 7f7faf6b-f11d-4f07-bc1c-188a4472748d
-
-#  [1] "1d507aba40ec4e7307749428d4bc5c49.h5ad" "221407d6715567ce06f8ec2efcf271d2.h5ad" "24a0ab92f770ce82fc4bdbcb13ae6981.h5ad"
-#  [4] "29e98fa31c0ba4ed1b1e80a3c5aadccd.h5ad" "2cdc34efd4a9c2ed7f80d1467d86f668.h5ad" "2d70a0f016494707fae85a71de749dc7.h5ad"
-#  [7] "2ff166a68fa0b1ef5d0d8f9a91ac5923.h5ad" "4152c6c633d769bc4e14d6b7022e568c.h5ad" "4e1b4b0af1998a6be416ab683a079764.h5ad"
-# [10] "6081de2a72b2ea4bf7be8546aaf1d28c.h5ad" "6513fc618af9ab8a79fd05e0321f9033.h5ad" "82e03a6cf864facd80211f76fbb1c85d.h5ad"
-# [13] "8922d56becfeed3dc5919ce97b16c779.h5ad" "9209879be3ca213fd2e73ebab31af71b.h5ad" "9af2aafd1092aa19cbe10b2a63c8002c.h5ad"
-# [16] "a42337b23e661eba31c7cf33e6e27e26.h5ad" "a9f96f268e56e43adfa07f530bcbd268.h5ad" "aca3b66fa8f730e4ba51af989b849be5.h5ad"
-# [19] "ad739b85daca78093534a977699d8949.h5ad" "b7251dabd2b20cc8f72b7c6e9344129f.h5ad" "b806903916d5397c6f04335f5d4fa129.h5ad"
-# [22] "c6fd0bb7191baf46f7d768dc86c00755.h5ad" "c8d5fe854a5773a43ffdfa883b0a9cb0.h5ad" "c95bb81d7e8d6d53251247233a01ce0e.h5ad"
-# [25] "c96ca36a6fb86de531f23dabc9f015ca.h5ad" "d0ba2ed2cb64609f200bd14dbf3cc36e.h5ad" "d4cd0d2b0f603474faafe976de9a2492.h5ad"
-# [28] "d58b0e1bccdb7ff916358b130fdf68fa.h5ad" "d87d8f55a6a82b33ac23337fe74fa1e8.h5ad" "d914e292ae1ee5cd01e5deca69193643.h5ad"
-# [31] "e6195dc957219843cc470ee0b0960d93.h5ad" "e6cd4914d5a9aa0bea4971b9b344911c.h5ad" "ebac20fd555a13fa3d1e6ed638cb84c9.h5ad"
-# [34] "ebdaf704fb553d7bd11becbe7ea6a7d3.h5ad" "ef1780945cc1674f6eba884046f4fe6e.h5ad" "f365e988ae4449b991b093d6e458466d.h5ad"
-# [37] "f7ae602b0489415c1e4ce21981de6959.h5ad"
-
 sample_summary_df = tar_read(sample_summary_df,  store = glue("{summary_store}/_targets")) |> bind_rows() |> 
   mutate(max_gt_20 = ifelse(max_val > 20, TRUE, FALSE))
 

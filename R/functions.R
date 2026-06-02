@@ -479,7 +479,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   } 
   
   if(nrow(data_annotated) <= 30 | is.null(reference_azimuth)){
-    
+  
     # If too little immune cells
     return(data_annotated)
     #saveRDS(output_path)
@@ -523,23 +523,24 @@ annotation_label_transfer <- function(input_read_RNA_assay,
         {
           tmp <- input_read_RNA_assay |> RenameAssays(assay.name = assay, new.assay.name = "RNA")
           
-          # Azimuth 0.5.0 calls GetAssayData(slot = ...) in ConvertGeneNames(),
-          # which is defunct in SeuratObject >= 5.0.0. The binding is in
-          # `imports:Azimuth` (parent.env of Azimuth's namespace), confirmed by
-          # inspection. Patch it there so all internal Azimuth calls are
-          # intercepted, then restore on exit.
-          .az_imp <- parent.env(asNamespace("Azimuth"))
-          .orig_gad <- get("GetAssayData", envir = .az_imp, inherits = FALSE)
-          .shim_gad <- local({
-            orig <- .orig_gad
-            function(object, slot = NULL, layer = NULL, ...) {
-              if (!is.null(slot) && is.null(layer)) layer <- slot
-              orig(object, layer = layer, ...)
-            }
-          })
-          try(unlockBinding("GetAssayData", .az_imp), silent = TRUE)
-          assign("GetAssayData", .shim_gad, envir = .az_imp)
-          on.exit(assign("GetAssayData", .orig_gad, envir = .az_imp), add = TRUE)
+          # Below is solved in Azimuth 0.5.1: https://github.com/satijalab/azimuth/issues/294
+          # # Azimuth 0.5.0 calls GetAssayData(slot = ...) in ConvertGeneNames(),
+          # # which is defunct in SeuratObject >= 5.0.0. The binding is in
+          # # `imports:Azimuth` (parent.env of Azimuth's namespace), confirmed by
+          # # inspection. Patch it there so all internal Azimuth calls are
+          # # intercepted, then restore on exit.
+          # .az_imp <- parent.env(asNamespace("Azimuth"))
+          # .orig_gad <- get("GetAssayData", envir = .az_imp, inherits = FALSE)
+          # .shim_gad <- local({
+          #   orig <- .orig_gad
+          #   function(object, slot = NULL, layer = NULL, ...) {
+          #     if (!is.null(slot) && is.null(layer)) layer <- slot
+          #     orig(object, layer = layer, ...)
+          #   }
+          # })
+          # try(unlockBinding("GetAssayData", .az_imp), silent = TRUE)
+          # assign("GetAssayData", .shim_gad, envir = .az_imp)
+          # on.exit(assign("GetAssayData", .orig_gad, envir = .az_imp), add = TRUE)
           
           Azimuth::RunAzimuth(tmp, reference = reference_azimuth, assay = "RNA", umap.name = "refUMAP")
         } %>% 
