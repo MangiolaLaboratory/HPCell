@@ -1,11 +1,8 @@
 # Description:
-# This script performs data management tasks involving three single-cell datasets:
-# cellxgene, fibrosis, and prostate atlas. It reads metadata and dataset-specific information,
+# This script clean up and generate the ultimate metadata to ship to cellNexus. It reads metadata and dataset-specific information,
 # cleans and renames columns, and writes updated data back to disk. The process involves
 # connecting to databases in memory, executing SQL queries, and handling data in both
-# Parquet and HDF5 formats. Additionally, it sets up directories and tests data conversion
-# scripts for compatibility with Anndata structures. This is intended to unify metadata and
-# streamline data handling in preparation for analysis.
+# Parquet and HDF5 formats.
 
 library(duckdb)
 library(dbplyr)
@@ -18,227 +15,372 @@ library(tidySingleCellExperiment)
 library(stringr)
 library(targets)
 library(purrr)
+library(arrow)
 
 DATE = "08-11-2025"
-# read cellxgene
-metadata <- tbl(
-  dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
-  sql("SELECT * FROM read_parquet('~/scratch/cache_temp/cell_metadata_cell_type_consensus_v2_0_0_mengyuan.parquet')")
-)
-# Function of supporting Read parquet by duckdb, then do something, then write parquet. This avoids converting to tibble
-# @example
-# con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
-# tbl(con, sql(paste0("SELECT * FROM read_parquet('", path_parquet, "')"))) |>
-#   mutate(c = "x") |>
-#   duckdb_write_parquet(path = path_parquet,
-#                        con = con)
-duckdb_write_parquet <- function(.tbl_sql, path, con) {
+
+# # Add low confidence ethnicity and imputed ethnicity labels to metadata. Both data are from Ning via email
+# lowConf_ethnicity_df <- zellkonverter::readH5AD("/vast/projects/cellxgene_curated/cellNexus/sce_relabel.h5ad", reader = "R", use_hdf5 = T) |>
+#   colData() |> as_tibble() |>
+#   mutate(low_confidence_ethnicity = ifelse(ethnicity_relabel == "LowConfidenceLabel", TRUE, FALSE) |> as.character()) |>
+#   select(sample_id, ethnicity_flagging_score = score, low_confidence_ethnicity = low_confidence_ethnicity)
+# 
+# imputed_ethnicity_df <- zellkonverter::readH5AD("/vast/projects/cellxgene_curated/cellNexus/adata_unlabelled_with_predictions.h5ad", reader = "R", use_hdf5 = T)|>
+#   colData() |> as_tibble() |>
+#   select(sample_id, imputed_ethnicity = ethnicity_predictions) |> 
+#   mutate(imputed_ethnicity = as.character(imputed_ethnicity))
+
+
+job::job({
   
-  sql_tbl <- 
-    .tbl_sql |>
-    sql_render()
+  duckdb_write_parquet <- function(.tbl_sql, path, con) {
+    
+    sql_tbl <- 
+      .tbl_sql |>
+      sql_render()
+    
+    # zstd 15 compresses faster than brotli for binary/scientific datasets, whereas brotli reduce could save 100Mb
+    sql_call <- glue::glue("COPY ({sql_tbl}) TO '{path}' (FORMAT PARQUET, COMPRESSION 'brotli')")
+    
+    res <- dbExecute(con, sql_call)
+    
+    return(res)
+  }
   
-  sql_call <- glue::glue("COPY ({sql_tbl}) TO '{path}' (COMPRESSION zstd, COMPRESSION_LEVEL 15)")
+  # Single DuckDB connection: do the heavy transforms in SQL (avoid read/write/read on 50M+ rows)
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
   
-  res <- dbExecute(con, sql_call)
+  raw_path <- "/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cell_metadata_cell_type_consensus_v1_0_1_mengyuan.parquet"  # MODIFY HERE: Metadata input parquet path
   
-  return(res)
-}
-
-# clean duplicated columns in cellxgene
-metadata <- metadata |> select(
-  -contains(c("dataset_id_", "cell__", "sample_id_", "cell_type_unified_ensemble_",
-            "observation_joinid_", "donor_id_", "alive_", 
-            "is_primary_data_", "cell_type_ontology_term_id_", "atlas_id_")),
-  -cell_, -sample_,
-  -azimuth,
-  -blueprint,
-  -monaco,
-  -cell_type_1,
-  -self_reported_ethnicity_1,
-  -tissue_1, -assay_1, -assay_2,
-  -matches("^scores"),
-  -matches("coarse$"))  |> 
+  DBI::dbExecute(con, glue::glue("
+  CREATE VIEW cell_metadata_raw AS
+  SELECT *
+  FROM read_parquet({DBI::dbQuoteString(con, raw_path)}, union_by_name=true);
+  "))
   
-  # These datasets do not contain colData
-  filter(!dataset_id %in% dataset_to_exclude) |> 
+  raw_cols <- DBI::dbGetQuery(con, "SELECT * FROM cell_metadata_raw LIMIT 0") |> names()
   
-  dplyr::rename(cell_annotation_blueprint_singler = blueprint_first_labels_fine,
-                cell_annotation_monaco_singler = monaco_first_labels_fine,
-                cell_annotation_azimuth_l2 = azimuth_predicted_celltype_l2) |> 
+  explicit_drop <- c("donor_id_1", "assay_1") # This need to be addressed in STEP_7
+  # explicit_drop <- c(
+  #   "cell_",
+  #   "cell__1",
+  #   "dataset_id_1",
+  #   "dataset_id_1_1",
+  #   "cell__2",
+  #   "cell__3",
+  #   "dataset_id_2",
+  #   "dataset_id_3",
+  #   "sample_id_1",
+  #   "sample_id_2",
+  #   "sample_placeholder",
+  #   "cell_type_unified_ensemble_1",
+  #   "cell_type_1",
+  #   "dataset_id_2",
+  #   "observation_joinid_1",
+  #   "self_reported_ethnicity_1",
+  #   "donor_id_1",
+  #   "assay_1",
+  #   "blueprint_first_labels_fine_1",
+  #   "azimuth_predicted_celltype_l2_1",
+  #   "monaco_first_labels_fine_1",
+  #   "dataset_id_3",
+  #   "atlas_id_1",
+  #   "tissue_1",
+  #   "is_primary_data_1",
+  #   "cell_type_ontology_term_id_1",
+  #   "azimuth",
+  #   "blueprint",
+  #   "monaco",
+  #   "alive_1",
+  #   "cell_id_1",
+  #   "dataset_id_4",
+  #   "X_umap1",
+  #   "X_umap2",
+  #   "observation_originalid",
+  #   "subsets_Mito_sum",
+  #   "subsets_Mito_detected",
+  #   "file_id_cellNexus_single_cell_1",
+  #   "ensemble_joinid",
+  #   "cell_type_unified",
+  #   "data_driven_ensemble"
+  # )
   
-  mutate(alive = ifelse(is.na(alive), FALSE, alive),
-         feature_count = as.integer(feature_count),
-         published_at = as.character(published_at),
-         revised_at = as.character(revised_at),
-         nFeature_expressed_in_sample = as.integer(nFeature_expressed_in_sample),
-         cell_count = as.integer(cell_count),
-         
-         # update metacell columns are integter to minimise file size
-         across(contains("metacell_"), as.integer),
-         across(contains("_chunk"), as.integer), 
-         across(contains("subsets_"), as.integer)) |>
+  pattern_drop <- c(
+    grep("^scores", raw_cols, value = TRUE),
+    grep("coarse$", raw_cols, value = TRUE)
+  )
   
-  # Exchange cell_id
-  mutate(cell_id = new_cell_id) |> 
-  select(-new_cell_id)
-
-
-
-metadata = metadata |>
-  # Add Atlas version/date
-  mutate(atlas_id = paste0(atlas_id,"/", DATE))
-
-
-
-# Add pseudobulk aggregated_cells column
-sample_celltype_count <- metadata |> filter(empty_droplet == F,
-                                            alive == T,
-                                            scDblFinder.class != "doublet") |> dplyr::count(sample_id, 
-                                                                                            cell_type_unified_ensemble, 
-                                                                                            name = "aggregated_cells")
-metadata = metadata |> left_join(sample_celltype_count, by = c("sample_id", "cell_type_unified_ensemble"), copy=T)
-
-
-metadata_path = "~/scratch/cache_temp/metadata.2.0.0.parquet"
-
-metadata |> 
+  drop_cols <- intersect(unique(c(explicit_drop, pattern_drop)), raw_cols)
   
-  # # FOR TEST PURPOSE ONLY
-  # filter(sample_id %in% c("33d4a2710fb8948869d08ca75e37e45c", "cc1e586b9c87063ab3093b1ac1d9709a", "b2b55590f75de8a9d2d761dc2b686162", "375536d1c72b71e5bf15249bef36768c","000bd8e4dd99245dc10f8a241202fdd5", "c5098f61b637d7f97c28c0900568d51a")) |>
+  int_cast_cols <- intersect(
+    unique(
+      c(
+        "feature_count",
+        "nFeature_expressed_in_sample",
+        "cell_count",
+        grep("metacell_", raw_cols, value = TRUE),
+        grep("_chunk", raw_cols, value = TRUE),
+        grep("subsets_", raw_cols, value = TRUE)
+      )
+    ),
+    raw_cols
+  )
+  
+  chr_cast_cols <- intersect(c("published_at", "revised_at"), raw_cols)
+  
+  sql_id <- function(x) as.character(DBI::dbQuoteIdentifier(con, x))
+  
+  # Remove originals that we re-add under new names
+  base_keep <- setdiff(
+    raw_cols,
+    c(
+      drop_cols,
+      "alive",
+      "atlas_id",
+      "blueprint_first_labels_fine",
+      "monaco_first_labels_fine",
+      "azimuth_predicted_celltype_l2",
+      "cell_id",
+      "new_cell_id"
+    )
+  )
+  
+  select_exprs <- purrr::map_chr(base_keep, function(col) {
+    col_id <- sql_id(col)
+    if (col %in% int_cast_cols) {
+      glue::glue("CAST({col_id} AS INTEGER) AS {col_id}")
+    } else if (col %in% chr_cast_cols) {
+      glue::glue("CAST({col_id} AS VARCHAR) AS {col_id}")
+    } else {
+      col_id
+    }
+  })
+  
+  # alive: NA -> FALSE
+  if ("alive" %in% raw_cols) {
+    select_exprs <- c(select_exprs, glue::glue("COALESCE({sql_id('alive')}, FALSE) AS {sql_id('alive')}"))
+  } else {
+    select_exprs <- c(select_exprs, glue::glue("FALSE AS {sql_id('alive')}"))
+  }
+  
+  # Rename annotation columns
+  select_exprs <- c(
+    select_exprs,
+    if ("blueprint_first_labels_fine" %in% raw_cols) {
+      glue::glue("{sql_id('blueprint_first_labels_fine')} AS {sql_id('cell_annotation_blueprint_singler')}")
+    } else {
+      glue::glue("NULL::VARCHAR AS {sql_id('cell_annotation_blueprint_singler')}")
+    },
+    if ("monaco_first_labels_fine" %in% raw_cols) {
+      glue::glue("{sql_id('monaco_first_labels_fine')} AS {sql_id('cell_annotation_monaco_singler')}")
+    } else {
+      glue::glue("NULL::VARCHAR AS {sql_id('cell_annotation_monaco_singler')}")
+    },
+    if ("azimuth_predicted_celltype_l2" %in% raw_cols) {
+      glue::glue("{sql_id('azimuth_predicted_celltype_l2')} AS {sql_id('cell_annotation_azimuth_l2')}")
+    } else {
+      glue::glue("NULL::VARCHAR AS {sql_id('cell_annotation_azimuth_l2')}")
+    }
+  )
+  
+  # new_cell_id -> cell_id as first column (drop original cell_id entirely)
+  cell_id_expr <- if ("new_cell_id" %in% raw_cols) {
+    glue::glue("{sql_id('new_cell_id')} AS {sql_id('cell_id')}")
+  } else {
+    glue::glue("NULL::VARCHAR AS {sql_id('cell_id')}")
+  }
+  select_exprs <- c(cell_id_expr, select_exprs)
+  
+  select_sql <- paste(select_exprs, collapse = ",\n    ")
+  
+  DBI::dbExecute(con, glue::glue("
+  CREATE OR REPLACE VIEW cell_metadata AS
+  SELECT
+    {DBI::SQL(select_sql)}
+  FROM cell_metadata_raw
+  WHERE dataset_id NOT IN ('99950e99-2758-41d2-b2c9-643edcdf6d82', '9fcb0b73-c734-40a5-be9c-ace7eea401c9', '60a29d0b-1a37-4447-ac32-00d701580b47', '09b518f9-da64-44cc-aec8-70a89d55611f', 'cb252df6-6e49-4553-abd1-495a00006fb1');
+  "))
+  
+  DBI::dbExecute(con, "
+  CREATE OR REPLACE VIEW sample_celltype_count AS
+  SELECT
+    sample_id,
+    cell_type_unified_ensemble,
+    CAST(COUNT(*) AS INTEGER) AS \".aggregated_cells\"
+  FROM cell_metadata
+  WHERE empty_droplet = FALSE
+    AND alive = TRUE
+    AND \"scDblFinder.class\" != 'doublet'
+  GROUP BY sample_id, cell_type_unified_ensemble;
+  ")
+  
+  gc()
+  
+#   dbExecute(con, "
+#   CREATE VIEW lowConf_ethnicity_df AS
+#   SELECT 
+#     *
+#   FROM read_parquet('/vast/projects/cellxgene_curated/cellNexus/lowConf_ethnicity_df.parquet')
+# ")
+#   
+#   dbExecute(con, "
+#   CREATE VIEW imputed_ethnicity_df AS
+#   SELECT 
+#     *
+#   FROM read_parquet('/vast/projects/cellxgene_curated/cellNexus/imputed_ethnicity_df.parquet')
+# ")
+  
+  # Perform left join and save to parquet
+  # MODIFY HERE: output metadata parquet path and atlas_id
+  copy_query <- "
+  COPY (
+    SELECT
+      cell_metadata.*,
+      --lowConf_ethnicity_df.ethnicity_flagging_score,
+      --lowConf_ethnicity_df.low_confidence_ethnicity,
+      sample_celltype_count.\".aggregated_cells\",
+      --COALESCE(imputed_ethnicity_df.imputed_ethnicity, cell_metadata.self_reported_ethnicity) AS imputed_ethnicity, -- Use imputed_ethnicity if present
+      'cellxgene_2025/0.1.0' AS atlas_id
+      
+    FROM cell_metadata
+    
+    --LEFT JOIN lowConf_ethnicity_df
+    --  ON cell_metadata.sample_id = lowConf_ethnicity_df.sample_id
+    
+    --LEFT JOIN imputed_ethnicity_df
+    --  ON cell_metadata.sample_id = imputed_ethnicity_df.sample_id
+    
+    LEFT JOIN sample_celltype_count
+      ON cell_metadata.sample_id = sample_celltype_count.sample_id AND cell_metadata.cell_type_unified_ensemble = sample_celltype_count.cell_type_unified_ensemble
+      
+    
+    
+
+  ) TO '/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/metadata.v2025.1.0.0.parquet'
+  (FORMAT PARQUET, COMPRESSION 'zstd');
+  "
+  
+  # Execute the final query to write the result to a Parquet file
+  dbExecute(con, copy_query)
+  
+  # Disconnect from the database
+  dbDisconnect(con, shutdown = TRUE)
+  
+  print("Done.")
+  
+  
+})
+
+job::job({
+  
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
+  
+  input_metadata <- "/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/metadata.v2025.1.0.0.parquet" # MODIFY HERE: input metadata parquet path
+  out_dir <- "/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/"
+  
+  DBI::dbExecute(
+    con,
+    glue::glue(
+      "
+    CREATE OR REPLACE VIEW metadata AS
+    SELECT *
+    FROM read_parquet({DBI::dbQuoteString(con, input_metadata)}, union_by_name=true);
+    "
+    )
+  )
+  
+  cols <- DBI::dbGetQuery(con, "SELECT * FROM metadata LIMIT 0") |> names()
+  sql_id <- function(x) as.character(DBI::dbQuoteIdentifier(con, x))
+  
+  # Strip sample annotation from cellnexus annotation doesn't save too much (less than 3Mb), thus keep in one.
+  remove_cols <- c(
+    "cell_type", "cell_type_ontology_term_id", "data_driven_ensemble", "ensemble_joinid",
+    "observation_originalid", "assay", "assay_ontology_term_id", "development_stage", "development_stage_ontology_term_id",
+    "disease", "disease_ontology_term_id", "donor_id", "is_primary_data", "organism", "organism_ontology_term_id",
+    "self_reported_ethnicity", "self_reported_ethnicity_ontology_term_id",
+    "sex", "sex_ontology_term_id", "tissue", "tissue_ontology_term_id", "citation",
+    "collection_id", "dataset_version_id", "default_embedding", "published_at", "raw_data_location",
+    "revised_at", "primary_cell_count", "schema_version", "tissue_type", "title",
+    "tombstone", "x_approximate_distribution", "explorer_url", "cell_count", "feature_count", 
+    "filesize", "filetype", "mean_genes_per_cell", "suspension_type", "url"
+  )
+  
+  # CellNexus metadata (smaller file for Shiny): drop heavy / internal columns by name patterns
+  drop_cellnexus <- unique(c(
+    intersect(remove_cols, cols),
+    cols[grepl("metacell", cols)]
+  ))
+  keep_cellnexus <- setdiff(cols, drop_cellnexus)
+  select_cellnexus <- paste(sql_id(keep_cellnexus), collapse = ", ")
+  
+  # MODIFY HERE: output cellnexus metadata parquet path
+  DBI::dbExecute(
+    con,
+    glue::glue(
+      "
+      COPY (
+        SELECT {DBI::SQL(select_cellnexus)}
+        FROM metadata
+      )
+      TO {DBI::dbQuoteString(con, file.path(out_dir, 'cellnexus_metadata.v2025.1.0.0.parquet'))}
+      (FORMAT PARQUET, COMPRESSION 'brotli');
+      "
+    )
+  )
+  
+  # Original census-like metadata subset (stable columns)
+  census_cols <- intersect(
+    c(
+      "observation_joinid", "dataset_id", "sample_id", "cell_type",
+      "cell_type_ontology_term_id", "assay", "assay_ontology_term_id", "development_stage", "development_stage_ontology_term_id",
+      "disease", "disease_ontology_term_id", "donor_id", "is_primary_data", "organism", "organism_ontology_term_id",
+      "self_reported_ethnicity", "self_reported_ethnicity_ontology_term_id",
+      "sex", "sex_ontology_term_id", "tissue", "tissue_ontology_term_id",
+      "data_driven_ensemble", "ensemble_joinid", "observation_originalid",  "citation",
+      "collection_id", "dataset_version_id", "default_embedding", "published_at", "raw_data_location",
+      "revised_at", "primary_cell_count", "schema_version", "tissue_type", "title",
+      "tombstone", "x_approximate_distribution", "explorer_url", "cell_count", "feature_count", 
+      "filesize", "filetype", "mean_genes_per_cell", "suspension_type", "url"
+    ),
+    cols
+  )
+  select_census <- paste(sql_id(census_cols), collapse = ", ")
+  
+  # MODIFY HERE: output census metadata parquet path
+  DBI::dbExecute(
+    con,
+    glue::glue(
+      "
+    COPY (
+      SELECT {DBI::SQL(select_census)}
+      FROM metadata
+    )
+    TO {DBI::dbQuoteString(con, file.path(out_dir, 'census_cell_metadata.v2025.1.0.0.parquet'))}
+    (FORMAT PARQUET, COMPRESSION 'brotli');
+    "
+    )
+  )
+  
+  # # Metacell metadata subset
+  # metacell_cols <- unique(c("cell_id", "sample_id", "dataset_id", cols[grepl("metacell", cols)]))
+  # metacell_cols <- intersect(metacell_cols, cols)
+  # select_metacell <- paste(sql_id(metacell_cols), collapse = ", ")
   # 
-  duckdb_write_parquet(path = metadata_path,
-                       con = dbConnect(duckdb::duckdb(), dbdir = ":memory:"))
-
-
-
-# # Strip sample annotation from cellnexus annotation doesn't save too much (less than 3Mb), thus keep in one.
-# remove_cols <- c("cell_chunk", "cell_type","cell_type_ontology_term_id",
-#                  "data_driven_ensemble", "default_embedding","ensemble_joinid", 
-#                  "observation_originalid", "run_from_cell_id", "suspension_type" )
-# 
-# 
-# # Old metadata from cellxgene and census
-# metadata |>  
-#   select(observation_joinid, dataset_id, sample_id, cell_type,
-#          cell_type_ontology_term_id,default_embedding, run_from_cell_id, suspension_type) |>
-#   duckdb_write_parquet(path = "~/scratch/cache_temp/census_cell_metadata.1.2.13.parquet",
-#                        con = dbConnect(duckdb::duckdb(), dbdir = ":memory:"))
-# 
-# # New metadata contains columns that cellnexus generated
-# metadata |> 
-#   # drop sample level columns
-#   select(-all_of(setdiff(sample_cols, c("observation_joinid", "sample_id", "dataset_id"))),
-#          -contains("metacell"), -cell_type, -cell_type_ontology_term_id,
-#          -default_embedding, -run_from_cell_id, -suspension_type, -contains("subsets_"), -contains("high_")) |> 
-#   duckdb_write_parquet(path = "~/scratch/cache_temp/cellnexus_cell_metadata.1.2.13.parquet",
-#                        con = dbConnect(duckdb::duckdb(), dbdir = ":memory:"))
-# 
-# # Metacell metadata
-# metadata |> 
-#   select(c("cell_id", "sample_id", "dataset_id"), contains("metacell")) |> 
-#   duckdb_write_parquet(path = "~/scratch/cache_temp/metacell_metadata.1.2.13.parquet",
-#                        con = dbConnect(duckdb::duckdb(), dbdir = ":memory:"))
-# 
-# 
-# 
-# # # Exclude missing_cells
-# # job::job({
-# #   con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
-# #   
-# #   dbExecute(con, "
-# #   CREATE VIEW current_metadata AS
-# #   SELECT *
-# #   FROM read_parquet('/vast/scratch/users/shen.m/cellNexus/metadata.1.0.9.parquet')
-# # ")
-# #   
-# #   dbExecute(con, "
-# #   CREATE VIEW old_metadata_without_missing_cells AS
-# #   SELECT *
-# #   FROM read_parquet('/vast/scratch/users/shen.m/cache_temp/metadata.1.0.8.parquet')
-# # ")
-# #   
-# #   # Perform the left join and save to Parquet
-# #   copy_query <- "
-# #   COPY (
-# #      SELECT 
-# #         current_metadata.*,
-# #         old_metadata_without_missing_cells.cell_id AS cell_id_2
-# #       FROM current_metadata
-# #       LEFT JOIN old_metadata_without_missing_cells
-# #       ON current_metadata.cell_id = old_metadata_without_missing_cells.cell_id 
-# #       AND current_metadata.sample_id = old_metadata_without_missing_cells.sample_id
-# # 
-# #       
-# #   ) TO '/vast/scratch/users/shen.m/cellNexus/metadata.1.0.9_excluded_missing_cells.parquet'
-# #   (FORMAT PARQUET, COMPRESSION 'gzip');
-# # "
-# #   
-# #   # Execute the final query to write the result to a Parquet file
-# #   dbExecute(con, copy_query)
-# #   
-# #   # Disconnect from the database
-# #   dbDisconnect(con, shutdown = TRUE)
-# #   
-# #   print("Done.")
-# #   
-# # })
-# # 
-# # metadata = tbl(
-# #   dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
-# #   sql("SELECT * FROM read_parquet('/vast/scratch/users/shen.m/cellNexus/metadata.1.0.9_excluded_missing_cells.parquet')")
-# # ) |>filter(!is.na(cell_id_2)) |> select(-cell_id_2)
-# # 
-# # 
-# # metadata |> 
-# #   duckdb_write_parquet(path = metadata_path,
-# #                        con = dbConnect(duckdb::duckdb(), dbdir = ":memory:"))
-# # 
-# # file.copy(metadata_path,
-# #           to = "~/scratch/cache_temp/metadata.1.0.9.parquet")
-# # 
-# 
-# 
-# # Repeat similar steps for the fibrosis atlas
-# fibrosis <- tbl(dbConnect(duckdb::duckdb(), dbdir = ":memory:"),  
-#                 sql("SELECT * FROM read_parquet('/vast/projects/cellxgene_curated/cellNexus/fibrosis.0.2.3.parquet')") )
-# fibrosis <- fibrosis |> dplyr::rename(file_id_cellNexus_single_cell = file_id_db) |> 
-#   mutate(file_id_cellNexus_single_cell = paste0(file_id_cellNexus_single_cell,".h5ad"))
-# #fibrosis |> as_tibble() |> arrow::write_parquet("/vast/scratch/users/shen.m/cellNexus/fibrosis.1.0.4.parquet")
-# fibrosis_path = "/vast/scratch/users/shen.m/cellNexus/fibrosis.1.0.4.parquet"
-# fibrosis |>  duckdb_write_parquet(path = fibrosis_path,
-#                                   con = con)
-# 
-# # Repeat similar steps for the Prostate atlas
-# prostate <- tbl(dbConnect(duckdb::duckdb(), dbdir = ":memory:"),  
-#                 sql("SELECT * FROM read_parquet('/vast/scratch/users/shen.m/ProstateAtlas/prostate.0.1.0.parquet')") )
-# prostate <- prostate |> 
-#   mutate(file_id_cellNexus_single_cell = paste0(file_id_db,".h5ad"),
-#          cell_type_harmonised = NA)
-# #prostate |> as_tibble() |> arrow::write_parquet("/vast/scratch/users/shen.m/cellNexus/prostate.1.0.4.parquet")
-# prostate_path = "/vast/scratch/users/shen.m/cellNexus/prostate.1.0.4.parquet"
-# prostate |>  duckdb_write_parquet(path = prostate_path,
-#                                   con = con)
-# 
-# # Convert counts in HDF5 SCE to Anndata in atlas and rename gene symbols to ensembl IDs. This is done by Target parallelation:
-# # script: ~/git_control/CuratedAtlasQueryR/dev/convert_fibrosis_and_prostate_hdf5_to_anndata_targets.R
-# # store: scratch/cellNexus
-# original_hdf5_download_path = "/vast/scratch/users/shen.m/cellNexus/original_hdf5/"
-# cpm_hdf5_download_path = "/vast/scratch/users/shen.m/cellNexus/cpm_hdf5/"
-# if (!dir.exists(original_hdf5_download_path))  dir.create(original_hdf5_download_path, recursive = TRUE)
-# if (!dir.exists(cpm_hdf5_download_path))  dir.create(cpm_hdf5_download_path, recursive = TRUE)
-# 
-# # test fibrosis and prostate with anndata 
-# cache = "/vast/scratch/users/shen.m/cellNexus"
-# get_metadata(cache_directory = cache,
-#              get_metadata_url(databases = NULL)) |> 
-#   dplyr::filter(file_id_cellNexus %in% c( "0004e421765504041c8a460a83de2d01.h5ad", # this is from cellxgene
-#                                           "0a54b616d9afd26c9da310e8a504b541.h5ad", # this is from prostate atlas
-#                                           "12eb5fe25994253c1d320ca590a6e681.h5ad"  # this is from fibrosis atlas
-#   )
-#   ) |>
-#   cellNexus:::get_data_container(repository = NULL,
-#                                  cache_directory = cache,
-#                                  grouping_column = "file_id_cellNexus",
-#                                  #assays = "cpm"
-#   )
+  # # MODIFY HERE: output metacell metadata parquet path
+  # DBI::dbExecute(
+  #   con,
+  #   glue::glue(
+  #     "
+  #   COPY (
+  #     SELECT {DBI::SQL(select_metacell)}
+  #     FROM metadata
+  #   )
+  #   TO {DBI::dbQuoteString(con, file.path(out_dir, 'metacell_metadata.2.3.0.parquet'))}
+  #   (FORMAT PARQUET, COMPRESSION 'brotli');
+  #   "
+  #   )
+  # )
+  
+  print("Done.")
+})

@@ -27,19 +27,7 @@ library(duckdb)
 
 job::job({
   
-  get_file_ids = function(cell_annotation 
-                          #cell_type_consensus_parquet
-  ){
-    
-    # cell_consensus = 
-    #   tbl(
-    #     dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
-    #     sql(glue::glue("SELECT * FROM read_parquet('{cell_type_consensus_parquet}')"))
-    #   ) |>
-    #   select(cell_, dataset_id, cell_type_unified_ensemble, cell_type_unified) 
-    
-    # This because f7c1c579-2dc0-47e2-ba19-8165c5a0e353 includes 13K samples
-    # It affects only very few datasets
+  get_file_ids = function(cell_annotation ){
     sample_chunk_df = 
       tbl(
         dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
@@ -78,36 +66,30 @@ job::job({
       dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
       sql(glue::glue("SELECT * FROM read_parquet('{cell_annotation}')"))
     ) |> 
-      # left_join(cell_consensus, copy=TRUE) |>
-      
       # Cells in cell_annotation could be more than cells in cell_consensus. In order to avoid NA happens in cell_consensus cell_type column
       mutate(cell_type_unified_ensemble = ifelse(cell_type_unified_ensemble |> is.na(),
                                                  "Unknown",
                                                  cell_type_unified_ensemble)) |>
       
       left_join(sample_chunk_df |> select(dataset_id, sample_chunk, sample_pseudobulk_chunk, cell_chunk, sample_id), copy=TRUE) |> 
-      # # Make sure I cover cell type even if consensus of harmonisation is not present (it should be the vast minority)
-      # mutate(temp_cell_type_label_for_file_id = if_else(cell_type_unified_ensemble |> is.na(), cell_type, cell_type_unified)) |> 
-      # mutate(temp_cell_type_label_for_file_id = if_else(temp_cell_type_label_for_file_id |> is.na(), cell_type, temp_cell_type_label_for_file_id)) |> 
-      # 
+      
       # Define chunks
-      group_by(dataset_id, sample_chunk, cell_chunk, sample_pseudobulk_chunk, cell_type_unified_ensemble, sample_id) |>
+      group_by(dataset_id, sample_chunk, cell_chunk, sample_pseudobulk_chunk, cell_type, sample_id) |>
       summarise(cell_count = n(), .groups = "drop") |>
-      group_by(dataset_id, sample_chunk, cell_chunk, cell_type_unified_ensemble) |>
-      dbplyr::window_order(desc(cell_count)) |>
+      group_by(dataset_id, sample_chunk, cell_chunk, cell_type) |>
+      dbplyr::window_order(desc(cell_count), sample_id) |> # Important!
       mutate(chunk = cumsum(cell_count) %/% 20000 + 1) |> # max 20K cells per sample
       ungroup() |> 
       as_tibble() |> 
       
       # Single cell file ID
       mutate(file_id_cellNexus_single_cell = 
-               glue::glue("{dataset_id}___{sample_chunk}___{cell_chunk}___{cell_type_unified_ensemble}") |> 
+               glue::glue("{dataset_id}___{sample_chunk}___{cell_chunk}___{cell_type}") |> 
                sapply(digest::digest) |> 
                paste0("___", chunk, ".h5ad") 
       ) |> 
       
-      # seudobulk file id
-      #mutate(file_id_cellNexus_pseudobulk = paste0(dataset_id, ".h5ad"))
+      # Pseudobulk file id
       mutate(file_id_cellNexus_pseudobulk = 
                glue::glue("{dataset_id}___{sample_pseudobulk_chunk}") |> 
                sapply(digest::digest) |>
@@ -119,10 +101,9 @@ job::job({
   # FOR MENGYUAN CELL_METADATA COULD BE BIGGER THAN CELL_ANNOTATION
   
   get_file_ids(
-    "~/scratch/cache_temp/cell_annotation.parquet"
-    # "/vast/scratch/users/shen.m/Census_final_run/cell_annotation_new_substitute_cell_type_na_to_unknown_2.parquet"
+    "/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cell_annotation.parquet"
   )  |> 
-    write_parquet("~/scratch/cache_temp/file_id_cellNexus_single_cell.parquet")
+    write_parquet("/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/file_id_cellNexus_single_cell.parquet")
   
   gc()
   
@@ -133,67 +114,87 @@ job::job({
   CREATE VIEW cell_metadata AS
   SELECT 
     CONCAT(cell_, '___', dataset_id) AS cell_,
-    dataset_id,
-    *
+    * EXCLUDE (cell_, dataset_id_1, cell_type)  -- drop original cell_ and dataset_id_1  
   FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cell_metadata.parquet')
-")
-
-  dbExecute(con, "
-  CREATE VIEW cell_map AS
-  SELECT cell_, new_cell_id, cell_id_in_sample, dataset_id
-  FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/dataset_cell_dict.parquet')
 ")
   
   dbExecute(con, "
-  CREATE VIEW cell_annotation AS
-  SELECT *
-  FROM read_parquet('~/scratch/cache_temp/cell_annotation.parquet')
+  CREATE VIEW hpcell_output_metadata AS
+   SELECT * EXCLUDE (
+    observation_joinid,
+    cell_type_ontology_term_id,
+    assay,
+    donor_id,
+    is_primary_data,
+    self_reported_ethnicity,
+    tissue,
+    azimuth,
+    blueprint,
+    monaco,
+    subsets_Mito_sum,
+    subsets_Mito_detected,
+    ensemble_joinid,
+    cell_type_unified,
+    data_driven_ensemble,
+    observation_originalid
+)
+
+  FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cell_annotation.parquet')
 ")
   
   dbExecute(con, "
   CREATE VIEW file_id_cellNexus_single_cell AS
-  SELECT dataset_id, sample_chunk, cell_chunk, sample_pseudobulk_chunk, cell_type_unified_ensemble, sample_id, file_id_cellNexus_single_cell, file_id_cellNexus_pseudobulk
-  FROM read_parquet('~/scratch/cache_temp/file_id_cellNexus_single_cell.parquet')
+  SELECT 
+    dataset_id,
+    sample_chunk,
+    cell_chunk,
+    sample_pseudobulk_chunk,
+    cell_type,
+    sample_id,
+    file_id_cellNexus_single_cell,
+    file_id_cellNexus_pseudobulk
+  FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/file_id_cellNexus_single_cell.parquet')
 ")
   
-  #   # This DF is needed to filter out unmatched sample-cell-type combo. Otherwise, cellNexus get_pseudobulk will slice cell names out of bounds.
-  #   dbExecute(con, "
-  #   CREATE VIEW sample_cell_type_combo AS
-  #   SELECT dataset_id, sample_id, cell_type_unified_ensemble
-  #   FROM read_parquet('/vast/scratch/users/shen.m/Census_final_run/cell_type_concensus_tbl_from_hpcell.parquet')
-  # ")
+  # MODIFY HERE: transformation data frame
+  dbExecute(con, "
+  CREATE VIEW sample_distribution_method_tbl AS
+  SELECT 
+    sample_id,
+    count_upper_bound,
+    feature_thresh AS nfeature_expressed_thresh,
+    method_to_apply AS inverse_transform
+  FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/updated_transform_sample_tbl_2025_Nov.parquet')
+")
   
   # Perform the left join and save to Parquet
   copy_query <- "
   COPY (
      SELECT 
         cell_metadata.cell_ AS cell_id, -- Rename cell_ to cell_id
-        COALESCE(cell_annotation.alive, FALSE) AS alive, -- Set alive column NULL to FALSE
-        cell_metadata.*,              -- Include all other columns from cell_metadata
-        cell_annotation.*,            -- Include all columns from cell_annotation
-        cell_map.*,                   -- Include columns from cell_id exchange
-      --  empty_droplet_df.*,           -- Include all columns from empty_droplet_df
-        file_id_cellNexus_single_cell.*, -- Include all columns from file_id_cellNexus_single_cell
-        atlas_id                      -- Specify the atlas name 
+        COALESCE(hpcell_output_metadata.alive, FALSE) AS alive, -- Set alive column NULL to FALSE
+        cell_metadata.* EXCLUDE (cell_),          -- drop cell_ since it's already aliased as cell_id
+        hpcell_output_metadata.* EXCLUDE (cell_, dataset_id, sample_id, alive), -- Deduplicate join keys, and aliased column
+        file_id_cellNexus_single_cell.* EXCLUDE (sample_id, dataset_id, cell_type), -- Deduplicate join keys
+        sample_distribution_method_tbl.* EXCLUDE (sample_id) -- Deduplicate join keys
       FROM cell_metadata
-    
-      LEFT JOIN cell_map
-        ON cell_metadata.cell_ = cell_map.cell_id_in_sample
-        AND cell_metadata.dataset_id = cell_map.dataset_id
-        
-      LEFT JOIN cell_annotation
-        ON cell_annotation.cell_ = cell_metadata.cell_
-        AND cell_annotation.dataset_id = cell_metadata.dataset_id
+
+      LEFT JOIN hpcell_output_metadata
+        ON hpcell_output_metadata.cell_ = cell_metadata.cell_
+        AND hpcell_output_metadata.dataset_id = cell_metadata.dataset_id
     
       LEFT JOIN file_id_cellNexus_single_cell
-        ON file_id_cellNexus_single_cell.sample_id = cell_annotation.sample_id
-        AND file_id_cellNexus_single_cell.dataset_id = cell_annotation.dataset_id
-        AND file_id_cellNexus_single_cell.cell_type_unified_ensemble = cell_annotation.cell_type_unified_ensemble
+        ON file_id_cellNexus_single_cell.sample_id = hpcell_output_metadata.sample_id
+        AND file_id_cellNexus_single_cell.dataset_id = hpcell_output_metadata.dataset_id
+        AND file_id_cellNexus_single_cell.cell_type = hpcell_output_metadata.cell_type
+      
+      LEFT JOIN sample_distribution_method_tbl
+        ON sample_distribution_method_tbl.sample_id = cell_metadata.sample_id
         
       -- (THESE DATASETS DOESNT contain meaningful data - no observation_joinid etc), thus was excluded in the final metadata.
       WHERE cell_metadata.dataset_id NOT IN ('99950e99-2758-41d2-b2c9-643edcdf6d82', '9fcb0b73-c734-40a5-be9c-ace7eea401c9', '60a29d0b-1a37-4447-ac32-00d701580b47', '09b518f9-da64-44cc-aec8-70a89d55611f', 'cb252df6-6e49-4553-abd1-495a00006fb1') 
          
-  ) TO  '~/scratch/cache_temp/cell_metadata_cell_type_consensus_v2_0_0_mengyuan.parquet'
+  ) TO  '/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cell_metadata_cell_type_consensus_v1_0_0_mengyuan.parquet'
   (FORMAT PARQUET, COMPRESSION 'gzip');
 "
   
@@ -203,20 +204,65 @@ job::job({
   # Disconnect from the database
   dbDisconnect(con, shutdown = TRUE)
   
-  #system("~/bin/rclone copy /vast/projects/cellxgene_curated/cellNexus/cell_metadata_cell_type_consensus_v1_0_4.parquet box_adelaide:/Mangiola_ImmuneAtlas/taskforce_shared_folder/")
-  
   print("Done.")
 })
+
+# We decided to make cell_id lighter without re-run everything in HPCell pipeline. Here to swap cell_id in the metadata
+# cell_map is processed in a separate target script step6_supp_dataset_cell_map.R
+job::job({
+  con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+  
+  # Create a view for cell_annotation in DuckDB
+  # MODIFY HERE: v1_2_2 merged metadata parquet path inside the SQL string below (should match the COPY TO output above)
+  dbExecute(con, "
+  CREATE VIEW cell_metadata AS
+  SELECT *
+  FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cell_metadata_cell_type_consensus_v1_0_0_mengyuan.parquet')
+")
+  
+  # MODIFY HERE: cell_id dictionary parquet path inside the SQL string below
+  dbExecute(con, "
+  CREATE VIEW cell_map AS
+  SELECT *
+  FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/file_id_cell_id_dict_v1_0_0.parquet')
+")
+  
+  # Perform the left join and save to Parquet
+  copy_query <- "
+  COPY (
+     SELECT cell_metadata.*,
+            cell_map.* EXCLUDE (cell_id, file_id_cellNexus_single_cell)
+      FROM cell_metadata
+    
+      LEFT JOIN cell_map
+        ON cell_metadata.cell_id = cell_map.cell_id
+        AND cell_metadata.file_id_cellNexus_single_cell = cell_map.file_id_cellNexus_single_cell
+
+  ) TO  '/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cell_metadata_cell_type_consensus_v1_0_1_mengyuan.parquet' -- MODIFY HERE: output final metadata parquet with new cell IDs (v1_3_2)
+  (FORMAT PARQUET, COMPRESSION 'gzip');
+"
+  
+  # Execute the final query to write the result to a Parquet file
+  dbExecute(con, copy_query)
+  
+  # Disconnect from the database
+  dbDisconnect(con, shutdown = TRUE)
+  
+  print("Done.")
+  
+  
+})
+
 
 cell_metadata = 
   tbl(
     dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
-    sql("SELECT * FROM read_parquet('~/scratch/cache_temp/cell_metadata_cell_type_consensus_v2_0_0_mengyuan.parquet')")
+    sql("SELECT * FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cell_metadata_cell_type_consensus_v1_0_1_mengyuan.parquet')")
   )
 
 library(targets)
 library(tidyverse)
-store_file_cellNexus = "/vast/scratch/users/shen.m/targets_prepare_database_split_datasets_chunked_2_0_0_single_cell"
+store_file_cellNexus = "/vast/scratch/users/shen.m/targets_prepare_database_split_datasets_chunked_1_0_0_single_cell_2025"
 
 tar_script({
   library(dplyr)
@@ -226,6 +272,37 @@ tar_script({
   library(tarchetypes)
   library(crew)
   library(crew.cluster)
+  
+  # Helper (optional) to avoid repetition
+  new_elastic <- function(name, mem_gb, time_min, workers, crashes_max, cpus_per_task = 2, backup = NULL) {
+    crew_controller_slurm(
+      name = name,
+      workers = workers,
+      crashes_max = crashes_max,
+      seconds_idle = 30,
+      options_cluster = crew_options_slurm(
+        memory_gigabytes_required = mem_gb,
+        cpus_per_task = cpus_per_task,
+        time_minutes = time_min
+      ),
+      backup = backup
+    )
+  }
+  
+  # Small → large, with fallbacks to the next size up
+  elastic_160 <- new_elastic("elastic_160", 160, 60 * 24, workers = 8,  crashes_max = 2)
+  elastic_120  <- new_elastic("elastic_120",  120,  60 * 4,  workers = 16, crashes_max = 1, cpus_per_task = 1, backup = elastic_160)
+  elastic_80  <- new_elastic("elastic_80",   80,  60 * 4,  workers = 24, crashes_max = 1, cpus_per_task = 1, backup = elastic_120)
+  elastic_40  <- new_elastic("elastic_40",   40,  60 * 4,  workers = 32, crashes_max = 1, cpus_per_task = 1, backup = elastic_80)
+  elastic_20  <- new_elastic("elastic_20",   20,  60 * 4,  workers = 48, crashes_max = 1, cpus_per_task = 1, backup = elastic_40)
+  elastic_10   <- new_elastic("elastic_10",   10, 60 * 4,  workers = 150, crashes_max = 2, cpus_per_task = 1, backup = elastic_20)
+  
+  elastic_5_minimal   <- new_elastic("elastic_5_minimal",     5, 60 * 4,  workers = 300, crashes_max = 2, cpus_per_task = 1, backup = elastic_10)
+  
+  # Group for targets (small → large)
+  controllers <- crew_controller_group(
+    elastic_10, elastic_20, elastic_40, elastic_80, elastic_120, elastic_160, elastic_5_minimal
+  )
   tar_option_set(
     memory = "transient", 
     garbage_collection = 100, 
@@ -233,129 +310,24 @@ tar_script({
     retrieval = "worker", 
     error = "continue", 
     cue = tar_cue(mode = "never"),
-    #debug = "dataset_id_sce", 
-    
+    format = "qs",
+    #debug = "dataset_id_sct_ea377f6e2d0ae2b7",
     workspace_on_error = TRUE,
-    controller = crew_controller_group(
-      list(
-        crew_controller_slurm(
-          name = "elastic",
-          workers = 300,
-          tasks_max = 20,
-          seconds_idle = 30,
-          crashes_error = 10,
-          options_cluster = crew_options_slurm(
-            memory_gigabytes_required = c(10, 20, 40, 80, 160), 
-            cpus_per_task = c(2, 2, 5, 10, 20), 
-            time_minutes = c(30, 30, 30, 60*4, 60*24),
-            verbose = T
-          )
-        ),
-        
-        crew_controller_slurm(
-          name = "tier_1", 
-          script_lines = "#SBATCH --mem 8G",
-          slurm_cpus_per_task = 1, 
-          workers = 300, 
-          tasks_max = 50,
-          verbose = T,
-          crashes_error = 5, 
-          seconds_idle = 30
-        ),
-        
-        crew_controller_slurm(
-          name = "tier_2",
-          script_lines = "#SBATCH --mem 10G",
-          slurm_cpus_per_task = 1,
-          workers = 300,
-          tasks_max = 10,
-          verbose = T,
-          crashes_error = 5, 
-          seconds_idle = 30
-        ),
-        crew_controller_slurm(
-          name = "tier_3",
-          script_lines = "#SBATCH --mem 20G",
-          slurm_cpus_per_task = 1,
-          workers = 200,
-          tasks_max = 10,
-          verbose = T,
-          crashes_error = 5, 
-          seconds_idle = 30
-        ),
-        crew_controller_slurm(
-          name = "tier_4",
-          workers = 200,
-          tasks_max = 10,
-          crashes_error = 5, 
-          seconds_idle = 30,
-          options_cluster = crew_options_slurm(
-            memory_gigabytes_required = c(40, 80, 160, 240), 
-            cpus_per_task = c(2), 
-            time_minutes = c(60*24),
-            verbose = T
-          )
-        ),
-        crew_controller_slurm(
-          name = "tier_5",
-          script_lines = "#SBATCH --mem 400G",
-          slurm_cpus_per_task = 1,
-          workers = 2,
-          tasks_max = 10,
-          verbose = T,
-          crashes_error = 5, 
-          seconds_idle = 30
-        )
-      )
-    ), 
-    trust_object_timestamps = TRUE
-    #workspaces = "dataset_id_sce_52dbec3c15f98d66"
+    controller = controllers, 
+    trust_object_timestamps = TRUE,
+    resources = tar_resources(
+      crew = tar_resources_crew(controller = "elastic_5_minimal")
+    ) 
   )
-  
   
   save_anndata = function(dataset_id_sce, cache_directory){
     
     dir.create(cache_directory, showWarnings = FALSE, recursive = TRUE)
     
-    # # Parallelise
-    # cores = as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", unset = 1))
-    # bp <- MulticoreParam(workers = cores , progressbar = TRUE)  # Adjust the number of workers as needed
-    # 
-    
-    
-    
     .x = dataset_id_sce |> pull(sce) |> _[[1]]
     .y = dataset_id_sce |> pull(file_id_cellNexus_single_cell) |> _[[1]] |> str_remove("\\.h5ad")
     
     .x |> assays() |> names() = "counts"
-    
-    # # Check if the 'sce' has only one cell (column)
-    # if(ncol(assay(.x)) == 1) {
-    #   
-    #   # Duplicate the assay to prevent saving errors due to single-column matrices
-    #   my_assay = cbind(assay(.x), assay(.x))
-    #   # Rename the second column to distinguish it
-    #   colnames(my_assay)[2] = paste0("DUMMY", "___", colnames(my_assay)[2])
-    #   
-    #   cd = colData(.x)
-    #   cd = cd |> rbind(cd)
-    #   rownames(cd)[2] = paste0("DUMMY", "___", rownames(cd)[2])
-    #   
-    #   
-    #   
-    #   .x =  SingleCellExperiment(assay = list( counts = my_assay ), colData = cd) 
-    # } 
-    # 
-    # 
-    # # TEMPORARY FOR SOME REASON THE MIN COUNTS IS NOT 0 FOR SOME SAMPLES
-    # .x = HPCell:::check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY(.x, assays(.x) |> names() |> _[1], subset_up_to_number_of_cells = 100)
-    # 
-    # .x =  SingleCellExperiment(assay = list( counts = .x |> assay()), colData = colData(.x)) 
-    
-    
-    # My attempt to save a integer, sparse, delayed matrix (with zellkonverter it is not possible to save integers)
-    # .x |> assay() |> type() <- "integer"
-    # .x |> saveHDF5SummarizedExperiment("~/temp", as.sparse = T, replace = T)
     
     # Save the experiment data to the specified counts cache directory
     .x |> save_experiment_data(glue("{cache_directory}/{.y}"))
@@ -373,9 +345,6 @@ tar_script({
     dir.create(cache_directory, showWarnings = FALSE, recursive = TRUE)
     
     # # Parallelise
-    # cores = as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", unset = 1))
-    # bp <- MulticoreParam(workers = cores , progressbar = TRUE)  # Adjust the number of workers as needed
-    # 
     dataset_id_sce |> 
       purrr::transpose() |> 
       lapply(
@@ -402,23 +371,18 @@ tar_script({
           } 
           
           
-          # TEMPORARY FOR SOME REASON THE MIN COUNTS IS NOT 0 FOR SOME SAMPLES
-          .x = HPCell:::check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY(.x, assays(.x) |> names() |> _[1], subset_up_to_number_of_cells = 100)
+          # # TEMPORARY FOR SOME REASON THE MIN COUNTS IS NOT 0 FOR SOME SAMPLES
+          # .x = HPCell:::check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY(.x, assays(.x) |> names() |> _[1], subset_up_to_number_of_cells = 100)
           
           # CALCULATE CPM
           .x =  SingleCellExperiment(assay = list( cpm = calculateCPM(.x, assay.type = names(assays(.x))[1])), colData = colData(.x)) 
-          
-          # My attempt to save a integer, sparse, delayed matrix (with zellkonverter it is not possible to save integers)
-          # .x |> assay() |> type() <- "integer"
-          # .x |> saveHDF5SummarizedExperiment("~/temp", as.sparse = T, replace = T)
           
           # Save the experiment data to the specified counts cache directory
           .x |> save_experiment_data(glue("{cache_directory}/{.y}"))
           
           return(TRUE)  # Indicate successful saving
         }
-        #,
-        #BPPARAM = bp  # Use the defined parallel backend
+        
       )
     
     return("saved")
@@ -477,43 +441,14 @@ tar_script({
     
     slice_list |> map(~HDF5Array::HDF5Array(output_filepath_temp, name =.x)) |> do.call(cbind, args=_)
     
-    # # Bind all slices into a single HDF5 dataset
-    # for (i in seq_along(slice_list)) {
-    #   slice <- HDF5Array::HDF5Array(output_filepath_temp, name = slice_list[[i]])
-    #   if (i == 1) {
-    #     final_matrix <- slice
-    #   } else {
-    #     final_matrix <- cbind(final_matrix, slice)
-    #   }
-    # }
-    
-    # # Save the final matrix back to the HDF5 file
-    # result_matrix = 
-    #   HDF5Array::writeHDF5Array(
-    #     final_matrix,
-    #     filepath = output_filepath,
-    #     name = "final_ranked_matrix",
-    #     as.sparse = TRUE,
-    #     H5type = "H5T_STD_I32LE"
-    #   )
-    # 
-    # file.remove(output_filepath_temp)
-    # 
-    # result_matrix
   }
   
   save_rank_per_cell = function(dataset_id_sce, cache_directory){
     
     dir.create(cache_directory, recursive = TRUE, showWarnings = FALSE)
     
-    # # Parallelise
-    # cores = as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", unset = 1))
-    # bp <- MulticoreParam(workers = cores , progressbar = TRUE)  # Adjust the number of workers as needed
-    # 
-    
     .x = dataset_id_sce |> pull(sce) |> _[[1]]
     .y = dataset_id_sce |> pull(file_id_cellNexus_single_cell) |> _[[1]] |> str_remove("\\.h5ad")
-    #.y = dataset_id_sce |> pull(file_id_cellNexus_pseudobulk) |> _[[1]] |> str_remove("\\.h5ad")
     
     # Check if the 'sce' has only one cell (column)
     if(ncol(assay(.x)) == 1) {
@@ -533,8 +468,8 @@ tar_script({
     } 
     
     
-    # TEMPORARY FOR SOME REASON THE MIN COUNTS IS NOT 0 FOR SOME SAMPLES
-    .x = HPCell:::check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY(.x, assays(.x) |> names() |> _[1], subset_up_to_number_of_cells = 100)
+    # # TEMPORARY FOR SOME REASON THE MIN COUNTS IS NOT 0 FOR SOME SAMPLES
+    # .x = HPCell:::check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY(.x, assays(.x) |> names() |> _[1], subset_up_to_number_of_cells = 100)
     
     print("start ranking")
     
@@ -558,20 +493,51 @@ tar_script({
     
     .x |> save_experiment_data(glue("{cache_directory}/{.y}"))
     
+    # Delete the temp file
+    file.remove(paste(c(cache_directory, "/", .y, "_rank_matrix_temp.HDF5Array"), collapse = ""))
+    
     return(TRUE)  # Indicate successful saving
-    
-    
-    
-    
   }
   
   # Because they have an inconsistent failure. If I start the pipeline again they might work. Strange.
   insistent_save_rank_per_cell <- purrr::insistently(save_rank_per_cell, rate = purrr::rate_delay(pause = 60, max_times = 3), quiet = FALSE)
   
   
+  save_anndata_sct = function(dataset_id_sce, cache_directory){
+    
+    dir.create(cache_directory, showWarnings = FALSE, recursive = TRUE)
+    
+    if (is.null(dataset_id_sce)) return(NULL)
+    
+    .x = dataset_id_sce |> pull(sct) |> _[[1]]
+    
+    # Fix: check is.null BEFORE ncol() to avoid `argument is of length zero`
+    if (is.null(.x) || ncol(.x) == 0) return(NULL)
+    
+    .y = dataset_id_sce |> pull(file_id_cellNexus_single_cell) |> _[[1]] |> str_remove("\\.h5ad")
+    
+    .x |> assays() |> names() = "sct"
+    
+    # Wrap save with explicit error logging so the real cause is visible. Strange it shouldnt fail, which passed in debug mode
+    tryCatch(
+      .x |> save_experiment_data(glue("{cache_directory}/{.y}")),
+      error = function(e) {
+        message(glue::glue("[save_anndata_sct] FAILED for {.y}: {conditionMessage(e)}"))
+        stop(e)
+      }
+    )
+    
+    return(TRUE)
+  }
+  
+  # Because they have an inconsistent failure. If I start the pipeline again they might work. Strange.
+  insistent_save_anndata_sct <- purrr::insistently(save_anndata_sct, rate = purrr::rate_delay(pause = 60, max_times = 3), quiet = FALSE)
+  
+  
   cbind_sce_by_dataset_id = function(target_name_grouped_by_dataset_id, file_id_db_file, cell_id_dict, my_store){
     
     my_dataset_id = unique(target_name_grouped_by_dataset_id$dataset_id) 
+    my_file_id = unique(target_name_grouped_by_dataset_id$file_id_cellNexus_single_cell) 
     
     file_id_db = 
       tbl(
@@ -580,49 +546,49 @@ tar_script({
       ) |> 
       filter(dataset_id == my_dataset_id) |>
       select(cell_id, sample_id, dataset_id, file_id_cellNexus_single_cell) 
-    # |> 
-    #   
-    #   # Drop extension because it is added later 
-    #   mutate(file_id_cellNexus_single_cell = file_id_cellNexus_single_cell |> str_remove("\\.h5ad")) |> 
-    #   as_tibble()
     
     file_id_db = 
       target_name_grouped_by_dataset_id |> 
       left_join(file_id_db, copy = TRUE)
     
+    
     dataset_cell_dict = 
       tbl(
         dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
         sql(glue("SELECT * FROM read_parquet('{cell_id_dict}')"))
-      ) |> 
-      filter(dataset_id == my_dataset_id) |> 
-      select(dataset_id, new_cell_id, cell_id_in_sample) 
+      )  |> 
+      filter(file_id_cellNexus_single_cell == my_file_id)
     
     file_id_db = 
       file_id_db |> 
-      left_join(dataset_cell_dict, by = c("dataset_id", "cell_id" = "cell_id_in_sample"), copy=T  )
-    
+      left_join(dataset_cell_dict, by = c("file_id_cellNexus_single_cell", "cell_id" ), copy=T  )
     
     # Parallelise
-    cores = as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", unset = 1))
+    cores = availableCores() |> as.numeric()
+    # # Respect R CMD CHECK core limit if set
+    # if (nzchar(Sys.getenv("_R_CHECK_LIMIT_CORES_"))) {
+    #   cores <- min(cores, 2L)
+    # }
+    # MulticoreParam need to have enough memory to proceed, otherwise reducer error
     bp <- MulticoreParam(workers = cores , progressbar = TRUE)  # Adjust the number of workers as needed
     
     # Begin processing the data pipeline with the initial dataset 'target_name_grouped_by_dataset_id'
     sce_df = 
       file_id_db |> 
       nest(cells = c(cell_id, new_cell_id)) |> 
-      # Step 1: Read raw data for each 'target_name' and store it in a new column 'sce'
+      # Read raw data for each 'target_name' and store it in a new column 'sce'
       mutate(
         sce = bplapply(
-          target_name,
-          FUN = function(x) tar_read_raw(x, store = my_store),  # Read the raw SingleCellExperiment object
+          sce_target_name,
+          FUN = function(x) {
+            tar_read_raw(x, store = my_store) |> 
+              select(.cell, donor_id, dataset_id, sample_id, cell_type) |> 
+              mutate(sample_id = as.factor(sample_id)) # lighter
+          },  # Read the raw SingleCellExperiment object
           BPPARAM = bp  # Use the defined parallel backend
-        )
-      ) |>
-      
+        )) |> 
       # This should not be needed, but there are some data sets with zero cells 
       filter(!map_lgl(sce, is.null)) |> 
-      
       mutate(sce = map2(sce, cells, ~ {
         
         cell_map <- setNames(.y$new_cell_id, .y$cell_id) 
@@ -631,62 +597,152 @@ tar_script({
           {
             colnames(.) <- cell_map[colnames(.)]
             .
-          } |>
-          
-          # TEMPORARY FIX. NEED TO INVESTIGATE WHY THE SUFFIX HAPPENS
-          mutate(sample_id = stringr::str_replace(sample_id, ".h5ad$",""))
+          }
+        
       }, .progress = TRUE))
-    
-    
     
     if(nrow(sce_df) == 0) {
       warning("this chunk has no rows for somereason.")
       return(NULL)
     }
     
-    # plan(multisession, workers = 20)
     sce_df |> 
       
-      # # Step 4: Group the data by 'dataset_id' and 'tar_group' for further summarization
-      # group_by(dataset_id, tar_group, chunk) |>
-      # 
-      
-      # FORCEFULLY drop all but counts and metadata 
-      # int_colData(.x) = DataFrame(row.names = colnames(.x))
-      # Creates error
-      # THIS SHOULD HAVE BEEN DONE IN THE TRANFORM HPCell
+      # Group the data by 'dataset_id' and 'tar_group' for further summarization
       mutate(sce = map(sce, ~  SingleCellExperiment(assay = assays(.x), colData = colData(.x)) )) |> 
       
-      # Step 5: Combine all 'sce' objects within each group into a single 'sce' object
+      # Combine all 'sce' objects within each group into a single 'sce' object
       group_by(file_id_cellNexus_single_cell) |> 
       summarise( sce =  list(do.call(cbind, args = sce) ),
-                 
-                 # A steo to check missing cells 
+                 # A step to check missing cells 
                  cells = list(do.call(rbind, args = cells))) 
-    
-    # mutate(sce = map(sce,
-    #                  ~ { .x = 
-    #                    .x  |> 
-    #                    left_join(file_id_db, by = join_by(.cell==cell_id, dataset_id==dataset_id, sample_id==sample_id)) 
-    #                  .x |> 
-    #                    HPCell:::splitColData(colData(.x)$file_id_cellNexus_single_cell) |>  # Split 'sce' by 'cell_type'
-    #                    enframe(name = "file_id_cellNexus_single_cell", value = "sce")  # Convert to tibble with 'cell_type' and 'sce' columns
-    #                  })) |> 
-    # Step 8: Unnest the list of 'sce' objects to have one row per 'cell_type'
-    # unnest_single_cell_experiment(sce) 
-    
-    
   }
   
-  get_dataset_id = function(target_name, my_store){
-    sce = tar_read_raw(target_name, store = my_store)
+  cbind_sct_by_dataset_id = function(target_name_grouped_by_dataset_id, file_id_db_file, cell_id_dict, my_store){
     
-    if(sce |> is.null()) return(tibble(sample_id = character(), dataset_id= character(), target_name= target_name))
+    my_dataset_id = unique(target_name_grouped_by_dataset_id$dataset_id) 
+    my_file_id = unique(target_name_grouped_by_dataset_id$file_id_cellNexus_single_cell) 
+    
+    file_id_db = 
+      tbl(
+        dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
+        sql(glue("SELECT * FROM read_parquet('{file_id_db_file}')"))
+      ) |> 
+      filter(dataset_id == my_dataset_id) |>
+      select(cell_id, sample_id, dataset_id, file_id_cellNexus_single_cell) 
+    
+    file_id_db = 
+      target_name_grouped_by_dataset_id |> 
+      left_join(file_id_db, copy = TRUE)
+    
+    
+    dataset_cell_dict = 
+      tbl(
+        dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
+        sql(glue("SELECT * FROM read_parquet('{cell_id_dict}')"))
+      )  |> 
+      filter(file_id_cellNexus_single_cell == my_file_id)
+    
+    file_id_db = 
+      file_id_db |> 
+      left_join(dataset_cell_dict, by = c("file_id_cellNexus_single_cell", "cell_id"), copy=T  )
+    
+    # Parallelise
+    cores = availableCores() |> as.numeric()
+    # # Respect R CMD CHECK core limit if set
+    # if (nzchar(Sys.getenv("_R_CHECK_LIMIT_CORES_"))) {
+    #   cores <- min(cores, 2L)
+    # }
+    # MulticoreParam need to have enough memory to proceed, otherwise reducer error
+    bp <- MulticoreParam(workers = cores , progressbar = TRUE)  # Adjust the number of workers as needed  
+    
+    # Begin processing the data pipeline with the initial dataset 'target_name_grouped_by_dataset_id'
+    sct_df = file_id_db |> 
+      nest(cells = c(cell_id, new_cell_id)) %>% 
+      # Step 1: Read raw data for each 'target_name' and store it in a new column 'sce'
+      mutate(
+        sct = bplapply(
+          sct_target_name,
+          FUN = function(x) {
+            if (is.na(x)) {
+              return(NULL) # because cant get sample_id and dataset_id from NULL sct_matrix
+            }
+            
+            tar_read_raw(x, store = my_store) |>
+              select(.cell, donor_id, dataset_id, sample_id, cell_type) |>
+              mutate(sample_id = as.factor(sample_id))
+            
+          },  # Read the raw SingleCellExperiment object
+          BPPARAM = bp  # Use the defined parallel backend
+        )) |> 
+      # This should not be needed, but there are some data sets with zero cells 
+      filter(!map_lgl(sct, is.null)) |> 
+      mutate(sct = map2(sct, cells, ~ {
+        
+        cell_map <- setNames(.y$new_cell_id, .y$cell_id) 
+        
+        .x |> filter(.cell %in% names(cell_map)) %>% 
+          {
+            colnames(.) <- cell_map[colnames(.)]
+            .
+          }
+        
+      }, .progress = TRUE))
+    
+    if(nrow(sct_df) == 0) {
+      warning("this chunk has no rows for somereason.")
+      return(NULL)
+    }
+    
+    sct_df |>
+      mutate(
+        sct = map(sct, \(x) {
+          if (is.null(x)) return(NULL)
+          SingleCellExperiment(assays = assays(x), colData = colData(x))
+        })
+      ) |>
+      group_by(file_id_cellNexus_single_cell) |>
+      summarise(
+        sct = {
+          scts <- compact(sct)  # drop NULLs inside each group
+          
+          list(
+            if (length(scts) == 0) {
+              NULL
+            } else {
+              
+              # A few big samples do not return all features because it reached R limit 2^31-1 in SCTransform
+              common_genes <- cellNexus:::check_gene_overlap(scts)
+              
+              # subset to intersection genes (and keep same order across objects)
+              scts2 <- map(scts, \(z) z[common_genes, , drop = FALSE])
+              
+              do.call(SummarizedExperiment::cbind, scts2)
+            }
+          )
+        },
+        cells = list(do.call(rbind, cells)),
+        .groups = "drop"
+      )
+  }
+  
+  # Because they have an inconsistent failure. If I start the pipeline again they might work. Strange.
+  insistent_cbind_sct_by_dataset_id <- purrr::insistently(cbind_sct_by_dataset_id, rate = purrr::rate_delay(pause = 60, max_times = 3), quiet = FALSE)
+  
+  
+  get_dataset_id = function(target_name, my_store){
+    # Try reading the target safely (for some failing targets)
+    sce = tryCatch(
+      tar_read_raw(target_name, store = my_store),
+      error = function(e) return(NULL)
+    )
+    
+    # Still need to catch target_name
+    if(sce |> is.null()) return(tibble(sample_id = NA_character_, 
+                                       dataset_id= NA_character_, 
+                                       target_name= !!target_name))
     
     sce |> 
-      
-      # TEMPORARY FIX. NEED TO INVESTIGATE WHY THE SUFFIX HAPPENS
-      mutate(sample_id = stringr::str_replace(sample_id, ".h5ad$","")) |> 
       
       distinct(sample_id, dataset_id) |> mutate(target_name = !!target_name)
   }
@@ -695,9 +751,6 @@ tar_script({
     
     # Solve sample_id mismatches because some end with .h5ad suffix while others dont 
     dataset_id_sample_id |> 
-      
-      # TEMPORARY FIX. NEED TO INVESTIGATE WHY THE SUFFIX HAPPENS
-      mutate(sample_id = stringr::str_replace(sample_id, ".h5ad$", "")) |>
       
       left_join(
         tbl(
@@ -721,7 +774,7 @@ tar_script({
           ~{
             cells_in_sce <- .x |> colnames() |> sort()
             
-            cells_in_query <- .y$cell_id |> unique() |> sort()
+            cells_in_query <- .y$new_cell_id |> unique() |> sort()
             
             # Find differences
             tibble(cell_id = setdiff(cells_in_query, cells_in_sce))
@@ -736,22 +789,22 @@ tar_script({
   list(
     
     # The input DO NOT DELETE
-    tar_target(my_store, "/vast/scratch/users/shen.m/cellNexus_target_store_2025-11-08", deployment = "main"),
-    tar_target(cache_directory, "/vast/scratch/users/shen.m/cellNexus/cellxgene/08-11-2025", deployment = "main"), # date should match census release
-    # This is the store for retrieving missing cells between cellnexus metadata and sce. A different store as it was done separately
-    #tar_target(cache_directory, "/vast/scratch/users/shen.m/debug2/cellxgene/19-12-2024", deployment = "main"),
+    tar_target(my_store, "/vast/scratch/users/shen.m/cellNexus_target_store_2025-11-08", deployment = "main"), # MODIFY HERE: HPCell targets store to read SCEs from
+    tar_target(cache_directory, "/vast/scratch/users/shen.m/cellNexus/cellxgene_2025/0.1.0", deployment = "main"), # MODIFY HERE: output cache directory for saved anndata files
     tar_target(
       cell_metadata,
-      "~/scratch/cache_temp/cell_metadata_cell_type_consensus_v2_0_0_mengyuan.parquet", 
+      "/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cell_metadata_cell_type_consensus_v1_0_1_mengyuan.parquet", # MODIFY HERE: final metadata parquet (should match the COPY TO output above)
       packages = c( "arrow","dplyr","duckdb")
       
     ),
+    
     tar_target(
       cell_id_dict,
-      "~/cellxgene_curated/metadata_cellxgenedp_Jan_2026/dataset_cell_dict.parquet", 
+      "/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/file_id_cell_id_dict_v1_0_0.parquet", # MODIFY HERE: cell_id dictionary parquet
       packages = c( "arrow","dplyr","duckdb")
     ),
     
+    # pre-calculated counts
     tar_target(
       target_name,
       tar_meta(
@@ -767,24 +820,56 @@ tar_script({
       packages = "tidySingleCellExperiment",
       pattern = map(target_name),
       resources = tar_resources(
-        crew = tar_resources_crew(controller = "elastic")
+        crew = tar_resources_crew(controller = "elastic_5_minimal")
       )
     ),
     
+    # pre-calculated sct
+    tar_target(
+      sct_target_name,
+      tar_meta(
+        starts_with("sct_matrix_"),
+        store = my_store) |>
+        filter(type=="branch") |>
+        pull(name),
+      deployment = "main"
+    ),
+    tar_target(
+      sct_dataset_id_sample_id,
+      get_dataset_id(sct_target_name, my_store),
+      packages = "tidySingleCellExperiment",
+      pattern = map(sct_target_name),
+      resources = tar_resources(
+        crew = tar_resources_crew(controller = "elastic_5_minimal")
+      )
+    ),
+    
+    # join
+    tar_target(
+      dataset_id_sample_id_target_names,
+      dataset_id_sample_id |> 
+        left_join(sct_dataset_id_sample_id, by = c("sample_id", "dataset_id"), copy=T) |>
+        #dplyr::rename(sce_target_name = target_name),
+        dplyr::rename(sce_target_name = target_name.x,
+                      sct_target_name = target_name.y),
+      resources = tar_resources(
+        crew = tar_resources_crew(controller = "elastic_10")
+      )
+    ),
     
     tar_target(
       target_name_grouped_by_dataset_id,
-      create_chunks_for_reading_and_saving(dataset_id_sample_id, cell_metadata) |> 
+      create_chunks_for_reading_and_saving(dataset_id_sample_id_target_names, cell_metadata) |> 
         
         # # FOR TESTING PURPOSE ONLY
-        # filter(sample_id %in% c("de79c3b20c3ce64b0e8295f40282b896___expr2-human-651well.",
-        #                         "b35fd94682b123804a542a72fe2d5b9f___exp1-human-69.")) |>
+        # filter(file_id_cellNexus_single_cell %in% c("fd595bfea88167df33b93d48c917debe___1.h5ad",
+        #                                             "5dfe61ee15e6be3513c8f320c7eb55ce___1.h5ad")) |>
         
         group_by(dataset_id, sample_chunk, cell_chunk, file_id_cellNexus_single_cell) |>
         tar_group(),
       iteration = "group",
       resources = tar_resources(
-        crew = tar_resources_crew(controller = "elastic")
+        crew = tar_resources_crew(controller = "elastic_5_minimal")
       ), 
       packages = c("arrow", "duckdb", "dplyr", "glue", "targets")
       
@@ -794,9 +879,19 @@ tar_script({
       dataset_id_sce,
       cbind_sce_by_dataset_id(target_name_grouped_by_dataset_id, cell_metadata, cell_id_dict, my_store = my_store),
       pattern = map(target_name_grouped_by_dataset_id),
-      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "digest", "HPCell", "digest", "scater", "arrow", "dplyr", "duckdb",  "BiocParallel", "parallelly"),
+      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "digest", "scater", "HDF5Array", "arrow", "dplyr", "duckdb",  "BiocParallel", "parallelly"),
       resources = tar_resources(
-        crew = tar_resources_crew(controller = "tier_4")
+        crew = tar_resources_crew(controller = "elastic_20")
+      )
+    ),
+    
+    tar_target(
+      dataset_id_sct,
+      cbind_sct_by_dataset_id(target_name_grouped_by_dataset_id, cell_metadata, cell_id_dict, my_store = my_store),
+      pattern = map(target_name_grouped_by_dataset_id),
+      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "digest", "scater", "HDF5Array", "arrow", "dplyr", "duckdb",  "BiocParallel", "parallelly"),
+      resources = tar_resources(
+        crew = tar_resources_crew(controller = "elastic_20")
       )
     ),
     
@@ -805,20 +900,20 @@ tar_script({
       missing_cells_tbl,
       cbind_sce_by_dataset_id_get_missing_cells(dataset_id_sce),
       pattern = map(dataset_id_sce),
-      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "digest", "HPCell", "digest", "scater", "arrow", "dplyr", "duckdb",  "BiocParallel", "parallelly", "purrr"),
+      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "digest", "scater", "arrow", "dplyr", "duckdb",  "BiocParallel", "parallelly", "purrr"),
       resources = tar_resources(
-        crew = tar_resources_crew(controller = "tier_4")
+        crew = tar_resources_crew(controller = "elastic_20")
       )
     ),
-    
+
     
     tar_target(
       save_anndata,
       insistent_save_anndata(dataset_id_sce, paste0(cache_directory, "/counts")),
       pattern = map(dataset_id_sce),
-      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "digest", "HPCell", "digest", "scater", "arrow", "dplyr", "duckdb", "BiocParallel", "parallelly"),
+      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "HPCell", "digest", "scater", "arrow", "dplyr", "duckdb", "BiocParallel", "parallelly"),
       resources = tar_resources(
-        crew = tar_resources_crew(controller = "tier_4")
+        crew = tar_resources_crew(controller = "elastic_5_minimal")
       )
     ),
     
@@ -826,9 +921,9 @@ tar_script({
       saved_dataset_cpm,
       insistent_save_anndata_cpm(dataset_id_sce, paste0(cache_directory, "/cpm")),
       pattern = map(dataset_id_sce),
-      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "digest", "HPCell", "digest", "scater", "arrow", "dplyr", "duckdb", "BiocParallel", "parallelly"),
+      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "HPCell", "digest", "scater", "arrow", "dplyr", "duckdb", "BiocParallel", "parallelly"),
       resources = tar_resources(
-        crew = tar_resources_crew(controller = "tier_4")
+        crew = tar_resources_crew(controller = "elastic_5_minimal")
       )
     ),
     
@@ -836,9 +931,19 @@ tar_script({
       saved_dataset_rank,
       insistent_save_rank_per_cell(dataset_id_sce, paste0(cache_directory, "/rank")),
       pattern = map(dataset_id_sce),
-      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "digest", "HPCell", "digest", "scater", "arrow", "dplyr", "duckdb", "BiocParallel", "parallelly", "HDF5Array"),
+      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "HPCell", "digest", "scater", "arrow", "dplyr", "duckdb", "BiocParallel", "parallelly", "HDF5Array"),
       resources = tar_resources(
-        crew = tar_resources_crew(controller = "tier_4")
+        crew = tar_resources_crew(controller = "elastic_5_minimal")
+      )
+    ),
+
+    tar_target(
+      saved_sct,
+      save_anndata_sct(dataset_id_sct, paste0(cache_directory, "/sct")),
+      pattern = map(dataset_id_sct),
+      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "HPCell", "digest", "scater", "arrow", "dplyr", "duckdb", "BiocParallel", "parallelly", "HDF5Array"),
+      resources = tar_resources(
+        crew = tar_resources_crew(controller = "elastic_5_minimal")
       )
     )
   )
@@ -855,12 +960,18 @@ job::job({
   
 })
 
-# missing_cells_tbl = tar_read(missing_cells_tbl, store = store_file_cellNexus)
-# missing_cells_tbl <- map(missing_cells_tbl$missing_cells, ~ {.x}) |> bind_rows()
-# missing_cells <- missing_cells_tbl |> pull(cell_id)
-# 
-# cell_metadata |> filter(!cell_id %in% missing_cells) |> 
-#   
-#   # This method of save parquet to parquet is faster 
-#   cellNexus:::duckdb_write_parquet(path = "~/scratch/cache_temp/cell_metadata_cell_type_consensus_v2_0_0_filtered_missing_cells_mengyuan.parquet")
-# 
+missing_cells_tbl = tar_read(missing_cells_tbl, store = store_file_cellNexus) |> 
+  unnest(missing_cells)
+
+missing_cells_tbl |> nrow()
+
+# #missing_cells_tbl |> write_parquet("/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cells_to_remove_in_metadata.parquet")
+# missing_cells_tbl <- read_parquet("/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cells_to_remove_in_metadata.parquet")
+
+# filtered_cell_metadata = cell_metadata |> anti_join(missing_cells_tbl, by = c("observation_joinid", "cell_id"), copy = T)
+
+cell_metadata |> 
+  collect() |> 
+  arrow::write_parquet("/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cell_metadata_cell_type_consensus_v1_0_1_mengyuan.parquet",
+                       compression = "zstd") # MODIFY HERE: output parquet after filtering missing cells
+

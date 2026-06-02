@@ -20,9 +20,8 @@ library(glue)
 library(arrow)
 library(tidySingleCellExperiment)
 set.seed(12345)
-Date <- "2025-11-08"
 # Identify raw counts range from new census data
-summary_store = glue::glue("/vast/scratch/users/shen.m/{Date}_census_sample_raw_counts_summary_target_store")
+summary_store = "/vast/scratch/users/shen.m/2025-11-08_census_sample_raw_counts_summary_target_store"
 tar_script({
   library(dplyr)
   library(SummarizedExperiment)
@@ -31,134 +30,165 @@ tar_script({
   library(crew.cluster)
   library(duckdb)
   
+  # Helper to avoid repetition
+  new_elastic <- function(name, mem_gb, time_min, workers, crashes_max, cpus_per_task = 2, backup = NULL) {
+    crew_controller_slurm(
+      name = name,
+      workers = workers,
+      crashes_max = crashes_max,
+      seconds_idle = 30,
+      options_cluster = crew_options_slurm(
+        memory_gigabytes_required = mem_gb,
+        cpus_per_task = cpus_per_task,
+        time_minutes = time_min
+      ),
+      backup = backup
+    )
+  }
+  elastic_500      <- new_elastic("elastic_500",      500, 60 * 24, workers = 3,   crashes_max = 2)
+  elastic_300      <- new_elastic("elastic_300",      300, 60 * 24, workers = 8,   crashes_max = 2, backup = elastic_500)
+  elastic_160      <- new_elastic("elastic_160",      160, 60 * 24, workers = 8,   crashes_max = 2, backup = elastic_300)
+  elastic_120      <- new_elastic("elastic_120",      120, 60 * 4,  workers = 16,  crashes_max = 1, cpus_per_task = 1, backup = elastic_160)
+  elastic_80       <- new_elastic("elastic_80",        80, 60 * 4,  workers = 24,  crashes_max = 1, cpus_per_task = 1, backup = elastic_120)
+  elastic_40       <- new_elastic("elastic_40",        40, 60 * 4,  workers = 32,  crashes_max = 1, cpus_per_task = 1, backup = elastic_80)
+  elastic_20       <- new_elastic("elastic_20",        20, 60 * 4,  workers = 48,  crashes_max = 1, cpus_per_task = 1, backup = elastic_40)
+  elastic_10       <- new_elastic("elastic_10",        10, 60 * 4,  workers = 150, crashes_max = 2, cpus_per_task = 1, backup = elastic_20)
+  elastic_5_minimal <- new_elastic("elastic_5_minimal", 5, 60 * 4,  workers = 300, crashes_max = 2, cpus_per_task = 1, backup = elastic_10)
   
-  computing_resources = crew_controller_slurm(
-    name = "elastic",
-    workers = 300,
-    tasks_max = 20,
-    seconds_idle = 30,
-    crashes_error = 10,
-    options_cluster = crew_options_slurm(
-      #memory_gigabytes_required = c(30, 45, 45, 90, 200, 1000, 1500), 
-       memory_gigabytes_required = c(90, 130, 170, 200, 1000, 1500), 
-      cpus_per_task = c(2, 2, 2, 2, 2, 2), 
-      time_minutes = c(30*4, 30*4, 30*4, 60*4, 60*24, 60*24),
-      verbose = T
-    ))
-  
-  tar_option_set(
-    memory = "transient",
-    garbage_collection = TRUE,
-    storage = "worker",
-    retrieval = "worker",
-    format = "qs",
-    cue = tar_cue(mode = "never"),
-    error = "continue",
-    controller = computing_resources
+  controllers <- crew_controller_group(
+    elastic_10, elastic_20, elastic_40, elastic_80, elastic_120, elastic_160, elastic_300, elastic_500, elastic_5_minimal
   )
   
-  get_sample_summary_stats <- function(files) {
-    sce = readH5AD(files, reader = "R", use_hdf5 = T)
-    
-    if (ncol(sce) == 0) return(NULL)
-    
-    assay_name = sce@assays |> names() |> magrittr::extract(1)
-    counts_mat = sce |> assay(assay_name) |> as.matrix()
-    counts_vec = as.numeric(counts_mat)
-    sample_id = basename(files)
-    
-    # Perform checks
-    min_val = min(counts_vec, na.rm = TRUE)
-    max_val = max(counts_vec, na.rm = TRUE)
-    has_negative = min_val < 0
-    max_gt_10 = max_val > 10
-    
-    # Check if all integers
-    tol = 1e-5
-    all_integer = all(counts_vec == floor(counts_vec), na.rm = TRUE)
-       
-    #should've excluded integer, but I will fix the output dataframe
-    has_floating = all(abs(counts_vec - round(counts_vec)) < tol, na.rm = TRUE)
-    #has_floating = !all_integer && all(abs(counts_vec - round(counts_vec)) < tol, na.rm = TRUE)
-    
-    tbl = tibble::tibble(
-      sample_id = sample_id,
-      min_val = min_val,
-      max_val = max_val,
-      has_negative = has_negative,
-      max_gt_10 = max_gt_10,
-      all_integer = all_integer,
-      has_floating = has_floating,
-      n_cells = ncol(counts_mat),
-      n_genes = nrow(counts_mat)
+  tar_option_set(
+    memory             = "transient",
+    garbage_collection = 100,
+    storage            = "worker",
+    retrieval          = "worker",
+    error              = "continue",
+    cue                = tar_cue(mode = "thorough"),
+    format             = "qs",
+    workspace_on_error = TRUE,
+    controller         = controllers,
+    trust_object_timestamps = TRUE,
+    resources = tar_resources(
+      crew = tar_resources_crew(controller = "elastic_5_minimal")
     )
-    
-    tbl = tbl |> left_join(
-      tbl(
-        dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
-        sql("SELECT * FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/2025-11-08_census_samples_to_download.parquet')")
-      ) |> select(-observation_joinid, list_length) |> 
-        distinct() |> mutate(sample_id  = paste0(sample_id, ".h5ad")) |> collect(),
-      by = "sample_id",
-      copy = T
-    )
-    
-    tbl
+  )
+  
+  # ── helpers ────────────────────────────────────────────────────────────────
+  
+  pos_min_med_ratio <- function(x) {
+    pos <- x[x > 0]
+    min(pos) / median(pos)
   }
   
+  pos_min_mean_ratio <- function(x) {
+    pos <- x[x > 0]
+    min(pos) / mean(pos)
+  }
+  
+  get_positive_mode <- function(x) {
+    sort(table(x[x > 0]), decreasing = TRUE)[1] |> names() |> as.numeric()
+  }
+  
+  # Stage 1 – read SCE and return a minimal list with only what downstream needs.
+  # Keeping the raw matrix avoids re-reading the file in the metrics stage, while
+  # returning a plain list (not a full SCE) keeps the serialised object small.
+  read_sce_counts <- function(file) {
+    sce        <- readH5AD(file, reader = "R", use_hdf5 = TRUE)
+    if (ncol(sce) == 0) return(NULL)
+    
+    assay_name <- names(sce@assays)[1]
+    counts_mat <- as.matrix(assay(sce, assay_name))
+    
+    list(
+      sample_id  = basename(file),
+      counts_mat = counts_mat,
+      n_cells    = ncol(counts_mat),
+      n_genes    = nrow(counts_mat)
+    )
+  }
+  
+  # Stage 2 – pure computation on the pre-loaded matrix; no I/O.
+  calc_counts_metrics <- function(sce_data) {
+    if (is.null(sce_data)) return(NULL)
+
+      # Subsample cells to 1e4 if dataset is large
+    if (ncol(sce_data$counts_mat) > 1e4) {
+      set.seed(42)
+      sampled_cols <- sample(ncol(sce_data$counts_mat), 1e4)
+      sce_data$counts_mat <- sce_data$counts_mat[, sampled_cols]
+    }
+    
+    counts_vec <- as.numeric(sce_data$counts_mat)
+    tol        <- 1e-4
+    all_int    <- all(counts_vec == floor(counts_vec), na.rm = TRUE)
+    
+    tibble::tibble(
+      sample_id          = sce_data$sample_id,
+      min_val            = min(counts_vec,    na.rm = TRUE),
+      median_val         = median(counts_vec, na.rm = TRUE),
+      max_val            = max(counts_vec,    na.rm = TRUE),
+      counts_gap_min_med = pos_min_med_ratio(counts_vec),
+      counts_gap_min_mean= pos_min_mean_ratio(counts_vec),
+      positive_mode      = get_positive_mode(counts_vec),
+      has_negative       = min(counts_vec, na.rm = TRUE) < 0,
+      max_gt_10          = max(counts_vec, na.rm = TRUE) > 10,
+      all_integer        = all_int,
+      has_floating       = !all_int && all(abs(counts_vec - round(counts_vec)) < tol, na.rm = TRUE),
+      n_cells            = sce_data$n_cells,
+      n_genes            = sce_data$n_genes
+    ) |>
+      left_join(
+        tbl(
+          dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
+          sql("SELECT * FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/2025-11-08_census_samples_to_download.parquet')")
+        ) |>
+          select(-observation_joinid, list_length) |>
+          distinct() |>
+          mutate(sample_id = paste0(sample_id, ".h5ad")) |>
+          collect(),
+        by   = "sample_id",
+        copy = TRUE
+      )
+  }
+  
+  # ── pipeline ───────────────────────────────────────────────────────────────
   
   list(
     tar_target(
       files,
-      list.files("/vast/scratch/users/shen.m/Census/split_h5ad_based_on_sample_id//2025-11-08", full.names = T, pattern = ".h5ad$"),
+      list.files(
+        "/vast/scratch/users/shen.m/Census/split_h5ad_based_on_sample_id/2025-11-08/",
+        full.names = TRUE, pattern = "\\.h5ad$"
+      ),
       deployment = "main"
     ),
     
-    # tar_target(
-    #   counts_df,
-    #   {
-    #     sce = readH5AD(files, reader = "R", use_hdf5 = T)
-    #     
-    #     if (ncol(sce) == 0) return(NULL)
-    #     
-    #     assay_name = sce@assays |> names() |> magrittr::extract(1)
-    #     sce |> assay(assay_name) |> as.numeric() |> summary() |> 
-    #       tibble::enframe(name = "stat", value = "value") |> 
-    #       mutate(value = as.numeric(value)) |>
-    #       mutate(sample = basename(files))
-    #   }
-    #   ,
-    #   pattern = map(files),
-    #   iteration = "list"
-    # ),
-    # 
-    # tar_target(
-    #   colSums_df,
-    #   {
-    #     sce = readH5AD(files, reader = "R", use_hdf5 = T)
-    #     
-    #     if (ncol(sce) == 0) return(NULL)
-    #     
-    #     assay_name = sce@assays |> names() |> magrittr::extract(1)
-    #     sce |> assay(assay_name) |> colSums() |> summary() |> 
-    #       tibble::enframe(name = "stat", value = "value") |> 
-    #       mutate(value = as.numeric(value)) |>
-    #       mutate(sample = basename(files))
-    #   },
-    #   pattern = map(files),
-    #   iteration = "list"
-    # ),
+    # Stage 1 – I/O-bound; needs memory for the full matrix
+    tar_target(
+      sce_counts,
+      read_sce_counts(files),
+      pattern   = map(files),
+      iteration = "list",
+      resources = tar_resources(
+        crew = tar_resources_crew(controller = "elastic_5_minimal")
+      )
+    ),
     
-    # Get raw counts matrix with sample_id
+    # Stage 2 – CPU-bound, no disk I/O; can run on smaller workers
     tar_target(
       sample_summary_df,
-      get_sample_summary_stats(files),
-      pattern = map(files),
-      iteration = "list"
+      calc_counts_metrics(sce_counts),
+      pattern   = map(sce_counts),
+      iteration = "list",
+      resources = tar_resources(
+        crew = tar_resources_crew(controller = "elastic_10")
+      )
     )
   )
-}, ask = FALSE,  script = glue("{summary_store}/_targets.R"))
-
+  
+}, ask = FALSE, script = glue("{summary_store}/_targets.R"))
 
 job::job({
   
@@ -171,195 +201,32 @@ job::job({
   
 })
 
+
+
 ```
 
 ```{r}
-plot_raw_counts_hist_pdf <- function(
-    samples_to_plot,
-    h5ad_dir,
-    pdf_file,
-    width = 8,
-    height = 8,
-    nrow = 3,
-    ncol = 3,
-    max_cells = 5e3,
-    transform = c("log1p", "none"),
-    hist_ylim = c(0, 1e5)
-) {
-  
-  transform <- match.arg(transform)
-  
-  pdf(pdf_file, width = width, height = height)
-  on.exit(dev.off(), add = TRUE)
-  
-  par(mfrow = c(nrow, ncol), mar = c(3, 3, 2, 1))
-  
-  samples_to_plot |>
-    dplyr::pull(sample_id) |>
-    purrr::map(
-      ~ {
-        sce <- zellkonverter::readH5AD(
-          file = file.path(h5ad_dir, .x),
-          reader = "R",
-          use_hdf5 = T
-        )
-        
-        if (ncol(sce) == 0) return(NULL)
-        
-        if (ncol(sce) > max_cells) {
-          sce <- dplyr::sample_n(sce, max_cells)
-        }
-        
-        assay_name <- names(SummarizedExperiment::assays(sce))[1]
-        
-        dataset_id <- sce |>
-          dplyr::distinct(dataset_id) |>
-          dplyr::pull()
-        
-        x <- SummarizedExperiment::assay(sce, assay_name) |>
-          as.numeric()
-        
-        if (transform == "log1p") {
-          x <- log1p(x)
-        }
-        
-        hist(
-          x,
-          main = dataset_id,
-          ylim = hist_ylim
-        )
-        
-        invisible(NULL)
-      },
-      .progress = TRUE
-    )
-  
-  par(mfrow = c(1, 1))
-}
+  # Mengyuan says: there are 37 samples do not have any stats. investigate later:
+# They are from 6 datasets. 3 of them do not have observation_joinid in Census dataset, so unable to slice.
+# 3 datasets are acting weird, have colData, have joinid
+# need to investigate: 21722308-5091-4b63-9c07-4f116ab9a7b3, 145dcf6a-2461-4fa3-a0af-7fc56db0bd33, 7f7faf6b-f11d-4f07-bc1c-188a4472748d
 
-```
+#  [1] "1d507aba40ec4e7307749428d4bc5c49.h5ad" "221407d6715567ce06f8ec2efcf271d2.h5ad" "24a0ab92f770ce82fc4bdbcb13ae6981.h5ad"
+#  [4] "29e98fa31c0ba4ed1b1e80a3c5aadccd.h5ad" "2cdc34efd4a9c2ed7f80d1467d86f668.h5ad" "2d70a0f016494707fae85a71de749dc7.h5ad"
+#  [7] "2ff166a68fa0b1ef5d0d8f9a91ac5923.h5ad" "4152c6c633d769bc4e14d6b7022e568c.h5ad" "4e1b4b0af1998a6be416ab683a079764.h5ad"
+# [10] "6081de2a72b2ea4bf7be8546aaf1d28c.h5ad" "6513fc618af9ab8a79fd05e0321f9033.h5ad" "82e03a6cf864facd80211f76fbb1c85d.h5ad"
+# [13] "8922d56becfeed3dc5919ce97b16c779.h5ad" "9209879be3ca213fd2e73ebab31af71b.h5ad" "9af2aafd1092aa19cbe10b2a63c8002c.h5ad"
+# [16] "a42337b23e661eba31c7cf33e6e27e26.h5ad" "a9f96f268e56e43adfa07f530bcbd268.h5ad" "aca3b66fa8f730e4ba51af989b849be5.h5ad"
+# [19] "ad739b85daca78093534a977699d8949.h5ad" "b7251dabd2b20cc8f72b7c6e9344129f.h5ad" "b806903916d5397c6f04335f5d4fa129.h5ad"
+# [22] "c6fd0bb7191baf46f7d768dc86c00755.h5ad" "c8d5fe854a5773a43ffdfa883b0a9cb0.h5ad" "c95bb81d7e8d6d53251247233a01ce0e.h5ad"
+# [25] "c96ca36a6fb86de531f23dabc9f015ca.h5ad" "d0ba2ed2cb64609f200bd14dbf3cc36e.h5ad" "d4cd0d2b0f603474faafe976de9a2492.h5ad"
+# [28] "d58b0e1bccdb7ff916358b130fdf68fa.h5ad" "d87d8f55a6a82b33ac23337fe74fa1e8.h5ad" "d914e292ae1ee5cd01e5deca69193643.h5ad"
+# [31] "e6195dc957219843cc470ee0b0960d93.h5ad" "e6cd4914d5a9aa0bea4971b9b344911c.h5ad" "ebac20fd555a13fa3d1e6ed638cb84c9.h5ad"
+# [34] "ebdaf704fb553d7bd11becbe7ea6a7d3.h5ad" "ef1780945cc1674f6eba884046f4fe6e.h5ad" "f365e988ae4449b991b093d6e458466d.h5ad"
+# [37] "f7ae602b0489415c1e4ce21981de6959.h5ad"
 
-```{r eval=FALSE}
-sample_summary_df = tar_read(sample_summary_df, store = glue("{summary_store}/_targets")) |> bind_rows() |>
-  mutate(max_gt_20 = ifelse(max_val > 20, TRUE, FALSE)) |> 
-  
-  # modify dataframe because the logic was not right in targets
-  mutate(has_floating = ifelse(has_floating & !all_integer, TRUE, FALSE)) 
+sample_summary_df = tar_read(sample_summary_df,  store = glue("{summary_store}/_targets")) |> bind_rows() |> 
+  mutate(max_gt_20 = ifelse(max_val > 20, TRUE, FALSE))
 
-sample_summary_df |> write_parquet("/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/sample_distribution_summary.parquet")
-```
-
-```{r echo=FALSE}
-sample_summary_df = read_parquet("/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/sample_distribution_summary.parquet")
-```
-
-# Sample statstics summary
-```{r}
-sample_summary_df |> dplyr::count(has_negative, max_gt_20, all_integer, has_floating)
-```
-
-# Plot sample in dataset
-## Row one
-```{r}
-sample_summary_df |> dplyr::count(has_negative, max_gt_20, all_integer, has_floating) |> slice(1)
-
-samples_to_plot <- sample_summary_df |> filter(!all_integer, !has_negative, !max_gt_20) |> 
-  arrange(n_cells) |>
-  group_by(dataset_id) |>
-  slice_sample(n = 1) |>
-  ungroup()
-
-```
-
-```{r eval=FALSE}
-plot_raw_counts_hist_pdf(samples_to_plot, 
-                         h5ad_dir = "/vast/scratch/users/shen.m/Census/split_h5ad_based_on_sample_id/2025-11-08/",
-                         pdf_file = "/home/users/allstaff/shen.m/projects/cellNexus/samples_pos_lt20_decimal_raw_counts_hist.pdf", 
-                         transform = "none")
-
-```
-
-
-## Row two
-```{r}
-sample_summary_df |> dplyr::count(has_negative, max_gt_20, all_integer, has_floating) |> slice(2)
-samples_to_plot <- sample_summary_df |> filter( !has_negative, max_gt_20, !all_integer, !has_floating) |> 
-  arrange(n_cells) |>
-  group_by(dataset_id) |>
-  slice_sample(n = 6) |>
-  ungroup()
-```
-
-```{r eval=FALSE}
-plot_raw_counts_hist_pdf(samples_to_plot, 
-                         h5ad_dir = "/vast/scratch/users/shen.m/Census/split_h5ad_based_on_sample_id/2025-11-08/",
-                         pdf_file = "/home/users/allstaff/shen.m/projects/cellNexus/samples_pos_gt20_decimal_raw_counts_log1p_hist.pdf", 
-                         transform = "log1p")
-```
-
-## Row three
-```{r}
-sample_summary_df |> dplyr::count(has_negative, max_gt_20, all_integer, has_floating) |> slice(3)
-samples_to_plot <- sample_summary_df |> filter(!has_negative, max_gt_20, all_integer, has_floating) |> 
-  arrange(n_cells) |>
-  group_by(dataset_id) |>
-  slice_sample(n = 3) |>
-  ungroup()
-```
-
-```{r eval=FALSE}
-plot_raw_counts_hist_pdf(samples_to_plot, 
-                         h5ad_dir = "/vast/scratch/users/shen.m/Census/split_h5ad_based_on_sample_id/2025-11-08/",
-                         pdf_file = "/home/users/allstaff/shen.m/projects/cellNexus/samples_pos_gt20_int_raw_counts_log1p_hist.pdf", 
-                         transform = "log1p")
-```
-
-## Row four
-```{r}
-sample_summary_df |> dplyr::count(has_negative, max_gt_20, all_integer, has_floating) |> slice(4)
-samples_to_plot <- sample_summary_df |> filter(has_negative,!max_gt_20, !all_integer, !has_floating) |> 
-  arrange(n_cells) |>
-  group_by(dataset_id) |>
-  slice_sample(n = 2) |>
-  ungroup()
-```
-
-```{r eval=FALSE}
-plot_raw_counts_hist_pdf(samples_to_plot, 
-                         h5ad_dir = "/vast/scratch/users/shen.m/Census/split_h5ad_based_on_sample_id/2025-11-08/",
-                         pdf_file = "/home/users/allstaff/shen.m/projects/cellNexus/samples_neg_lt20_decimal_raw_counts_hist.pdf", 
-                         transform = "none")
-```
-
-## Row five
-```{r}
-sample_summary_df |> dplyr::count(has_negative, max_gt_20, all_integer, has_floating) |> slice(5)
-samples_to_plot <- sample_summary_df |> filter(has_negative,max_gt_20, !all_integer, !has_floating) |> 
-  arrange(n_cells) |>
-  group_by(dataset_id) |>
-  slice_sample(n = 2) |>
-  ungroup()
-```
-
-
-```{r eval=FALSE}
-plot_raw_counts_hist_pdf(samples_to_plot, 
-                         h5ad_dir = "/vast/scratch/users/shen.m/Census/split_h5ad_based_on_sample_id/2025-11-08/",
-                         pdf_file = "/home/users/allstaff/shen.m/projects/cellNexus/samples_neg_gt20_decimal_raw_counts_hist.pdf", 
-                         transform = "none")
-```
-
-
-
-
-# Final slides and decision
-
-```{r}
-#| label: display-pptx
-#| echo: false
-#| warning: false
-#| message: false
-
-pptx_file <- "~/projects/cellNexus/census_distribution_decision.pptx"  
-pptx_file
+sample_summary_df |> saveRDS("/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/sample_summary_df.rds")
 ```

@@ -241,7 +241,7 @@ job::job({
       lowConf_ethnicity_df.low_confidence_ethnicity,
       sample_celltype_count.\".aggregated_cells\",
       COALESCE(imputed_ethnicity_df.imputed_ethnicity, cell_metadata.self_reported_ethnicity) AS imputed_ethnicity, -- Use imputed_ethnicity if present
-      'cellxgene_2024/0.2.1' AS atlas_id
+      'cellxgene_2024/0.4.0' AS atlas_id
       
     FROM cell_metadata
     

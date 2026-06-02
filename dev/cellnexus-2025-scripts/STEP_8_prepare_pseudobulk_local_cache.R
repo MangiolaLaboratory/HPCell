@@ -1,8 +1,7 @@
 library(targets)
 library(tidyverse)
-library(cellNexus)
-store_file_cellNexus = "/vast/scratch/users/shen.m/targets_prepare_database_split_datasets_chunked_2_0_0_pseudobulk"
-my_store = "/vast/scratch/users/shen.m/cellNexus_target_store_2025-11-08/"
+store_file_cellNexus = "/vast/scratch/users/shen.m/targets_prepare_database_split_datasets_chunked_1_0_0_pseudobulk_2025"
+my_store = "/vast/scratch/users/shen.m/cellNexus_target_store_2025-11-08"
 
 tar_script({
   library(dplyr)
@@ -12,93 +11,55 @@ tar_script({
   library(tarchetypes)
   library(crew)
   library(crew.cluster)
+  
+  # Helper (optional) to avoid repetition
+  new_elastic <- function(name, mem_gb, time_min, workers, crashes_max, cpus_per_task = 2, backup = NULL) {
+    crew_controller_slurm(
+      name = name,
+      workers = workers,
+      crashes_max = crashes_max,
+      seconds_idle = 30,
+      options_cluster = crew_options_slurm(
+        memory_gigabytes_required = mem_gb,
+        cpus_per_task = cpus_per_task,
+        time_minutes = time_min
+      ),
+      backup = backup
+    )
+  }
+  
+  # Small → large, with fallbacks to the next size up
+  elastic_300 <- new_elastic("elastic_300", 300, 60 * 24, workers = 4,  crashes_max = 2)
+  elastic_160 <- new_elastic("elastic_160", 160, 60 * 24, workers = 8,  crashes_max = 2, cpus_per_task = 1, backup = elastic_300)
+  elastic_120  <- new_elastic("elastic_120",  120,  60 * 4,  workers = 16, crashes_max = 1, cpus_per_task = 1, backup = elastic_160)
+  elastic_80  <- new_elastic("elastic_80",   80,  60 * 4,  workers = 24, crashes_max = 1, cpus_per_task = 1, backup = elastic_120)
+  elastic_40  <- new_elastic("elastic_40",   40,  60 * 4,  workers = 32, crashes_max = 1, cpus_per_task = 1, backup = elastic_80)
+  elastic_20  <- new_elastic("elastic_20",   20,  60 * 4,  workers = 48, crashes_max = 1, cpus_per_task = 1, backup = elastic_40)
+  elastic_10   <- new_elastic("elastic_10",   10, 60 * 4,  workers = 150, crashes_max = 2, cpus_per_task = 1, backup = elastic_20)
+  
+  elastic_5_minimal   <- new_elastic("elastic_5_minimal",     5, 60 * 4,  workers = 300, crashes_max = 2, cpus_per_task = 1, backup = elastic_10)
+  
+  # Group for targets (small → large)
+  controllers <- crew_controller_group(
+    elastic_10, elastic_20, elastic_40, elastic_80, elastic_120, elastic_160, elastic_300, elastic_5_minimal
+  )
   tar_option_set(
     memory = "transient", 
     garbage_collection = 100, 
     storage = "worker", 
     retrieval = "worker", 
     error = "continue", 
-    cue = tar_cue(mode = "thorough"),
-    #debug = "dataset_id_sce", 
+    cue = tar_cue(mode = "never"),
     
     workspace_on_error = TRUE,
-    controller = crew_controller_group(
-      list(
-        crew_controller_slurm(
-          name = "elastic",
-          workers = 300,
-          tasks_max = 20,
-          seconds_idle = 30,
-          crashes_error = 10,
-          options_cluster = crew_options_slurm(
-            memory_gigabytes_required = c(40, 60, 80, 120, 160), 
-            #memory_gigabytes_required = c(200, 300, 350, 400, 500), 
-            cpus_per_task = c(2, 2, 5, 10, 20), 
-            time_minutes = c(30, 30, 30, 60*4, 60*24),
-            verbose = T
-          )
-        ),
-        
-        crew_controller_slurm(
-          name = "tier_1", 
-          script_lines = "#SBATCH --mem 8G",
-          slurm_cpus_per_task = 1, 
-          workers = 300, 
-          tasks_max = 50,
-          verbose = T,
-          crashes_error = 5, 
-          seconds_idle = 30
-        ),
-        
-        crew_controller_slurm(
-          name = "tier_2",
-          script_lines = "#SBATCH --mem 10G",
-          slurm_cpus_per_task = 1,
-          workers = 300,
-          tasks_max = 10,
-          verbose = T,
-          crashes_error = 5, 
-          seconds_idle = 30
-        ),
-        crew_controller_slurm(
-          name = "tier_3",
-          script_lines = "#SBATCH --mem 20G",
-          slurm_cpus_per_task = 1,
-          workers = 200,
-          tasks_max = 10,
-          verbose = T,
-          crashes_error = 5, 
-          seconds_idle = 30
-        ),
-        crew_controller_slurm(
-          name = "tier_4",
-          workers = 200,
-          tasks_max = 10,
-          crashes_error = 5, 
-          seconds_idle = 30,
-          options_cluster = crew_options_slurm(
-            memory_gigabytes_required = c(40, 80, 100, 150, 240), 
-            #memory_gigabytes_required = c(200, 250, 350, 450), 
-            cpus_per_task = c(2), 
-            time_minutes = c(60*24),
-            verbose = T
-          )
-        ),
-        crew_controller_slurm(
-          name = "tier_5",
-          script_lines = "#SBATCH --mem 400G",
-          slurm_cpus_per_task = 1,
-          workers = 2,
-          tasks_max = 10,
-          verbose = T,
-          crashes_error = 5, 
-          seconds_idle = 30
-        )
-      )
-    ), 
-    trust_object_timestamps = TRUE
-    #workspaces = "dataset_id_sce_52dbec3c15f98d66"
+    controller = controllers, 
+    trust_object_timestamps = TRUE,
+    resources = tar_resources(
+      crew = tar_resources_crew(controller = "elastic_5_minimal")
+    ) 
   )
+  
+  
   get_dataset_id = function(target_name, my_store){
     sce = tar_read_raw(target_name, store = my_store)
     
@@ -107,9 +68,6 @@ tar_script({
     
     sce |> 
       
-      # TEMPORARY FIX. NEED TO INVESTIGATE WHY THE SUFFIX HAPPENS
-      mutate(sample_id = stringr::str_replace(sample_id, ".h5ad$","")) |> 
-      
       distinct(sample_id, dataset_id) |> mutate(target_name = !!target_name)
   }
   
@@ -117,9 +75,6 @@ tar_script({
     
     # Solve sample_id mismatches because some end with .h5ad suffix while others dont 
     dataset_id_sample_id |> 
-      
-      # TEMPORARY FIX. NEED TO INVESTIGATE WHY THE SUFFIX HAPPENS
-      mutate(sample_id = stringr::str_replace(sample_id, ".h5ad$", "")) |>
       
       left_join(
         tbl(
@@ -146,7 +101,6 @@ tar_script({
         dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
         sql(glue("SELECT * FROM read_parquet('{file_id_db_file}')"))
       ) |> 
-      #dplyr::filter(dataset_id == my_dataset_id) |>
       dplyr::filter(cell_type_unified_ensemble %in% my_cell_type) |>
       select(sample_id, dataset_id, cell_type_unified_ensemble,
              file_id_cellNexus_pseudobulk) 
@@ -158,8 +112,12 @@ tar_script({
     
     
     # Parallelise
-    cores = as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", unset = 1))
-    bp <- MulticoreParam(workers = cores , progressbar = TRUE)  # Adjust the number of workers as needed
+    cores = as.numeric(Sys.getenv("SLURM_CPUS_PER_TASK", unset = 1)) -1
+    # Respect R CMD CHECK core limit if set
+    if (nzchar(Sys.getenv("_R_CHECK_LIMIT_CORES_"))) {
+      cores <- min(cores, 2L)
+    }
+    bp <-   MulticoreParam(workers = cores, progressbar = TRUE)
     
     # Begin processing the data pipeline with the initial dataset 'target_name_grouped_by_dataset_id'
     sce_df = 
@@ -170,25 +128,16 @@ tar_script({
       mutate(
         sce = bplapply(
           target_name,
-          FUN = function(x) tar_read_raw(x, store = my_store) ,
-          # |># Read the raw SingleCellExperiment object
-          #   # Mengyuan : Temp fix (THIS SHOULD BE DONE IN PSEUDOBULK HPCELL)
-          #   mutate(cell_type_unified_ensemble = ifelse(is.na(cell_type_unified_ensemble),
-          #                                              "unknown",
-          #                                              cell_type_unified_ensemble))
-          #   },
-          
-          BPPARAM = bp  # Use the defined parallel backend
+          FUN = function(x) tar_read_raw(x, store = my_store),
+          BPPARAM = bp
         )
       ) |>
       
       # This should not be needed, but there are some data sets with zero cells 
       filter(!map_lgl(sce, is.null)) |> 
       
-      mutate(sce = map2(sce, cells, ~ .x |> filter(.cell %in% .y$cell_id) |>
-                          
-                          # TEMPORARY FIX. NEED TO INVESTIGATE WHY THE SUFFIX HAPPENS
-                          mutate(sample_id = stringr::str_replace(sample_id, ".h5ad$","")),
+      mutate(sce = map2(sce, cells, ~ .x |>
+                          filter(.cell %in% .y$cell_id),
                         
                         .progress = TRUE))
     
@@ -199,7 +148,6 @@ tar_script({
       return(NULL)
     }
     
-    # plan(multisession, workers = 20)
     sce_df = sce_df |> 
       
       # THIS SHOULD HAVE BEEN DONE IN THE TRANFORM HPCell
@@ -251,6 +199,11 @@ tar_script({
     
     .x |> assays() |> names() = "counts"
     
+    # Drop list-type columns in colData 
+    cd <- colData(.x)
+    is_list_col <- vapply(cd, is.list, logical(1))
+    colData(.x) <- cd[, !is_list_col, drop = FALSE]
+    
     # Check if there is a memory issue 
     assays(.x) <- assays(.x) |> map(DelayedArray::realize)
     
@@ -267,11 +220,11 @@ tar_script({
   list(
     
     # The input DO NOT DELETE
-    tar_target(my_store, "/vast/scratch/users/shen.m/cellNexus_target_store_2025-11-08/", deployment = "main"),
-    tar_target(cache_directory, "/vast/scratch/users/shen.m/cellNexus/cellxgene/27-01-2026/pseudobulk", deployment = "main"),
+    tar_target(my_store, "/vast/scratch/users/shen.m/cellNexus_target_store_2025-11-08", deployment = "main"), # MODIFY HERE: HPCell targets store (must match my_store above)
+    tar_target(cache_directory, "/vast/scratch/users/shen.m/cellNexus/cellxgene_2025/0.1.0/pseudobulk", deployment = "main"), # MODIFY HERE: output cache directory for saved pseudobulk anndata files
     tar_target(
-      cell_metadata, 
-      "/vast/scratch/users/shen.m/cache_temp/cell_metadata_cell_type_consensus_v2_0_0_mengyuan.parquet", 
+      cell_metadata,
+      "/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cell_metadata_cell_type_consensus_v1_0_1_mengyuan.parquet", # MODIFY HERE: cell metadata parquet (output of step6/step7)
       packages = c( "arrow","dplyr","duckdb")
       
     ),
@@ -290,7 +243,7 @@ tar_script({
       packages = "tidySingleCellExperiment",
       pattern = map(target_name),
       resources = tar_resources(
-        crew = tar_resources_crew(controller = "elastic")
+        crew = tar_resources_crew(controller = "elastic_5_minimal")
       )
     ),
     
@@ -298,9 +251,9 @@ tar_script({
       target_name_grouped_by_dataset_id,
       create_chunks_for_reading_and_saving(dataset_id_sample_id, cell_metadata) |> 
         
-        # FOR TESTING PURPOSE ONLY
-        filter(file_id_cellNexus_pseudobulk %in% c("009877666c60df2dcb78fca66222de5b___1.h5ad",
-                                                   "28776541e0d6363403ba662f98e3f027___2.h5ad")) |>
+        # # FOR TESTING PURPOSE ONLY
+        # filter(file_id_cellNexus_pseudobulk %in% c("9722bedfd71d069fe3665b4ae03fbeb9___2.h5ad",
+        #                                            "2996bb4263f9fb301d8460f4f0450848___2.h5ad")) |>
         
         group_by(dataset_id,
                  sample_pseudobulk_chunk, 
@@ -310,7 +263,7 @@ tar_script({
         tar_group(),
       iteration = "group",
       resources = tar_resources(
-        crew = tar_resources_crew(controller = "elastic")
+        crew = tar_resources_crew(controller = "elastic_5_minimal")
       ), 
       packages = c("arrow", "duckdb", "dplyr", "glue", "targets")
       
@@ -320,18 +273,18 @@ tar_script({
       dataset_id_sce,
       cbind_sce_by_dataset_id(target_name_grouped_by_dataset_id, cell_metadata, my_store = my_store),
       pattern = map(target_name_grouped_by_dataset_id),
-      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "digest", "HPCell", "digest", "scater", "arrow", "dplyr", "duckdb",  "BiocParallel", "parallelly"),
+      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "digest", "scater", "arrow", "dplyr", "duckdb",  "BiocParallel", "parallelly"),
       resources = tar_resources(
-        crew = tar_resources_crew(controller = "tier_4")
+        crew = tar_resources_crew(controller = "elastic_20")
       )
     ),
     tar_target(
       get_pseudobulk,
       insistent_save_anndata(dataset_id_sce, paste0(cache_directory, "/counts")),
       pattern = map(dataset_id_sce),
-      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "digest", "HPCell", "digest", "scater", "arrow", "dplyr", "duckdb", "BiocParallel", "parallelly"),
+      packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "HPCell", "digest", "scater", "arrow", "dplyr", "duckdb", "BiocParallel", "parallelly"),
       resources = tar_resources(
-        crew = tar_resources_crew(controller = "tier_4")
+        crew = tar_resources_crew(controller = "elastic_5_minimal")
       )
     )
   )
@@ -349,6 +302,8 @@ job::job({
   )
   
 })
+
+
 
 tar_workspace(get_pseudobulk_f739e3d09d23da0c, script = paste0(store_file_cellNexus, "_target_script.R"), 
               store = store_file_cellNexus)

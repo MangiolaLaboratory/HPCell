@@ -784,194 +784,159 @@ get_tissue_grouped = function(tissue){
 }
 
 convert_age_labels_to_days <- function(labels) {
-  # Initialize vector to store age in days
   age_days <- rep(NA, length(labels))
   
-  # Define the mapping for Carnegie stages
   carnegie_stages <- c(
-    '9' = 20,
-    '10' = 22,
-    '11' = 24,
-    '12' = 26,
-    '13' = 28,
-    '14' = 32,
-    '16' = 37,
-    '17' = 41,
-    '18' = 44,
-    '19' = 46,
-    '20' = 49,
-    '21' = 51,
-    '22' = 53,
-    '23' = 56
+    '1' = 1, '2' = 2, '3' = 4, '4' = 6, '5' = 8,
+    '6' = 12, '7' = 16, '8' = 18, '9' = 20,
+    '10' = 22, '11' = 24, '12' = 26, '13' = 28,
+    '14' = 32, '15' = 35, '16' = 37, '17' = 41,
+    '18' = 44, '19' = 46, '20' = 49, '21' = 51,
+    '22' = 53, '23' = 56
   )
   
-  # Map words to numbers for decades
   word_to_num <- c(
-    'first' = 0,
-    'second' = 10,
-    'third' = 20,
-    'fourth' = 30,
-    'fifth' = 40,
-    'sixth' = 50,
-    'seventh' = 60,
-    'eighth' = 70,
-    'ninth' = 80,
-    'tenth' = 90
+    'first' = 0, 'second' = 10, 'third' = 20, 'fourth' = 30,
+    'fifth' = 40, 'sixth' = 50, 'seventh' = 60, 'eighth' = 70,
+    'ninth' = 80, 'tenth' = 90
   )
   
-  # Map ordinal words to numbers
   word_ordinal_to_num <- c(
-    'first' = 1,
-    'second' = 2,
-    'third' = 3,
-    'fourth' = 4,
-    'fifth' = 5,
-    'sixth' = 6,
-    'seventh' = 7,
-    'eighth' = 8,
-    'ninth' = 9,
-    'tenth' = 10,
-    'eleventh' = 11,
-    'twelfth' = 12,
-    'thirteenth' = 13,
-    'fourteenth' = 14,
-    'fifteenth' = 15,
-    'sixteenth' = 16,
-    'seventeenth' = 17,
-    'eighteenth' = 18,
-    'nineteenth' = 19,
-    'twentieth' = 20,
-    'twenty-first' = 21,
-    'twenty-second' = 22,
-    'twenty-third' = 23
+    'first' = 1, 'second' = 2, 'third' = 3, 'fourth' = 4,
+    'fifth' = 5, 'sixth' = 6, 'seventh' = 7, 'eighth' = 8,
+    'ninth' = 9, 'tenth' = 10, 'eleventh' = 11, 'twelfth' = 12,
+    'thirteenth' = 13, 'fourteenth' = 14, 'fifteenth' = 15,
+    'sixteenth' = 16, 'seventeenth' = 17, 'eighteenth' = 18,
+    'nineteenth' = 19, 'twentieth' = 20, 'twenty-first' = 21,
+    'twenty-second' = 22, 'twenty-third' = 23, 'twenty-fourth' = 24,
+    'twenty-fifth' = 25, 'twenty-sixth' = 26, 'twenty-seventh' = 27,
+    'twenty-eighth' = 28, 'twenty-ninth' = 29, 'thirtieth' = 30,
+    'thirty-first' = 31, 'thirty-second' = 32, 'thirty-third' = 33,
+    'thirty-fourth' = 34
   )
   
-  # Map stages to approximate ages in days
   stage_to_age <- list(
     'newborn human' = 0,
+    'newborn' = 14,           # midpoint 0-28 days
     'infant' = 0.5 * 365,
-    'child' = 6 * 365,  # Midpoint of 2-12 years
-    'adolescent' = 15 * 365,  # Midpoint of 12-18 years
-    'young adult' = 25 * 365,  # Approximate age
+    'nursing' = 0.5 * 365,    # 0-11 months
+    'child' = 2.5 * 365,      # 1-4 yo midpoint
+    'pediatric' = 6 * 365,
+    'juvenile' = 9.5 * 365,   # 5-14 yo midpoint
+    'adolescent' = 15 * 365,
+    'young adult' = 25 * 365,
     'human early adulthood' = 25 * 365,
-    'human middle aged' = 50 * 365,
-    'human late adulthood' = 70 * 365,
+    'prime adult' = 30 * 365,
+    'adult' = 40 * 365,
     'human adult' = 40 * 365,
-    'human aged' = 75 * 365,
+    'human middle aged' = 50 * 365,
+    'middle aged' = 50 * 365,
     'mature' = 40 * 365,
     'immature' = 1 * 365,
-    'embryonic human' = 28,  # Midpoint of embryonic stage
+    'late adult' = 70 * 365,
+    'human late adulthood' = 70 * 365,
+    'human aged' = 75 * 365,
+    'postnatal' = 1 * 365,
+    'prenatal' = 28,
+    'embryonic human' = 28,
+    'embryonic' = 28,
     'organogenesis' = 28,
+    'blastula' = 5,
     'unknown' = NA
   )
   
-  # Loop over labels
   for (i in seq_along(labels)) {
-    label <- labels[i]
-    
-    # Initialize age variable
+    label <- trimws(labels[i])
     age <- NA
     
-    # Remove leading and trailing whitespaces
-    label <- trimws(label)
-    
-    # 1. Match "unknown"
+    # 1. Unknown
     if (grepl("^unknown$", label, ignore.case = TRUE)) {
       age <- NA
-    }
-    # 2. Match "[number]-month-old human stage"
-    else if (grepl("^(\\d+)-month-old human stage$", label)) {
-      num <- as.numeric(sub("^(\\d+)-month-old human stage$", "\\1", label))
-      age <- num * 30  # Average days in a month
-    }
-    # 3. Match "[number]-year-old human stage"
-    else if (grepl("^(\\d+)-year-old human stage$", label)) {
-      num <- as.numeric(sub("^(\\d+)-year-old human stage$", "\\1", label))
-      age <- num * 365  # Average days in a year
-    }
-    # 4. Match "[number]th week post-fertilization human stage"
-    else if (grepl("^(\\d+)(?:st|nd|rd|th) week post-fertilization human stage$", label)) {
-      num <- as.numeric(sub("^(\\d+)(?:st|nd|rd|th) week post-fertilization human stage$", "\\1", label))
-      age <- num * 7
-    }
-    # 5. Match "Carnegie stage [number]"
-    else if (grepl("^Carnegie stage (\\d+)$", label)) {
-      num <- sub("^Carnegie stage (\\d+)$", "\\1", label)
-      if (num %in% names(carnegie_stages)) {
-        age <- carnegie_stages[[num]]
-      } else {
-        age <- NA
-      }
-    }
-    # 6. Match "[number]-[number] year-old human stage"
-    else if (grepl("^(\\d+)-(\\d+) year-old human stage$", label)) {
-      num1 <- as.numeric(sub("^(\\d+)-(\\d+) year-old human stage$", "\\1", label))
-      num2 <- as.numeric(sub("^(\\d+)-(\\d+) year-old human stage$", "\\2", label))
-      avg_years <- (num1 + num2) / 2
-      age <- avg_years * 365
-    }
-    # 7. Match "[number]-[number] year-old child stage"
-    else if (grepl("^(\\d+)-(\\d+) year-old child stage$", label)) {
-      num1 <- as.numeric(sub("^(\\d+)-(\\d+) year-old child stage$", "\\1", label))
-      num2 <- as.numeric(sub("^(\\d+)-(\\d+) year-old child stage$", "\\2", label))
-      avg_years <- (num1 + num2) / 2
-      age <- avg_years * 365
-    }
-    # 8. Match "under-1-year-old human stage"
-    else if (grepl("^under-1-year-old human stage$", label)) {
-      age <- 0.5 * 365  # Assume 0.5 years
-    }
-    # 9. Match "[number]-month-old human stage" (again)
-    else if (grepl("^(\\d+)-month-old human stage$", label)) {
-      num <- as.numeric(sub("^(\\d+)-month-old human stage$", "\\1", label))
-      age <- num * 30
-    }
-    # 10. Match "[ordinal] LMP month human stage"
-    else if (grepl("^(\\w+) LMP month human stage$", label)) {
-      ordinal_word <- tolower(sub("^(\\w+) LMP month human stage$", "\\1", label))
-      if (ordinal_word %in% names(word_ordinal_to_num)) {
-        num <- word_ordinal_to_num[ordinal_word]
-        age <- num * 30
-      } else {
-        age <- NA
-      }
-    }
-    # 11. Match "[ordinal] decade human stage"
-    else if (grepl("^(\\w+) decade human stage$", label)) {
-      decade_word <- tolower(sub("^(\\w+) decade human stage$", "\\1", label))
-      if (decade_word %in% names(word_to_num)) {
-        num1 <- word_to_num[decade_word]
-        num2 <- num1 + 9
-        avg_years <- (num1 + num2) / 2
-        age <- avg_years * 365
-      } else {
-        age <- NA
-      }
-    }
-    # 12. Match "80 year-old and over human stage"
-    else if (grepl("^(\\d+).*year-old and over human stage$", label)) {
-      num <- as.numeric(sub("^(\\d+).*year-old and over human stage$", "\\1", label))
+      
+      # 2. [N]-year-old (human )stage  — with or without "human"
+    } else if (grepl("^(\\d+)-year-old( human)? stage$", label)) {
+      num <- as.numeric(sub("^(\\d+)-year-old.*$", "\\1", label))
       age <- num * 365
-    }
-    # 13. Match developmental stages
-    else if (grepl("^(.*) stage$", label)) {
-      stage <- tolower(sub("^(.*) stage$", "\\1", label))
-      if (stage %in% names(stage_to_age)) {
-        age <- stage_to_age[[stage]]
-      } else {
-        age <- NA
+      
+      # 3. [N]-month-old (human )stage
+    } else if (grepl("^(\\d+)-month-old( human)? stage$", label)) {
+      num <- as.numeric(sub("^(\\d+)-month-old.*$", "\\1", label))
+      age <- num * 30
+      
+      # 4. [N]th week post-fertilization (human )stage  — numeric ordinal suffix
+    } else if (grepl("^(\\d+)(?:st|nd|rd|th) week post-fertilization( human)? stage$", label, perl = TRUE)) {
+      num <- as.numeric(sub("^(\\d+)(?:st|nd|rd|th).*$", "\\1", label, perl = TRUE))
+      age <- num * 7
+      
+      # 5. [word] week post-fertilization (human )stage  — ordinal word
+    } else if (grepl("^([a-z-]+) week post-fertilization( human)? stage$", label, ignore.case = TRUE)) {
+      ord_word <- tolower(sub("^([a-z-]+) week post-fertilization.*$", "\\1", label))
+      if (ord_word %in% names(word_ordinal_to_num)) {
+        age <- word_ordinal_to_num[[ord_word]] * 7
       }
-    }
-    # 14. Default case
-    else {
+      
+      # 6. Carnegie stage [N] (handles leading zeros by coercing to integer)
+    } else if (grepl("^Carnegie stage (\\d+)$", label)) {
+      num <- as.character(as.integer(sub("^Carnegie stage (\\d+)$", "\\1", label)))
+      age <- if (num %in% names(carnegie_stages)) carnegie_stages[[num]] else NA
+      
+      # 7. [N]-[N] year-old (human |child )?stage
+    } else if (grepl("^(\\d+)-(\\d+) year-old( human| child)? stage$", label)) {
+      num1 <- as.numeric(sub("^(\\d+)-.*$", "\\1", label))
+      num2 <- as.numeric(sub("^\\d+-(\\d+).*$", "\\1", label))
+      age <- ((num1 + num2) / 2) * 365
+      
+      # 8. [N]-[N] year-old (no "stage" suffix, e.g. "15-19 year-old")
+    } else if (grepl("^(\\d+)-(\\d+) year-old$", label)) {
+      num1 <- as.numeric(sub("^(\\d+)-.*$", "\\1", label))
+      num2 <- as.numeric(sub("^\\d+-(\\d+).*$", "\\1", label))
+      age <- ((num1 + num2) / 2) * 365
+      
+      # 9. under-1-year-old (human )stage
+    } else if (grepl("^under-1-year-old( human)? stage$", label)) {
+      age <- 0.5 * 365
+      
+      # 10. [ordinal word] LMP month (human )stage
+    } else if (grepl("^([a-z-]+) LMP month( human)? stage$", label, ignore.case = TRUE)) {
+      ord_word <- tolower(sub("^([a-z-]+) LMP month.*$", "\\1", label))
+      if (ord_word %in% names(word_ordinal_to_num)) {
+        age <- word_ordinal_to_num[[ord_word]] * 30
+      }
+      
+      # 11. [ordinal word] decade (human )stage
+    } else if (grepl("^([a-z]+) decade( human)? stage$", label, ignore.case = TRUE)) {
+      decade_word <- tolower(sub("^([a-z]+) decade.*$", "\\1", label))
+      if (decade_word %in% names(word_to_num)) {
+        num1 <- word_to_num[[decade_word]]
+        num2 <- num1 + 9
+        age <- ((num1 + num2) / 2) * 365
+      }
+      
+      # 12. [N] year-old and over (human )stage
+    } else if (grepl("^(\\d+) year-old and over( human)? stage$", label)) {
+      num <- as.numeric(sub("^(\\d+).*$", "\\1", label))
+      age <- num * 365
+      
+      # 13. Named stages with parenthetical ranges, e.g. "newborn stage (0-28 days)"
+      #     Strip the qualifier and look up the base name
+    } else if (grepl("^(.*?) stage \\(.*\\)$", label)) {
+      stage <- tolower(sub("^(.*?) stage \\(.*\\)$", "\\1", label))
+      age <- if (stage %in% names(stage_to_age)) stage_to_age[[stage]] else NA
+      
+      # 14. Plain "[name] stage"
+    } else if (grepl("^(.*) stage$", label)) {
+      stage <- tolower(sub("^(.*) stage$", "\\1", label))
+      age <- if (stage %in% names(stage_to_age)) stage_to_age[[stage]] else NA
+      
+      # 15. Default
+    } else {
       age <- NA
     }
     
-    # Assign to age_days vector
     age_days[i] <- age
   }
   
-  return(age_days |> as.integer())
+  return(as.integer(age_days))
 }
 
 age_days_tbl = 

@@ -3,15 +3,16 @@ library(dplyr)
 library(cellNexus)
 library(stringr)
 
-cache = "~/scratch/cache_temp"
+cache = "/vast/scratch/users/shen.m/cellNexus/"
 
-x = get_metadata(cache_directory = cache, cloud_metadata = NULL, local_metadata = "~/scratch/cache_temp/metadata.2.0.0.parquet")
+x = get_metadata(cache_directory = cache, cloud_metadata = NULL, local_metadata = "/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/metadata.v2025.1.0.0.parquet")
 sce = x |>
   dplyr::filter(
     self_reported_ethnicity == "Brazilian" &
       assay |> stringr::str_like("%10x%")
   ) |> 
-  get_single_cell_experiment(cache_directory = "/vast/scratch/users/shen.m/cellNexus", repository = NULL)
+  get_single_cell_experiment(cache_directory = "/vast/scratch/users/shen.m/cellNexus", repository = NULL,
+                             assay = c("counts", "cpm", "rank"))
 
 # Check the number of cells per dataset
 x |> dplyr::count(dataset_id)
