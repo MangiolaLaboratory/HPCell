@@ -688,14 +688,14 @@ alive_identification <- function(input_read_RNA_assay,
   if (feature_nomenclature == "symbol") {
     location <- mapIds(
       EnsDb.Hsapiens.v86,
-      keys=rownames(input_read_RNA_assay),
-      column="SEQNAME",
-      keytype="SYMBOL"
+      keys = rownames(input_read_RNA_assay),
+      column = "SEQNAME",
+      keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID"
     )
   }
   
   
-  which_mito = rownames(input_read_RNA_assay) |> str_which("^MT")
+  which_mito = which(location == "MT")
   
   # mitochondrion =
   #   input_read_RNA_assay |>
