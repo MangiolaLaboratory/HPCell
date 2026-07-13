@@ -40,6 +40,12 @@ jobs:
           cont: ~
           rspm: ~
     steps:
+    - name: Force source install of celldex on macOS (binary not yet available for R 4.6/Bioc 3.23)
+      if: runner.os == 'macOS'
+      run: |
+        options(repos = BiocManager::repositories())
+        install.packages("celldex", type = "source")
+      shell: Rscript {0}
     - uses: neurogenomics/rworkflows@master
       with:
         run_bioccheck: ${{ false }}
