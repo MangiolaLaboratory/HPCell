@@ -1,7 +1,8 @@
 library(targets)
 library(tidyverse)
-store_file_cellNexus = "/vast/scratch/users/shen.m/targets_prepare_database_split_datasets_chunked_1_5_1_pseudobulk" # MODIFY HERE: targets store directory for this pipeline
-my_store =  "/vast/scratch/users/shen.m/cellNexus/2024-07-01/process_updated_samples_transform_hpcell_target_store_v1" # MODIFY HERE: HPCell targets store to read pseudobulk SCEs from (used throughout)
+library(cellNexus)
+store_file_cellNexus = "/vast/scratch/users/shen.m/targets_prepare_database_split_datasets_chunked_1_4_1_pseudobulk" # MODIFY HERE: targets store directory for this pipeline
+my_store =  "/vast/scratch/users/shen.m/cellNexus/2024-07-01/process_samples_hpcell_target_store" # MODIFY HERE: HPCell targets store to read pseudobulk SCEs from (used throughout)
 
 tar_script({
   library(dplyr)
@@ -30,13 +31,14 @@ tar_script({
   
   # Small → large, with fallbacks to the next size up
   elastic_160 <- new_elastic("elastic_160", 160, 60 * 24, workers = 8,  crashes_max = 2)
-  elastic_120  <- new_elastic("elastic_120",  120,  60 * 4,  workers = 16, crashes_max = 1, cpus_per_task = 1, backup = elastic_160)
-  elastic_80  <- new_elastic("elastic_80",   80,  60 * 4,  workers = 24, crashes_max = 1, cpus_per_task = 1, backup = elastic_120)
-  elastic_40  <- new_elastic("elastic_40",   40,  60 * 4,  workers = 32, crashes_max = 1, cpus_per_task = 1, backup = elastic_80)
-  elastic_20  <- new_elastic("elastic_20",   20,  60 * 4,  workers = 48, crashes_max = 1, cpus_per_task = 1, backup = elastic_40)
-  elastic_10   <- new_elastic("elastic_10",   10, 60 * 4,  workers = 150, crashes_max = 2, cpus_per_task = 1, backup = elastic_20)
+  elastic_120  <- new_elastic("elastic_120",  120,  60 * 4,  workers = 16, crashes_max = 1, cpus_per_task = 8, backup = elastic_160)
+  elastic_80  <- new_elastic("elastic_80",   80,  60 * 4,  workers = 24, crashes_max = 1, cpus_per_task = 8, backup = elastic_120)
+  elastic_40  <- new_elastic("elastic_40",   40,  60 * 4,  workers = 32, crashes_max = 1, cpus_per_task = 8, backup = elastic_80)
+  elastic_20  <- new_elastic("elastic_20",   20,  60 * 4,  workers = 48, crashes_max = 1, cpus_per_task = 8, backup = elastic_40)
+  elastic_10   <- new_elastic("elastic_10",   10, 60 * 4,  workers = 150, crashes_max = 6, cpus_per_task = 8, backup = elastic_20)
   
-  elastic_5_minimal   <- new_elastic("elastic_5_minimal",     5, 60 * 4,  workers = 300, crashes_max = 2, cpus_per_task = 1, backup = elastic_10)
+  elastic_5_minimal   <- new_elastic("elastic_5_minimal",     5, 60 * 4,  workers = 300, crashes_max = 6, cpus_per_task = 2, backup = elastic_10)
+  
   
   # Group for targets (small → large)
   controllers <- crew_controller_group(
@@ -219,11 +221,11 @@ tar_script({
   list(
     
     # The input DO NOT DELETE
-    tar_target(my_store, "/vast/scratch/users/shen.m/cellNexus/2024-07-01/process_updated_samples_transform_hpcell_target_store_v1", deployment = "main"), # MODIFY HERE: HPCell targets store (must match my_store above)
-    tar_target(cache_directory, "/vast/scratch/users/shen.m/cellNexus/cellxgene_2024/0.4.0/pseudobulk", deployment = "main"), # MODIFY HERE: output cache directory for saved pseudobulk anndata files
+    tar_target(my_store, "/vast/scratch/users/shen.m/cellNexus/2024-07-01/process_samples_hpcell_target_store", deployment = "main"), # MODIFY HERE: HPCell targets store (must match my_store above)
+    tar_target(cache_directory, "/vast/scratch/users/shen.m/cellNexus/cellxgene_2024/0.2.1/pseudobulk", deployment = "main"), # MODIFY HERE: output cache directory for saved pseudobulk anndata files
     tar_target(
       cell_metadata,
-      "/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/cell_metadata_cell_type_consensus_v1_6_1_mengyuan.parquet", # MODIFY HERE: cell metadata parquet (output of step6/step7)
+      "/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/cell_metadata_cell_type_consensus_v1_5_1_mengyuan.parquet", # MODIFY HERE: cell metadata parquet (output of step6/step7)
       packages = c( "arrow","dplyr","duckdb")
       
     ),
@@ -283,7 +285,7 @@ tar_script({
       pattern = map(dataset_id_sce),
       packages = c("tidySingleCellExperiment", "SingleCellExperiment", "tidyverse", "glue", "HPCell", "digest", "scater", "arrow", "dplyr", "duckdb", "BiocParallel", "parallelly"),
       resources = tar_resources(
-        crew = tar_resources_crew(controller = "elastic_5_minimal")
+        crew = tar_resources_crew(controller = "elastic_20")
       )
     )
   )

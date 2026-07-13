@@ -9,10 +9,11 @@
 Massively-parallel R native pipeline for single-cell analysis.
 }
 \author{
-\strong{Maintainer}: Stefano Mangiola \email{mangiolastefano@gmail.com}
+\strong{Maintainer}: Mengyuan Shen \email{shen.m@wehi.edu.au}
 
 Authors:
 \itemize{
+  \item Stefano Mangiola \email{mangiolastefano@gmail.com}
   \item Jiayi Si \email{si.j@wehi.edu.au}
 }
 

@@ -1,5 +1,5 @@
 library(targets)
-store = "/vast/scratch/users/shen.m/cellnexus_dataset_cell_map_Jul_2024_v1_2_0_target_store"
+store = "/vast/scratch/users/shen.m/cellnexus_dataset_cell_map_Nov_2025_v1_0_0_target_store"
 tar_script({
   library(dplyr)
   library(magrittr)
@@ -74,7 +74,7 @@ tar_script({
   }
   
   list(
-    tar_target(cell_metadata , "/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/cell_metadata_cell_type_consensus_v1_6_0_mengyuan.parquet",
+    tar_target(cell_metadata , "/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/cell_metadata_cell_type_consensus_v1_0_0_mengyuan.parquet",
                deployment = "main"),
     tar_target(
       unique_file_ids,
@@ -112,8 +112,8 @@ job::job({
 })
 
 file_id_cell_id_dict = tar_read(file_id_cell_id_dict, store = store)
-file_id_cell_id_dict |> arrow::write_parquet("/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/file_id_cell_id_dict_v1_2_0_Jul_2024.parquet",
-                                     compression = "zstd")
+file_id_cell_id_dict |> arrow::write_parquet("/vast/projects/cellxgene_curated/metadata_cellxgenedp_Jan_2026/file_id_cell_id_dict_v1_0_0.parquet",
+                                             compression = "zstd")
 rm(file_id_cell_id_dict)
 gc()
 

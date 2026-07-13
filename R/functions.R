@@ -48,7 +48,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
   
   # Get counts
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay, layer = "counts")
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     counts <- assay(input_read_RNA_assay, assay)
   }
@@ -269,7 +269,7 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
   
   # Get counts
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay, layer = "counts")
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     counts <- assay(input_read_RNA_assay, assay)
   }
@@ -312,9 +312,6 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
 #'
 #' @return A tibble with cell-type annotation data.
 #'
-#' @importFrom celldex BlueprintEncodeData
-#' @importFrom celldex MonacoImmuneData
-#' 
 #' @importFrom Seurat CreateAssayObject
 #' @importFrom Seurat SCTransform
 #' @importFrom Seurat CreateSeuratObject
@@ -390,6 +387,12 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     colnames(input_read_RNA_assay)[2]= "dummy___"
   }
   
+  if (!requireNamespace("celldex", quietly = TRUE))
+    stop(
+      "Package 'celldex' is required for SingleR-based cell-type annotation. ",
+      "Install it with: BiocManager::install('celldex')"
+    )
+
   #snapshotDate(): 2025-10-29
   blueprint <- celldex::BlueprintEncodeData(
     ensembl = feature_nomenclature == "ensembl"
@@ -479,7 +482,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   } 
   
   if(nrow(data_annotated) <= 30 | is.null(reference_azimuth)){
-    
+  
     # If too little immune cells
     return(data_annotated)
     #saveRDS(output_path)
@@ -518,8 +521,32 @@ annotation_label_transfer <- function(input_read_RNA_assay,
         if(ncol(input_read_RNA_assay)<200) k.weight = 25
         else k.weight = 50
         
-        input_read_RNA_assay |> RenameAssays(assay.name = assay, new.assay.name = "RNA") |> 
-          Azimuth::RunAzimuth(reference = reference_azimuth, assay = "RNA", umap.name = "refUMAP") |> 
+        # input_read_RNA_assay |> RenameAssays(assay.name = assay, new.assay.name = "RNA") |> 
+        #   Azimuth::RunAzimuth(reference = reference_azimuth, assay = "RNA", umap.name = "refUMAP")
+        {
+          tmp <- input_read_RNA_assay |> RenameAssays(assay.name = assay, new.assay.name = "RNA")
+          
+          # Below is solved in Azimuth 0.5.1: https://github.com/satijalab/azimuth/issues/294
+          # # Azimuth 0.5.0 calls GetAssayData(slot = ...) in ConvertGeneNames(),
+          # # which is defunct in SeuratObject >= 5.0.0. The binding is in
+          # # `imports:Azimuth` (parent.env of Azimuth's namespace), confirmed by
+          # # inspection. Patch it there so all internal Azimuth calls are
+          # # intercepted, then restore on exit.
+          # .az_imp <- parent.env(asNamespace("Azimuth"))
+          # .orig_gad <- get("GetAssayData", envir = .az_imp, inherits = FALSE)
+          # .shim_gad <- local({
+          #   orig <- .orig_gad
+          #   function(object, slot = NULL, layer = NULL, ...) {
+          #     if (!is.null(slot) && is.null(layer)) layer <- slot
+          #     orig(object, layer = layer, ...)
+          #   }
+          # })
+          # try(unlockBinding("GetAssayData", .az_imp), silent = TRUE)
+          # assign("GetAssayData", .shim_gad, envir = .az_imp)
+          # on.exit(assign("GetAssayData", .orig_gad, envir = .az_imp), add = TRUE)
+          
+          Azimuth::RunAzimuth(tmp, reference = reference_azimuth, assay = "RNA", umap.name = "refUMAP")
+        } %>% 
           as_tibble() |>
           dplyr::select(.cell, any_of(
             c(
@@ -634,7 +661,7 @@ alive_identification <- function(input_read_RNA_assay,
   
   
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay = assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay = assay, layer = "counts")
     if (!any(str_which(colnames(input_read_RNA_assay[[]]), nFeature_name)) ||
         !any(str_which(colnames(input_read_RNA_assay[[]]), nCount_name))) {
       input_read_RNA_assay[[nFeature_name]] <-
@@ -661,21 +688,18 @@ alive_identification <- function(input_read_RNA_assay,
   
   # Returns a named vector of IDs
   # Matches the gene id's row by row and inserts NA when it can't find gene names
-  if (feature_nomenclature == "symbol") {
-    location <- mapIds(
+  location <- mapIds(
       EnsDb.Hsapiens.v86,
-      keys=rownames(input_read_RNA_assay),
-      column="SEQNAME",
-      keytype="SYMBOL"
+      keys = rownames(input_read_RNA_assay),
+      column = "SEQNAME",
+      keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID"
     )
-  }
   
-  
-  which_mito = rownames(input_read_RNA_assay) |> str_which("^MT")
+  which_mito = which(location == "MT")
   
   # mitochondrion =
   #   input_read_RNA_assay |>
-  #   GetAssayData( slot = "counts", assay=assay) |>
+  #   GetAssayData( layer = "counts", assay=assay) |>
   # 
   #   # Join mitochondrion statistics
   #   # Compute per-cell quality control metrics for a count matrix or a SingleCellExperiment
@@ -1105,20 +1129,25 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   min_cells <- if (bigm_lgl) 5L else 0L
   new_min_cells = calculate_num_genes_express_in_cells(m, min_cells) # update min_cells if needed
     
-  input_read_RNA_assay <- 
+  input_read_RNA_assay <- tryCatch(
     input_read_RNA_assay |>
-          SCTransform(
-            assay = assay,
-            return.only.var.genes = FALSE,
-            residual.features = NULL,
-            vars.to.regress = factors_to_regress,
-            vst.flavor = "v2",
-            scale_factor = 2186,
-            conserve.memory = TRUE,
-            min_cells = new_min_cells
-          )
-  # |> 
-  #   GetAssayData(assay="SCT")
+      SCTransform(
+        assay = assay,
+        return.only.var.genes = FALSE,
+        residual.features = NULL,
+        vars.to.regress = factors_to_regress,
+        vst.flavor = "v2",
+        scale_factor = 2186,
+        conserve.memory = TRUE,
+        min_cells = new_min_cells
+      ),
+    error = function(e) {
+      warning("HPCell says: post transformed distribution of the sample introduced few overdispersion genes, return NULL because these are very few edge cases.")
+      NULL
+    }
+  )
+  
+  if (is.null(input_read_RNA_assay)) return(NULL)
   
   sct_mat <- input_read_RNA_assay |>  GetAssayData(assay="SCT")
 

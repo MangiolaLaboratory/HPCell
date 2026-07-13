@@ -152,7 +152,7 @@ job::job({
 tar_meta( starts_with("sct_"), store = "~/scratch/test_sct_target_store" ) |> 
   dplyr::count(!is.na(error))
 
-tar_workspace(sct_matrix_03dd1be4995c69ac,store = "~/scratch/test_sct_target_store" )
+tar_workspace(sct_matrix_bc459084b8534e37,store = "~/scratch/test_sct_target_store" )
 sce_transformed_filtered <- sce_transformed |> left_join(empty_tbl, by = ".cell") |>
   dplyr::filter(!empty_droplet)  |>
   left_join(

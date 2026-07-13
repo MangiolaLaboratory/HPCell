@@ -7,16 +7,28 @@ library(Matrix)
 library(purrr)
 library(glue)
 
-x = sample_names |> head(2)
-f = functions |> head(2)
-tr = feature_thresh |> head(2)
+
+samples_to_plot <- sample_target_tbl |> left_join(sample_tbl, by = c("sample_id" = "sample_2")) |> 
+  group_by(dataset_id) |> 
+  slice_head(n=1) |>
+  ungroup()
+
+samples_to_plot 
+samples_to_plot|>saveRDS("~/temp.rds")
+samples_to_plot<-readRDS("~/temp.rds")
+
+x = samples_to_plot |> pull(file_name) |> 
+  set_names(samples_to_plot |> pull(sample_id))
+f = rep("expm1",nrow(samples_to_plot))
+tr = samples_to_plot|>pull(feature_thresh)
+ub = rep(10,nrow(samples_to_plot))
 job::job({
   
   library(HPCell)
   
   x |>
     initialise_hpc(
-      store = "~/scratch/test_sct_target_store",
+      store = "/vast/scratch/users/shen.m//test_sct_target_store",
       gene_nomenclature = "ensembl",
       data_container_type = "anndata",
       # tier = tiers, # WE DON"T NEED AS WE HAVE ELASTIC RESOURCES NOW
@@ -29,12 +41,12 @@ job::job({
           seconds_idle = 30,
           crashes_error = 10,
           options_cluster = crew.cluster::crew_options_slurm(
-            #memory_gigabytes_required = c(20, 35, 50, 75, 100, 150), 
+            #memory_gigabytes_required = c(20, 35, 50, 75, 100, 150),
             #memory_gigabytes_required = c(90, 100, 120, 150, 200,240), 
             #memory_gigabytes_required = c(60, 80, 100, 150, 200), 
-            memory_gigabytes_required = c(45, 60, 75, 100, 120, 150), 
-            cpus_per_task = c(2, 2, 5, 10, 20), 
-            time_minutes = c(60*24, 60*24, 60*24, 60*24, 60*24,60*24),
+             memory_gigabytes_required = c(45, 60, 75, 100, 120, 150), 
+            cpus_per_task = 1,
+            time_minutes = c(60*4, 60*4, 60*4, 60*4, 60*4,60*4),
             verbose = T
           )
         )
@@ -42,13 +54,13 @@ job::job({
       ),
       verbosity = "summary",
       update = "never", 
-      #update = "thorough", 
+     # update = "thorough", 
       error = "continue",
       garbage_collection = 100, 
       workspace_on_error = TRUE
       
     ) |> 
-    transform_assay(fx = f, target_output = "sce_transformed") |>
+    transform_assay(fx = f, target_output = "sce_transformed", scale_max = ub) |>
     
     # # Remove empty outliers based on RNA count threshold per cell
     remove_empty_threshold(target_input = "sce_transformed", RNA_feature_threshold = tr) |>

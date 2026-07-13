@@ -1,39 +1,39 @@
 #' Initialise an HPCell Targets Pipeline
 #'
 #' @description
-#' Sets up and writes a `targets` pipeline script for HPCell. Saves input data
-#' and configuration to disk, then returns an `HPCell` object that downstream
-#' grammar functions (e.g. `remove_empty_DropletUtils`, `evaluate_hpc`) can
-#' extend before the pipeline is executed with `evaluate_hpc()`.
+#' This function sets up and executes a `targets` pipeline for HPCell. It saves input data and configurations,
+#' writes a pipeline script, and runs the pipeline using the 'targets' package.
 #'
-#' @param input_hpc Named character vector of paths to input data files, one
-#'   element per sample. If names are not set, integer indices are used.
-#' @param store Directory path where pipeline files and targets store are written.
+#' @param input_hpc Character vector of input data path for the pipeline.
+#' @param store Directory path for storing the pipeline files.
 #' @param computing_resources A `crew` controller object (or list of controllers)
 #'   specifying the computing back-end. Defaults to a local single-worker controller.
+#' @param default_controller Optional character name of the default `crew`
+#'   controller to use for targets that do not specify their own controller.
+#'   Passed to `targets::tar_resources(crew = tar_resources_crew(controller = ...))`.
+#'   `NULL` uses targets defaults.
 #' @param tier Integer vector (same length as `input_hpc`) assigning each sample
 #'   to a processing tier for tiered execution. Default: all samples in tier 1.
-#' @param debug_step Character name of a single target to debug; passed to
-#'   `targets::tar_option_set(debug = ...)`. `NULL` disables debugging.
-#' @param RNA_assay_name Name of the RNA assay in the input Seurat/SCE object.
-#' @param gene_nomenclature Character scalar indicating gene identifier type in
-#'   the input data. One of `"symbol"` or `"ensembl"`.
-#' @param data_container_type Character scalar specifying the input data format.
-#'   Accepted values: `"sce_rds"` (SingleCellExperiment RDS),
-#'   `"seurat_rds"` (Seurat RDS), `"sce_hdf5"` (HDF5-backed SCE),
-#'   `"seurat_h5"` (HDF5-backed Seurat).
+#' @param debug_step Optional step for debugging.
+#' @param RNA_assay_name Name of the RNA assay.
+#' @param gene_nomenclature Character vector indicating gene nomenclature in input_data
+#' @param data_container_type A character vector of length one specifies the input data type.
+#' The accepted input data type are: 
+#' sce_rds for `SingleCellExperiment` RDS,
+#' seurat_rds for `Seurat` RDS,
+#' sce_hdf5 for `SingleCellExperiment` HDF5-based object
+#' seurat_h5 for `Seurat` HDF5-based object
 #' @param verbosity Reporter string passed to `targets::tar_make()`. Defaults to
 #'   the current targets configuration value.
 #' @param error Error-handling strategy passed to `targets::tar_option_set()`.
 #'   `NULL` uses the targets default.
 #' @param update Cue mode string for `targets::tar_cue()`, controlling when
 #'   targets are re-run. Default: `"thorough"`.
-#' @param garbage_collection Numeric interval (in targets) at which R garbage
-#'   collection is triggered during the pipeline run. Default: `0` (disabled).
+#' @param garbage_collection Numeric interval at which R garbage collection is
+#'   triggered during the pipeline run. Default: `0` (disabled).
 #' @param workspace_on_error Logical; if `TRUE`, saves a workspace snapshot when
 #'   a target errors. Default: `FALSE`.
-#' @return An `HPCell` S3 object containing the initialisation arguments, ready
-#'   to be extended with pipeline step functions.
+#' @return The output of the `targets` pipeline, typically a pre-processed data set.
 #'
 #' @importFrom glue glue
 #' @importFrom targets tar_script
@@ -51,6 +51,7 @@
 initialise_hpc <- function(input_hpc,
                            store =  targets::tar_config_get("store"),
                            computing_resources = crew_controller_local(workers = 1),
+                           default_controller = NULL,
                            tier = rep(1, length(input_hpc)),
                            debug_step = NULL,
                            RNA_assay_name = "RNA",
@@ -112,13 +113,14 @@ initialise_hpc <- function(input_hpc,
       controller = crew_controller_group ( readRDS("temp_computing_resources.rds") ), 
       packages = c("HPCell"),
       trust_object_timestamps = TRUE, 
-      workspace_on_error = w
+      workspace_on_error = w,
+      resources = if (!is.null(dc)) tar_resources(crew = tar_resources_crew(controller = dc)) else tar_resources()
     )
      
     target_list = list(  )
     
     } |> 
-    substitute(env = list(d = debug_step, e = error, u = update, g = garbage_collection, w = workspace_on_error)) |> 
+    substitute(env = list(d = debug_step, e = error, u = update, g = garbage_collection, w = workspace_on_error, dc = default_controller)) |> 
     tar_script_append2(script = glue("{store}.R"), append = FALSE)
 
   
@@ -621,16 +623,16 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input 
       x = group_by,
       external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
       container_type = "data_container_type" |> is_target() 
-    ) |>
-    
-    # merge
-    hpc_merge(
-      target_output = target_output,
-      user_function = pseudobulk_merge |> quote(),
-      external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
-      pseudobulk_list = pseudobulk_sample |> is_target(),
-      packages = c("tidySummarizedExperiment", "HPCell")
     )
+    
+    # merge: merge step is performed scalably in downstream 
+    # hpc_merge(
+    #   target_output = target_output,
+    #   user_function = pseudobulk_merge |> quote(),
+    #   external_path = glue("{input_hpc$initialisation$store}/external") |> as.character(),
+    #   pseudobulk_list = pseudobulk_sample |> is_target(),
+    #   packages = c("tidySummarizedExperiment", "HPCell")
+    # )
   
   
 }

@@ -51,7 +51,7 @@ job::job({
   # Single DuckDB connection: do the heavy transforms in SQL (avoid read/write/read on 50M+ rows)
   con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
   
-  raw_path <- "/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/cell_metadata_cell_type_consensus_v1_5_1_filtered_missing_cells_mengyuan.parquet"  # MODIFY HERE: Metadata input parquet path
+  raw_path <- "/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/cell_metadata_cell_type_consensus_v1_6_1_filtered_missing_cells_mengyuan.parquet"  # MODIFY HERE: Metadata input parquet path
   
   DBI::dbExecute(con, glue::glue("
   CREATE VIEW cell_metadata_raw AS
@@ -241,7 +241,7 @@ job::job({
       lowConf_ethnicity_df.low_confidence_ethnicity,
       sample_celltype_count.\".aggregated_cells\",
       COALESCE(imputed_ethnicity_df.imputed_ethnicity, cell_metadata.self_reported_ethnicity) AS imputed_ethnicity, -- Use imputed_ethnicity if present
-      'cellxgene_2024/0.2.1' AS atlas_id
+      'cellxgene_2024/0.4.0' AS atlas_id
       
     FROM cell_metadata
     
@@ -257,7 +257,7 @@ job::job({
     
     
 
-  ) TO '/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/metadata.2.2.1.parquet'
+  ) TO '/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/metadata.2.3.0.parquet'
   (FORMAT PARQUET, COMPRESSION 'zstd');
   "
   
@@ -273,7 +273,7 @@ job::job({
 })
 
 x = tbl(dbConnect(duckdb::duckdb(), dbdir = ":memory:"),  
-        sql("SELECT * FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/metadata.2.2.1.parquet')") ) # MODIFY HERE: input metadata parquet path
+        sql("SELECT * FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/metadata.2.3.0.parquet')") ) # MODIFY HERE: input metadata parquet path
 
 # Split cell_metadata to cellnexus_metadata, original census_metadata, and metacell_metadata (host Rshiny on smaller file)
 # ---- Split: read metadata.x.y.z.parquet once, write smaller derivative Parquets ----
@@ -283,7 +283,7 @@ job::job({
   con <- DBI::dbConnect(duckdb::duckdb(), dbdir = ":memory:")
   on.exit(DBI::dbDisconnect(con, shutdown = TRUE), add = TRUE)
   
-  input_metadata <- "/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/metadata.2.2.1.parquet" # MODIFY HERE: input metadata parquet path
+  input_metadata <- "/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/metadata.2.3.0.parquet" # MODIFY HERE: input metadata parquet path
   out_dir <- "/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan"
   
   DBI::dbExecute(
@@ -330,7 +330,7 @@ job::job({
         SELECT {DBI::SQL(select_cellnexus)}
         FROM metadata
       )
-      TO {DBI::dbQuoteString(con, file.path(out_dir, 'cellnexus_metadata.2.2.1.parquet'))}
+      TO {DBI::dbQuoteString(con, file.path(out_dir, 'cellnexus_metadata.2.3.0.parquet'))}
       (FORMAT PARQUET, COMPRESSION 'brotli');
       "
     )
@@ -363,7 +363,7 @@ job::job({
       SELECT {DBI::SQL(select_census)}
       FROM metadata
     )
-    TO {DBI::dbQuoteString(con, file.path(out_dir, 'census_cell_metadata.2.2.1.parquet'))}
+    TO {DBI::dbQuoteString(con, file.path(out_dir, 'census_cell_metadata.2.3.0.parquet'))}
     (FORMAT PARQUET, COMPRESSION 'brotli');
     "
     )
@@ -383,7 +383,7 @@ job::job({
   #     SELECT {DBI::SQL(select_metacell)}
   #     FROM metadata
   #   )
-  #   TO {DBI::dbQuoteString(con, file.path(out_dir, 'metacell_metadata.2.2.1.parquet'))}
+  #   TO {DBI::dbQuoteString(con, file.path(out_dir, 'metacell_metadata.2.3.0.parquet'))}
   #   (FORMAT PARQUET, COMPRESSION 'brotli');
   #   "
   #   )

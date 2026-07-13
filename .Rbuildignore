@@ -15,3 +15,5 @@ pipeline_stores
 ^dev$
 _targets
 target_framework
+^\.positai$
+^\.claude$

@@ -22,7 +22,7 @@ library(tidySingleCellExperiment)
 set.seed(12345)
 Date <- "2024-07-01"
 # Identify raw counts range from new census data
-summary_store = glue::glue("/vast/scratch/users/shen.m/{Date}_census_sample_raw_counts_summary_target_store")
+summary_store = "/vast/scratch/users/shen.m/calculate_census_raw_counts_target_store"
 tar_script({
   library(dplyr)
   library(SummarizedExperiment)
@@ -31,8 +31,7 @@ tar_script({
   library(crew.cluster)
   library(duckdb)
   
-  
-  # Helper (optional) to avoid repetition
+  # Helper to avoid repetition
   new_elastic <- function(name, mem_gb, time_min, workers, crashes_max, cpus_per_task = 2, backup = NULL) {
     crew_controller_slurm(
       name = name,
@@ -48,118 +47,142 @@ tar_script({
     )
   }
   
-  # Small → large, with fallbacks to the next size up
-  elastic_300 <- new_elastic("elastic_300", 300, 60 * 24, workers = 8,  crashes_max = 2)
-  elastic_160 <- new_elastic("elastic_160", 160, 60 * 24, workers = 8,  crashes_max = 2, backup = elastic_300)
-  elastic_120  <- new_elastic("elastic_120",  120,  60 * 4,  workers = 16, crashes_max = 1, cpus_per_task = 8, backup = elastic_160)
-  elastic_80  <- new_elastic("elastic_80",   80,  60 * 4,  workers = 24, crashes_max = 1, cpus_per_task = 8, backup = elastic_120)
-  elastic_40  <- new_elastic("elastic_40",   40,  60 * 4,  workers = 32, crashes_max = 1, cpus_per_task = 8, backup = elastic_80)
-  elastic_20  <- new_elastic("elastic_20",   20,  60 * 4,  workers = 48, crashes_max = 1, cpus_per_task = 8, backup = elastic_40)
-  elastic_10   <- new_elastic("elastic_10",   10, 60 * 4,  workers = 150, crashes_max = 6, cpus_per_task = 8, backup = elastic_20)
+  elastic_300      <- new_elastic("elastic_300",      300, 60 * 24, workers = 8,   crashes_max = 2)
+  elastic_160      <- new_elastic("elastic_160",      160, 60 * 24, workers = 8,   crashes_max = 2, backup = elastic_300)
+  elastic_120      <- new_elastic("elastic_120",      120, 60 * 4,  workers = 16,  crashes_max = 1, cpus_per_task = 1, backup = elastic_160)
+  elastic_80       <- new_elastic("elastic_80",        80, 60 * 4,  workers = 24,  crashes_max = 1, cpus_per_task = 1, backup = elastic_120)
+  elastic_40       <- new_elastic("elastic_40",        40, 60 * 4,  workers = 32,  crashes_max = 1, cpus_per_task = 1, backup = elastic_80)
+  elastic_20       <- new_elastic("elastic_20",        20, 60 * 4,  workers = 48,  crashes_max = 1, cpus_per_task = 1, backup = elastic_40)
+  elastic_10       <- new_elastic("elastic_10",        10, 60 * 4,  workers = 150, crashes_max = 2, cpus_per_task = 1, backup = elastic_20)
+  elastic_5_minimal <- new_elastic("elastic_5_minimal", 5, 60 * 4,  workers = 300, crashes_max = 2, cpus_per_task = 1, backup = elastic_10)
   
-  elastic_5_minimal   <- new_elastic("elastic_5_minimal",     5, 60 * 4,  workers = 300, crashes_max = 6, cpus_per_task = 8, backup = elastic_10)
-  
-  
-  # Group for targets (small → large)
   controllers <- crew_controller_group(
     elastic_10, elastic_20, elastic_40, elastic_80, elastic_120, elastic_160, elastic_300, elastic_5_minimal
   )
+  
   tar_option_set(
-    memory = "transient", 
-    garbage_collection = 100, 
-    storage = "worker", 
-    retrieval = "worker", 
-    error = "continue", 
-    cue = tar_cue(mode = "never"),
-    format = "qs",
+    memory             = "transient",
+    garbage_collection = 100,
+    storage            = "worker",
+    retrieval          = "worker",
+    error              = "continue",
+    cue                = tar_cue(mode = "thorough"),
+    format             = "qs",
     workspace_on_error = TRUE,
-    controller = controllers, 
+    controller         = controllers,
     trust_object_timestamps = TRUE,
     resources = tar_resources(
       crew = tar_resources_crew(controller = "elastic_5_minimal")
-    ) 
+    )
   )
   
-  pos_min_med_ratio = function(x){
-    mi = x[x > 0] |> min()
-    me = median(x[x > 0])
-    mi / me
+  # ── helpers ────────────────────────────────────────────────────────────────
+  
+  pos_min_med_ratio <- function(x) {
+    pos <- x[x > 0]
+    min(pos) / median(pos)
   }
   
-  get_sample_summary_stats <- function(files) {
-    sce = readH5AD(files, reader = "R", use_hdf5 = T)
-    
+  pos_min_mean_ratio <- function(x) {
+    pos <- x[x > 0]
+    min(pos) / mean(pos)
+  }
+  
+  get_positive_mode <- function(x) {
+    sort(table(x[x > 0]), decreasing = TRUE)[1] |> names() |> as.numeric()
+  }
+  
+  # Stage 1 – read SCE and return a minimal list with only what downstream needs.
+  # Keeping the raw matrix avoids re-reading the file in the metrics stage, while
+  # returning a plain list (not a full SCE) keeps the serialised object small.
+  read_sce_counts <- function(file) {
+    sce        <- readH5AD(file, reader = "R", use_hdf5 = TRUE)
     if (ncol(sce) == 0) return(NULL)
     
-    assay_name = sce@assays |> names() |> magrittr::extract(1)
-    counts_mat = sce |> assay(assay_name) |> as.matrix()
-    counts_vec = as.numeric(counts_mat)
-    sample_id = basename(files)
+    assay_name <- names(sce@assays)[1]
+    counts_mat <- as.matrix(assay(sce, assay_name))
     
-    # Perform checks
-    min_val = min(counts_vec, na.rm = TRUE)
-    max_val = max(counts_vec, na.rm = TRUE)
-    median_val = median(counts_vec, na.rm = TRUE)
-    
-    gap = pos_min_med_ratio(counts_vec)
-    
-    has_negative = min_val < 0
-    max_gt_10 = max_val > 10
-    
-    # Check if all integers
-    tol = 1e-4
-    all_integer = all(counts_vec == floor(counts_vec), na.rm = TRUE)
-       
-    has_floating = !all_integer && all(abs(counts_vec - round(counts_vec)) < tol, na.rm = TRUE)
-    
-    tbl = tibble::tibble(
-      sample_id = sample_id,
-      min_val = min_val,
-      median_val = median_val,
-      max_val = max_val,
-      counts_gap = gap,
-      has_negative = has_negative,
-      max_gt_10 = max_gt_10,
-      all_integer = all_integer,
-      has_floating = has_floating,
-      n_cells = ncol(counts_mat),
-      n_genes = nrow(counts_mat)
+    list(
+      sample_id  = basename(file),
+      counts_mat = counts_mat,
+      n_cells    = ncol(counts_mat),
+      n_genes    = nrow(counts_mat)
     )
-    
-    tbl = tbl |> left_join(
-      tbl(
-        dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
-        sql("SELECT * FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/census_samples_to_download_groups_MODIFIED.parquet')")
-      ) |> select(-observation_joinid, list_length) |> 
-        distinct() |> mutate(sample_id  = paste0(sample_2, ".h5ad")) |> collect(),
-      by = "sample_id",
-      copy = T
-    )
-    
-    tbl
   }
   
+  # Stage 2 – pure computation on the pre-loaded matrix; no I/O.
+  calc_counts_metrics <- function(sce_data) {
+    if (is.null(sce_data)) return(NULL)
+    
+    counts_vec <- as.numeric(sce_data$counts_mat)
+    tol        <- 1e-4
+    all_int    <- all(counts_vec == floor(counts_vec), na.rm = TRUE)
+    
+    tibble::tibble(
+      sample_id          = sce_data$sample_id,
+      min_val            = min(counts_vec,    na.rm = TRUE),
+      median_val         = median(counts_vec, na.rm = TRUE),
+      max_val            = max(counts_vec,    na.rm = TRUE),
+      counts_gap_min_med = pos_min_med_ratio(counts_vec),
+      counts_gap_min_mean= pos_min_mean_ratio(counts_vec),
+      positive_mode      = get_positive_mode(counts_vec),
+      has_negative       = min(counts_vec, na.rm = TRUE) < 0,
+      max_gt_10          = max(counts_vec, na.rm = TRUE) > 10,
+      all_integer        = all_int,
+      has_floating       = !all_int && all(abs(counts_vec - round(counts_vec)) < tol, na.rm = TRUE),
+      n_cells            = sce_data$n_cells,
+      n_genes            = sce_data$n_genes
+    ) |>
+      left_join(
+        tbl(
+          dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
+          sql("SELECT * FROM read_parquet('/vast/projects/cellxgene_curated/metadata_cellxgene_mengyuan/census_samples_to_download_groups_MODIFIED.parquet')")
+        ) |>
+          select(-observation_joinid, list_length) |>
+          distinct() |>
+          mutate(sample_id = paste0(sample_2, ".h5ad")) |>
+          collect(),
+        by   = "sample_id",
+        copy = TRUE
+      )
+  }
+  
+  # ── pipeline ───────────────────────────────────────────────────────────────
   
   list(
     tar_target(
       files,
-      list.files("/vast/scratch/users/shen.m/Census/split_h5ad_based_on_sample_id/2024-07-01", full.names = T, pattern = ".h5ad$"),
+      list.files(
+        "/vast/scratch/users/shen.m/Census/split_h5ad_based_on_sample_id/2024-07-01",
+        full.names = TRUE, pattern = "\\.h5ad$"
+      ),
       deployment = "main"
     ),
     
-    # Get raw counts matrix with sample_id
+    # Stage 1 – I/O-bound; needs memory for the full matrix
+    tar_target(
+      sce_counts,
+      read_sce_counts(files),
+      pattern   = map(files),
+      iteration = "list",
+      resources = tar_resources(
+        crew = tar_resources_crew(controller = "elastic_5_minimal")
+      )
+    ),
+    
+    # Stage 2 – CPU-bound, no disk I/O; can run on smaller workers
     tar_target(
       sample_summary_df,
-      get_sample_summary_stats(files),
-      pattern = map(files),
+      calc_counts_metrics(sce_counts),
+      pattern   = map(sce_counts),
       iteration = "list",
-       resources = tar_resources(
-        crew = tar_resources_crew(controller = "elastic_20")
+      resources = tar_resources(
+        crew = tar_resources_crew(controller = "elastic_10")
       )
     )
   )
-}, ask = FALSE,  script = glue("{summary_store}/_targets.R"))
-
+  
+}, ask = FALSE, script = glue("{summary_store}/_targets.R"))
 
 job::job({
   
@@ -177,18 +200,14 @@ job::job({
 ```{r}
 plot_raw_counts_hist_pdf <- function(
     samples_to_plot,
-    h5ad_dir,
     pdf_file,
     width = 8,
     height = 8,
     nrow = 3,
     ncol = 3,
     max_cells = 5e3,
-    transform = c("log1p", "none"),
-    hist_ylim = c(0, 1e5)
+    hist_ylim = c(0, 1e6)
 ) {
-  
-  transform <- match.arg(transform)
   
   pdf(pdf_file, width = width, height = height)
   on.exit(dev.off(), add = TRUE)
@@ -196,38 +215,35 @@ plot_raw_counts_hist_pdf <- function(
   par(mfrow = c(nrow, ncol), mar = c(3, 3, 2, 1))
   
   samples_to_plot |>
-    dplyr::pull(sample_id) |>
-    purrr::map(
-      ~ {
+    dplyr::transmute(
+      file_name,
+      counts_gap = as.character(counts_gap_min_mean)
+    ) |>
+    purrr::pmap(
+      \(file_name, counts_gap) {
+        
         sce <- zellkonverter::readH5AD(
-          file = file.path(h5ad_dir, .x),
+          file = file_name,
           reader = "R",
-          use_hdf5 = T
+          use_hdf5 = TRUE
         )
         
         if (ncol(sce) == 0) return(NULL)
         
         if (ncol(sce) > max_cells) {
-          sce <- dplyr::sample_n(sce, max_cells)
+          sce <- sce[, sample(ncol(sce), max_cells)]
         }
         
         assay_name <- names(SummarizedExperiment::assays(sce))[1]
         
-        dataset_id <- sce |>
-          dplyr::distinct(dataset_id) |>
-          dplyr::pull()
-        
         x <- SummarizedExperiment::assay(sce, assay_name) |>
           as.numeric()
         
-        if (transform == "log1p") {
-          x <- log1p(x)
-        }
-        
         hist(
           x,
-          main = dataset_id,
-          ylim = hist_ylim
+          main = counts_gap,
+          ylim = hist_ylim,
+          breaks = 100
         )
         
         invisible(NULL)
@@ -253,7 +269,7 @@ sample_summary_df = read_parquet("/vast/projects/cellxgene_curated/metadata_cell
 
 # Sample statstics summary
 ```{r}
-sample_summary_df |> dplyr::count(has_negative, max_gt_20, all_integer, has_floating, counts_gap>0.25)
+sample_summary_df |> dplyr::count(has_negative, max_gt_20, all_integer, has_floating, counts_gap_min_mean>0.25, positive_mode>1)
 ```
 
 # Plot sample in dataset

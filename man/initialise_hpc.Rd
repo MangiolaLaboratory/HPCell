@@ -8,6 +8,7 @@ initialise_hpc(
   input_hpc,
   store = targets::tar_config_get("store"),
   computing_resources = crew_controller_local(workers = 1),
+  default_controller = NULL,
   tier = rep(1, length(input_hpc)),
   debug_step = NULL,
   RNA_assay_name = "RNA",
@@ -21,29 +22,33 @@ initialise_hpc(
 )
 }
 \arguments{
-\item{input_hpc}{Named character vector of paths to input data files, one
-element per sample. If names are not set, integer indices are used.}
+\item{input_hpc}{Character vector of input data path for the pipeline.}
 
-\item{store}{Directory path where pipeline files and targets store are written.}
+\item{store}{Directory path for storing the pipeline files.}
 
 \item{computing_resources}{A \code{crew} controller object (or list of controllers)
 specifying the computing back-end. Defaults to a local single-worker controller.}
 
+\item{default_controller}{Optional character name of the default \code{crew}
+controller to use for targets that do not specify their own controller.
+Passed to \code{targets::tar_resources(crew = tar_resources_crew(controller = ...))}.
+\code{NULL} uses targets defaults.}
+
 \item{tier}{Integer vector (same length as \code{input_hpc}) assigning each sample
 to a processing tier for tiered execution. Default: all samples in tier 1.}
 
-\item{debug_step}{Character name of a single target to debug; passed to
-\code{targets::tar_option_set(debug = ...)}. \code{NULL} disables debugging.}
+\item{debug_step}{Optional step for debugging.}
 
-\item{RNA_assay_name}{Name of the RNA assay in the input Seurat/SCE object.}
+\item{RNA_assay_name}{Name of the RNA assay.}
 
-\item{gene_nomenclature}{Character scalar indicating gene identifier type in
-the input data. One of \code{"symbol"} or \code{"ensembl"}.}
+\item{gene_nomenclature}{Character vector indicating gene nomenclature in input_data}
 
-\item{data_container_type}{Character scalar specifying the input data format.
-Accepted values: \code{"sce_rds"} (SingleCellExperiment RDS),
-\code{"seurat_rds"} (Seurat RDS), \code{"sce_hdf5"} (HDF5-backed SCE),
-\code{"seurat_h5"} (HDF5-backed Seurat).}
+\item{data_container_type}{A character vector of length one specifies the input data type.
+The accepted input data type are:
+sce_rds for \code{SingleCellExperiment} RDS,
+seurat_rds for \code{Seurat} RDS,
+sce_hdf5 for \code{SingleCellExperiment} HDF5-based object
+seurat_h5 for \code{Seurat} HDF5-based object}
 
 \item{verbosity}{Reporter string passed to \code{targets::tar_make()}. Defaults to
 the current targets configuration value.}
@@ -54,19 +59,16 @@ the current targets configuration value.}
 \item{update}{Cue mode string for \code{targets::tar_cue()}, controlling when
 targets are re-run. Default: \code{"thorough"}.}
 
-\item{garbage_collection}{Numeric interval (in targets) at which R garbage
-collection is triggered during the pipeline run. Default: \code{0} (disabled).}
+\item{garbage_collection}{Numeric interval at which R garbage collection is
+triggered during the pipeline run. Default: \code{0} (disabled).}
 
 \item{workspace_on_error}{Logical; if \code{TRUE}, saves a workspace snapshot when
 a target errors. Default: \code{FALSE}.}
 }
 \value{
-An \code{HPCell} S3 object containing the initialisation arguments, ready
-to be extended with pipeline step functions.
+The output of the \code{targets} pipeline, typically a pre-processed data set.
 }
 \description{
-Sets up and writes a \code{targets} pipeline script for HPCell. Saves input data
-and configuration to disk, then returns an \code{HPCell} object that downstream
-grammar functions (e.g. \code{remove_empty_DropletUtils}, \code{evaluate_hpc}) can
-extend before the pipeline is executed with \code{evaluate_hpc()}.
+This function sets up and executes a \code{targets} pipeline for HPCell. It saves input data and configurations,
+writes a pipeline script, and runs the pipeline using the 'targets' package.
 }
