@@ -312,9 +312,6 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
 #'
 #' @return A tibble with cell-type annotation data.
 #'
-#' @importFrom celldex BlueprintEncodeData
-#' @importFrom celldex MonacoImmuneData
-#' 
 #' @importFrom Seurat CreateAssayObject
 #' @importFrom Seurat SCTransform
 #' @importFrom Seurat CreateSeuratObject
@@ -390,6 +387,12 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     colnames(input_read_RNA_assay)[2]= "dummy___"
   }
   
+  if (!requireNamespace("celldex", quietly = TRUE))
+    stop(
+      "Package 'celldex' is required for SingleR-based cell-type annotation. ",
+      "Install it with: BiocManager::install('celldex')"
+    )
+
   #snapshotDate(): 2025-10-29
   blueprint <- celldex::BlueprintEncodeData(
     ensembl = feature_nomenclature == "ensembl"
