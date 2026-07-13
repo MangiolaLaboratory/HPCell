@@ -48,7 +48,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
   
   # Get counts
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay, layer = "counts")
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     counts <- assay(input_read_RNA_assay, assay)
   }
@@ -269,7 +269,7 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
   
   # Get counts
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay, layer = "counts")
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     counts <- assay(input_read_RNA_assay, assay)
   }
@@ -634,7 +634,7 @@ alive_identification <- function(input_read_RNA_assay,
   
   
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay = assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay = assay, layer = "counts")
     if (!any(str_which(colnames(input_read_RNA_assay[[]]), nFeature_name)) ||
         !any(str_which(colnames(input_read_RNA_assay[[]]), nCount_name))) {
       input_read_RNA_assay[[nFeature_name]] <-
@@ -661,21 +661,19 @@ alive_identification <- function(input_read_RNA_assay,
   
   # Returns a named vector of IDs
   # Matches the gene id's row by row and inserts NA when it can't find gene names
-  if (feature_nomenclature == "symbol") {
-    location <- mapIds(
+  location <- mapIds(
       EnsDb.Hsapiens.v86,
-      keys=rownames(input_read_RNA_assay),
-      column="SEQNAME",
-      keytype="SYMBOL"
+      keys = rownames(input_read_RNA_assay),
+      column = "SEQNAME",
+      keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID"
     )
-  }
   
   
-  which_mito = rownames(input_read_RNA_assay) |> str_which("^MT")
+  which_mito = which(location == "MT")
   
   # mitochondrion =
   #   input_read_RNA_assay |>
-  #   GetAssayData( slot = "counts", assay=assay) |>
+  #   GetAssayData( layer = "counts", assay=assay) |>
   # 
   #   # Join mitochondrion statistics
   #   # Compute per-cell quality control metrics for a count matrix or a SingleCellExperiment
