@@ -518,6 +518,11 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     azimuth_annotation = 
       tryCatch({
         
+        # This is necessary because Azimuth relies on Seurat: https://github.com/satijalab/azimuth/issues/195
+        if (!"Seurat" %in% .packages()) {
+          library(Seurat)
+        }
+        
         if(ncol(input_read_RNA_assay)<200) k.weight = 25
         else k.weight = 50
         
