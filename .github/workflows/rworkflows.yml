@@ -40,6 +40,12 @@ jobs:
           cont: ~
           rspm: ~
     steps:
+    - name: Prefer source installs on macOS as fallback (Bioc 3.23 mac binary gap)
+      if: runner.os == 'macOS'
+      run: |
+        mkdir -p ~/.R
+        echo 'options(install.packages.check.source = "no", pkgType = "source")' >> ~/.Rprofile
+      shell: bash
     - uses: neurogenomics/rworkflows@master
       with:
         run_bioccheck: ${{ false }}
