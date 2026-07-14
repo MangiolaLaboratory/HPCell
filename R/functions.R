@@ -312,8 +312,6 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
 #'
 #' @return A tibble with cell-type annotation data.
 #'
-#' @importFrom celldex BlueprintEncodeData
-#' @importFrom celldex MonacoImmuneData
 #' 
 #' @importFrom Seurat CreateAssayObject
 #' @importFrom Seurat SCTransform
