@@ -666,12 +666,11 @@ alive_identification <- function(input_read_RNA_assay,
   # Returns a named vector of IDs
   # Matches the gene id's row by row and inserts NA when it can't find gene names
   location <- mapIds(
-      EnsDb.Hsapiens.v86,
-      keys = rownames(input_read_RNA_assay),
-      column = "SEQNAME",
-      keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID"
-    )
-  
+    EnsDb.Hsapiens.v86,
+    keys = rownames(input_read_RNA_assay),
+    column = "SEQNAME",
+    keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID"
+  )
   
   which_mito = which(location == "MT")
   
@@ -728,8 +727,21 @@ alive_identification <- function(input_read_RNA_assay,
     as_tibble(rownames = ".cell") %>%
     dplyr::select(-sum, -detected)
   
-  # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
-  percentage_output = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)
+  if (feature_nomenclature == "symbol") {
+    percentage_output = PercentageFeatureSet(input_read_RNA_assay, pattern = "^RPS|^RPL", assay = assay)
+  } else {
+    # Ensembl IDs: resolve ribo gene IDs from biomart reference
+    data(ensembl_genes_biomart)
+    ribosome_ensembl_ids <- ensembl_genes_biomart[
+      grep("^(RPL|RPS)", ensembl_genes_biomart$external_gene_name), "ensembl_gene_id"
+    ]
+    ribosome_features <- intersect(ribosome_ensembl_ids, rownames(input_read_RNA_assay))
+    percentage_output = PercentageFeatureSet(
+      input_read_RNA_assay,
+      features = if (length(ribosome_features) > 0) ribosome_features else character(0),
+      assay = assay
+    )
+  }
   percentage_output = percentage_output[!duplicated(names(percentage_output))]
   # Compute ribosome statistics
   ribosome =
@@ -767,7 +779,7 @@ alive_identification <- function(input_read_RNA_assay,
         ribosome |>
         # Only retrieve metadata so nesting in the next step won't break
         left_join(input_read_RNA_assay |> as_tibble() |> select(.cell, all_of(cell_type_column)), by = ".cell") |> as_tibble()
-        
+      
     }
     
     
@@ -810,7 +822,7 @@ alive_identification <- function(input_read_RNA_assay,
   mitochondrion |>
     left_join(ribosome) |>
     mutate(alive = !high_mitochondrion) |> # & !high_ribosome ) |>
-  # Select informative columns
+    # Select informative columns
     select(.cell, {{cell_type_column}}, contains("subsets"), contains("observation"),
            contains("high"), alive)
 }
