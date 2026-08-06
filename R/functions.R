@@ -48,7 +48,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
   
   # Get counts
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay, layer = "counts")
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     counts <- assay(input_read_RNA_assay, assay)
   }
@@ -269,7 +269,7 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
   
   # Get counts
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay, layer = "counts")
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     counts <- assay(input_read_RNA_assay, assay)
   }
@@ -312,8 +312,6 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
 #'
 #' @return A tibble with cell-type annotation data.
 #'
-#' @importFrom celldex BlueprintEncodeData
-#' @importFrom celldex MonacoImmuneData
 #' 
 #' @importFrom Seurat CreateAssayObject
 #' @importFrom Seurat SCTransform
@@ -389,6 +387,12 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     input_read_RNA_assay = S4Vectors::cbind(input_read_RNA_assay, input_read_RNA_assay)
     colnames(input_read_RNA_assay)[2]= "dummy___"
   }
+  
+  if (!requireNamespace("celldex", quietly = TRUE))
+    stop(
+      "Package 'celldex' is required for SingleR-based cell-type annotation. ",
+      "Install it with: BiocManager::install('celldex')"
+    )
   
   #snapshotDate(): 2025-10-29
   blueprint <- celldex::BlueprintEncodeData(
@@ -634,7 +638,7 @@ alive_identification <- function(input_read_RNA_assay,
   
   
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay = assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay = assay, layer = "counts")
     if (!any(str_which(colnames(input_read_RNA_assay[[]]), nFeature_name)) ||
         !any(str_which(colnames(input_read_RNA_assay[[]]), nCount_name))) {
       input_read_RNA_assay[[nFeature_name]] <-
@@ -661,21 +665,18 @@ alive_identification <- function(input_read_RNA_assay,
   
   # Returns a named vector of IDs
   # Matches the gene id's row by row and inserts NA when it can't find gene names
-  if (feature_nomenclature == "symbol") {
-    location <- mapIds(
-      EnsDb.Hsapiens.v86,
-      keys=rownames(input_read_RNA_assay),
-      column="SEQNAME",
-      keytype="SYMBOL"
-    )
-  }
+  location <- mapIds(
+    EnsDb.Hsapiens.v86,
+    keys = rownames(input_read_RNA_assay),
+    column = "SEQNAME",
+    keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID"
+  )
   
-  
-  which_mito = rownames(input_read_RNA_assay) |> str_which("^MT")
+  which_mito = which(location == "MT")
   
   # mitochondrion =
   #   input_read_RNA_assay |>
-  #   GetAssayData( slot = "counts", assay=assay) |>
+  #   GetAssayData( layer = "counts", assay=assay) |>
   # 
   #   # Join mitochondrion statistics
   #   # Compute per-cell quality control metrics for a count matrix or a SingleCellExperiment
@@ -726,8 +727,21 @@ alive_identification <- function(input_read_RNA_assay,
     as_tibble(rownames = ".cell") %>%
     dplyr::select(-sum, -detected)
   
-  # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
-  percentage_output = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)
+  if (feature_nomenclature == "symbol") {
+    percentage_output = PercentageFeatureSet(input_read_RNA_assay, pattern = "^RPS|^RPL", assay = assay)
+  } else {
+    # Ensembl IDs: resolve ribo gene IDs from biomart reference
+    data(ensembl_genes_biomart)
+    ribosome_ensembl_ids <- ensembl_genes_biomart[
+      grep("^(RPL|RPS)", ensembl_genes_biomart$external_gene_name), "ensembl_gene_id"
+    ]
+    ribosome_features <- intersect(ribosome_ensembl_ids, rownames(input_read_RNA_assay))
+    percentage_output = PercentageFeatureSet(
+      input_read_RNA_assay,
+      features = if (length(ribosome_features) > 0) ribosome_features else character(0),
+      assay = assay
+    )
+  }
   percentage_output = percentage_output[!duplicated(names(percentage_output))]
   # Compute ribosome statistics
   ribosome =
@@ -765,7 +779,7 @@ alive_identification <- function(input_read_RNA_assay,
         ribosome |>
         # Only retrieve metadata so nesting in the next step won't break
         left_join(input_read_RNA_assay |> as_tibble() |> select(.cell, all_of(cell_type_column)), by = ".cell") |> as_tibble()
-        
+      
     }
     
     
@@ -808,7 +822,7 @@ alive_identification <- function(input_read_RNA_assay,
   mitochondrion |>
     left_join(ribosome) |>
     mutate(alive = !high_mitochondrion) |> # & !high_ribosome ) |>
-  # Select informative columns
+    # Select informative columns
     select(.cell, {{cell_type_column}}, contains("subsets"), contains("observation"),
            contains("high"), alive)
 }
