@@ -39,6 +39,15 @@ remotes::install_github("MangiolaLaboratory/HPCell")
 
 ```
 
+### Docker image
+
+GitHub Actions now publishes a pre-built container image to GHCR:
+
+```{bash, eval=FALSE}
+docker pull ghcr.io/mangiolalaboratory/hpcell:main
+docker run --rm -it ghcr.io/mangiolalaboratory/hpcell:main
+```
+
 ## The input
 
 The pipeline accepts a vector of file paths.
@@ -762,4 +771,3 @@ By summarizing single-cell data into groups, it mimics traditional bulk RNA-seq 
 ... |> 
   tidySingleCellExperiment::aggregate_cells(!!x, slot = "data", assays=assays) 
 ```
-
