@@ -105,29 +105,32 @@ tar_script({
   )
   
   sample_heuristics = function(col_data){
-    
+    apply_if <- function(data, condition, transform) {
+      if (condition(data)) transform(data) else data
+    }
+
     col_data |>
       
       # Sort sample ID
       # Fix some sample id missing
-      when(unique(.$dataset_id) %in% c(
+      apply_if(\(data) unique(data$dataset_id) %in% c(
         "11b86bc3-6d4d-4e28-903a-0361ea8f6bdf",
         "492b0613-ff5b-4fca-a585-503fc4102e4f",
         "11b86bc3-6d4d-4e28-903a-0361ea8f6bdf",
         "0e8f9ce4-46e5-434e-9ca0-e769d1dd27ea"
-      ) ~ mutate(., PatientID = glue("{sample} {replicate} {time_point} {target}") |> as.character()) , ~ (.)) %>%
-      when(unique(.$dataset_id) %in% c(
+      ), \(data) mutate(data, PatientID = glue("{sample} {replicate} {time_point} {target}") |> as.character())) %>%
+      apply_if(\(data) unique(data$dataset_id) %in% c(
         "0273924c-0387-4f44-98c5-2292dbaab11e",
         "a16bec18-5c9f-40ad-8169-12c5199c7506",
         "556bb449-bbef-43d3-9487-87031fc0decb"
-      ) ~ mutate(., PatientID = glue("{Collection.ID} {Genotype} {Location}")|> as.character()) , ~ (.)) %>%
-      when(unique(.$dataset_id) %in% c(
+      ), \(data) mutate(data, PatientID = glue("{Collection.ID} {Genotype} {Location}")|> as.character())) %>%
+      apply_if(\(data) unique(data$dataset_id) %in% c(
         "b83afdc1-baa1-42c0-bd5b-cb607084757d"
-      ) ~ mutate(., PatientID = glue("{sex} {development_stage} {disease}")|> as.character()) , ~ (.)) %>%
-      when(unique(.$dataset_id) %in% c(
+      ), \(data) mutate(data, PatientID = glue("{sex} {development_stage} {disease}")|> as.character())) %>%
+      apply_if(\(data) unique(data$dataset_id) %in% c(
         "3fe53a40-38ff-4f25-b33b-e4d60f2289ef",
         "5c1cc788-2645-45fb-b1d9-2f43d368bba8"
-      ) ~ mutate(., PatientID = glue("{Batch} {Fetus_id} {Development_day} {sex} {tissue} {disease}")|> as.character()) , ~ (.)) |>
+      ), \(data) mutate(data, PatientID = glue("{Batch} {Fetus_id} {Development_day} {sex} {tissue} {disease}")|> as.character())) |>
       
       
       mutate_if(is.factor, as.character) |>
@@ -135,57 +138,57 @@ tar_script({
       mutate_if(is.integer, as.character) |>
       
       # Convert types
-      when("donor_id" %in% colnames(.) ~ mutate(., donor_id = donor_id |> as.character() ), ~(.)) |>
-      when("Cluster" %in% colnames(.) ~ mutate(., Cluster = Cluster |> as.character() ), ~(.)) |>
-      when("cluster_id" %in% colnames(.) ~ mutate(., cluster_id = cluster_id |> as.character() ), ~(.)) |>
-      when("Batch" %in% colnames(.) ~ mutate(., Batch = Batch |> as.character() ), ~(.)) |>
-      when("batch" %in% colnames(.) ~ mutate(., batch = batch |> as.character() ), ~(.)) |>
-      when("age" %in% colnames(.) ~ mutate(., age = age |> as.character() ), ~(.)) |>
-      when("BMI" %in% colnames(.) ~ mutate(., BMI = BMI |> as.character() ), ~(.)) |>
-      when("donor_BMI" %in% colnames(.) ~ mutate(., donor_BMI = donor_BMI |> as.character() ), ~(.)) |>
-      when("author_cell_type" %in% colnames(.) ~ mutate(., author_cell_type = author_cell_type |> as.character() ), ~(.)) |>
-      when("time_point" %in% colnames(.) ~ mutate(., time_point = time_point |> as.character() ), ~(.)) |>
-      when("cluster" %in% colnames(.) ~ mutate(., cluster = cluster |> as.character() ), ~(.)) |>
-      when("ClusterID" %in% colnames(.) ~ mutate(., ClusterID = ClusterID |> as.character() ), ~(.)) |>
-      when("Stage" %in% colnames(.) ~ mutate(., Stage = Stage |> as.character() ), ~(.)) |>
-      when("individual" %in% colnames(.) ~ mutate(., individual = individual |> as.character() ), ~(.)) |>
-      when("recurrent_cluster" %in% colnames(.) ~ mutate(., recurrent_cluster = recurrent_cluster |> as.character() ), ~(.)) |>
-      when("PatientID" %in% colnames(.) ~ mutate(., PatientID = PatientID |> as.character() ), ~(.)) |>
-      when("PMI" %in% colnames(.) ~ mutate(., PMI = PMI |> as.character() ), ~(.)) |>
-      when("n_genes" %in% colnames(.) ~ mutate(., n_genes = n_genes |> as.numeric() ), ~(.)) |>
-      when("n_counts" %in% colnames(.) ~ mutate(., n_counts = n_counts |> as.numeric() ), ~(.)) |>
-      when("n_genes_by_counts" %in% colnames(.) ~ mutate(., n_genes_by_counts = n_genes_by_counts |> as.numeric() ), ~(.)) |>
-      when("nUMI" %in% colnames(.) ~ mutate(., nUMI = nUMI |> as.numeric() ), ~(.)) |>
-      when("percent.cortex" %in% colnames(.) ~ mutate(., percent.cortex = percent.cortex |> as.character() ), ~(.)) |>
-      when("percent.medulla" %in% colnames(.) ~ mutate(., percent.medulla = percent.medulla |> as.character() ), ~(.)) |>
-      when("Age" %in% colnames(.) ~ mutate(., Age = Age |> as.numeric() ), ~(.)) |>
-      when("nCount_RNA" %in% colnames(.) ~ mutate(., nCount_RNA = nCount_RNA |> as.numeric() ), ~(.)) |>
-      when("is_primary_data" %in% colnames(.) ~ mutate(., is_primary_data = is_primary_data |> as.character() ), ~(.)) |>
+      apply_if(\(data) "donor_id" %in% colnames(data), \(data) mutate(data, donor_id = donor_id |> as.character())) |>
+      apply_if(\(data) "Cluster" %in% colnames(data), \(data) mutate(data, Cluster = Cluster |> as.character())) |>
+      apply_if(\(data) "cluster_id" %in% colnames(data), \(data) mutate(data, cluster_id = cluster_id |> as.character())) |>
+      apply_if(\(data) "Batch" %in% colnames(data), \(data) mutate(data, Batch = Batch |> as.character())) |>
+      apply_if(\(data) "batch" %in% colnames(data), \(data) mutate(data, batch = batch |> as.character())) |>
+      apply_if(\(data) "age" %in% colnames(data), \(data) mutate(data, age = age |> as.character())) |>
+      apply_if(\(data) "BMI" %in% colnames(data), \(data) mutate(data, BMI = BMI |> as.character())) |>
+      apply_if(\(data) "donor_BMI" %in% colnames(data), \(data) mutate(data, donor_BMI = donor_BMI |> as.character())) |>
+      apply_if(\(data) "author_cell_type" %in% colnames(data), \(data) mutate(data, author_cell_type = author_cell_type |> as.character())) |>
+      apply_if(\(data) "time_point" %in% colnames(data), \(data) mutate(data, time_point = time_point |> as.character())) |>
+      apply_if(\(data) "cluster" %in% colnames(data), \(data) mutate(data, cluster = cluster |> as.character())) |>
+      apply_if(\(data) "ClusterID" %in% colnames(data), \(data) mutate(data, ClusterID = ClusterID |> as.character())) |>
+      apply_if(\(data) "Stage" %in% colnames(data), \(data) mutate(data, Stage = Stage |> as.character())) |>
+      apply_if(\(data) "individual" %in% colnames(data), \(data) mutate(data, individual = individual |> as.character())) |>
+      apply_if(\(data) "recurrent_cluster" %in% colnames(data), \(data) mutate(data, recurrent_cluster = recurrent_cluster |> as.character())) |>
+      apply_if(\(data) "PatientID" %in% colnames(data), \(data) mutate(data, PatientID = PatientID |> as.character())) |>
+      apply_if(\(data) "PMI" %in% colnames(data), \(data) mutate(data, PMI = PMI |> as.character())) |>
+      apply_if(\(data) "n_genes" %in% colnames(data), \(data) mutate(data, n_genes = n_genes |> as.numeric())) |>
+      apply_if(\(data) "n_counts" %in% colnames(data), \(data) mutate(data, n_counts = n_counts |> as.numeric())) |>
+      apply_if(\(data) "n_genes_by_counts" %in% colnames(data), \(data) mutate(data, n_genes_by_counts = n_genes_by_counts |> as.numeric())) |>
+      apply_if(\(data) "nUMI" %in% colnames(data), \(data) mutate(data, nUMI = nUMI |> as.numeric())) |>
+      apply_if(\(data) "percent.cortex" %in% colnames(data), \(data) mutate(data, percent.cortex = percent.cortex |> as.character())) |>
+      apply_if(\(data) "percent.medulla" %in% colnames(data), \(data) mutate(data, percent.medulla = percent.medulla |> as.character())) |>
+      apply_if(\(data) "Age" %in% colnames(data), \(data) mutate(data, Age = Age |> as.numeric())) |>
+      apply_if(\(data) "nCount_RNA" %in% colnames(data), \(data) mutate(data, nCount_RNA = nCount_RNA |> as.numeric())) |>
+      apply_if(\(data) "is_primary_data" %in% colnames(data), \(data) mutate(data, is_primary_data = is_primary_data |> as.character())) |>
       
       #mutate(across(contains("cluster", ignore.case = TRUE), ~ as.character)) |>
       select(-one_of('PCW')) %>%
       
       # Sort sample ID. It works but not elegant.
       # Based on observation of strangely behaving datasets, where sample ID is not clear
-      when("sampleID" %in% colnames(.) & !"PatientID" %in% colnames(.) ~
-             mutate(., PatientID = as.character(sampleID )) |>  select(-sampleID), ~(.)) %>%
-      when("Patient" %in% colnames(.) ~ mutate(., Sample = NA |> as.character()), ~(.)) |>
+      apply_if(\(data) "sampleID" %in% colnames(data) & !"PatientID" %in% colnames(data),
+               \(data) mutate(data, PatientID = as.character(sampleID)) |> select(-sampleID)) %>%
+      apply_if(\(data) "Patient" %in% colnames(data), \(data) mutate(data, Sample = NA |> as.character())) |>
       mutate(sample_placeholder = NA |> as.character()) %>%
-      when(unique(.$dataset_id)=="e40591e7-0e5a-4bef-9b60-7015abe5b17f" ~ mutate(., sample_placeholder = glue("{batch} {development_stage}") |> as.character()), ~ (.)) %>%
-      when(unique(.$dataset_id)=="39b6cc45-8c5c-4f7b-944c-58f66da5efb1" ~ mutate(., sample_placeholder =sample_id), ~ (.))  %>%
-      when(unique(.$dataset_id)=="443d6a0e-dbcb-4002-8af0-628e7d4a18fa" ~ mutate(., sample_placeholder =sample_id), ~ (.))  %>%
-      when(unique(.$dataset_id)=="a91f075b-52d5-4aa3-8ecc-86c4763a49b3" ~ mutate(., sample_placeholder =sample), ~ (.))  %>%
-      when(unique(.$dataset_id)=="0af763e1-0e2f-4de6-9563-5abb0ad2b01e" ~ mutate(., sample_placeholder ="only_one_culture"), ~ (.))  %>%
-      when(unique(.$dataset_id)=="5c64f247-5b7c-4842-b290-65c722a65952" ~ mutate(., sample_placeholder ="only_one_culture"), ~ (.))  %>%
-      when(unique(.$dataset_id)=="d6f92754-e178-4202-b86f-0f430e965d72" ~ mutate(., sample_placeholder =orig.ident), ~ (.))  %>%
-      when(unique(.$dataset_id)=="c790ef7a-1523-4627-8603-d6a02f8f4877" ~ mutate(., sample_placeholder =orig.ident), ~ (.))  %>%
-      when(unique(.$dataset_id)=="1e81a742-e457-4fc6-9c39-c55189ec9dc2" ~ mutate(., sample_placeholder =orig.ident), ~ (.))  %>%
-      when(unique(.$dataset_id)=="351ef284-b59e-43a5-83ba-0eb907dc282c" ~ mutate(., sample_placeholder =orig.ident), ~ (.))  %>%
-      when(unique(.$dataset_id)=="f498030e-246c-4376-87e3-90b28c7efb00" ~ mutate(., sample_placeholder =Name), ~ (.))  %>%
+      apply_if(\(data) unique(data$dataset_id)=="e40591e7-0e5a-4bef-9b60-7015abe5b17f", \(data) mutate(data, sample_placeholder = glue("{batch} {development_stage}") |> as.character())) %>%
+      apply_if(\(data) unique(data$dataset_id)=="39b6cc45-8c5c-4f7b-944c-58f66da5efb1", \(data) mutate(data, sample_placeholder = sample_id)) %>%
+      apply_if(\(data) unique(data$dataset_id)=="443d6a0e-dbcb-4002-8af0-628e7d4a18fa", \(data) mutate(data, sample_placeholder = sample_id)) %>%
+      apply_if(\(data) unique(data$dataset_id)=="a91f075b-52d5-4aa3-8ecc-86c4763a49b3", \(data) mutate(data, sample_placeholder = sample)) %>%
+      apply_if(\(data) unique(data$dataset_id)=="0af763e1-0e2f-4de6-9563-5abb0ad2b01e", \(data) mutate(data, sample_placeholder = "only_one_culture")) %>%
+      apply_if(\(data) unique(data$dataset_id)=="5c64f247-5b7c-4842-b290-65c722a65952", \(data) mutate(data, sample_placeholder = "only_one_culture")) %>%
+      apply_if(\(data) unique(data$dataset_id)=="d6f92754-e178-4202-b86f-0f430e965d72", \(data) mutate(data, sample_placeholder = orig.ident)) %>%
+      apply_if(\(data) unique(data$dataset_id)=="c790ef7a-1523-4627-8603-d6a02f8f4877", \(data) mutate(data, sample_placeholder = orig.ident)) %>%
+      apply_if(\(data) unique(data$dataset_id)=="1e81a742-e457-4fc6-9c39-c55189ec9dc2", \(data) mutate(data, sample_placeholder = orig.ident)) %>%
+      apply_if(\(data) unique(data$dataset_id)=="351ef284-b59e-43a5-83ba-0eb907dc282c", \(data) mutate(data, sample_placeholder = orig.ident)) %>%
+      apply_if(\(data) unique(data$dataset_id)=="f498030e-246c-4376-87e3-90b28c7efb00", \(data) mutate(data, sample_placeholder = Name)) %>%
       
       # These are the datasets with too few cells per inferred samples, therefore simplifying
-      when(unique(.$dataset_id)=="e3a56e00-8417-4d82-9d35-3fab3aac12f2" ~ mutate(., SpecimenID =NA), ~ (.))  %>%
-      when(unique(.$dataset_id)=="17b34e42-bbd2-494b-bf32-b9229344a3f6" ~ mutate(., Sample =NA), ~ (.))  %>%
+      apply_if(\(data) unique(data$dataset_id)=="e3a56e00-8417-4d82-9d35-3fab3aac12f2", \(data) mutate(data, SpecimenID = NA)) %>%
+      apply_if(\(data) unique(data$dataset_id)=="17b34e42-bbd2-494b-bf32-b9229344a3f6", \(data) mutate(data, Sample = NA)) %>%
       
       # Fix huge samples for plate experiments
       tidyr::extract(.cell, "experiment___", "(^expr?[0-9]+)", remove = F) |>
@@ -934,4 +937,3 @@ tissues_grouped = get_tissue_grouped()
 
 tissues_grouped |>
   write_parquet("/vast/projects/cellxgene_curated/metadata_cellxgenedp_Apr_2024/tissue_grouped.parquet")
-
