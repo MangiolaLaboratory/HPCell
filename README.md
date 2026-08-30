@@ -53,6 +53,15 @@ The key features of HPCell include:
 remotes::install_github("MangiolaLaboratory/HPCell")
 ```
 
+### Docker image
+
+GitHub Actions now publishes a pre-built container image to GHCR:
+
+``` bash
+docker pull ghcr.io/mangiolalaboratory/hpcell:main
+docker run --rm -it ghcr.io/mangiolalaboratory/hpcell:main
+```
+
 ## The input
 
 The pipeline accepts a vector of file paths. If this vector is named,
