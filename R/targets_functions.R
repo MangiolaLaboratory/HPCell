@@ -88,8 +88,8 @@ map2_test_differential_abundance_hpc = function(
     #-----------------------#
     # Input
     #-----------------------#
-    # library(targets)
-    # library(tarchetypes)
+    library(targets)
+    library(tarchetypes)
     
     computing_resources = readRDS("temp_computing_resources.rds")
     debug_job_id = readRDS("temp_debug_job_id.rds")
@@ -148,8 +148,7 @@ map2_test_differential_abundance_hpc = function(
       tar_target(
         pseudobulk_df_tissue_dispersion, 
         pseudobulk_df_tissue |> map_add_dispersion_to_se(data, formula, abundance), 
-        pattern = map(pseudobulk_df_tissue),
-        iteration = "group"
+        pattern = map(pseudobulk_df_tissue)
       ),
       
       # Split in gene chunks
@@ -160,8 +159,7 @@ map2_test_differential_abundance_hpc = function(
           chunk_size = 100 # / number_of_datasets
         ), 
 
-        pattern = map(pseudobulk_df_tissue_dispersion),
-        iteration = "group"
+        pattern = map(pseudobulk_df_tissue_dispersion)
       ),
       
       # Parallelise rows
@@ -190,8 +188,7 @@ map2_test_differential_abundance_hpc = function(
           # For some reason it occupies a LOT of space (29Mb) 
           # probably ecause is carrying local variable with it
           select(-formula), 
-        pattern = map(pseudobulk_df_tissue_split_by_gene_grouped),
-        iteration = "group"
+        pattern = map(pseudobulk_df_tissue_split_by_gene_grouped)
       )
       
     ))
