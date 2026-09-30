@@ -1,0 +1,351 @@
+---
+title: "Pseudobulk analysis report"
+format: 
+  html: 
+    theme: minty
+    title-block-banner: true
+    df-print: paged
+    code-line-numbers: true
+    embed-resources: true
+    toc: true
+    toc-depth: 3 
+    toc-location: left
+    number-sections: true 
+    smooth-scroll: true
+abstract: > 
+  This report presents a pseudobulk RNA-seq analysis derived from aggregated single-cell profiles. 
+knitr: 
+  opts_chunk: 
+    message: false
+    warning: false
+    echo: false
+comments:
+  hypothesis: 
+    theme: clean
+editor: visual
+author: "SS"
+date: "2023-12-07"
+output: html_document
+params:
+  data_object: "NA" 
+  empty_tbl: "NA" 
+  alive_tbl: "NA"
+  cell_cycle_tbl: "NA" 
+  annotation_tbl: "NA"
+  doublet_tbl: "NA" 
+  sample_name: "NA"
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(stringr)
+library(tidybulk)
+library(tidyseurat)
+#library(tidysc)
+library(tidyHeatmap)
+library(purrr)
+library(patchwork)
+library(grid)
+library(ComplexHeatmap)
+library(ggrepel)
+library(PCAtools)
+library(tidySummarizedExperiment)
+library(glue)
+library(purrr)
+library(plotly)
+library(tidybulk)
+#library(naniar) #NA 
+library(magrittr)
+library(here)
+```
+
+```{r, include=FALSE}
+preprocessing_output <- function(input_read_RNA_assay,
+                                 empty_droplets_tbl,
+                                 alive_identification_tbl, 
+                                 cell_cycle_score_tbl, 
+                                 annotation_label_transfer_tbl, 
+                                 doublet_identification_tbl){
+  
+  if(!is.null(empty_droplets_tbl))
+    input_read_RNA_assay =
+      input_read_RNA_assay |>
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      filter(!empty_droplet) 
+
+  input_read_RNA_assay <- input_read_RNA_assay |>
+    
+    # Filter dead cells
+    left_join(
+      alive_identification_tbl |>
+        select(.cell, any_of(c("alive", "subsets_Mito_percent", "subsets_Mito_sum", "subsets_Ribo_percent", "high_mitochondrion", "high_ribosome"))),
+      by = ".cell"
+    ) |>
+    filter(alive) |>
+    
+    # Filter doublets
+    left_join(doublet_identification_tbl |> select(.cell, scDblFinder.class), by = ".cell") |>
+    filter(scDblFinder.class=="singlet") 
+  
+  # Add cell cycle
+   if(!is.null(cell_cycle_score_tbl))
+    input_read_RNA_assay <- input_read_RNA_assay |> 
+      left_join(
+      cell_cycle_score_tbl,
+      by=".cell"
+    ) 
+  
+  # Attach annotation
+  if (inherits(annotation_label_transfer_tbl, "tbl_df")){
+    input_read_RNA_assay <- input_read_RNA_assay |>
+      left_join(annotation_label_transfer_tbl, by = ".cell")
+  }
+  
+
+  input_read_RNA_assay
+  # # Filter Red blood cells and platelets
+  # if (tolower(tissue) == "pbmc" & "predicted.celltype.l2" %in% c(rownames(annotation_label_transfer_tbl), colnames(annotation_label_transfer_tbl))) {
+  #   filtered_data <- filter(processed_data, !predicted.celltype.l2 %in% c("Eryth", "Platelet"))
+  # } else {
+  #   filtered_data <- processed_data
+  # }
+}
+
+
+
+preprocessing_output_S <- pmap(
+  list(params$data_object, params$empty_tbl, params$alive_tbl, params$cell_cycle_tbl, params$annotation_tbl, params$doublet_tbl),
+  ~ preprocessing_output(..1, ..2, ..3, ..4, ..5, ..6)
+)
+```
+
+```{r, include=FALSE}
+create_pseudobulk <- function(preprocessing_output_S, assays = NULL, sample_name){
+  #browser()
+  if(assays |> is.null()){
+      if(preprocessing_output_S |> is("Seurat"))
+        assays = Seurat::Assays(preprocessing_output_S)
+      else if(preprocessing_output_S |> is("SingleCellExperiment"))
+        assays = preprocessing_output_S@assays |> names()
+      
+  }
+  pseudobulk = 
+      preprocessing_output_S |> 
+      
+      # Add sample
+      mutate(sample_hpc = sample_name) |> 
+      
+      # Aggregate
+      #aggregate_cells(c(sample_hpc, any_of(x)), slot = "data", assays = assays) 
+      tidySingleCellExperiment::aggregate_cells(c(sample_hpc), slot = "data", assays = assays)
+   
+  if(pseudobulk |> is("data.frame"))
+    pseudobulk = pseudobulk |>
+    as_SummarizedExperiment(.sample, .feature, any_of(assays)) 
+  
+  rowData(pseudobulk)$feature_name = rownames(pseudobulk)
+  
+  pseudobulk |>
+    pivot_longer(cols = assays, names_to = "data_source", values_to = "count") |>
+    filter(!count |> is.na()) |>
+    
+    # Some manipulation to get unique feature because RNA and ADT
+    # both can have same name genes
+    rename(symbol = .feature) |>
+    mutate(data_source = stringr::str_remove(data_source, "abundance_")) |>
+    unite(".feature", c(symbol, data_source), remove = FALSE) |>
+    
+    # Covert
+    as_SummarizedExperiment(
+      .sample = .sample,
+      .transcript = .feature,
+      .abundance = count
+    )
+}
+
+pseudobulk_list <- map2(preprocessing_output_S, params$sample_name, ~ create_pseudobulk(.x, sample_name = .y))
+
+```
+
+```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
+pseudobulk_merge <- function(pseudobulk_list) {
+  
+  
+  # Fix GCHECKS 
+  . = NULL 
+
+  # Select only common columns
+  common_columns =
+    pseudobulk_list |>
+    purrr::map(~ .x |> as_tibble() |> colnames()) |>
+    unlist() |>
+    table() %>%
+    .[.==max(.)] |>
+    names()
+  
+  # All genes 
+  all_genes =
+    pseudobulk_list |>
+    purrr::map(~ .x |> rownames()) |>
+    unlist() |>
+    unique() |>
+    as.character()
+  
+  
+  se <- pseudobulk_list |>
+    
+    # Add missing genes
+    purrr::map(~{
+   
+      missing_genes = all_genes |> setdiff(rownames(.x))
+      
+      if(missing_genes |> length() == 0) return(.x)
+      else
+        .x |> add_missingh_genes_to_se(all_genes, missing_genes)
+        
+    }) |>
+    
+    purrr::map(~ .x |> dplyr::select(any_of(common_columns)))   %>%
+    
+    do.call(S4Vectors::cbind, .) 
+  
+
+  return(se)
+}
+merged_pseudobulk <- pseudobulk_merge(pseudobulk_list)
+
+```
+
+```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
+#pbmc_pseudobulk from sce:
+pbmc_pseudobulk <-
+  merged_pseudobulk %>%
+  # filter(data_source == assay) |>
+  #separate( .sample, c("single_cell_rna_id", "batch1"), "__" , remove=FALSE) |>
+  #left_join(metadata_clinical_sample |> tidybulk::pivot_sample(sample)) |>
+  tidybulk::identify_abundant() %>%
+  tidybulk::scale_abundance(method = "TMMwsp")
+
+# Prepare data for PCA for each element of the list
+data_for_pca <- 
+  pbmc_pseudobulk %>%
+  keep_abundant() %>%
+  keep_variable(.abundance = "count_scaled", top = 500) %>%
+  dplyr::select(-TMM, -multiplier, -count_scaled) %>%
+  tidybulk::scale_abundance(method = "TMMwsp")
+
+```
+
+## Global Sequencing Depth Density Plot
+
+This density plot compares the distribution of library sizes across samples after TMM normalization. This helps assess global sequencing-depth differences between samples before PCA is applied.
+
+```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
+
+data_for_pca |> 
+  ggplot(aes(count_scaled + 1, color=.sample)) + geom_density(alpha=0.3) + scale_x_log10() + guides(color="none")
+```
+
+```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
+metadata =
+  data_for_pca |>
+  pivot_sample() |>
+  dplyr::select(.sample, alive, .aggregated_cells)
+
+metadata = as.data.frame(metadata)
+rownames(metadata) = metadata$`.sample`
+# metadata = metadata[,-1]
+
+my_pca = 
+  data_for_pca@assays@data$count_scaled |> 
+  log1p() |> 
+  scale() |> 
+  pca(metadata = metadata) 
+#
+# Extract the proportion of variance explained by each principal component
+var_explained <- my_pca$sdev^2
+var_explained <- var_explained / sum(var_explained)
+cum_var_explained <- cumsum(var_explained)
+
+# Find the number of components that explain at least 90% of the variance
+num_components <- which(cum_var_explained >= 0.9)[1]
+# num_components <- 20
+## Without metadata 
+# my_pca =
+#   data_for_pca@assays@data$count_scaled |>
+#   log1p() |>
+#   scale() |>
+#   prcomp()
+
+```
+
+## Scree Plot
+
+This scree plot shows the proportion of variance explained by each principal component. Components contributing significantly to total variance are prioritized in interpretation of downstream analysis steps.
+
+```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
+library(ggplot2)
+
+# # Extract the proportion of variance explained by each principal component
+# var_explained <- my_pca$sdev^2
+# var_explained <- var_explained / sum(var_explained)
+# cum_var_explained <- cumsum(var_explained)
+
+# Create a data frame for plotting
+scree_data <- data.frame(PC = seq_along(var_explained), Variance = var_explained)
+
+# Create the scree plot
+ggplot(scree_data, aes(x = PC, y = Variance)) +
+    geom_line() +
+    geom_point() +
+    theme_minimal() +
+    labs(title = "Scree Plot", x = "Principal Component", y = "Proportion of Variance Explained")
+```
+
+## PCA Plot (By Sample)
+
+Principal component projection of samples, colored by sample identity. Distance reflects similarity in gene expression profiles, and clustering indicates shared variance structure.
+
+```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
+# x<- plot(my_pca$rotated[, "PC1"], my_pca$rotated[, "PC2"],
+#      xlab = "PC1", ylab = "PC2", 
+#      main = "PCA Plot",
+#      asp = 1)
+# x
+
+x<- ggplot(my_pca$metadata, aes(x = my_pca$rotated[, "PC1"], y = my_pca$rotated[, "PC2"], color = my_pca$metadata |> rownames()))  +
+  geom_point() +
+  theme_minimal() +
+  labs(title = "PCA Plot Colored by sample Type",
+       x = "Principal Component 1",
+       y = "Principal Component 2") +
+  scale_color_discrete(name = "Tissue Type")
+x
+```
+
+## Cell Type Clustering via PCA
+
+Samples are grouped based on PCA of their pseudobulk profiles. Color represents number of aggregated cells contributing to each pseudobulk profile.
+
+```{r, out.width='100%',  warning=FALSE, message=FALSE, echo=FALSE}
+data_for_pca |>
+tidybulk::reduce_dimensions(method="PCA") |>
+tidybulk::pivot_sample() |>
+ggplot(aes(PC1, PC2, color=data_for_pca$.aggregated_cells)) +
+geom_point() +
+  theme_minimal() +
+  theme(
+    legend.position = "right", # or choose "bottom" if you prefer
+    legend.key.size = unit(0.2, "cm"), # Adjust the size of the legend keys
+    legend.text = element_text(size = 3), # Adjust the text size in the legend
+    legend.spacing.y = unit(0.1, "cm") # Adjust the spacing between legend entries
+  )
+```
+
+:::
+
+# Session Info
+
+```{r}
+sessionInfo()
+```

@@ -6,7 +6,14 @@
 # For larger datasets, it samples a subset of the data (up to 2000 samples) and then calculates dispersion on this subset to reduce computational load.
 # Dispersion is calculated using functions from RNA-seq analysis packages (like estimateDisp and estimateTrendedDisp), which handle the complexity of dispersion estimation in gene expression data. This approach is critical in differential expression analysis, as it helps to account for the variability inherent in such data.
 # # Define a function 'se_add_dispersion' to add dispersion estimates to single-cell experiment data
-#' @param se_df A data frame containing SingleCellExperiment objects.
+#' Add Dispersion Estimates to SummarizedExperiment
+#'
+#' @description
+#' Adds dispersion estimates to a SummarizedExperiment object using edgeR.
+#' For smaller datasets (<1000 samples) all samples are used; for larger datasets
+#' a random subset of up to 2000 samples is drawn to reduce computational load.
+#'
+#' @param se A SummarizedExperiment object.
 #' @param my_formula A formula used to model the design matrix.
 #' @param my_assay The assay to be used for dispersion estimation.
 #' @return The input data frame with updated SingleCellExperiment objects containing dispersion values.
@@ -148,10 +155,29 @@ map_quantile_scale_abundance = function(se_df){
 }
 
 
+#' Map Differential Expression Across Groups
+#'
+#' @description
+#' Applies `tidybulk::test_differential_abundance()` to a
+#' `SummarizedExperiment`, optionally grouping by a metadata column.
+#'
+#' @param se A `SummarizedExperiment` object.
+#' @param my_formula A formula describing the statistical model.
+#' @param assay Character name of the count assay to test.
+#' @param method Character string naming the DE method (e.g.
+#'   `"edgeR_quasi_likelihood"`, `"glmmseq_glmmTMB"`).
+#' @param max_rows_for_matrix_multiplication Optional integer cap on the number
+#'   of rows used in matrix multiplication. `NULL` uses all rows.
+#' @param cores Integer number of cores to use. Default: `1`.
+#' @param .scaling_factor Optional unquoted column name used as a scaling
+#'   factor. `NULL` disables scaling.
+#' @param .group_by Optional unquoted column name for grouping results.
+#'   `NULL` returns ungrouped results.
+#' @return A `SummarizedExperiment` with differential expression statistics
+#'   added to `rowData()`.
 #' @importFrom tidybulk test_differential_abundance
 #' @importFrom tidybulk pivot_transcript
 #' @importFrom purrr safely
-#' 
 #' @export
 map_de = function(se, my_formula, assay, method, max_rows_for_matrix_multiplication = NULL, cores = 1, .scaling_factor = NULL, .group_by = NULL){
   
@@ -201,7 +227,6 @@ map_de = function(se, my_formula, assay, method, max_rows_for_matrix_multiplicat
 }
 
 #' @importFrom tidybulk test_differential_abundance
-#' @export
 #' @noRd
 internal_de_function = function(x, fi, a, formul, m){
   
@@ -223,9 +248,23 @@ internal_de_function = function(x, fi, a, formul, m){
 }
 
 
+#' Build Fixed-Effect Differential Expression Targets
+#'
+#' @description
+#' Creates a list of `tar_target_raw()` objects implementing a fixed-effects
+#' differential expression analysis over chunked pseudobulk data.
+#'
+#' @param se_list_input Character name of the upstream targets target supplying
+#'   the list of `SummarizedExperiment` objects.
+#' @param output_se Character name of the output target for DE results.
+#' @param formula A formula string or formula object for the statistical model.
+#' @param method Character DE method name passed to `tidybulk::test_differential_abundance()`.
+#' @param tiers Named integer list of tier indices from `get_positions()`.
+#' @param factor_of_interest Optional character column name identifying the
+#'   factor of interest for abundance filtering. `NULL` skips filtering.
+#' @param .abundance Optional character assay name. `NULL` uses the default.
+#' @return A list of `tar_target` objects.
 #' @importFrom tidybulk test_differential_abundance
-#' 
-#' 
 #' @export
 factory_de_fix_effect = function(se_list_input, output_se, formula, method, tiers, factor_of_interest = NULL, .abundance = NULL){
   
@@ -281,6 +320,22 @@ factory_de_fix_effect = function(se_list_input, output_se, formula, method, tier
   )
 }
 
+#' Build Random-Effect Differential Expression Targets
+#'
+#' @description
+#' Creates a list of `tar_target_raw()` objects implementing a mixed-effects
+#' (random-effect) differential expression analysis with dispersion estimation.
+#'
+#' @param se_list_input Character name of the upstream targets target supplying
+#'   the list of `SummarizedExperiment` objects.
+#' @param output_se Character name of the output target for DE results.
+#' @param formula A formula string or formula object including a random-effects
+#'   term (e.g. `~ condition + (1|donor)`).
+#' @param tiers Named integer list of tier indices from `get_positions()`.
+#' @param factor_of_interest Optional character column name for abundance filtering.
+#'   `NULL` skips filtering.
+#' @param .abundance Optional character assay name. `NULL` uses the default.
+#' @return A list of `tar_target` objects.
 #' @importFrom rlang sym
 #' @importFrom dplyr left_join
 #' @importFrom tidyr nest
@@ -290,8 +345,6 @@ factory_de_fix_effect = function(se_list_input, output_se, formula, method, tier
 #' @importFrom purrr map
 #' @importFrom S4Vectors split
 #' @importFrom purrr compact
-#' @importFrom purrr map
-#' 
 #' @export
 factory_de_random_effect = function(se_list_input, output_se, formula, tiers, factor_of_interest = NULL, .abundance = NULL){
   

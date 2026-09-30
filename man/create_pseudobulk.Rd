@@ -11,29 +11,49 @@ create_pseudobulk(
   alive_identification_tbl = NULL,
   cell_cycle_score_tbl = NULL,
   annotation_label_transfer_tbl = NULL,
+  cell_type_ensembl_harmonised_tbl = NULL,
   doublet_identification_tbl = NULL,
   x = c(),
   external_path,
-  assays = NULL
+  assays = NULL,
+  container_type
 )
 }
 \arguments{
-\item{x}{A grouping variable used to aggregate cells into pseudobulk samples.
-This variable should be present in the \code{preprocessing_output_S} object and
-typically represents a factor such as sample ID or condition.}
+\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object
+containing RNA assay data.}
 
-\item{assays}{A character vector specifying the assays to be included in the
-pseudobulk creation process, such as c("RNA", "ADT").}
+\item{sample_names_vec}{Character vector of sample names (one element per
+sample mapping to the input object).}
 
-\item{preprocessing_output_S}{Processed dataset from preprocessing.}
+\item{empty_droplets_tbl}{A tibble identifying empty droplets. \code{NULL} skips.}
 
-\item{...}{Additional arguments passed to internal functions used within
-\code{create_pseudobulk}. This includes parameters for customization of
-aggregation, data transformation, or any other process involved in the
-creation of pseudobulk samples.}
+\item{alive_identification_tbl}{A tibble from \code{alive_identification()}. \code{NULL} skips.}
+
+\item{cell_cycle_score_tbl}{A tibble from \code{cell_cycle_scoring()}. \code{NULL} skips.}
+
+\item{annotation_label_transfer_tbl}{A tibble from \code{annotation_label_transfer()}.
+\code{NULL} skips.}
+
+\item{cell_type_ensembl_harmonised_tbl}{A tibble with harmonised cell-type
+annotations. \code{NULL} skips.}
+
+\item{doublet_identification_tbl}{A tibble from doublet identification. \code{NULL} skips.}
+
+\item{x}{Optional grouping variable (column name) used to further stratify
+pseudobulk aggregation beyond sample.}
+
+\item{external_path}{Character path to the directory where pseudobulk HDF5
+files are stored.}
+
+\item{assays}{Character vector of assay names to include (e.g. \code{c("RNA", "ADT")}).
+\code{NULL} uses all assays.}
+
+\item{container_type}{Character scalar specifying the output file format.}
 }
 \value{
-List containing pseudobulk data aggregated by sample and by both sample and cell type.
+A list containing pseudobulk \code{SummarizedExperiment} objects aggregated
+by sample and (optionally) by sample × cell type.
 }
 \description{
 Aggregates cells based on sample and cell type annotations, creating pseudobulk samples

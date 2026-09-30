@@ -24,13 +24,9 @@
 #' summary(dummy_hpc)
 #'
 #' @keywords datasets
-#' 
-#' @noRd
-#' 
+#' @docType data
 "dummy_hpc"
 
-
-#' A data frame of Ensembl genes retrieved from biomaRt package
 #' 
 #' This dataset contains Ensembl gene IDs, external gene names, and chromosome names
 #' retrieved using the biomaRt package.
@@ -45,3 +41,67 @@
 #' @keywords datasets
 #' @docType data
 "ensembl_genes_biomart"
+
+#' CellChatDB.human database
+#'
+#' A curated human ligand–receptor interaction database provided by the CellChat package.
+#'
+#' This object is typically used as input to the CellChat pipeline. It contains signaling pathway data 
+#' for cell-cell communication analysis.
+#'
+#' @format A list with multiple elements, each representing different parts of the signaling network.
+
+#' @usage
+#' data(CellChatDB.human)
+#' 
+#' @source CellChat::CellChatDB.human
+#' @docType data
+"CellChatDB.human"
+
+#' Cell-type unification mapping tables
+#'
+#' A named list of data frames mapping cell-type labels from different
+#' annotation references (Azimuth, Blueprint, Monaco, CellxGene) to a
+#' unified cell-type vocabulary used by `cell_type_ensembl_harmonised()`.
+#'
+#' @format A named list with elements `azimuth`, `blueprint`, `monaco`, and
+#'   optionally `cellxgene`. Each element is a data frame with at least two
+#'   columns: the original label and the unified label.
+#'
+#' @usage
+#' data(celltype_unification_maps)
+#'
+#' @keywords datasets
+#' @docType data
+"celltype_unification_maps"
+
+#' Immune cell-type hierarchy graph
+#'
+#' An `igraph` directed graph encoding the hierarchical relationships between
+#' immune cell types. Used by `ensemble_annotation()` and `add_celltype_level()`
+#' to resolve consensus cell-type calls across annotation methods.
+#'
+#' @format An `igraph` object where each vertex is a cell type and edges
+#'   represent parent–child relationships in the hierarchy.
+#'
+#' @usage
+#' data(immune_graph)
+#'
+#' @keywords datasets
+#' @docType data
+"immune_graph"
+
+#' Non-immune CellxGene cell-type labels
+#'
+#' A character vector of cell-type labels from the CellxGene corpus that are
+#' classified as non-immune. Used by `cell_type_ensembl_harmonised()` to
+#' distinguish immune from non-immune populations during consensus annotation.
+#'
+#' @format A character vector.
+#'
+#' @usage
+#' data(nonimmune_cellxgene)
+#'
+#' @keywords datasets
+#' @docType data
+"nonimmune_cellxgene"

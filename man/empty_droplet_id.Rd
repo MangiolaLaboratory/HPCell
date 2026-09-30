@@ -12,12 +12,21 @@ empty_droplet_id(
 )
 }
 \arguments{
-\item{input_read_RNA_assay}{SingleCellExperiment or Seurat object containing RNA assay data.}
+\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object
+containing RNA assay data.}
 
-\item{filter_empty_droplets}{Logical value indicating whether to filter the input data.}
+\item{total_RNA_count_check}{Numeric lower-bound total RNA count used as the
+\code{lower} argument to \code{DropletUtils::emptyDrops()}. Default: \code{-Inf}.}
+
+\item{assay}{Name of the assay to extract counts from. \code{NULL} uses the first
+assay.}
+
+\item{feature_nomenclature}{Character scalar indicating gene identifier type.
+One of \code{"symbol"} or \code{"ensembl"}.}
 }
 \value{
-A tibble with columns: logProb, FDR, empty_droplet (classification of droplets).
+A tibble with columns: \code{.cell}, \code{logProb}, \code{FDR}, \code{empty_droplet}
+(logical classification).
 }
 \description{
 \code{empty_droplet_id} distinguishes between empty and non-empty droplets using the DropletUtils package.

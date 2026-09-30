@@ -1,0 +1,311 @@
+---
+title: "Doublet Identification Report"
+date: 31 Mar 2024
+title-block-banner: true
+author: SS
+format: 
+  html: 
+    theme: minty
+    df-print: paged
+    code-line-numbers: true
+    embed-resources: true
+knitr: 
+  opts_chunk: 
+    message: false
+    warning: false
+    echo: false
+comments:
+  hypothesis: 
+    theme: clean
+editor: visual
+params: 
+  data_object: "NA"
+  doublet_tbl: "NA"
+  annotation_tbl: "NA"
+  sample_names: "NA"
+output: html_document
+---
+
+## Introduction
+
+This report contains UMAP representation of cell clusters and visualization of the distribution of doublets across processed samples.
+
+```{r setup, include=FALSE}
+library(purrr)
+library(dplyr)
+library(tidyr)
+library(ggrepel)
+library(Seurat)
+library(glue)
+library(scDblFinder)
+library(tidyseurat)
+library(tidySingleCellExperiment)
+library(patchwork)
+library(tibble)
+library(scran)
+library(magrittr)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggrepel)
+library(Seurat)
+library(glue)
+library(scDblFinder)
+library(Seurat)
+library(tidyseurat)
+library(tidySingleCellExperiment)
+library(patchwork)
+library(tibble)
+library(scran)
+library(purrr)
+
+cell_ann_col <- "seurat_annotations" 
+
+theme_set(theme_minimal(base_size = 12))  # or theme_bw(base_size = 12)
+
+common_theme <- theme(
+  plot.title = element_text(size = 14, face = "bold"),
+  axis.title = element_text(size = 12),
+  axis.text = element_text(size = 10),
+  legend.title = element_text(size = 11),
+  legend.text = element_text(size = 10)
+)
+```
+
+```{r, include=FALSE}
+calc_UMAP <- function(input_seurat) {
+  assay_name <- input_seurat@assays |> names() |> extract2(1)
+  
+  # Check if variable features are already present, if not calculate them
+  if (length(VariableFeatures(input_seurat)) == 0) {
+    input_seurat <- FindVariableFeatures(input_seurat)
+  }
+  
+  # Extract variable features using VariableFeatures() for Seurat v5
+  var_genes <- VariableFeatures(input_seurat)
+  
+  # Ensure that there are variable features before proceeding
+  if (length(var_genes) > 0) {
+    # Scale data and run PCA on variable genes
+    x <- ScaleData(input_seurat) |>
+      RunPCA(features = var_genes) |>
+      FindNeighbors(dims = 1:30) |>
+      FindClusters(resolution = 0.5) |>
+      RunUMAP(dims = 1:30, spread = 0.5, min.dist = 0.01, n.neighbors = 10L) |>
+      as_tibble()
+  } else {
+    stop("No variable features available for UMAP calculation.")
+  }
+  
+  return(x)
+}
+
+calc_UMAP_dbl_report <- map(params$data_objec, calc_UMAP)
+
+```
+
+```{r, include=FALSE}
+
+get_labels_clusters = function(.data, label_column, dim1, dim2){
+
+    tidy_dist = function(x1, x2, y1, y2){
+
+        tibble(x1, x2, y1, y2) %>%
+            rowwise() %>%
+            mutate(dist = matrix(c(x1, x2, y1, y2), nrow = 2, byrow = T) %>% dist()) %>%
+            pull(dist)
+
+    }
+
+    label_column = enquo(label_column)
+    dim1 = enquo(dim1)
+    dim2 = enquo(dim2)
+
+    .data %>%
+        nest(data = -!!label_column) %>%
+        mutate(
+            !!dim1 := map_dbl(data, ~ .x %>% pull(!!dim1) %>% median()),
+            !!dim2 := map_dbl(data, ~ .x %>% pull(!!dim2) %>% median())
+        ) %>%
+        dplyr::select(-data)
+}
+```
+
+## Comprehensive UMAP Visualization of Cell Typing and Doublet Detection Across Tissue Samples
+
+-   This visualization highlights the clustering of cell types and identifies singlets and doublets in the population.
+-   This allows for an exploration of similarities and differences in gene expression profiles between cells from different tissues.
+
+```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
+# Joining info and returning a list of tibbles
+merged_combined_annotation_doublets <- list(
+  calc_UMAP_dbl_report,
+  params$doublet_tbl,
+  params$annotation_tbl, 
+  params$sample_names
+) |>
+  pmap(
+    ~ ..1 |>
+        mutate(sample_column = ..4) |>
+        left_join(..2 |> mutate(sample_column = ..4), by = ".cell") |>  
+        left_join(..3 |> mutate(sample_column = ..4), by = ".cell") 
+  ) |> 
+  enframe(name = "sample_id", value = "annotated_metadata") |> 
+  mutate(
+    sample_column = sample_names  # Using the sample_names list you already have
+  ) |> 
+  mutate(plot_by_doublet = map2(
+    annotated_metadata,
+    sample_column,
+    ~ {
+      # Sample to not overwhelm the plotting
+      merged_combined_annotation_doublets = .x |> 
+        nest(doublet_class = -scDblFinder.class) |>
+        mutate(number_to_sample = if_else(scDblFinder.class == "singlet", 10000, Inf)) |>
+        replace_na(list(number_to_sample = Inf)) |>
+        unnest(doublet_class)
+
+      # UMAP plot by doublet class
+      merged_combined_annotation_doublets |> 
+        ggplot(aes(umap_1, umap_2, color = scDblFinder.class)) +
+        geom_point(shape = ".", size = 10) +
+        # theme_bw() +
+        labs(title = .y, color = "Cell Type") + 
+        ggrepel::geom_text_repel(
+          data = get_labels_clusters(
+            .x, 
+            scDblFinder.class,
+            umap_1, 
+            umap_2
+          ),
+          aes(umap_1, umap_2, label = scDblFinder.class), size = 3
+        ) +
+        guides(color = "none") + 
+        labs(title = .y) + 
+        common_theme
+    }
+  )) |> 
+  mutate(plot_by_cell_type = map2(
+    annotated_metadata,
+    sample_names,
+    ~ {
+      # Sample to not overwhelm the plotting
+      merged_combined_annotation_doublets = .x |> 
+        nest(doublet_class = -scDblFinder.class) |>
+        mutate(number_to_sample = if_else(scDblFinder.class == "singlet", 10000, Inf)) |>
+        replace_na(list(number_to_sample = Inf)) |>
+        unnest(doublet_class)
+
+      # UMAP plot by cell annotation
+      merged_combined_annotation_doublets |> 
+        ggplot(aes(umap_1, umap_2, color = !!sym(cell_ann_col))) +  # Using the cell annotation column dynamically
+        geom_point(shape = ".") +
+        # theme_minimal() +
+        common_theme +
+        labs(title = .y, color = "Cell Type") +
+        ggrepel::geom_text_repel(
+          data = get_labels_clusters(
+            .x, 
+            !!sym(cell_ann_col),  # Assuming cell_ann_col contains your cell annotations
+            umap_1, 
+            umap_2
+          ),
+          aes(umap_1, umap_2, label = !!sym(cell_ann_col)), size = 3
+        ) +
+        guides(color = "none") + 
+        labs(title = .y)
+    }
+  )) |> 
+  mutate(overall_plot = map2(plot_by_doublet, plot_by_cell_type, 
+                             ~ .x + .y)) 
+
+# Combine the plots
+plot_merged_combined_annotation_doublets <- merged_combined_annotation_doublets |> 
+  pull(overall_plot) |> 
+  wrap_plots(ncol = 1) +
+  plot_layout(guides = 'collect')
+
+# Print plot 
+plot_merged_combined_annotation_doublets
+
+
+```
+
+## Singlet and Doublet Cell Distributions Across Tissues
+
+Each bar in the plot corresponds to a specific cell type within each tissue.
+
+From this plot, we can infer:
+
+1.  The overall quality of the cell separation process in the sequencing data, indicated by the proportion of singlets to doublets.
+2.  Potential differences in the rate of doublet formation between cell types, which might be related to cell size and tissue type
+
+```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
+# 2a) Create the composition of the doublets
+doublet_composition<- merged_combined_annotation_doublets |>
+  mutate(doublet_composition = map2(
+    annotated_metadata,
+    sample_column,
+    ~ {
+      #browser()
+      .x|>
+      dplyr::select(sample_column, scDblFinder.class)}
+      )) |>
+      # table()|>
+  dplyr::select(sample_column, doublet_composition) |>
+  deframe()
+
+  # merged_combined_annotation_doublets <-
+  #   merged_combined_annotation_doublets |>
+  # mutate(doublet_composition_plot = doublet_composition |>
+  #          group_by(x5, all_of(x5)) |>
+  #          mutate(proportion = count_class/sum(count_class)) |>
+  #          ungroup()
+  #        )
+
+#calculate proportion and plot
+merged_combined_annotation_doublets <-
+    merged_combined_annotation_doublets |>
+  mutate(doublet_composition_plot = map(
+    annotated_metadata,
+      ~ .x |>
+      # browser() |>
+  # create frequency column
+  dplyr::count(.data$sample_column, .data[[cell_ann_col]], scDblFinder.class, name= "count_class") |>
+    group_by(.data$sample_column, .data[[cell_ann_col]]) |>
+    mutate(proportion = count_class/sum(count_class)) |>
+    ungroup() |>
+
+  # mutate(frequency = nCount_SCT/sum(nCount_SCT)*100) |>
+  #
+  # # create the proportion column
+  # group_by(sample, scDblFinder.class) |>
+  # mutate(tot_sample_proportion = sum(frequency)) |>
+  # mutate(proportion = (frequency * 1)/tot_sample_proportion) |>
+
+  #plot proportion
+  ggplot(aes(x = .data[[cell_ann_col]] , y = proportion, fill = scDblFinder.class)) +
+  geom_bar(stat = "identity") +
+  # theme_minimal() +
+  common_theme + 
+  facet_wrap(~ sample_column) +
+  theme(axis.text.x=element_text(angle=70, hjust=1))
+  ))
+
+plot_merged_combined_annotation_doublets<- merged_combined_annotation_doublets|>
+    pull(doublet_composition_plot)|>
+    wrap_plots(ncol = 1) +
+    plot_layout(guides = 'collect')
+
+# Print plot
+plot_merged_combined_annotation_doublets
+
+```
+
+:::
+
+# Session Info
+
+```{r}
+sessionInfo()
+```

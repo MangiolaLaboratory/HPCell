@@ -79,6 +79,7 @@ save_experiment_data <- function(data,
   switch(container_type,
          "anndata" = {
            if (ncol(assay(data)) == 1) data = data |> duplicate_single_column_assay()
+           data = data |> clean_and_report_NA_columns()
            zellkonverter::writeH5AD(data, paste0(dir, ".h5ad"), compression = "gzip") 
            read_data_container(paste0(dir, ".h5ad"), "anndata")
          },
@@ -95,40 +96,66 @@ save_experiment_data <- function(data,
   )
 }
 
-#' Duplicate Single-Column Assay in SingleCellExperiment Object
+#' Check whether a column is all NA in a dataframe, drop the column and warn users
+#' @return A data frame where all values are not NA
+#' @keywords internal
+#' @noRd
+clean_and_report_NA_columns <- function(df) {
+  na_column_names <- df |> select(where(~all(is.na(.)))) |> names()
+  
+  "Dropping {na_column_names} as they all contain only NA values" |>
+    cli::cli_alert_info()
+  df |> select(-all_of(na_column_names))
+}
+
+#' Duplicate Single-Column Assay in a SingleCellExperiment or Seurat Object
 #'
-#' This function handles SingleCellExperiment (SCE) objects where a specified assay 
+#' This function handles a `SingleCellExperiment` or `Seurat` object where a specified assay 
 #' contains only one column. It duplicates the single-column assay to avoid potential 
 #' errors during saving or downstream analysis that require at least two columns. 
 #' The duplicated column is marked with a prefix `DUMMY___` to distinguish it. 
 #' Corresponding entries in the column metadata (`colData`) are also duplicated.
 #'
-#' @param sce A `SingleCellExperiment` object.
+#' @param data A `SingleCellExperiment` or `Seurat` object.
 #' @importFrom SummarizedExperiment assay assays colData
 #' @importFrom SingleCellExperiment SingleCellExperiment
+#' @importFrom Seurat GetAssayData CreateSeuratObject
 #' @importFrom rlang set_names
-#' @return A modified `SingleCellExperiment` object with the single-column assay 
-#' duplicated if applicable. If the assay already has more than one column, the 
-#' function returns the original object unchanged.
-duplicate_single_column_assay <- function(sce) {
+#' @return A modified `SingleCellExperiment` or `Seurat` object with the single-column assay 
+#' duplicated if applicable.
+duplicate_single_column_assay <- function(data) {
   
-  assay_name = sce |> assays() |> names() |> magrittr::extract2(1)
+  assay_name = data@assays|> names() |> magrittr::extract2(1)
   
-  if(ncol(assay(sce)) == 1) {
+  if (inherits(data, "SingleCellExperiment") && ncol(data) == 1){
     
     # Duplicate the assay to prevent saving errors due to single-column matrices
-    my_assay = cbind(assay(sce), assay(sce))
+    my_assay = cbind(assay(data), assay(data))
     # Rename the second column to distinguish it
     colnames(my_assay)[2] = paste0("DUMMY", "___", colnames(my_assay)[2])
     
-    cd = colData(sce)
+    cd = colData(data)
     cd = cd |> rbind(cd)
     rownames(cd)[2] = paste0("DUMMY", "___", rownames(cd)[2])
     
-    sce =  SingleCellExperiment(assay = list(my_assay) |> set_names(assay_name), colData = cd)
-    sce
+    data =  SingleCellExperiment(assay = list(my_assay) |> set_names(assay_name), colData = cd)
+    data
   } 
-  sce
+  
+  if (inherits(data, "Seurat") && ncol(data) == 1) {
+    
+    my_assay <- GetAssayData(data, layer = "counts", assay = assay_name)
+    my_assay <- cbind(my_assay, my_assay)
+    colnames(my_assay)[2] <- paste0("DUMMY___", colnames(my_assay)[2])
+    
+    cd <- data[[]]
+    cd <- rbind(cd, cd)
+    rownames(cd)[2] <- paste0("DUMMY___", rownames(cd)[2])
+    
+    data <- CreateSeuratObject(counts = my_assay, meta.data = cd, assay = assay_name)
+    data
+  }
+  data
 }
 
 #' Gene name conversion using ensembl database
@@ -352,7 +379,6 @@ seurat_to_variable_features_overall = function(counts, assay, features_number = 
 #'
 #' @importFrom rlang enquo
 #' @importFrom rlang is_symbolic
-#' @import tidyseurat
 #' @importFrom Seurat NormalizeData
 #' @importFrom stringr str_subset
 #' @importFrom purrr map_int
@@ -748,23 +774,35 @@ addition = function(a, b){
 #' and compute UMAP (Uniform Manifold Approximation and Projection) embeddings for 
 #' visualization of cell clusters. 
 #'
-#' @noRd
-#' 
 #' @importFrom Seurat RunUMAP
-calc_UMAP <- function(input_seurat){
-  assay_name = input_seurat@assays |> names() |> extract2(1)
-  find_var_genes <- FindVariableFeatures(input_seurat)
-  var_genes<- find_var_genes@assays[[assay_name]]@var.features
+#' @export
+calc_UMAP <- function(input_seurat) {
+  assay_name <- input_seurat@assays |> names() |> extract2(1)
   
-  x<- ScaleData(input_seurat) |>
-    # Calculate UMAP of clusters
-    RunPCA(features = var_genes) |>
-    FindNeighbors(dims = 1:30) |>
-    FindClusters(resolution = 0.5) |>
-    RunUMAP(dims = 1:30, spread    = 0.5,min.dist  = 0.01, n.neighbors = 10L) |> 
-    as_tibble()
+  # Check if variable features are already present, if not calculate them
+  if (length(VariableFeatures(input_seurat)) == 0) {
+    input_seurat <- FindVariableFeatures(input_seurat)
+  }
+  
+  # Extract variable features using VariableFeatures() for Seurat v5
+  var_genes <- VariableFeatures(input_seurat)
+  
+  # Ensure that there are variable features before proceeding
+  if (length(var_genes) > 0) {
+    # Scale data and run PCA on variable genes
+    x <- ScaleData(input_seurat) |>
+      RunPCA(features = var_genes) |>
+      FindNeighbors(dims = 1:30) |>
+      FindClusters(resolution = 0.5) |>
+      RunUMAP(dims = 1:30, spread = 0.5, min.dist = 0.01, n.neighbors = 10L) |>
+      as_tibble()
+  } else {
+    stop("No variable features available for UMAP calculation.")
+  }
+  
   return(x)
 }
+
 #' Subsetting input dataset into a list of SingleCellExperiment or Seurat objects by pre-specified sample column tissue 
 #' 
 #' @importFrom dplyr quo_name pull
@@ -2446,6 +2484,16 @@ remove_random_effects <- function(formula) {
   return(fixed_formula)
 }
 
+#' Delete Lines Containing a Word from a File
+#'
+#' @description
+#' Reads a text file and removes all lines that contain a
+#' `target_output = "word"` pattern, then writes the result back to disk.
+#'
+#' @param word The target-output name whose line should be removed.
+#' @param file_path Path to the file to modify.
+#' @return Invisibly returns NULL; called for its side effect of modifying the file.
+#'
 #' @examples
 #' # Example usage:
 #' # delete_lines_with_word("your_text_file.txt", "bla")
@@ -2750,6 +2798,17 @@ write_source = function(user_function_source_path, target_script){
     write_lines(target_script, append = TRUE)
 }
 
+#' Append Targets to the Pipeline Target List
+#'
+#' @description
+#' Appends one or more `tar_target` objects to the global `target_list` used
+#' by the HPCell pipeline script. This function modifies `target_list` in the
+#' calling environment via `<<-`.
+#'
+#' @param target_list The existing list of `tar_target` objects to append to.
+#' @param ... One or more `tar_target` objects to append.
+#' @return Invisibly returns `NULL`; called for its side effect of updating
+#'   `target_list` in the enclosing environment.
 #' @export
 target_append <- function(target_list, ...) {
   # Append the new elements to the list
@@ -2931,14 +2990,14 @@ check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY <- function(input_rea
     
   } else if (inherits(input_read_RNA_assay, "Seurat")) {
     # For Seurat
-    assay_data <- GetAssayData(input_read_RNA_assay, assay = assay_name, slot = "data")
+    assay_data <- GetAssayData(input_read_RNA_assay, assay = assay_name)
     
     my_min = min(assay_data)
-              
+    
     # Check if all values are > 0
     if (my_min > 0) {
       # Subtract 1 from each value
-      input_read_RNA_assay <- SetAssayData(input_read_RNA_assay, assay = assay_name, slot = "data", 
+      input_read_RNA_assay <- SetAssayData(input_read_RNA_assay, assay = assay_name, 
                                            new.data = assay_data - my_min)
     } else {
       message("Not all values are greater than 0. No subtraction performed.")
@@ -2951,3 +3010,130 @@ check_if_assay_minimum_count_is_zero_and_correct_TEMPORARY <- function(input_rea
   # Return the modified object
   return(input_read_RNA_assay)
 }
+
+#' Clean Metadata in SingleCellExperiment Object
+#'
+#' This function takes a SingleCellExperiment (SCE) object and removes columns 
+#'    that are completely filled with NA values.
+#' The cleaned metadata is then returned as a dataframe.
+#'
+#' @param sce A SingleCellExperiment object containing metadata to be cleaned.
+#' @return A SingleCellExperiment with all completely NA columns removed
+clean_sce_metadata <- function(sce) {
+  sce <- sce |> select(where(~ any(!is.na(.))))
+  sce
+}
+
+#' Compute Pathway-Level Communication Probabilities
+#'
+#' @description
+#' Aggregates ligand-receptor level communication probabilities into pathway-level
+#' probabilities for a CellChat object.
+#'
+#' @param object A `CellChat` object. If `net` and `pairLR.use` are not
+#'   provided, they are extracted from this object.
+#' @param net A list with slots `$prob` (3-D array of probabilities) and
+#'   `$pval` (3-D array of p-values). `NULL` reads from `object@net`.
+#' @param pairLR.use A data frame of significant ligand-receptor pairs with a
+#'   `pathway_name` column. `NULL` reads from `object@LR$LRsig`.
+#' @param thresh Numeric significance threshold; interactions with p-value above
+#'   this value are set to zero. Default: `0.05`.
+#' @return A list containing `prob` (pathway probability array) and
+#'   `pathways.sig` (names of significant pathways).
+#' @export
+computeCommunProbPathway <- function(object = NULL, net = NULL, pairLR.use = NULL, thresh = 0.05) {
+  if (is.null(net)) {
+    net <- object@net
+  }
+  if (is.null(pairLR.use)) {
+    pairLR.use <- object@LR$LRsig
+  }
+  prob <- net$prob
+  prob[net$pval > thresh] <- 0
+  
+  LR <- dimnames(prob)[[3]]
+  LR.sig <- LR[apply(prob, 3, sum) != 0]
+  
+  pathways <- unique(pairLR.use$pathway_name)
+  group <- factor(pairLR.use$pathway_name, levels = pathways)
+  
+  # STEFANO FIX
+  if(length(levels(group))==1){
+    xx = apply(prob, c(1, 2), by, group, sum)
+    prob.pathways = xx |> array(dim = c(nrow(xx), ncol(xx), 1), dimnames = list(rownames(xx), colnames(xx), levels(group)))
+  }
+  else
+    prob.pathways <- aperm(apply(prob, c(1, 2), by, group, sum),
+                           c(2, 3, 1))
+  
+  pathways.sig <- pathways[apply(prob.pathways, 3, sum) != 0]
+  prob.pathways.sig <- prob.pathways[,,pathways.sig, drop = FALSE]
+  idx <- sort(apply(prob.pathways.sig, 3, sum), decreasing=TRUE, index.return = TRUE)$ix
+  pathways.sig <- pathways.sig[idx]
+  prob.pathways.sig <- prob.pathways.sig[, , idx]
+  
+  if (is.null(object)) {
+    netP = list(pathways = pathways.sig, prob = prob.pathways.sig)
+    return(netP)
+  } else {
+    object@net$LRs <- LR.sig
+    object@netP$pathways <- pathways.sig
+    object@netP$prob <- prob.pathways.sig
+    return(object)
+  }
+}
+
+#' Calculate a safe minimum-cells threshold for expressed genes
+#'
+#' Computes the minimum number of cells (`min_cells`) in which a gene must be
+#' detected (i.e., have expression > 0) so that the number of genes passing the
+#' threshold does not exceed the maximum safe size implied by
+#' `.Machine$integer.max` (to avoid 32-bit integer overflow in downstream steps).
+#' @param m A gene-by-cell matrix of counts or expression values. Typically a
+#'   sparse matrix of class \code{\linkS4class{dgCMatrix}}.
+#' @param min_cells Integer scalar. Desired starting minimum number of cells in
+#'   which a gene must be detected. 
+#' @param step Integer scalar. Step size used when rounding the computed
+#'   threshold up to a multiple of \code{step}. Defaults to \code{5L}.
+#'
+#' @return An integer scalar giving the (possibly increased) \code{min_cells}
+#'   threshold that keeps the number of retained genes within the allowed limit.
+#'
+#' @details
+#' The allowed number of genes is computed as:
+#' \deqn{ \mathrm{allowed\_genes} = \left\lfloor \frac{.Machine\$\mathrm{integer.max}}{\mathrm{ncol}(m)} \right\rfloor }
+#'
+#' A gene is considered "detected" in a cell if \code{m > 0}.
+#'
+#' @importFrom Matrix rowSums
+#' @export
+calculate_num_genes_express_in_cells <- function(m, min_cells,
+                                                 step = 5L) {
+  
+  # Count detected genes once (important for big data)
+  detected_genes <- Matrix::rowSums(m > 0)
+  
+  # Max genes allowed to avoid integer overflow
+  allowed_genes <- floor(.Machine$integer.max / ncol(m))
+  
+  # If already safe, return original threshold
+  n_genes <- sum(detected_genes >= min_cells)
+  if (n_genes <= allowed_genes)
+    return(min_cells)
+  
+  # ---- Fast threshold selection (no loop) ----
+  dg_sorted <- sort(detected_genes, decreasing = TRUE)
+  
+  # Edge case: even all genes allowed
+  if (allowed_genes >= length(dg_sorted))
+    return(min_cells)
+  
+  # Minimal detection cutoff that keeps genes under limit
+  new_threshold <- dg_sorted[allowed_genes]
+  
+  # Round up to nearest step (e.g., +5L)
+  new_threshold <- as.integer(ceiling(new_threshold / step) * step)
+  
+  return(new_threshold)
+}
+

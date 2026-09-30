@@ -7,7 +7,6 @@
 doublet_identification(
   input_read_RNA_assay,
   empty_droplets_tbl = NULL,
-  alive_identification_tbl = NULL,
   assay = NULL
 )
 }
@@ -16,13 +15,7 @@ doublet_identification(
 
 \item{empty_droplets_tbl}{A tibble identifying empty droplets.}
 
-\item{alive_identification_tbl}{A tibble identifying alive cells.}
-
 \item{assay}{Name of the assay to use.}
-
-\item{annotation_label_transfer_tbl}{A tibble with annotation label transfer data.}
-
-\item{reference_label_fine}{Optional reference label for fine-tuning.}
 }
 \value{
 A tibble containing cells with their scDblFinder scores.

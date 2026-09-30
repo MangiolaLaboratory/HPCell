@@ -3,7 +3,8 @@
 \docType{data}
 \name{ensembl_genes_biomart}
 \alias{ensembl_genes_biomart}
-\title{A data frame of Ensembl genes retrieved from biomaRt package}
+\title{This dataset contains Ensembl gene IDs, external gene names, and chromosome names
+retrieved using the biomaRt package.}
 \format{
 A data frame map of ensembl_gene_id, external_gene_name and chromosome_name
 }

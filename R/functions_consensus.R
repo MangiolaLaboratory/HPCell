@@ -1,6 +1,6 @@
 ensemble_annotation <- function(celltype_matrix, method_weights = NULL, override_celltype = c(), celltype_tree = NULL) {
   if (is.null(celltype_tree)) {
-    .data_internal(immune_graph)
+    celltype_tree <- get("immune_graph")
   }
 
   stopifnot(is(celltype_tree, "igraph"))

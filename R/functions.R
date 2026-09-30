@@ -9,10 +9,17 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(c("."))
 #' based on these criteria. The function returns a tibble containing log probabilities, FDR, and a classification
 #' indicating whether cells are empty droplets.
 #'
-#' @param input_read_RNA_assay SingleCellExperiment or Seurat object containing RNA assay data.
-#' @param filter_empty_droplets Logical value indicating whether to filter the input data.
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object
+#'   containing RNA assay data.
+#' @param total_RNA_count_check Numeric lower-bound total RNA count used as the
+#'   `lower` argument to `DropletUtils::emptyDrops()`. Default: `-Inf`.
+#' @param assay Name of the assay to extract counts from. `NULL` uses the first
+#'   assay.
+#' @param feature_nomenclature Character scalar indicating gene identifier type.
+#'   One of `"symbol"` or `"ensembl"`.
 #'
-#' @return A tibble with columns: logProb, FDR, empty_droplet (classification of droplets).
+#' @return A tibble with columns: `.cell`, `logProb`, `FDR`, `empty_droplet`
+#'   (logical classification).
 #'
 #' @importFrom AnnotationDbi mapIds
 #' @importFrom stringr str_subset
@@ -41,7 +48,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
   
   # Get counts
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay, layer = "counts")
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     counts <- assay(input_read_RNA_assay, assay)
   }
@@ -157,15 +164,15 @@ empty_droplet_id <- function(input_read_RNA_assay,
   # # Plot bar-codes ranks
   # plot_barcode_ranks =
   #   barcode_table %>%
-  #   ggplot2::ggplot(aes(rank, total)) +
-  #   geom_point(aes(color = empty_droplet, size = empty_droplet )) +
-  #   geom_line(aes(rank, fitted), color="purple") +
-  #   geom_hline(aes(yintercept = knee), color="dodgerblue") +
-  #   geom_hline(aes(yintercept = inflection), color="forestgreen") +
-  #   scale_x_log10() +
-  #   scale_y_log10() +
-  #   scale_color_manual(values = c("black", "#e11f28")) +
-  #   scale_size_discrete(range = c(0, 2)) +
+  #   ggplot2::ggplot(aes(rank, total)) 
+  #   geom_point(aes(color = empty_droplet, size = empty_droplet )) 
+  #   geom_line(aes(rank, fitted), color="purple") 
+  #   geom_hline(aes(yintercept = knee), color="dodgerblue") 
+  #   geom_hline(aes(yintercept = inflection), color="forestgreen") 
+  #   scale_x_log10() 
+  #   scale_y_log10() 
+  #   scale_color_manual(values = c("black", "#e11f28")) 
+  #   scale_size_discrete(range = c(0, 2)) 
   #   theme_bw()
   
   # plot_barcode_ranks |> saveRDS(output_path_plot_rds)
@@ -185,16 +192,26 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #' Identify Empty Droplets in Single-Cell RNA-seq Data
 #'
 #' @description
-#' `empty_droplet_threshold` distinguishes between empty and non-empty droplets by threshold. 
-#' It excludes mitochondrial and ribosomal genes, and filters input data
-#' based on defined values of `nCount_RNA` and `nFeature_RNA`
-#' The function returns a tibble containing RNA count, RNA feature count indicating whether cells are empty droplets.
+#' `empty_droplet_threshold` identifies empty droplets by applying a gene expression threshold per sample.
+#'   It excludes mitochondrial and ribosomal genes, and classifies droplets as empty if 
+#'   the number of expressed genes falls below the specified threshold.
+#'   
+#'   The function returns a tibble containing the number of expressed genes, 
+#'   total RNA count for each cell, and a logical annotation indicating whether the droplet was classified as empty.
 #'
-#' @param input_read_RNA_assay SingleCellExperiment or Seurat object containing RNA assay data.
-#' @param filter_empty_droplets Logical value indicating whether to filter the input data.
-#' @param RNA_feature_threshold An optional integer for the number of feature count. Default is 200
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object
+#'   containing RNA assay data.
+#' @param total_RNA_count_check Numeric lower-bound total RNA count threshold.
+#'   Default: `-Inf`.
+#' @param assay Name of the assay to extract counts from. `NULL` uses the first
+#'   assay.
+#' @param feature_nomenclature Character scalar indicating gene identifier type.
+#'   One of `"symbol"` or `"ensembl"`.
+#' @param RNA_feature_threshold Integer minimum number of expressed genes; cells
+#'   with fewer expressed genes are classified as empty.
 #'
-#' @return A tibble with columns: Cell, nFeature_RNA, empty_droplet (classification of droplets).
+#' @return A tibble with columns: `.cell`, `nFeature_expressed_in_sample`,
+#'   `nCount_RNA`, `empty_droplet` (logical classification).
 #'
 #' @importFrom AnnotationDbi mapIds
 #' @importFrom stringr str_subset
@@ -210,7 +227,7 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
                                    total_RNA_count_check  = -Inf,
                                    assay = NULL,
                                    feature_nomenclature,
-                                   RNA_feature_threshold = 200){
+                                   RNA_feature_threshold){
   if(input_read_RNA_assay |> is.null()) return(NULL)
   if(ncol(input_read_RNA_assay) == 0) return(NULL)
   
@@ -221,12 +238,12 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
-  # Check if empty droplets have been identified
-  nFeature_name <- paste0("nFeature_", assay)
-  
-  filter_empty_droplets <- "TRUE"
-  
   significance_threshold = 0.001
+  
+  # # Rule of thumb threshold
+  # expressed_genes_threshold = 0.025
+  # if (is.null(RNA_feature_threshold)) RNA_feature_threshold = min(floor(dim(input_read_RNA_assay)[1]*expressed_genes_threshold), 500)
+  # 
   # Genes to exclude
   if (feature_nomenclature == "symbol") {
     location <- mapIds(
@@ -252,16 +269,19 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
   
   # Get counts
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay, layer = "counts")
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     counts <- assay(input_read_RNA_assay, assay)
   }
   filtered_counts <- counts[!(rownames(counts) %in% c(mitochondrial_genes, ribosome_genes)),, drop=FALSE ]
   
-  # filter based on nCount_RNA and nFeature_RNA
-  result <- colSums(filtered_counts > 0 ) |> enframe(name = ".cell", value = "nFeature_RNA") |> 
-    #left_join(colSums(filtered_counts) |> enframe(name = ".cell", value = "nCount_RNA"), by = ".cell") |>
-    mutate(empty_droplet = nFeature_RNA < RNA_feature_threshold)
+  # Generate library size for each cell
+  library_size <- colSums(filtered_counts) |> enframe(name = ".cell", value = "nCount_RNA")
+  
+  # filter based on number of expressed genes
+  result <- colSums(filtered_counts > 0 ) |> enframe(name = ".cell", value = "nFeature_expressed_in_sample") |> 
+    left_join(library_size, by = ".cell") |>
+    mutate(empty_droplet = nFeature_expressed_in_sample < RNA_feature_threshold)
   
   # # Discard samples with nFeature_RNA density mode < threshold, avoid potential downstream error
   # density_est = result |> pull(nFeature_RNA) |> density()
@@ -278,16 +298,20 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
 #' (Blueprint and Monaco Immune data). It can also perform cell type labeling using Azimuth when a reference
 #' is provided.
 #'
-#' @param assay The assay to be used for analysis, specified as a character string.
-#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
-#' @param empty_droplets_tbl A tibble identifying empty droplets.
-#' @param reference_azimuth Optional reference data for Azimuth.
-#' @param assay assay used, default = "RNA" 
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object
+#'   containing RNA assay data.
+#' @param empty_droplets_tbl A tibble identifying empty droplets (output of
+#'   `empty_droplet_id()`). `NULL` skips filtering.
+#' @param reference_azimuth Optional Azimuth reference object or reference name
+#'   string. `NULL` uses the default BlueprintEncode + Monaco immune references.
+#'   Requires the \pkg{Azimuth} package (GitHub-only:
+#'   `remotes::install_github("satijalab/azimuth@master")`).
+#' @param assay Name of the assay to use. `NULL` uses the first assay.
+#' @param feature_nomenclature Character scalar indicating gene identifier type.
+#'   One of `"symbol"` or `"ensembl"`.
 #'
-#' @return A tibble with cell type annotation data.
+#' @return A tibble with cell-type annotation data.
 #'
-#' @importFrom celldex BlueprintEncodeData
-#' @importFrom celldex MonacoImmuneData
 #' 
 #' @importFrom Seurat CreateAssayObject
 #' @importFrom Seurat SCTransform
@@ -312,7 +336,6 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
 #' @importFrom magrittr extract2
 #' @importFrom SummarizedExperiment assay
 #' @importFrom SummarizedExperiment assay<-
-#' @importFrom Azimuth RunAzimuth
 #' @importFrom stringr str_detect
 #' @importFrom tidyr nest
 #' @importFrom S4Vectors cbind
@@ -349,13 +372,12 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   
   # SingleR
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    sce =
+    input_read_RNA_assay =
       input_read_RNA_assay |>
       as.SingleCellExperiment() |>
-      logNormCounts(assay.type = assay)
+      logNormCounts()
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")){
-    sce =
-      # Filter empty
+    input_read_RNA_assay =
       input_read_RNA_assay|>
       logNormCounts(assay.type = assay)
   }
@@ -366,6 +388,13 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     colnames(input_read_RNA_assay)[2]= "dummy___"
   }
   
+  if (!requireNamespace("celldex", quietly = TRUE))
+    stop(
+      "Package 'celldex' is required for SingleR-based cell-type annotation. ",
+      "Install it with: BiocManager::install('celldex')"
+    )
+  
+  #snapshotDate(): 2025-10-29
   blueprint <- celldex::BlueprintEncodeData(
     ensembl = feature_nomenclature == "ensembl"
     #legacy = TRUE
@@ -401,6 +430,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
   rm(blueprint)
   gc()
   
+  #snapshotDate(): 2025-10-29
   MonacoImmuneData <- celldex::MonacoImmuneData(
     ensembl = feature_nomenclature == "ensembl"
     #legacy = TRUE
@@ -460,11 +490,15 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     #output_path
     
   } else if (!is.null(reference_azimuth)) {
-    
-    library(Seurat) # !!! If this is not here gives error, but this has to go for Bioconductor
-    
+
+    if (!requireNamespace("Azimuth", quietly = TRUE))
+      stop("Package 'Azimuth' is required for reference-based annotation. ",
+           "Install it with: remotes::install_github('satijalab/azimuth@master')")
+
     # Convert SCE to SE to calculate SCT
     if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+      
+      assay = input_read_RNA_assay@assays |> names() |> extract2(1)
       
       assay(input_read_RNA_assay, assay) <- 
         assay(input_read_RNA_assay, assay) |> 
@@ -526,11 +560,17 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' @description
 #' `alive_identification` filters out dead cells by analyzing mitochondrial and ribosomal gene expression percentages.
 #'
-#' @param assay The assay to be used for analysis, specified as a character string. 
-#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
-#' @param empty_droplets_tbl A tibble identifying empty droplets.
-#' @param annotation_label_transfer_tbl A tibble with annotation label transfer data.
-#' @param assay assay used, default = "RNA" 
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object
+#'   containing RNA assay data.
+#' @param empty_droplets_tbl A tibble identifying empty droplets (output of
+#'   `empty_droplet_id()`). `NULL` skips filtering.
+#' @param cell_type_ensembl_harmonised_tbl A tibble with harmonised cell-type
+#'   annotations. `NULL` skips annotation-based grouping.
+#' @param cell_type_column Character column name used to stratify QC thresholds
+#'   per cell type. `NULL` applies global thresholds.
+#' @param assay Name of the assay to use. `NULL` uses the first assay.
+#' @param feature_nomenclature Character scalar indicating gene identifier type.
+#'   One of `"symbol"` or `"ensembl"`.
 #'
 #' @return A tibble identifying alive cells.
 #'
@@ -549,15 +589,16 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' @importFrom purrr map
 #' @importFrom magrittr not
 #' @importFrom Matrix colSums
-#' @importFrom magrittr extract2 not
-#' @importFrom SummarizedExperiment assay colData assay<-
+#' @importFrom magrittr extract2
+#' @importFrom SummarizedExperiment assay
+#' @importFrom SummarizedExperiment colData
 #' @importFrom tidyselect all_of
 #' 
 #' @export
 alive_identification <- function(input_read_RNA_assay,
                                  empty_droplets_tbl = NULL,
-                                 annotation_label_transfer_tbl = NULL,
-                                 annotation_column = NULL,
+                                 cell_type_ensembl_harmonised_tbl = NULL,
+                                 cell_type_column = NULL,
                                  assay = NULL,
                                  feature_nomenclature) {
   
@@ -567,9 +608,11 @@ alive_identification <- function(input_read_RNA_assay,
   .cell = NULL 
   high_mitochondrion = NULL 
   
+  if (input_read_RNA_assay |> is.null()) return(NULL)
+  
   if(
-    !is.null(annotation_column) && 
-    !annotation_column %in% colnames(as_tibble(input_read_RNA_assay[1,1]))
+    is.null(cell_type_column) && 
+    !cell_type_column %in% colnames(as_tibble(input_read_RNA_assay[1,1]))
   )
     stop("HPCell says: Your `group_by` columns are not present in your data. Please run annotate_cell_type_hpc() to get the cell type annotation that you can use as grouping for the cell-type-specific quality control and removal of dead cells.")
   
@@ -583,13 +626,19 @@ alive_identification <- function(input_read_RNA_assay,
       dplyr::filter(!empty_droplet)
   } 
   
+  # In rare cases, all cells in a sample are empty droplets
+  if (ncol(input_read_RNA_assay) == 0) return(NULL)
+  
+  # In rare cases, a cell in a sample is non empty droplet
+  if (ncol(input_read_RNA_assay) == 1) input_read_RNA_assay = input_read_RNA_assay |> duplicate_single_column_assay()
+  
   # Calculate nFeature_RNA and nCount_RNA if not exist in the data
   nFeature_name <- paste0("nFeature_", assay)
   nCount_name <- paste0("nCount_", assay)
   
   
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay = assay, slot = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay = assay, layer = "counts")
     if (!any(str_which(colnames(input_read_RNA_assay[[]]), nFeature_name)) ||
         !any(str_which(colnames(input_read_RNA_assay[[]]), nCount_name))) {
       input_read_RNA_assay[[nFeature_name]] <-
@@ -600,7 +649,7 @@ alive_identification <- function(input_read_RNA_assay,
       input_read_RNA_assay
     }
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
-    counts <- SummarizedExperiment::assay(input_read_RNA_assay, assay = assay)
+    counts <- assay(input_read_RNA_assay, assay = assay)
     if (!any(str_which(colnames(colData(input_read_RNA_assay)), nFeature_name)) ||
         !any(str_which(colnames(colData(input_read_RNA_assay)), nCount_name))) {
       colData(input_read_RNA_assay)[[nFeature_name]] <- Matrix::colSums(counts > 0)
@@ -608,25 +657,26 @@ alive_identification <- function(input_read_RNA_assay,
     }
   }
   
-  
+  # input_read_RNA_assay <- input_read_RNA_assay %>%
+  #   AddMetaData(
+  #     metadata = PercentageFeatureSet(input_read_RNA_assay, pattern = "^MT-", assay = assay), 
+  #     col.name = "percent.mt"
+  #   )
   
   # Returns a named vector of IDs
-  # Matches the gene id’s row by row and inserts NA when it can’t find gene names
-  if (feature_nomenclature == "symbol") {
-    location <- mapIds(
-      EnsDb.Hsapiens.v86,
-      keys=rownames(input_read_RNA_assay),
-      column="SEQNAME",
-      keytype="SYMBOL"
-    )
-  }
+  # Matches the gene id's row by row and inserts NA when it can't find gene names
+  location <- mapIds(
+    EnsDb.Hsapiens.v86,
+    keys = rownames(input_read_RNA_assay),
+    column = "SEQNAME",
+    keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID"
+  )
   
-  
-  which_mito = rownames(input_read_RNA_assay) |> str_which("^MT")
+  which_mito = which(location == "MT")
   
   # mitochondrion =
   #   input_read_RNA_assay |>
-  #   GetAssayData( slot = "counts", assay=assay) |>
+  #   GetAssayData( layer = "counts", assay=assay) |>
   # 
   #   # Join mitochondrion statistics
   #   # Compute per-cell quality control metrics for a count matrix or a SingleCellExperiment
@@ -634,13 +684,13 @@ alive_identification <- function(input_read_RNA_assay,
   #   as_tibble(rownames = ".cell") |>
   #   select(-sum, -detected) |>
   # 
-  #   # Join cell types if annotation_label_transfer_tbl provided
+  #   # Join cell types if cell_type_ensembl_harmonised_tbl provided
   #   {\(x)
-  #     if (inherits(annotation_label_transfer_tbl, "tbl_df")) {
-  #       left_join(x, annotation_label_transfer_tbl, by = ".cell") |>
+  #     if (inherits(cell_type_ensembl_harmonised_tbl, "tbl_df")) {
+  #       left_join(x, cell_type_ensembl_harmonised_tbl, by = ".cell") |>
   # 
   #       # Label cells
-  #       nest(data = -all_of(annotation_column)) |>
+  #       nest(data = -all_of(cell_type_column)) |>
   #         mutate(data = map(
   #           data,
   #           ~ .x |>
@@ -659,12 +709,10 @@ alive_identification <- function(input_read_RNA_assay,
   if (inherits(input_read_RNA_assay, "Seurat")){
     rna_counts <- GetAssayData(input_read_RNA_assay, layer = "counts", assay=assay)
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
-    rna_counts <- SummarizedExperiment::assay(input_read_RNA_assay, assay=assay)
-    SummarizedExperiment::assay(input_read_RNA_assay, assay) <- 
-      SummarizedExperiment::assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
+    rna_counts <- assay(input_read_RNA_assay, assay=assay)
+    assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
     
-    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, 
-                                                              counts = assay) 
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, counts = assay) 
     
     # Rename assay
     assay_name_old = input_read_RNA_assay |> Assays() |> _[[1]]
@@ -679,8 +727,21 @@ alive_identification <- function(input_read_RNA_assay,
     as_tibble(rownames = ".cell") %>%
     dplyr::select(-sum, -detected)
   
-  # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
-  percentage_output = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)
+  if (feature_nomenclature == "symbol") {
+    percentage_output = PercentageFeatureSet(input_read_RNA_assay, pattern = "^RPS|^RPL", assay = assay)
+  } else {
+    # Ensembl IDs: resolve ribo gene IDs from biomart reference
+    data(ensembl_genes_biomart)
+    ribosome_ensembl_ids <- ensembl_genes_biomart[
+      grep("^(RPL|RPS)", ensembl_genes_biomart$external_gene_name), "ensembl_gene_id"
+    ]
+    ribosome_features <- intersect(ribosome_ensembl_ids, rownames(input_read_RNA_assay))
+    percentage_output = PercentageFeatureSet(
+      input_read_RNA_assay,
+      features = if (length(ribosome_features) > 0) ribosome_features else character(0),
+      assay = assay
+    )
+  }
   percentage_output = percentage_output[!duplicated(names(percentage_output))]
   # Compute ribosome statistics
   ribosome =
@@ -689,43 +750,46 @@ alive_identification <- function(input_read_RNA_assay,
     #mutate(subsets_Ribo_percent = PercentageFeatureSet(input_read_RNA_assay,  pattern = "^RPS|^RPL", assay = assay)[,1]) |>
     mutate(subsets_Ribo_percent = percentage_output)
   
-  # Add cell type labels and determine high mitochondrion content, if annotation_label_transfer_tbl is provided
-  if(annotation_column |> is.null() |> not()) {
+  # Add cell type labels and determine high mitochondrion content, if cell_type_ensembl_harmonised_tbl is provided
+  if(cell_type_column |> is.null() |> not()) {
     
     if (
-      inherits(annotation_label_transfer_tbl, "tbl_df") &&
-      annotation_column %in% colnames(annotation_label_transfer_tbl)
+      inherits(cell_type_ensembl_harmonised_tbl, "tbl_df") &&
+      cell_type_column %in% colnames(cell_type_ensembl_harmonised_tbl)
     ) {
       
       mitochondrion <- qc_metrics %>%
-        left_join(annotation_label_transfer_tbl, by = ".cell") 
+        left_join(cell_type_ensembl_harmonised_tbl, by = ".cell") 
       
       ribosome =
         ribosome |>
-        left_join(annotation_label_transfer_tbl, by = ".cell") 
+        # Only retrieve metadata so nesting in the next step won't break
+        left_join(cell_type_ensembl_harmonised_tbl, by = ".cell") |> as_tibble()
     }
     
     
-    else if (annotation_column %in% colnames(as_tibble(input_read_RNA_assay[1,1]))) {
+    else if (cell_type_column %in% colnames(as_tibble(input_read_RNA_assay[1,1]))) {
       
       mitochondrion <- 
         qc_metrics %>%
-        left_join(input_read_RNA_assay |> select(.cell, all_of(annotation_column)), by = ".cell") 
+        left_join(input_read_RNA_assay |> as_tibble() |> select(.cell, all_of(cell_type_column)), by = ".cell") 
       
       
       ribosome = 
         ribosome |>
-        left_join(input_read_RNA_assay |> select(.cell, all_of(annotation_column)), by = ".cell") 
+        # Only retrieve metadata so nesting in the next step won't break
+        left_join(input_read_RNA_assay |> as_tibble() |> select(.cell, all_of(cell_type_column)), by = ".cell") |> as_tibble()
+      
     }
     
     
     mitochondrion = 
       mitochondrion %>%
-      nest(data = -all_of(annotation_column)) 
+      nest(data = -all_of(cell_type_column)) 
     
     ribosome =
       ribosome |>
-      nest(data = -all_of(annotation_column)) 
+      nest(data = -all_of(cell_type_column)) 
     
   } else {
     # Determing high mitochondrion content 
@@ -756,9 +820,11 @@ alive_identification <- function(input_read_RNA_assay,
   
   # Merge
   mitochondrion |>
-    left_join(ribosome, by=".cell") |>
-    mutate(alive = !high_mitochondrion) # & !high_ribosome ) |>
-  
+    left_join(ribosome) |>
+    mutate(alive = !high_mitochondrion) |> # & !high_ribosome ) |>
+    # Select informative columns
+    select(.cell, {{cell_type_column}}, contains("subsets"), contains("observation"),
+           contains("high"), alive)
 }
 
 
@@ -771,29 +837,30 @@ alive_identification <- function(input_read_RNA_assay,
 #' @param assay The assay to be used for analysis, specified as a character string.
 #' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
 #' @param empty_droplets_tbl A tibble identifying empty droplets.
-#' @param alive_identification_tbl A tibble identifying alive cells.
-#' @param annotation_label_transfer_tbl A tibble with annotation label transfer data.
-#' @param reference_label_fine Optional reference label for fine-tuning.
 #' @param assay Name of the assay to use.
 #'
 #' @return A tibble containing cells with their scDblFinder scores.
 #'
-#' @importFrom dplyr left_join filter
+#' @importFrom dplyr left_join filter select
 #' @importFrom Matrix Matrix 
-#' @importFrom SummarizedExperiment colData
+#' @importFrom SummarizedExperiment colData assayNames assayNames<-
 #' @importFrom Seurat as.SingleCellExperiment
 #' @import scDblFinder
 #' @export
 doublet_identification <- function(input_read_RNA_assay, 
                                    empty_droplets_tbl = NULL, 
-                                   alive_identification_tbl = NULL, 
-                                   #annotation_label_transfer_tbl, 
-                                   #reference_label_fine,
+                                   # annotation_label_transfer_tbl,
+                                   # reference_label_fine,
                                    assay = NULL){
+  
+  # Make doublet assignment reproducible across runs 
+  set.seed(123)
   
   # Fix GChecks 
   .cell = NULL 
   empty_droplet = NULL 
+  
+  if (is.null(input_read_RNA_assay)) return(NULL)
   
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
@@ -801,39 +868,44 @@ doublet_identification <- function(input_read_RNA_assay,
   
   if (inherits(input_read_RNA_assay, "Seurat")) {
     input_read_RNA_assay <- input_read_RNA_assay |>
-      # Filtering empty
       Seurat::as.SingleCellExperiment() 
-  } 
-  
-  if (!is.null(empty_droplets_tbl)) { 
     
-    filter_empty_droplets <- input_read_RNA_assay |>
-      # Filtering empty
+  } 
+  # Filtering empty
+  if (!is.null(empty_droplets_tbl)) { 
+    input_read_RNA_assay <- input_read_RNA_assay |>
+
       left_join(empty_droplets_tbl |> select(.cell, empty_droplet), by = ".cell") |>
       filter(!empty_droplet) 
-    
-    # Filtering dead
-    if(alive_identification_tbl |> is.null() |> not())
-      input_read_RNA_assay = input_read_RNA_assay |>
-        left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
-        filter(alive)
-  } 
-  
-  # Condition as scDblFinder only accept assay "counts"
-  if (!"counts" %in% (SummarizedExperiment::assays(filter_empty_droplets) |> names())){
-    SummarizedExperiment::assay(filter_empty_droplets, "counts") <-  
-      SummarizedExperiment::assay(filter_empty_droplets, assay)
-    SummarizedExperiment::assay(filter_empty_droplets, assay) <- NULL
   }
-  # Annotate
-  input_read_RNA_assay |> 
-    #left_join(annotation_label_transfer_tbl, by = ".cell")|>
-    #scDblFinder(clusters = ifelse(reference_label_fine=="none", TRUE, reference_label_fine)) |>
-    scDblFinder(clusters = NULL) |> 
-    colData() |> 
-    as_tibble(rownames = ".cell") |> 
-    select(.cell, contains("scDblFinder")) 
   
+  # scDblFinder() can identify doublets from non-empty droplet cells, so no need to filter alive
+  
+  # In rare cases, all cells in a sample are empty droplets or dead
+  if (ncol(input_read_RNA_assay) == 0) return(NULL)
+  
+  # scDblFinder can only handle counts assay, thus rename
+  assayNames(input_read_RNA_assay)[assayNames(input_read_RNA_assay) == assay] <- "counts"
+  
+  # Annotate
+  # Mark doublets to Unknown when scDblFinder fails and keep them in the downstream analysis.
+  result <- tryCatch({
+    # Run scDblFinder
+    input_read_RNA_assay <- input_read_RNA_assay |>
+      # By default, artificial doublets will be considered unidentifiable when score threshold below 0.2
+      scDblFinder(clusters = NULL)
+  }, error = function(e) {
+    # Error handling
+    message("Error in scDblFinder: ", e$message)
+    input_read_RNA_assay <- input_read_RNA_assay |> mutate(scDblFinder.class = "Unknown")
+    }
+  )
+
+  result |>
+    colData() |>
+    as_tibble(rownames = ".cell") |>
+    select(.cell, scDblFinder.class)
+
 }
 
 
@@ -844,12 +916,16 @@ doublet_identification <- function(input_read_RNA_assay,
 #' Returns a tibble containing cell identifiers with their predicted classification 
 #' into cell cycle phases: G2M, S, or G1 phase.
 #'
-#' @param assay The assay to be used for analysis, specified as a character string.
-#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
-#' @param empty_droplets_tbl A tibble identifying empty droplets.
-#' @param assay Name of the assay to use.
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object
+#'   containing RNA assay data.
+#' @param empty_droplets_tbl A tibble identifying empty droplets (output of
+#'   `empty_droplet_id()`). `NULL` skips filtering.
+#' @param feature_nomenclature Character scalar indicating gene identifier type.
+#'   One of `"symbol"` or `"ensembl"`.
+#' @param assay Name of the assay to use. `NULL` uses the first assay.
 #'
-#' @return A tibble with cell identifiers and their cell cycle phase classifications.
+#' @return A tibble with cell identifiers and their cell cycle phase classifications
+#'   (G1, S, or G2M).
 #'
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
@@ -860,7 +936,6 @@ doublet_identification <- function(input_read_RNA_assay,
 #' @importFrom SeuratObject RenameAssays
 #' @importFrom Seurat NormalizeData
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
-#' @importFrom SummarizedExperiment assay assay<-
 #' @importFrom SingleCellExperiment SingleCellExperiment
 #' @export
 cell_cycle_scoring <- function(input_read_RNA_assay, 
@@ -878,10 +953,8 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
   
   # Convert to Seurat in order to perform cell cycle scoring
   if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
-    assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> 
-      as("dgCMatrix")
-    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, 
-                                                              counts = assay) 
+    assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL) 
     
     # Rename assay
     assay_name_old = input_read_RNA_assay |> Assays() |> _[[1]]
@@ -905,12 +978,12 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
   
   # avoid small number of cells 
   if (!is.null(empty_droplets_tbl)) {
-    filtered_counts <- input_read_RNA_assay |>
+    input_read_RNA_assay <- input_read_RNA_assay |>
       left_join(empty_droplets_tbl, by = ".cell") |>
       dplyr::filter(!empty_droplet)
   } 
   
-  counts <- filtered_counts |>
+  counts <- input_read_RNA_assay |>
     # Normalise needed
     NormalizeData() |>
     
@@ -933,25 +1006,38 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
 #' Regresses out variations due to mitochondrial content, ribosomal content, and 
 #' cell cycle effects.
 #'
-#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
-#' @param empty_droplets_tbl A tibble identifying empty droplets.
-#' @param alive_identification_tbl A tibble from alive cell identification.
-#' @param cell_cycle_score_tbl A tibble from cell cycle scoring.
-#' @param assay assay used, default = "RNA" 
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object
+#'   containing RNA assay data.
+#' @param empty_droplets_tbl A tibble identifying empty droplets. `NULL` skips.
+#' @param alive_identification_tbl A tibble from alive cell identification. `NULL` skips.
+#' @param doublet_identification_tbl A tibble from doublet identification. `NULL` skips.
+#' @param cell_cycle_score_tbl A tibble from cell cycle scoring. `NULL` skips.
+#' @param assay Name of the assay to use. `NULL` uses the first assay.
+#' @param factors_to_regress Character vector of cell-level covariates to regress
+#'   out during SCTransform normalisation. `NULL` applies no regression.
+#' @param external_path Character path to the directory where intermediate data
+#'   are stored.
+#' @param container_type Character scalar specifying the output file format.
+#'   Should match the input data container type.
 #'
-#' @return Normalized and adjusted data.
+#' @return Normalised and covariate-adjusted single-cell object.
 #'
 #' @importFrom dplyr left_join filter
 #' @importFrom Seurat NormalizeData VariableFeatures SCTransform
-#' @importFrom SummarizedExperiment assay assay<-
+#' @importFrom SummarizedExperiment assay assay<- assays
 #' @export
 non_batch_variation_removal <- function(input_read_RNA_assay, 
                                         empty_droplets_tbl = NULL, 
                                         alive_identification_tbl = NULL, 
+                                        doublet_identification_tbl = NULL,
                                         cell_cycle_score_tbl = NULL,
                                         assay = NULL,
                                         factors_to_regress = NULL,
-                                        external_path){
+                                        external_path,
+                                        container_type){
+  
+  options(future.globals.maxSize = Inf) 
+  
   #Fix GChecks 
   empty_droplet = NULL 
   .cell <- NULL 
@@ -962,12 +1048,54 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
+  # avoid small number of cells 
+  if (!is.null(empty_droplets_tbl)) {
+    input_read_RNA_assay <- input_read_RNA_assay |>
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      dplyr::filter(!empty_droplet)
+  } 
+  
+  # remove dead cells
+  if (!is.null(alive_identification_tbl)) {
+    input_read_RNA_assay =
+      input_read_RNA_assay |>
+      left_join(
+        alive_identification_tbl ,
+        by=".cell"
+      ) |> dplyr::filter(alive) 
+  }
+  
+  # remove doublets
+  if (!is.null(doublet_identification_tbl)) {
+    input_read_RNA_assay =
+      input_read_RNA_assay |>
+      left_join(
+        doublet_identification_tbl ,
+        by=".cell"
+      ) |> dplyr::filter(scDblFinder.class != "doublet") 
+  }
+  
+  if(!is.null(cell_cycle_score_tbl)) {
+    input_read_RNA_assay = input_read_RNA_assay |>
+      
+      left_join(
+        cell_cycle_score_tbl |>
+          select(.cell, any_of(factors_to_regress)),
+        by=".cell"
+      )
+  }
+  
+  if (ncol(input_read_RNA_assay) == 0) return (NULL)
+  
+  # SCTransform cant perform on one cell
+  if (ncol(input_read_RNA_assay) == 1) return (NULL)
+  if (ncol(input_read_RNA_assay[, !grepl("^DUMMY___", colnames(input_read_RNA_assay))]) == 1) return (NULL) 
+  
   if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
     
     input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, 
                                                               counts = assay) 
-    
     # Rename assay
     assay_name_old = input_read_RNA_assay |> Assays() |> _[[1]]
     input_read_RNA_assay = input_read_RNA_assay |>
@@ -976,32 +1104,7 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
         new.assay.name = assay)
   }
   
-  # avoid small number of cells 
-  if (!is.null(empty_droplets_tbl)) {
-    input_read_RNA_assay <- input_read_RNA_assay |>
-      left_join(empty_droplets_tbl, by = ".cell") |>
-      dplyr::filter(!empty_droplet)
-  } 
-
-  if (!is.null(alive_identification_tbl)) {
-  input_read_RNA_assay =
-    input_read_RNA_assay |>
-    left_join(
-      alive_identification_tbl |>
-        select(.cell, any_of(factors_to_regress)),
-      by=".cell"
-    ) 
-  }
-  
-  if(!is.null(cell_cycle_score_tbl)) 
-    input_read_RNA_assay = input_read_RNA_assay |>
-    
-    left_join(
-      cell_cycle_score_tbl |>
-        select(.cell, any_of(factors_to_regress)),
-      by=".cell"
-    )
-  
+ 
   # filter(!high_mitochondrion | !high_ribosome)
   
   # variable_features = readRDS(input_path_merged_variable_genes)
@@ -1010,34 +1113,57 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   # VariableFeatures(input_read_RNA_assay) = variable_features
   
   # Normalise RNA
+  # Avoid sctransform explode in big samples
+  m <- GetAssayData(input_read_RNA_assay, assay, layer = "counts")
+  bigm_lgl <- as.double(nrow(m)) * as.double(ncol(m)) > .Machine$integer.max
+  min_cells <- if (bigm_lgl) 5L else 0L
+  new_min_cells = calculate_num_genes_express_in_cells(m, min_cells) # update min_cells if needed
+    
   input_read_RNA_assay <- 
-    input_read_RNA_assay |> 
-      Seurat::SCTransform(
-      assay=assay,
-      return.only.var.genes=FALSE,
-      residual.features = NULL,
-      vars.to.regress = factors_to_regress,
-      vst.flavor = "v2",
-      scale_factor=2186,  
-      conserve.memory=T, 
-      min_cells=0
-    )  |> 
-    GetAssayData(assay="SCT")
+    input_read_RNA_assay |>
+          SCTransform(
+            assay = assay,
+            return.only.var.genes = FALSE,
+            residual.features = NULL,
+            vars.to.regress = factors_to_regress,
+            vst.flavor = "v2",
+            scale_factor = 2186,
+            conserve.memory = TRUE,
+            min_cells = new_min_cells
+          )
+  # |> 
+  #   GetAssayData(assay="SCT")
+  
+  sct_mat <- input_read_RNA_assay |>  GetAssayData(assay="SCT")
 
   if (class_input == "SingleCellExperiment") {
 
-    if(input_read_RNA_assay[,1,drop=FALSE] |> is.nan() |> any())
+    if(sct_mat[,1,drop=FALSE] |> is.nan() |> any())
              warning("HPCell says: some features might be all 0s, NaN are added by Seurat in the SCT assay, and kept in the assay because SingleCellExperiment requires same feature set for all assays.")
              
-    write_HDF5_array_safe(input_read_RNA_assay, "SCT", external_path)
+    #write_HDF5_array_safe(input_read_RNA_assay, "SCT", external_path)
+    input_read_RNA_assay <- input_read_RNA_assay |> as.SingleCellExperiment(assay = "SCT" )
+    assays(input_read_RNA_assay) <- assays(input_read_RNA_assay)["logcounts"] # log-scaled counts in SCT
+    
+    input_read_RNA_assay |> save_experiment_data(dir = glue("{external_path}/{digest(input_read_RNA_assay)}"), 
+                                                 container_type = container_type)
+    
+    input_read_RNA_assay
     
   } else if (class_input ==  "Seurat") {
 
-    # Remove NaN features from SCT assay
-    input_read_RNA_assay <- input_read_RNA_assay[!apply(input_read_RNA_assay, 1, function(row) all(is.nan(row))), ]
-                                                      
-    input_read_RNA_assay 
+    #input_read_RNA_assay <- input_read_RNA_assay[!apply(input_read_RNA_assay, 1, function(row) all(is.nan(row))), ]
     
+    # Remove NaN features from SCT assay
+    keep_features <- rowSums(is.nan(sct_mat)) < ncol(sct_mat)
+    
+    # Subset Seurat object by features
+    input_read_RNA_assay <- subset(
+      input_read_RNA_assay,
+      features = rownames(sct_mat)[keep_features]
+    )
+    
+    input_read_RNA_assay
   }
   
   
@@ -1054,11 +1180,574 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
   #     # Drop alive columns
   #     select(-subsets_Ribo_percent, -subsets_Mito_percent, -G2M.Score)
   # }
+}
+
+#' Preprocess metacells with the SuperCell approach
+#' 
+#' This function preprocesses a single-cell gene expression matrix for downstream simplification using PCA 
+#' and k-nearest neighbor (kNN) graph construction. It includes options for scaling, feature selection, 
+#' approximate sampling, and PCA computation methods.
+#'
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object containing RNA assay data.
+#' @param assay assay used, default = "RNA" 
+#' @param genes.use a vector of genes used to compute PCA
+#' @param genes.exclude a vector of genes to be excluded when computing PCA
+#' @param n.var.genes if \code{"genes.use"} is not provided, \code{"n.var.genes"} genes with the largest variation are used
+#' @param k.knn parameter to compute single-cell kNN network
+#' @param do.scale whether to scale gene expression matrix when computing PCA
+#' @param n.pc number of principal components to use for construction of single-cell kNN network
+#' @param fast.pca use \link[irlba]{irlba} as a faster version of prcomp (one used in Seurat package)
+#' @param do.approx compute approximate kNN in case of a large dataset (>50'000)
+#' @param approx.N number of cells to subsample for an approximate approach. By default, 5000 cells are used 
+#'   for approximation to capture biological meaningful result.
+#' @param seed seed to use to subsample cells for an approximate approach
+#' @param ... other parameters of \link[SuperCell]{build_knn_graph} function
+#' @return A list of variables to be passed to the `SuperCell::SCimplify` gamma involved function. 
+#' @importFrom Matrix t
+#' @importFrom stats var prcomp
+#' @importFrom irlba irlba
+#' @export
+preprocess_SCimplify <- function(input_read_RNA_assay,
+                                 assay = NULL,
+                                 genes.use = NULL,
+                                 genes.exclude = NULL,
+                                 n.var.genes = min(1000, nrow(input_read_RNA_assay)),
+                                 k.knn = 5,
+                                 do.scale = TRUE,
+                                 n.pc = 10,
+                                 fast.pca = TRUE,
+                                 do.approx = FALSE,
+                                 approx.N = 5000,
+                                 seed = 12345,
+                                 ...){
+  #Fix GChecks 
+  empty_droplet = NULL 
+  .cell <- NULL 
+  
+  # Your code for non_batch_variation_removal function here
+  class_input = input_read_RNA_assay |> class()
+  
+  # For small number of cells
+  if (ncol(input_read_RNA_assay) < 10) {
+    k.knn = ncol(input_read_RNA_assay) - 1
+    n.pc = ncol(input_read_RNA_assay) - 1
+  }
+  
+  # Get assay
+  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> magrittr::extract2(1)
+  
+  # Convert to SE if the input is SCE
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
+    
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, 
+                                                              counts = assay) 
+    
+    # Rename assay
+    assay_name_old = DefaultAssay(input_read_RNA_assay)
+    input_read_RNA_assay_transform = input_read_RNA_assay |>
+      RenameAssays(
+        assay.name = assay_name_old,
+        new.assay.name = assay)
+  }
+  
+  # Get normalise and scale gene expression matrix with rows to be genes and cols to be cells
+  normalized_rna <- 
+    input_read_RNA_assay |> 
+    NormalizeData(normalization.method = "LogNormalize") |> 
+    FindVariableFeatures(nfeatures = 2000) |>
+    ScaleData() |>
+    RunPCA(npcs = min(50, ncol(input_read_RNA_assay) - 1), verbose = FALSE) |> 
+    RunUMAP(reduction = "pca", dims = c(1:min(30, ncol(input_read_RNA_assay) - 1)), 
+            n.neighbors = min(30, ncol(input_read_RNA_assay) - 1), verbose = FALSE) |> 
+    Seurat::GetAssayData(layer = "data")
+  
+  N.c <- ncol(normalized_rna)
+  
+  # if(gamma > 100 & N.c < 100000){
+  #   warning(paste0("Graining level (gamma = ", gamma, ") seems to be very large! Please, consider using smaller gamma, the suggested range is 10-50."))
+  # }
+  
+  if(is.null(rownames(normalized_rna))){
+    if(!(is.null(genes.use) | is.null(genes.exclude))){
+      stop("rownames(normalized_rna) is Null \nGene expression matrix normalized_rna is expected to have genes as rownames")
+    } else {
+      warning("colnames(normalized_rna) is Null, \nGene expression matrix normalized_rna is expected to have genes as rownames! \ngenes will be created automatically in a form 'gene_i' ")
+      rownames(normalized_rna) <- paste("gene", 1:nrow(normalized_rna), sep = "_")
+    }
+  }
+  
+  if(is.null(colnames(normalized_rna))){
+    warning("colnames(normalized_rna) is Null, \nGene expression matrix normalized_rna is expected to have cellIDs as colnames! \nCellIDs will be created automatically in a form 'cell_i' ")
+    colnames(normalized_rna) <- paste("cell", 1:N.c, sep = "_")
+  }
+  
+  cell.ids <- colnames(normalized_rna)
+  
+  keep.genes    <- setdiff(rownames(normalized_rna), genes.exclude)
+  normalized_rna             <- normalized_rna[keep.genes,]
+  
+  
+  if(is.null(genes.use)){
+    n.var.genes <- min(n.var.genes, nrow(normalized_rna))
+    if(N.c > 50000){
+      set.seed(seed)
+      idx         <- sample(N.c, 50000)
+      gene.var    <- apply(normalized_rna[,idx], 1, stats::var)
+    } else {
+      gene.var    <- apply(normalized_rna, 1, stats::var)
+    }
+    
+    genes.use   <- names(sort(gene.var, decreasing = TRUE))[1:n.var.genes]
+  }
+  
+  if(length(intersect(genes.use, genes.exclude)) > 0){
+    stop("Sets of genes.use and genes.exclude have non-empty intersection")
+  }
+  
+  genes.use <- genes.use[genes.use %in% rownames(normalized_rna)]
+  normalized_rna <- normalized_rna[genes.use,]
+  
+  if(do.approx & approx.N >= N.c){
+    do.approx <- FALSE
+    warning("approx.N is larger or equal to the number of single cells, thus, an exact simplification will be performed")
+  }
+  
+  # if(do.approx & (approx.N < round(N.c/gamma))){
+  #   approx.N <- round(N.c/gamma)
+  #   warning(paste("approx.N is set to N.SC", approx.N))
+  # }
+  # 
+  # if(do.approx & ((N.c/gamma) > (approx.N/3))){
+  #   warning("approx.N is not much larger than desired number of super-cells, so an approximate simplification may take londer than an exact one!")
+  # }
+  
+  if(do.approx){
+    set.seed(seed)
+    approx.N            <- min(approx.N, N.c)
+    presample           <- sample(1:N.c, size = approx.N, replace = FALSE)
+    presampled.cell.ids <- cell.ids[sort(presample)]
+    rest.cell.ids       <- setdiff(cell.ids, presampled.cell.ids)
+  } else {
+    presampled.cell.ids <- cell.ids
+    rest.cell.ids       <- c()
+  }
+  
+  normalized_rna.for.pca            <- Matrix::t(normalized_rna[genes.use, presampled.cell.ids])
+  if(do.scale){ normalized_rna.for.pca            <- scale(normalized_rna.for.pca) }
+  normalized_rna.for.pca[is.na(normalized_rna.for.pca)] <- 0
+  
+  if(is.null(n.pc[1]) | min(n.pc) < 1){stop("Please, provide a range or a number of components to use: n.pc")}
+  if(length(n.pc)==1) n.pc <- 1:n.pc
+  
+  if(fast.pca & (N.c < 1000)){
+    warning("Normal pca is computed because number of cell is low for irlba::irlba()")
+    fast.pca <- FALSE
+  }
+  
+  if(!fast.pca){
+    PCA.presampled <- tryCatch({
+      stats::prcomp(normalized_rna.for.pca, rank. = max(n.pc), scale. = FALSE, center = FALSE)
+    }, error = function(e) {
+      # Print error message
+      cat("Error in PCA computation: ", e$message, "\nExcluding zero variance and retrying...\n")
+      
+      # Update normalized_rna.for.pca to exclude columns with zero variance
+      normalized_rna.for.pca <- normalized_rna.for.pca[, apply(normalized_rna.for.pca, 2, var) != 0]
+      
+      # Rerun PCA on the updated dataset
+      stats::prcomp(normalized_rna.for.pca, rank. = max(n.pc), scale. = FALSE, center = FALSE)
+    })
+   
+  } else {
+    set.seed(seed)
+    PCA.presampled          <- irlba::irlba(normalized_rna.for.pca, nv = max(n.pc, 25))
+    PCA.presampled$x        <- PCA.presampled$u %*% diag(PCA.presampled$d)
+    PCA.presampled$rotation <- PCA.presampled$v
+  }
+  
+  
+  if (!requireNamespace("SuperCell", quietly = TRUE))
+    stop("Package 'SuperCell' is required for metacell computation. ",
+         "Install it with: remotes::install_github('GfellerLab/SuperCell')")
+
+  sc.nw <- SuperCell::build_knn_graph(
+    X = PCA.presampled$x[,n.pc],
+    k = k.knn, from = "coordinates",
+    #use.nn2 = use.nn2,
+    dist_method = "euclidean",
+    #directed = directed,
+    #DoSNN = DoSNN,
+    #pruning = pruning,
+    #which.snn = which.snn,
+    #kmin = kmin,
+    ...
+  )
+  
+  list(sc.nw = sc.nw, PCA.presampled = PCA.presampled, 
+       normalized_rna.for.pca = normalized_rna.for.pca, 
+       presampled.cell.ids = presampled.cell.ids, 
+       rest.cell.ids = rest.cell.ids, genes.use = genes.use, cell.ids = cell.ids,
+       do.approx = do.approx, n.pc = n.pc, k.knn = k.knn)
+
+}
+
+#' Detection of metacells with the SuperCell approach
+#'
+#' This function detects metacells (former super-cells) from single-cell gene expression matrix
+#'
+#'
+#' @param preprocessed A list returned by `preprocess_SCimplify` containing preprocessed single-cell data, 
+#'        PCA results, and kNN graph.
+#' @param cell.annotation a vector of cell type annotation, if provided, metacells that contain single cells of different cell type annotation will be split in multiple pure metacell (may result in slightly larger numbe of metacells than expected with a given gamma)
+#' @param cell.split.condition a vector of cell conditions that must not be mixed in one metacell. If provided, metacells will be split in condition-pure metacell (may result in significantly(!) larger number of metacells than expected)
+#' @param gamma graining level of data (proportion of number of single cells in the initial dataset to the number of metacells in the final dataset)
+#' @param block.size number of cells to map to the nearest metacell at the time (for approx coarse-graining)
+#' @param igraph.clustering clustering method to identify metacells (available methods "walktrap" (default) and "louvain" (not recommended, gamma is ignored)).
+#' @param return.singlecell.NW whether return single-cell network (which consists of approx.N if \code{"do.approx"} or all cells otherwise)
+#' @param return.hierarchical.structure whether return hierarchical structure of metacell
+#' @param ... other parameters of \link[SuperCell]{build_knn_graph} function
+#'
+#' @return A tibble with column 'cell' and 'membership' indicating which metacell cluster each cell belongs to.
+#' @importFrom igraph cluster_walktrap cluster_louvain contract E V
+#' @importFrom Matrix t
+#' @importFrom proxy dist
+#' @export
+postprocess_SCimplify <- function(preprocessed,
+                      cell.annotation = NULL,
+                      cell.split.condition = NULL,
+                      gamma,
+                      block.size = 10000,
+                      igraph.clustering = c("walktrap", "louvain"),
+                      return.singlecell.NW = TRUE,
+                      return.hierarchical.structure = TRUE,
+                      ...) {
+  
+  sc.nw = preprocessed$sc.nw
+  PCA.presampled = preprocessed$PCA.presampled
+  normalized_rna.for.pca = preprocessed$normalized_rna.for.pca
+  presampled.cell.ids = preprocessed$presampled.cell.ids
+  rest.cell.ids = preprocessed$rest.cell.ids
+  genes.use = preprocessed$genes.use
+  cell.ids = preprocessed$cell.ids
+  do.approx = preprocessed$do.approx
+  n.pc = preprocessed$n.pc
+  k.knn = preprocessed$k.knn
+  #normalized_rna = preprocessed$normalized_rna
+  
+  N.c <- length(preprocessed$cell.ids)
+  
+  k   <- round(N.c / gamma)
+  
+  if (igraph.clustering[1] == "walktrap") {
+    g.s              <- igraph::cluster_walktrap(sc.nw$graph.knn)
+    g.s$membership   <- igraph::cut_at(g.s, k)
+    
+  } else if (igraph.clustering[1] == "louvain") {
+    warning(paste(
+      "igraph.clustering =",
+      igraph.clustering,
+      ", gamma is ignored"
+    ))
+    g.s    <- igraph::cluster_louvain(sc.nw$graph.knn)
+    
+  } else {
+    stop(
+      paste(
+        "Unknown clustering method (",
+        igraph.clustering,
+        "), please use louvain or walkrtap"
+      )
+    )
+  }
+  
+  membership.presampled        <- g.s$membership
+  names(membership.presampled) <- presampled.cell.ids
+  
+  ## Split super-cells containing cells from different annotations or conditions
+  if (!is.null(cell.annotation) | !is.null(cell.split.condition)) {
+    if (is.null(cell.annotation))
+      cell.annotation <- rep("a", N.c)
+    if (is.null(cell.split.condition))
+      cell.split.condition <- rep("s", N.c)
+    names(cell.annotation) <- names(cell.split.condition) <- cell.ids
+    
+    split.cells <- interaction(cell.annotation[presampled.cell.ids], cell.split.condition[presampled.cell.ids], drop = TRUE)
+    
+    membership.presampled.intr <- interaction(membership.presampled, split.cells, drop = TRUE)
+    membership.presampled <- as.numeric(membership.presampled.intr)
+    names(membership.presampled) <- presampled.cell.ids
+  }
   
   
   
+  SC.NW                        <- igraph::contract(sc.nw$graph.knn, membership.presampled)
+  if (!do.approx) {
+    SC.NW                        <- igraph::simplify(SC.NW,
+                                                     remove.loops = TRUE,
+                                                     edge.attr.comb = "sum")
+  }
   
   
+  if (do.approx) {
+    PCA.averaged.SC      <- as.matrix(Matrix::t(supercell_GE(t(
+      PCA.presampled$x[, n.pc]
+    ), groups = membership.presampled)))
+    normalized_rna.for.roration       <- Matrix::t(normalized_rna[genes.use, rest.cell.ids])
+    
+    
+    
+    if (do.scale) {
+      normalized_rna.for.roration <- scale(normalized_rna.for.roration)
+    }
+    normalized_rna.for.roration[is.na(normalized_rna.for.roration)] <- 0
+    
+    
+    membership.omitted   <- c()
+    if (is.null(block.size) | is.na(block.size))
+      block.size <- 10000
+    
+    N.blocks <- length(rest.cell.ids) %/% block.size
+    if (length(rest.cell.ids) %% block.size > 0)
+      N.blocks <- N.blocks+1
+    
+    
+    if (N.blocks > 0) {
+      for (i in 1:N.blocks) {
+        # compute knn by blocks
+        idx.begin <- (i - 1) * block.size+1
+        idx.end   <- min(i * block.size, length(rest.cell.ids))
+        
+        cur.rest.cell.ids    <- rest.cell.ids[idx.begin:idx.end]
+        
+        PCA.ommited          <- normalized_rna.for.roration[cur.rest.cell.ids, ] %*% PCA.presampled$rotation[, n.pc] ###
+        
+        D.omitted.subsampled <- proxy::dist(PCA.ommited, PCA.averaged.SC) ###
+        
+        membership.omitted.cur        <- apply(D.omitted.subsampled, 1, which.min) ###
+        names(membership.omitted.cur) <- cur.rest.cell.ids ###
+        
+        membership.omitted   <- c(membership.omitted, membership.omitted.cur)
+      }
+    }
+    
+    membership.all_       <- c(membership.presampled, membership.omitted)
+    membership.all        <- membership.all_
+    
+    
+    names_membership.all <- names(membership.all_)
+    ## again split super-cells containing cells from different annotation or split conditions
+    if (!is.null(cell.annotation) | !is.null(cell.split.condition)) {
+      split.cells <- interaction(cell.annotation[names_membership.all], cell.split.condition[names_membership.all], drop = TRUE)
+      
+      
+      membership.all.intr <- interaction(membership.all_, split.cells, drop = TRUE)
+      
+      membership.all      <- as.numeric(membership.all.intr)
+      
+    }
+    
+    
+    SC.NW                        <- igraph::simplify(SC.NW,
+                                                     remove.loops = TRUE,
+                                                     edge.attr.comb = "sum")
+    names(membership.all) <- names_membership.all
+    membership.all <- membership.all[cell.ids]
+    
+  } else {
+    membership.all       <- membership.presampled[cell.ids]
+  }
+  membership       <- membership.all
+  
+  supercell_size   <- as.vector(table(membership))
+  
+  igraph::E(SC.NW)$width         <- sqrt(igraph::E(SC.NW)$weight / 10)
+  
+  if (igraph::vcount(SC.NW) == length(supercell_size)) {
+    igraph::V(SC.NW)$size          <- supercell_size
+    igraph::V(SC.NW)$sizesqrt      <- sqrt(igraph::V(SC.NW)$size)
+  } else {
+    igraph::V(SC.NW)$size          <- as.vector(table(membership.all_))
+    igraph::V(SC.NW)$sizesqrt      <- sqrt(igraph::V(SC.NW)$size)
+    warning("Supercell graph was not splitted")
+  }
+  
+  res <- list(
+    graph.supercells = SC.NW,
+    gamma = gamma,
+    N.SC = length(unique(membership)),
+    membership = membership,
+    supercell_size = supercell_size,
+    genes.use = genes.use,
+    simplification.algo = igraph.clustering[1],
+    do.approx = do.approx,
+    n.pc = n.pc,
+    k.knn = k.knn,
+    sc.cell.annotation. = cell.annotation,
+    sc.cell.split.condition. = cell.split.condition
+  )
+  
+  if (return.singlecell.NW) {
+    res$graph.singlecell <- sc.nw$graph.knn
+  }
+  if (!is.null(cell.annotation) | !is.null(cell.split.condition)) {
+    res$SC.cell.annotation. <- supercell_assign(cell.annotation, res$membership)
+    res$SC.cell.split.condition. <- supercell_assign(cell.split.condition, res$membership)
+  }
+  
+  if (igraph.clustering[1] == "walktrap" &
+      return.hierarchical.structure)
+    res$h_membership <- g.s
+  
+  metacell_classification <- tibble(cell = res$membership |> names(), 
+                                    membership = res$membership)
+  
+  metacell_classification
+}
+
+#' Calculate Appropriate Gamma Values for Metacell Analysis
+#'
+#' This function determines viable gamma (γ) values to be used in metacell analysis. Gamma is a graining level 
+#' parameter that controls the degree of cell aggregation when creating metacells. It represents the ratio 
+#' between the original number of cells and the desired number of metacells.
+#'
+#' For example:
+#' - γ = 2: combines cells to create metacells, aiming for half as many metacells as original cells
+#' - γ = 4: aims for one-fourth as many metacells
+#' - γ = 8: aims for one-eighth as many metacells
+#' And so on, using powers of 2.
+#'
+#' The function starts with γ = 2 and doubles it repeatedly (2, 4, 8, 16...) until the ratio of 
+#' cells/gamma would result in metacells that are smaller than the minimum allowed size. Higher gamma 
+#' values mean more aggressive aggregation (fewer, larger metacells), while lower gamma values preserve 
+#' more granularity (more, smaller metacells).
+#'
+#' @param cell_count Integer, the total number of cells.
+#' @param min_cells_per_metacell Integer, the minimum number of cells allowed per metacell. Defaults to 30.
+#' @return An Integer vector of viable gamma values. If no viable gamma values are found, returns 0.
+calculate_gamma <- function(cell_count, min_cells_per_metacell = 1) {
+  gamma = 2
+  gamma_values <- integer()
+  while (cell_count / gamma >= min_cells_per_metacell) {
+    gamma_values <- c(gamma_values, gamma)
+    gamma <- gamma * 2
+  }
+  if (length(gamma_values) == 0) {
+    return(0)  # Return 0 if no viable gamma values
+  }
+  return(gamma_values)
+}
+
+#' Calculate Metacell Membership Scores Across Different Gamma Parameters
+#'
+#' This function processes single-cell data to identify metacell membership across various gamma settings. 
+#' It preprocesses the single-cell data, calculates gamma values based on the number of columns (typically genes), 
+#' and postprocesses each gamma setting to assign cells to metacells. It then aggregates these results and 
+#' handles missing values by taking the maximum value in each group, ignoring NAs.
+#'
+#' @param sample_sce a SingleCellExperiment object containing pre-loaded single-cell RNA-seq data.
+#' @param min_cells_per_metacell An integer of minimum cells in each metacell.
+#' @return A tibble with metacells membership scores across computed gamma settings.
+#' @importFrom purrr map
+#' @importFrom dplyr rename group_by summarise group_split
+#' @examples
+#' \dontrun{
+#' # Assume 'sce' is a SingleCellExperiment object with a cell type
+#' calculate_metacell_for_a_sample_per_cell_type(sce)
+#' }
+calculate_metacell_for_a_sample_per_cell_type <- function(sample_sce,
+                                                          min_cells_per_metacell = 1) {
+  # Preprocess the single-cell data
+  preprocessed_sce = sample_sce |> preprocess_SCimplify()
+  
+  # Calculate the number of metacells can be produced
+  gammas <- calculate_gamma(sample_sce |> colnames() |> length(),
+                            min_cells_per_metacell)
+  
+  # Postprocess data for each gamma, rename columns, and aggregate results
+  gammas |> map(~ postprocess_SCimplify(preprocessed_sce, gamma = .x) |> 
+                  dplyr::rename(!!paste0("gamma", .x) :=  membership)) |> 
+    bind_rows() |> 
+    
+    # Group by cell and summarise by taking the max value across all variables, removing NAs
+    group_by(cell) |>
+    summarise(across(everything(), max, na.rm = TRUE))
+}
+
+#' Calculate Metacell Membership for Each Cell Type
+#'
+#' This function processes a SingleCellExperiment object by grouping cells according
+#' to their type, calculates metacell membership for each group, and combines the
+#' results into a single tibble.
+#'
+#' @param sample_sce A SingleCellExperiment object containing single-cell data.
+#' @param cell_type_tbl A tibble of cell type.
+#' @param empty_droplets_tbl A tibble identifying empty droplets.
+#' @param alive_identification_tbl A tibble from alive cell identification.
+#' @param doublet_identification_tbl A tibble from doublet identification.
+#' @param x A character vector of cell type aggregation column.
+#' @param min_cells_per_metacell An integer of minimum cells in each metacell.
+#' @return A tibble with metacell membership data for each cell type.
+#' @export
+split_sample_cell_type_calculate_metacell_membership <- function(sample_sce, 
+                                                                 cell_type_tbl,
+                                                                 empty_droplets_tbl = NULL,
+                                                                 alive_identification_tbl = NULL,
+                                                                 doublet_identification_tbl = NULL,
+                                                                 x="cell_type",
+                                                                 min_cells_per_metacell = NULL) {
+  
+  if (sample_sce |> is.null()) return(NULL)
+  
+  if (cell_type_tbl |> is.null()) return(NULL)
+  
+  # avoid small number of cells 
+  if (!is.null(empty_droplets_tbl)) {
+    sample_sce <- sample_sce |>
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      dplyr::filter(!empty_droplet)
+  } 
+  
+  # remove dead cells
+  if (!is.null(alive_identification_tbl)) {
+    sample_sce =
+      sample_sce |>
+      left_join(
+        alive_identification_tbl ,
+        by=".cell"
+      ) |> dplyr::filter(alive) 
+  }
+  
+  # remove doublets
+  if (!is.null(doublet_identification_tbl)) {
+    sample_sce =
+      sample_sce |>
+      left_join(
+        doublet_identification_tbl ,
+        by=".cell"
+      ) |> dplyr::filter(scDblFinder.class != "doublet") 
+  }
+  
+  # In rare cases, all cells in a sample are from empty droplets or dead or doublets
+  if (ncol(sample_sce) == 0) return(NULL)
+  
+  # # In rare cases, only one cell in a sample is left
+  # if (ncol(sample_sce) == 1) sample_sce = sample_sce |> duplicate_single_column_assay()
+  
+  metacell_gamma_membership_tibble <- sample_sce |> left_join(cell_type_tbl) |> 
+    dplyr::group_split(!!sym(x)) |>
+    # We need to include all good quality single cells in metacell. 
+    # For those cells that cant be halved further, mark metacell_2 to 1
+    purrr::map( ~ if (ncol(.x) <= 2) {
+       .x |> 
+        SummarizedExperiment::colData() |> as.data.frame() |> tibble::rownames_to_column("cell") |> 
+        select(cell) |> mutate(gamma2 = 1) |> as_tibble()
+      } else if (ncol(.x) >2) {calculate_metacell_for_a_sample_per_cell_type(.x)}) |>
+  
+      # calculate_metacell_for_a_sample_per_cell_type(.x, min_cells_per_metacell)} else return(NULL)) |> 
+    bind_rows()
+  
+  metacell_gamma_membership_tibble
 }
 
 #' Preprocessing Output
@@ -1068,14 +1757,20 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
 #' and optionally includes annotation label transfer information to generate a 
 #' processed dataset ready for downstream analysis.
 #'
-#' @param tissue Type of tissue.
-#' @param non_batch_variation_removal_S Result from non-batch variation removal.
-#' @param alive_identification_tbl A tibble from alive cell identification.
-#' @param cell_cycle_score_tbl A tibble from cell cycle scoring.
-#' @param annotation_label_transfer_tbl A tibble from annotation label transfer.
-#' @param doublet_identification_tbl A tibble from doublet identification.
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object
+#'   containing the raw RNA assay data.
+#' @param empty_droplets_tbl A tibble identifying empty droplets. `NULL` skips.
+#' @param non_batch_variation_removal_S Result from `non_batch_variation_removal()`;
+#'   an SCT-normalised Seurat object. `NULL` skips SCT integration.
+#' @param alive_identification_tbl A tibble from `alive_identification()`. `NULL` skips.
+#' @param cell_cycle_score_tbl A tibble from `cell_cycle_scoring()`. `NULL` skips.
+#' @param cell_type_ensembl_harmonised_tbl A tibble with harmonised cell-type
+#'   annotations. `NULL` skips annotation integration.
+#' @param annotation_label_transfer_tbl A tibble from `annotation_label_transfer()`.
+#'   `NULL` skips.
+#' @param doublet_identification_tbl A tibble from doublet identification. `NULL` skips.
 #'
-#' @return Processed and filter_empty_droplets dataset.
+#' @return A preprocessed single-cell object with all QC metadata attached.
 #'
 #' @importFrom dplyr filter
 #' @importFrom dplyr select
@@ -1083,8 +1778,6 @@ non_batch_variation_removal <- function(input_read_RNA_assay,
 #' @import SeuratObject
 #' @importFrom SummarizedExperiment assay
 #' @importFrom SummarizedExperiment assay<-
-#' @import tidySingleCellExperiment 
-#' @import tidyseurat
 #' @importFrom magrittr not
 #' @importFrom SingleCellExperiment altExp
 #' @importFrom SingleCellExperiment altExp<-
@@ -1094,8 +1787,9 @@ preprocessing_output <- function(input_read_RNA_assay,
                                  non_batch_variation_removal_S = NULL, 
                                  alive_identification_tbl = NULL, 
                                  cell_cycle_score_tbl = NULL, 
+                                 cell_type_ensembl_harmonised_tbl = NULL,
                                  annotation_label_transfer_tbl = NULL, 
-                                 doublet_identification_tbl){
+                                 doublet_identification_tbl = NULL){
   #Fix GCHECKS 
   .cell <- NULL
   alive <- NULL
@@ -1128,7 +1822,6 @@ preprocessing_output <- function(input_read_RNA_assay,
     }
   }
   
-  
   # Filtering dead
   if(alive_identification_tbl |> is.null() |> not())
     input_read_RNA_assay = input_read_RNA_assay |>
@@ -1141,7 +1834,7 @@ preprocessing_output <- function(input_read_RNA_assay,
   if(doublet_identification_tbl |> is.null() |> not())
     input_read_RNA_assay <- input_read_RNA_assay |>
     left_join(doublet_identification_tbl |> select(.cell, scDblFinder.class), by = ".cell") |>
-    filter(scDblFinder.class=="singlet") 
+    filter(scDblFinder.class!="doublet") 
   
   # attach cell cycle
   if(cell_cycle_score_tbl |> is.null() |> not())
@@ -1154,9 +1847,27 @@ preprocessing_output <- function(input_read_RNA_assay,
   
   # Attach annotation
   try({
-      if (inherits(annotation_label_transfer_tbl, "tbl_df")){
+      if (inherits(annotation_label_transfer_tbl, "tbl_df") && nrow(annotation_label_transfer_tbl) > 0){
         input_read_RNA_assay <- input_read_RNA_assay |>
-          left_join(annotation_label_transfer_tbl, by = ".cell")
+          left_join(annotation_label_transfer_tbl, by = ".cell") |>
+          left_join(cell_type_ensembl_harmonised_tbl)
+        
+        # Replace NA annotation column with "other", as annotations are single-cell level, not related to pseudobulk
+        annotation_columns <- c("blueprint_first.labels.fine",  "blueprint_first.labels.coarse",
+                                "monaco_first.labels.fine", "monaco_first.labels.coarse", 
+                                "blueprint_first_labels_fine", "monaco_first_labels_fine", 
+                                "azimuth_predicted_celltype_l2", "azimuth", "blueprint", "monaco")
+        
+        cell_type_concensus_columns <- c("cell_type_unified_ensemble", "data_driven_ensemble")
+        
+        input_read_RNA_assay <- input_read_RNA_assay |> mutate(across(all_of(annotation_columns), 
+                                                                      ~tidyr::replace_na(., "Other"))) |> 
+          
+          mutate(across(all_of(cell_type_concensus_columns), as.character)) |>
+          
+          # Replace NA with Unknown because non-immune cells are regarded as "Other" in cell_type_unified_ensemble
+          mutate(across(all_of(cell_type_concensus_columns), 
+                        ~tidyr::replace_na(., "Unknown")))
       }
     }, silent = TRUE)
   
@@ -1177,21 +1888,29 @@ preprocessing_output <- function(input_read_RNA_assay,
 #' Aggregates cells based on sample and cell type annotations, creating pseudobulk samples 
 #' for each combination. Handles RNA and ADT assays
 #'
-#' @param preprocessing_output_S Processed dataset from preprocessing.
-#' @param assays A character vector specifying the assays to be included in the 
-#' pseudobulk creation process, such as c("RNA", "ADT").
-#' @param x A grouping variable used to aggregate cells into pseudobulk samples.
-#' This variable should be present in the `preprocessing_output_S` object and 
-#' typically represents a factor such as sample ID or condition.
-#' @param ... Additional arguments passed to internal functions used within 
-#' `create_pseudobulk`. This includes parameters for customization of 
-#' aggregation, data transformation, or any other process involved in the 
-#' creation of pseudobulk samples.
+#' @param input_read_RNA_assay A `SingleCellExperiment` or `Seurat` object
+#'   containing RNA assay data.
+#' @param sample_names_vec Character vector of sample names (one element per
+#'   sample mapping to the input object).
+#' @param empty_droplets_tbl A tibble identifying empty droplets. `NULL` skips.
+#' @param alive_identification_tbl A tibble from `alive_identification()`. `NULL` skips.
+#' @param cell_cycle_score_tbl A tibble from `cell_cycle_scoring()`. `NULL` skips.
+#' @param annotation_label_transfer_tbl A tibble from `annotation_label_transfer()`.
+#'   `NULL` skips.
+#' @param cell_type_ensembl_harmonised_tbl A tibble with harmonised cell-type
+#'   annotations. `NULL` skips.
+#' @param doublet_identification_tbl A tibble from doublet identification. `NULL` skips.
+#' @param x Optional grouping variable (column name) used to further stratify
+#'   pseudobulk aggregation beyond sample.
+#' @param external_path Character path to the directory where pseudobulk HDF5
+#'   files are stored.
+#' @param assays Character vector of assay names to include (e.g. `c("RNA", "ADT")`).
+#'   `NULL` uses all assays.
+#' @param container_type Character scalar specifying the output file format.
+#'
+#' @return A list containing pseudobulk `SummarizedExperiment` objects aggregated
+#'   by sample and (optionally) by sample × cell type.
 #' 
-#' @return List containing pseudobulk data aggregated by sample and by both sample and cell type.
-#' 
-#' @import tidySingleCellExperiment
-#' @import tidySummarizedExperiment
 #' @importFrom dplyr left_join
 #' @importFrom dplyr filter
 #' @importFrom dplyr mutate
@@ -1200,17 +1919,17 @@ preprocessing_output <- function(input_read_RNA_assay,
 #' @importFrom stringr str_remove
 #' @importFrom tidyr unite
 #' @importFrom tidyr pivot_longer
-#' @importFrom tidyseurat aggregate_cells
 #' @importFrom tidybulk as_SummarizedExperiment
 #' @importFrom S4Vectors cbind
 #' @importFrom purrr map
 #' @importFrom scater isOutlier
-#' @importFrom SummarizedExperiment rowData
+#' @importFrom SummarizedExperiment rowData colData rowData<- colData<-
 #' @importFrom digest digest
 #' @importFrom HDF5Array saveHDF5SummarizedExperiment
+#' @importFrom SingleCellExperiment SingleCellExperiment
+#' @importFrom scuttle aggregateAcrossCells
 #' 
 #' @export
-
 # Create pseudobulk for each sample 
 create_pseudobulk <- function(input_read_RNA_assay, 
                               sample_names_vec, 
@@ -1218,9 +1937,11 @@ create_pseudobulk <- function(input_read_RNA_assay,
                               alive_identification_tbl = NULL,
                               cell_cycle_score_tbl = NULL,
                               annotation_label_transfer_tbl = NULL,
+                              cell_type_ensembl_harmonised_tbl = NULL,
                               doublet_identification_tbl = NULL,  
                               x = c() , 
-                              external_path, assays = NULL) {
+                              external_path, assays = NULL,
+                              container_type) {
   #Fix GChecks 
   .sample = NULL 
   .feature = NULL 
@@ -1229,24 +1950,28 @@ create_pseudobulk <- function(input_read_RNA_assay,
   
   dir.create(external_path, showWarnings = FALSE, recursive = TRUE)
   
+  if (input_read_RNA_assay |> is.null()) return(NULL)
+  
   preprocessing_output_S = 
     preprocessing_output(
       input_read_RNA_assay,
       empty_droplets_tbl,
       non_batch_variation_removal_S = NULL, 
-      alive_identification_tbl, 
-      cell_cycle_score_tbl, 
+      alive_identification_tbl,
+      cell_cycle_score_tbl = NULL,
+      cell_type_ensembl_harmonised_tbl,
       annotation_label_transfer_tbl, 
       doublet_identification_tbl
     )
   
+  # In rare cases, empty droplets observed across cells in a sample
+  if (ncol(preprocessing_output_S) == 0) return(NULL)
   
-  if(assays |> is.null()){
-    if(preprocessing_output_S |> is("Seurat"))
-      assays = Seurat::Assays(preprocessing_output_S)
-    else if(preprocessing_output_S |> is("SingleCellExperiment"))
-      assays = preprocessing_output_S@assays |> names()
-    
+  is_seurat <- preprocessing_output_S |> is("Seurat")
+  
+  if (assays |> is.null()) {
+    assays <- if (is_seurat) Seurat::Assays(preprocessing_output_S)
+    else if (preprocessing_output_S |> is("SingleCellExperiment")) SummarizedExperiment::assayNames(preprocessing_output_S)
   }
   
   # Aggregate cells
@@ -1254,42 +1979,78 @@ create_pseudobulk <- function(input_read_RNA_assay,
     preprocessing_output_S |> 
     
     # Add sample
-    mutate(sample_hpc = sample_names_vec) |> 
-    
-    # Aggregate
-    tidySingleCellExperiment::aggregate_cells(c(sample_hpc, !!sym(x)), 
-                                              slot = "data", assays = assays) 
+    mutate(sample_hpc = sample_names_vec)
   
-  # If I start from Seurat
-  if(pseudobulk |> is("data.frame"))
-    pseudobulk = pseudobulk |>
-    as_SummarizedExperiment(.sample, .feature, any_of(assays)) 
+  ids <- pseudobulk |>
+    mutate(aggregated_cells = paste(.data$sample_hpc, .data[[x]], sep = "___")) |> 
+    pull(aggregated_cells)
   
-  rowData(pseudobulk)$feature_name = rownames(pseudobulk)
+  if (is_seurat) {
+    pseudobulk <- Seurat::as.SingleCellExperiment(pseudobulk, assay = assays[1])
+    use_assay <- "counts"
+  } else {
+    use_assay <- assays
+  }
   
-  pseudobulk = pseudobulk |>
-    pivot_longer(cols = assays, names_to = "data_source", values_to = "count") |>
-    filter(!count |> is.na()) |>
-    
-    # Some manipulation to get unique feature because RNA and ADT
-    # both can have same name genes
-    rename(symbol = .feature) |>
-    mutate(data_source = stringr::str_remove(data_source, "abundance_")) |>
-    unite(".feature", c(symbol, data_source), remove = FALSE) |>
-    
-    # Covert
-    as_SummarizedExperiment(
-      .sample = .sample,
-      .transcript = .feature,
-      .abundance = count
+  # Aggregate
+  pseudobulk <- scuttle::aggregateAcrossCells(
+      pseudobulk,
+      ids     = ids,
+      use.assay.type = use_assay,
+      BPPARAM = BiocParallel::MulticoreParam(workers = 2),
+      store_number = "aggregated_cells"
     ) 
   
-  file_name = glue("{external_path}/{digest(pseudobulk)}")
+  # Restore the original assay name so downstream code (any_of(assays)) still matches
+  if (is_seurat) 
+    SummarizedExperiment::assayNames(pseudobulk) <- assays[1]
   
-  pseudobulk |>
-    
-    # Conver to H5
-    saveHDF5SummarizedExperiment(dir = file_name, replace=TRUE, as.sparse=TRUE)
+  pseudobulk <- pseudobulk |> mutate(assays = assays)
+
+  if(pseudobulk |> is("data.frame"))
+    pseudobulk = pseudobulk |>
+    tidybulk::as_SummarizedExperiment(.sample, .feature, any_of(assays)) 
+  
+  rowData(pseudobulk)$feature_name = rownames(pseudobulk)
+  colData(pseudobulk)$pseudobulk_sample = colnames(pseudobulk)
+  
+  # pseudobulk = pseudobulk |>
+  #   pivot_longer(cols = assays, names_to = "data_source", values_to = "counts") |>
+  #   filter(!counts |> is.na()) |>
+  #   
+  #   # Some manipulation to get unique feature because RNA and ADT
+  #   # both can have same name genes
+  #   dplyr::rename(symbol = .feature) |>
+  #   mutate(data_source = stringr::str_remove(data_source, "abundance_")) |>
+  #  # tidyr::unite(".feature", c(symbol, data_source), remove = FALSE) |>
+  #   
+  #   tidybulk::as_SummarizedExperiment(
+  #     .sample = .sample,
+  #     .transcript = symbol,
+  #     .abundance = counts
+  #   ) 
+  
+  # Covert pseudobulk to SCE representation as zellkonverter::writeH5AD 
+  #  does not support saving a SummarizedExperiment
+  if (container_type == "anndata") {
+    pseudobulk = SingleCellExperiment(
+      assays = assays(pseudobulk),
+      rowData = rowData(pseudobulk),
+      colData = colData(pseudobulk)
+    )
+  }
+
+  pseudobulk
+  # file_name = glue::glue("{external_path}/{digest(pseudobulk)}")
+  
+  # Maybe do not need to save Anndata externally for cellNexus because pseudobulk can be read by tar_read_raw
+  # pseudobulk |>
+  #   
+  #   # Convert to Anndata
+  #   save_experiment_data(
+  #     dir = file_name, 
+  #     container_type = container_type
+  #   )
   
 }
 
@@ -1298,10 +2059,10 @@ create_pseudobulk <- function(input_read_RNA_assay,
 #' @description
 #' Merge pseudobulk from all samples. Ensures that missing genes are accounted 
 #' for and aligns data across multiple samples.
-#' @param pseudobulk_list A list pseudobulk samples generated by `create_pseudobulk`
-#' @param assays Default is set of `RNA` 
-#' @param x User specified character vector for the column from which we subset the samples for pseudobulk analysis 
-#' @param ... Additional arguments 
+#' @param pseudobulk_list A list of pseudobulk samples generated by `create_pseudobulk()`.
+#' @param external_path Character path to the directory where the merged HDF5
+#'   pseudobulk file is written.
+#' @param ... Additional arguments passed to internal functions.
 #' 
 #' @importFrom purrr map
 #' @importFrom dplyr select
@@ -1311,8 +2072,6 @@ create_pseudobulk <- function(input_read_RNA_assay,
 #' @importFrom SummarizedExperiment colData<-
 #' @importFrom SummarizedExperiment rowData
 #' @importFrom SummarizedExperiment rowData<-
-#' 
-#' 
 #' 
 #' @export
 #' 
@@ -1380,6 +2139,7 @@ pseudobulk_merge <- function(pseudobulk_list, external_path, ...) {
 #'
 #' @param se_df A data frame or list containing SingleCellExperiment objects.
 #' @param .col A symbol indicating the column in `se_df` that contains SingleCellExperiment objects.
+#' @param formula (Optional) A formula argument accepted for interface compatibility; not used internally.
 #' @param abundance (Optional) A character vector specifying the name of the assay to be used 
 #'                  for dispersion estimation. If NULL or not provided, the first assay is used.
 #'
@@ -1392,10 +2152,11 @@ pseudobulk_merge <- function(pseudobulk_list, external_path, ...) {
 #' The results are joined back to each SingleCellExperiment object. If no abundance assay is specified, 
 #' the function defaults to the first assay in each SingleCellExperiment object.
 #'
-# @examples
-# # Assuming `se_list` is a list of SingleCellExperiment objects
-# result <- map_add_dispersion_to_se(se_list, .col = se_objects, abundance = "counts")
-#'
+#' @examples
+#' \dontrun{
+#' # Assuming `se_list` is a list of SingleCellExperiment objects
+#' result <- map_add_dispersion_to_se(se_list, .col = se_objects, abundance = "counts")
+#' }
 #' @importFrom magrittr extract2
 #' @importFrom edgeR estimateDisp
 #' @importFrom dplyr mutate
@@ -1405,7 +2166,7 @@ pseudobulk_merge <- function(pseudobulk_list, external_path, ...) {
 #' @import dplyr 
 #' @importFrom data.table :=
 #' @export
-map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
+map_add_dispersion_to_se = function(se_df, .col, formula = NULL, abundance = NULL){
   
   # Fix GitChecks 
   assay_name = NULL 
@@ -1441,6 +2202,180 @@ map_add_dispersion_to_se = function(se_df, .col, abundance = NULL){
   
 }
 
+#' Perform Human Cell-Cell Communication Analysis
+#' @description This function performs cells communication analysis.
+#'   It processes single-cell RNA sequencing data to identify and analyze intercellular communication networks.
+#' @param input_read_RNA_assay A SingleCellExperiment or Seurat object containing gene expression data
+#' @param empty_droplets_tbl Optional tibble identifying empty droplets to be filtered out
+#' @param alive_identification_tbl Optional tibble identifying dead cells to be filtered out
+#' @param doublet_identification_tbl Optional A tibble from doublet identification.
+#' @param cell_type_tbl Optional A tibble containing cell, cell type, and sample_id information
+#' @param assay Character string specifying which assay to use
+#' @param cell_type_column Character string specifying the column name containing cell type annotations
+#' @param feature_nomenclature Character vector specifying gene in Symbol or Ensemble format
+#' @param reference_db The ligand-receptor interaction database curated in CellChat tool. Choose between human or mouse.
+#' @param ... Additional arguments passed to \code{CellChat::subsetDB}
+#' @return A CellChat tibble containing the inferred communication at the level of 
+#'     ligands/receptors
+#' @importFrom tibble as_tibble
+#' @importFrom dplyr filter mutate
+#' @export
+cell_communication <- function(input_read_RNA_assay,
+                               empty_droplets_tbl = NULL,
+                               alive_identification_tbl = NULL,
+                               doublet_identification_tbl = NULL,
+                               cell_type_tbl = NULL,
+                               assay = NULL,
+                               cell_type_column = NULL,
+                               feature_nomenclature,
+                               reference_db = "human",
+                               ...){
+  
+  # Input should not be NULL
+  if (is.null(input_read_RNA_assay)) return(NULL)
+
+  if (!requireNamespace("CellChat", quietly = TRUE))
+    stop("Package 'CellChat' is required for cell communication analysis. ",
+         "Install it with: remotes::install_github('jinworks/CellChat')")
+  
+  # Get assay
+  if(is.null(assay)) my_assay = input_read_RNA_assay@assays |> names() |> magrittr::extract2(1)
+  
+  # Identify cell type column
+  if(
+    is.null(cell_type_column) && 
+    !cell_type_column %in% colnames(as_tibble(input_read_RNA_assay[1,1]))
+  ) stop("HPCell says: Your `cell_type_column` columns are not present in your data. Please run celltype_consensus_constructor() to get the cell type annotation that you can use as grouping.")
+  
+  # Avoid small number of cells 
+  if (!is.null(empty_droplets_tbl)) {
+    input_read_RNA_assay <- input_read_RNA_assay |>
+      left_join(empty_droplets_tbl, by = ".cell") |>
+      dplyr::filter(!empty_droplet)
+  } 
+  
+  # Avoid dead cells
+  if (!is.null(alive_identification_tbl)) {
+    input_read_RNA_assay <- input_read_RNA_assay |>
+      left_join(alive_identification_tbl |> select(.cell, alive), by = ".cell") |>
+      dplyr::filter(alive)
+  } 
+  
+  # Avoid doublet
+  if (!is.null(doublet_identification_tbl)) {
+    input_read_RNA_assay <- input_read_RNA_assay |> 
+      left_join(doublet_identification_tbl |> select(.cell, scDblFinder.class), by = ".cell") |>
+      filter(scDblFinder.class!="doublet") 
+  }
+  
+  # Append cell type
+  if (!is.null(cell_type_tbl) && 
+      cell_type_column %in% colnames(cell_type_tbl)) {
+    input_read_RNA_assay <- input_read_RNA_assay |>
+      left_join(cell_type_tbl) |> 
+      select(everything(), !!cell_type_column) |> 
+      filter(!is.na(.data[[cell_type_column]]))
+  } else if (!is.null(cell_type_tbl) && !cell_type_column %in% colnames(cell_type_tbl))
+      stop ("HPCell says: Your `cell_type_column` does not present in `cell_type_tbl` data")
+  
+  # Note: CellChat only takes gene symbols as input, thus conversion step is required for ensemble IDs
+  if (feature_nomenclature == "ensembl") {
+    
+    gene_map = rownames(input_read_RNA_assay) |> convert_gene_names(current_nomenclature = feature_nomenclature) |> 
+      filter(!is.na(gene_name))
+    
+    input_read_RNA_assay = input_read_RNA_assay[gene_map$gene_id, ]
+    rownames(input_read_RNA_assay) = gene_map$gene_name
+  }
+  
+  if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
+    counts = input_read_RNA_assay |> assay(my_assay)
+    meta = input_read_RNA_assay |> colData() |> as.data.frame()
+  } else if (inherits(input_read_RNA_assay, "Seurat")){
+    counts = GetAssayData(input_read_RNA_assay, assay = my_assay) 
+    meta = input_read_RNA_assay[[]]
+  }
+  
+  if (meta |> nrow() == 0) return(NULL)
+  
+  # CellChat identifyOverExpressedGenes() would only support at least 2 groups
+  if (meta |> distinct(.data[[cell_type_column]]) |> pull() |> length() <= 1) return(NULL)
+
+  # Choose cellchat reference
+  DB <- switch(reference_db, human = CellChat::CellChatDB.human, mouse = CellChat::CellChatDB.mouse)
+  projectionDB <- switch(reference_db, human = CellChat::PPI.human, mouse = CellChat::PPI.mouse)
+
+  CellChatDB <- DB
+
+  CellChatDB.use <- CellChat::subsetDB(CellChatDB, search = c("Secreted Signaling", "ECM-Receptor", "Cell-Cell Contact"), key = c("annotation"))
+
+  # CellChat Only Takes log-Normalized data
+  cellchat = counts |>
+    as("dgCMatrix") |>
+    CellChat::normalizeData(do.log = TRUE) |>
+    CellChat::createCellChat(group.by = cell_type_column, meta = meta, assay = my_assay)
+
+  cellchat@DB <- CellChatDB.use
+
+  # Preprocessing
+  cellchat = cellchat |>
+    CellChat::subsetData() |>
+    CellChat::identifyOverExpressedGenes() |>
+    CellChat::identifyOverExpressedInteractions() |>
+    CellChat::smoothData(adj = projectionDB)
+
+  # Return NULL when none of LR pairs are found
+  if (nrow(cellchat@LR$LRsig) == 0) return(NULL)
+
+  cellchat = cellchat |>
+
+    # Use projected data
+    CellChat::computeCommunProb(raw.use = FALSE) |>
+
+    # Filter the number of cells in each group are less than 10
+    CellChat::filterCommunication(min.cells = 10) |>
+    CellChat::computeCommunProbPathway() |>
+    CellChat::aggregateNet()
+
+  gc()
+
+  # Extract the inferred cellular communication network as a data frame
+  # By default, slot.name = "net" extracts the inferred communication at the level of ligands/receptors
+  # Set slot.name = "netP" to access the inferred communications at the level of signaling pathways
+  # If all arguments are NULL, it returns a data frame consisting of all the inferred cell-cell communications
+  lr_tbl <- tryCatch(
+    CellChat::subsetCommunication(cellchat, slot.name = "net", thresh = NULL) |>
+      dplyr::rename(lr_prob = prob,
+                    lr_pval = pval),
+    error = function(e) {
+      message("Error in subsetCommunication(): ", e$message)
+      return(NULL)
+    }
+  )
+
+  pathway_tbl <- tryCatch(
+    CellChat::subsetCommunication(cellchat, slot.name = "netP", thresh = NULL) |>
+      dplyr::rename(pathway_prob = prob,
+                    pathway_pval = pval),
+    error = function(e) {
+      message("Error in subsetCommunication(): ", e$message)
+      return(NULL)
+    }
+  )
+  
+  if (nrow(lr_tbl) == 0 || is.null(lr_tbl)) return(NULL)
+  
+  cell_interaction_count = cellchat@net$count |> as_tibble(rownames = "source") |>
+    pivot_longer(-source, names_to = "target", values_to = "interaction_count") 
+  
+  cell_interaction_weight =  cellchat@net$weight |> as_tibble(rownames = "source") |>
+    pivot_longer(-source, names_to = "target", values_to = "interaction_weight")
+  
+  result = lr_tbl |> left_join(pathway_tbl,  by = c("source", "target", "pathway_name")) |>
+      mutate(sample_id = unique(cellchat@meta$sample_id)) |>
+      left_join(cell_interaction_count) |> left_join(cell_interaction_weight) |>
+      as_tibble()
+}
 
 #' Test Differential Abundance in SummarizedExperiment Object
 #'
@@ -1668,6 +2603,16 @@ find_variable_genes <- function(input_seurat, empty_droplet){
 }
 
 
+#' Mark a String as a Targets Target Reference
+#'
+#' @description
+#' Converts a character string into an unquoted symbol so that targets pipeline
+#' functions can recognise it as a reference to an upstream target rather than
+#' a literal string value.
+#'
+#' @param x A character scalar naming the upstream targets target.
+#' @return An unquoted symbol (`name`) representing the target, or `NULL` if
+#'   `x` is `NULL`.
 #' @export
 is_target = function(x) {
   

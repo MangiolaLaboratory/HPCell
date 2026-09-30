@@ -9,22 +9,34 @@ empty_droplet_threshold(
   total_RNA_count_check = -Inf,
   assay = NULL,
   feature_nomenclature,
-  RNA_feature_threshold = 200
+  RNA_feature_threshold
 )
 }
 \arguments{
-\item{input_read_RNA_assay}{SingleCellExperiment or Seurat object containing RNA assay data.}
+\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object
+containing RNA assay data.}
 
-\item{RNA_feature_threshold}{An optional integer for the number of feature count. Default is 200}
+\item{total_RNA_count_check}{Numeric lower-bound total RNA count threshold.
+Default: \code{-Inf}.}
 
-\item{filter_empty_droplets}{Logical value indicating whether to filter the input data.}
+\item{assay}{Name of the assay to extract counts from. \code{NULL} uses the first
+assay.}
+
+\item{feature_nomenclature}{Character scalar indicating gene identifier type.
+One of \code{"symbol"} or \code{"ensembl"}.}
+
+\item{RNA_feature_threshold}{Integer minimum number of expressed genes; cells
+with fewer expressed genes are classified as empty.}
 }
 \value{
-A tibble with columns: Cell, nFeature_RNA, empty_droplet (classification of droplets).
+A tibble with columns: \code{.cell}, \code{nFeature_expressed_in_sample},
+\code{nCount_RNA}, \code{empty_droplet} (logical classification).
 }
 \description{
-\code{empty_droplet_threshold} distinguishes between empty and non-empty droplets by threshold.
-It excludes mitochondrial and ribosomal genes, and filters input data
-based on defined values of \code{nCount_RNA} and \code{nFeature_RNA}
-The function returns a tibble containing RNA count, RNA feature count indicating whether cells are empty droplets.
+\code{empty_droplet_threshold} identifies empty droplets by applying a gene expression threshold per sample.
+It excludes mitochondrial and ribosomal genes, and classifies droplets as empty if
+the number of expressed genes falls below the specified threshold.
+
+The function returns a tibble containing the number of expressed genes,
+total RNA count for each cell, and a logical annotation indicating whether the droplet was classified as empty.
 }

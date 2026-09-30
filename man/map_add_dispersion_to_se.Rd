@@ -4,12 +4,14 @@
 \alias{map_add_dispersion_to_se}
 \title{Add Dispersion Estimates to SingleCellExperiment Object}
 \usage{
-map_add_dispersion_to_se(se_df, .col, abundance = NULL)
+map_add_dispersion_to_se(se_df, .col, formula = NULL, abundance = NULL)
 }
 \arguments{
 \item{se_df}{A data frame or list containing SingleCellExperiment objects.}
 
 \item{.col}{A symbol indicating the column in \code{se_df} that contains SingleCellExperiment objects.}
+
+\item{formula}{(Optional) A formula argument accepted for interface compatibility; not used internally.}
 
 \item{abundance}{(Optional) A character vector specifying the name of the assay to be used
 for dispersion estimation. If NULL or not provided, the first assay is used.}
@@ -27,4 +29,10 @@ The function iterates over each SingleCellExperiment object in the specified col
 or list. It calculates dispersion estimates for the features (genes) based on the specified abundance assay.
 The results are joined back to each SingleCellExperiment object. If no abundance assay is specified,
 the function defaults to the first assay in each SingleCellExperiment object.
+}
+\examples{
+\dontrun{
+# Assuming `se_list` is a list of SingleCellExperiment objects
+result <- map_add_dispersion_to_se(se_list, .col = se_objects, abundance = "counts")
+}
 }

@@ -8,25 +8,39 @@ non_batch_variation_removal(
   input_read_RNA_assay,
   empty_droplets_tbl = NULL,
   alive_identification_tbl = NULL,
+  doublet_identification_tbl = NULL,
   cell_cycle_score_tbl = NULL,
   assay = NULL,
   factors_to_regress = NULL,
-  external_path
+  external_path,
+  container_type
 )
 }
 \arguments{
-\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object containing RNA assay data.}
+\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object
+containing RNA assay data.}
 
-\item{empty_droplets_tbl}{A tibble identifying empty droplets.}
+\item{empty_droplets_tbl}{A tibble identifying empty droplets. \code{NULL} skips.}
 
-\item{alive_identification_tbl}{A tibble from alive cell identification.}
+\item{alive_identification_tbl}{A tibble from alive cell identification. \code{NULL} skips.}
 
-\item{cell_cycle_score_tbl}{A tibble from cell cycle scoring.}
+\item{doublet_identification_tbl}{A tibble from doublet identification. \code{NULL} skips.}
 
-\item{assay}{assay used, default = "RNA"}
+\item{cell_cycle_score_tbl}{A tibble from cell cycle scoring. \code{NULL} skips.}
+
+\item{assay}{Name of the assay to use. \code{NULL} uses the first assay.}
+
+\item{factors_to_regress}{Character vector of cell-level covariates to regress
+out during SCTransform normalisation. \code{NULL} applies no regression.}
+
+\item{external_path}{Character path to the directory where intermediate data
+are stored.}
+
+\item{container_type}{Character scalar specifying the output file format.
+Should match the input data container type.}
 }
 \value{
-Normalized and adjusted data.
+Normalised and covariate-adjusted single-cell object.
 }
 \description{
 Regresses out variations due to mitochondrial content, ribosomal content, and

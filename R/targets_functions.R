@@ -88,8 +88,8 @@ map2_test_differential_abundance_hpc = function(
     #-----------------------#
     # Input
     #-----------------------#
-    # library(targets)
-    # library(tarchetypes)
+    library(targets)
+    library(tarchetypes)
     
     computing_resources = readRDS("temp_computing_resources.rds")
     debug_job_id = readRDS("temp_debug_job_id.rds")
@@ -148,8 +148,7 @@ map2_test_differential_abundance_hpc = function(
       tar_target(
         pseudobulk_df_tissue_dispersion, 
         pseudobulk_df_tissue |> map_add_dispersion_to_se(data, formula, abundance), 
-        pattern = map(pseudobulk_df_tissue),
-        iteration = "group"
+        pattern = map(pseudobulk_df_tissue)
       ),
       
       # Split in gene chunks
@@ -160,8 +159,7 @@ map2_test_differential_abundance_hpc = function(
           chunk_size = 100 # / number_of_datasets
         ), 
 
-        pattern = map(pseudobulk_df_tissue_dispersion),
-        iteration = "group"
+        pattern = map(pseudobulk_df_tissue_dispersion)
       ),
       
       # Parallelise rows
@@ -190,8 +188,7 @@ map2_test_differential_abundance_hpc = function(
           # For some reason it occupies a LOT of space (29Mb) 
           # probably ecause is carrying local variable with it
           select(-formula), 
-        pattern = map(pseudobulk_df_tissue_split_by_gene_grouped),
-        iteration = "group"
+        pattern = map(pseudobulk_df_tissue_split_by_gene_grouped)
       )
       
     ))
@@ -262,14 +259,16 @@ map2_test_differential_abundance_hpc = function(
 #' A wrapper function that formats data into a tibble and calls `map2_test_differential_abundance_hpc` for differential abundance testing.
 #' @importFrom magrittr extract2
 
-#' @param .data Data frame or similar object for analysis.
-#' @param formula Formula for the differential abundance test.
-#' @param store File path for temporary storage.
-#' @param computing_resources Computing resources configuration.
-# cpus_per_task Number of CPUs allocated per task.
-#' @param debug_job_id Optional job ID for debugging.
-#' @param append Flag to append to existing script.
-#' @param ... additional arguments 
+#' @param .data A data frame or `SummarizedExperiment`-like object for analysis.
+#' @param formula A formula describing the differential abundance model.
+#' @param store Character path used as the targets store directory. Defaults to
+#'   a temporary directory.
+#' @param computing_resources A `crew` controller specifying the computing
+#'   back-end. Defaults to a local single-worker controller.
+#' @param debug_job_id Optional character job ID for debugging. `NULL` disables.
+#' @param append Logical; if `TRUE`, appends to an existing targets script
+#'   rather than overwriting it.
+#' @param ... Additional arguments passed to the underlying pipeline functions.
 #'
 #' @return A `targets` pipeline output, typically a nested tibble with differential abundance estimates.
 #'

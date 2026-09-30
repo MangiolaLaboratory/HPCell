@@ -10,25 +10,34 @@ preprocessing_output(
   non_batch_variation_removal_S = NULL,
   alive_identification_tbl = NULL,
   cell_cycle_score_tbl = NULL,
+  cell_type_ensembl_harmonised_tbl = NULL,
   annotation_label_transfer_tbl = NULL,
-  doublet_identification_tbl
+  doublet_identification_tbl = NULL
 )
 }
 \arguments{
-\item{non_batch_variation_removal_S}{Result from non-batch variation removal.}
+\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object
+containing the raw RNA assay data.}
 
-\item{alive_identification_tbl}{A tibble from alive cell identification.}
+\item{empty_droplets_tbl}{A tibble identifying empty droplets. \code{NULL} skips.}
 
-\item{cell_cycle_score_tbl}{A tibble from cell cycle scoring.}
+\item{non_batch_variation_removal_S}{Result from \code{non_batch_variation_removal()};
+an SCT-normalised Seurat object. \code{NULL} skips SCT integration.}
 
-\item{annotation_label_transfer_tbl}{A tibble from annotation label transfer.}
+\item{alive_identification_tbl}{A tibble from \code{alive_identification()}. \code{NULL} skips.}
 
-\item{doublet_identification_tbl}{A tibble from doublet identification.}
+\item{cell_cycle_score_tbl}{A tibble from \code{cell_cycle_scoring()}. \code{NULL} skips.}
 
-\item{tissue}{Type of tissue.}
+\item{cell_type_ensembl_harmonised_tbl}{A tibble with harmonised cell-type
+annotations. \code{NULL} skips annotation integration.}
+
+\item{annotation_label_transfer_tbl}{A tibble from \code{annotation_label_transfer()}.
+\code{NULL} skips.}
+
+\item{doublet_identification_tbl}{A tibble from doublet identification. \code{NULL} skips.}
 }
 \value{
-Processed and filter_empty_droplets dataset.
+A preprocessed single-cell object with all QC metadata attached.
 }
 \description{
 Incorporates outputs from doublets and dead cell filtering, cell cycle scoring,

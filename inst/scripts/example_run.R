@@ -1,6 +1,9 @@
 data(celltype_unification_maps)
 data(nonimmune_cellxgene)
-
+cell_metadata = tbl(
+  dbConnect(duckdb::duckdb(), dbdir = ":memory:"),
+  sql("SELECT * FROM read_parquet('/vast/scratch/users/shen.m/Census_final_run/cell_annotation.parquet')")
+)
 # unify cell types
 cell_metadata = cell_metadata |>
   left_join(celltype_unification_maps$azimuth, copy = TRUE) |>
@@ -33,4 +36,8 @@ df_map = cell_metadata |>
 
 # use map to perform cell type ensemble
 cell_metadata = cell_metadata |>
-  left_join(df_map, by = join_by(ensemble_joinid), copy = TRUE)
+  left_join(df_map, by = join_by(ensemble_joinid), copy = TRUE) |> 
+  mutate(cell_type_unified_ensemble = ifelse(cell_type_unified_ensemble |> is.na(), "Unknown", cell_type_unified_ensemble))
+
+cell_metadata |> write_parquet_to_parquet(path = "~/scratch/Census_final_run/cell_annotation_new_substitute_cell_type_na_to_unknown.parquet")
+

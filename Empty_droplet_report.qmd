@@ -1,0 +1,346 @@
+---
+title: "Empty_droplet_report"
+format: html
+editor: visual
+params: 
+  empty_tbl: "NA"
+  data_object: "NA"
+  alive_tbl: "NA"
+  sample_name: "NA"
+---
+
+## Empty Droplet Report
+
+```{r, include = FALSE}
+# empty_tbl <- params$empty_tbl
+# data_object <- params$data_object
+# alive_tbl<- params$alive_tbl
+# sample_name<- params$sample_name
+
+library(HPCell)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(purrr)
+library(Seurat)
+library(tidyseurat)
+library(glue)
+library(scater)
+library(DropletUtils)
+library(EnsDb.Hsapiens.v86)
+library(here)
+library(stringr)
+library(rlang)
+library(scuttle)
+library(scDblFinder)
+library(ggupset)
+library(tidySummarizedExperiment)
+library(broom)
+library(tarchetypes)
+library(SeuratObject)
+library(SingleCellExperiment)
+library(SingleR)
+library(celldex)
+library(tidySingleCellExperiment)
+library(tibble)
+library(magrittr)
+library(qs)
+library(S4Vectors)
+library(gridExtra)
+
+# sample_column <- "orig.ident"
+
+# Calculate_UMAP
+calc_UMAP <- function(input_seurat) {
+  assay_name <- input_seurat@assays |> names() |> extract2(1)
+  
+  # Check if variable features are already present, if not calculate them
+  if (length(VariableFeatures(input_seurat)) == 0) {
+    input_seurat <- FindVariableFeatures(input_seurat)
+  }
+  
+  # Extract variable features using VariableFeatures() for Seurat v5
+  var_genes <- VariableFeatures(input_seurat)
+  
+  # Ensure that there are variable features before proceeding
+  if (length(var_genes) > 0) {
+    # Scale data and run PCA on variable genes
+    x <- ScaleData(input_seurat) |>
+      RunPCA(features = var_genes) |>
+      FindNeighbors(dims = 1:30) |>
+      FindClusters(resolution = 0.5) |>
+      RunUMAP(dims = 1:30, spread = 0.5, min.dist = 0.01, n.neighbors = 10L) |>
+      as_tibble()
+  } else {
+    stop("No variable features available for UMAP calculation.")
+  }
+  
+  return(x)
+}
+
+calc_UMAP_dbl_report <- map(data_object, calc_UMAP)
+
+extract_metadata <- function(seurat_obj, sample_name) {
+  seurat_obj@meta.data %>%
+    rownames_to_column(var = ".cell") %>%   
+    mutate(sample = sample_name)            
+}
+
+meta_data_list <- map2(data_object, sample_name, ~ extract_metadata(.x, .y))
+
+# Function to merge meta data with another processed tibble data 
+merge_meta <- function(meta_data, data_to_merge) {
+  left_join(meta_data, data_to_merge, by = ".cell")
+}
+```
+
+Barcode rank plot
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7}
+# names(empty_droplets_tbl_list) <- unique_samples_list
+# Process empty droplets data 
+empty_df <- function(input_metadata, empty_droplets_tbl, sample_name) {
+  # input <- input_metadata |>
+  #   # input_seurat@meta.data |> 
+  #   tibble::rownames_to_column(var = '.cell')
+  #browser()
+  joined_data <- empty_droplets_tbl |> 
+    left_join(input_metadata |> dplyr::select(.cell), by = '.cell')
+
+  # Create a data frame with plotting information
+  plot_data <- data.frame(
+    x = joined_data$rank,
+    y = joined_data$Total, 
+    rank = joined_data$rank, 
+    inflection = joined_data$inflection,
+    knee = joined_data$knee,
+    fitted = joined_data$fitted, 
+    empty = joined_data$empty_droplet, 
+    FDR = joined_data$FDR,
+    Total = joined_data$Total, 
+    PValue = joined_data$PValue, 
+    sample_name = sample_name
+  )
+  return(plot_data)
+}
+
+process_empty_droplet_list <- purrr::pmap(
+  list(meta_data_list, empty_tbl, sample_name), 
+  ~ empty_df(..1, ..2, ..3)
+)
+
+# Combined tibble with an identifier for each tissue/sample
+combined_df <- bind_rows(process_empty_droplet_list) 
+
+# Generate plot
+plot <- ggplot(combined_df, aes(x = x, y = y)) +
+    geom_point(color = 'lightblue', alpha = 0.5) +
+    scale_x_log10() +
+    scale_y_log10() +
+    geom_line(aes(x = rank, y = fitted), color='darkblue') +
+    geom_hline(aes(yintercept = knee), color='red') +
+    geom_hline(aes(yintercept = inflection), color='forestgreen') +
+    scale_linetype_manual(values = c("knee" = "dashed", "inflection" = "dashed"),
+                          guide = guide_legend(override.aes = list(color = c("forestgreen", "red")))
+                          ) +
+    facet_wrap(~sample_name, scales = "free") +
+    theme_minimal() +
+    labs(x = "Barcodes", y = "Total UMI count", color = "Legend") +
+    theme(legend.position = "bottom")
+
+print(plot)
+```
+
+Percentage of reads assigned to mitochondrial transcrips against library size
+
+-   Scatter plot comparing mitochondrial content percentage to total count of RNA sequencing reads across different samples (in this case tissues)
+
+-   The X-axis is on a logarithmic scale and represents the total count of RNA sequencing reads per cell, while the Y-axis shows the percentage of those reads that are mitochondrial. Each point on the plot represents a single cell.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7}
+
+merged_alive <- map2(meta_data_list, alive_tbl, merge_meta)
+combined_merged_alive <- bind_rows(merged_alive)
+
+# Function to process and prepare data for mitochondrial plotting
+plot_mito_data <- function(input_seurat, tissue_name, alive_identification) {
+  # Calculate per-cell mitochondrial QC metrics
+  mitochondrion <- alive_identification %>%
+    group_by(sample) %>%
+    mutate(
+      discard = as.logical(isOutlier(subsets_Mito_percent, type = "higher")),
+      threshold = as.numeric(attr(isOutlier(subsets_Mito_percent, type = "higher"), "threshold")["higher"]),
+      tissue_name = tissue_name
+    ) %>%
+    ungroup()
+
+  # Prepare data frame for plotting
+  plot_mito <- mitochondrion %>%
+    dplyr::select(
+      tissue_name,
+      subsets_Mito_percent,
+      subsets_Mito_sum,
+      discard,
+      threshold,
+      high_mitochondrion = discard  # Rename discard to high_mitochondrion for clarity
+    )
+  
+  return(plot_mito)
+}
+
+# Apply the function to a list of samples and combine all data
+all_data <- lapply(seq_along(data_object), function(i) {
+  plot_mito_data(meta_data_list[[i]], sample_name[[i]], merged_alive[[i]])
+})
+
+# Combine all data into a single tibble
+combined_plot_mito_data <- bind_rows(all_data)
+
+# Function to plot mitochondrial content per tissue
+plot_each_sample <- function(combined_plot_mito_data) {
+  num_tissues <- length(unique(combined_plot_mito_data$tissue_name))
+  
+  ggplot(combined_plot_mito_data, aes(x = subsets_Mito_sum, y = subsets_Mito_percent)) +
+    facet_wrap(~ tissue_name) + 
+    geom_point(aes(color = high_mitochondrion), alpha = 0.5) +
+    #scale_x_log10() +
+    geom_hline(aes(yintercept = threshold), color = "red", linetype = "dashed") +
+    labs(
+      x = "Total count",
+      y = "Mitochondrial %",
+      title = paste("Percentage library size vs. library size with", num_tissues, "tissue types"),
+      color = "High mitochondrial percentage"
+    ) +
+    theme_minimal()
+}
+
+# Plot all tissues
+plot_each_sample(combined_plot_mito_data)
+
+```
+
+Proportion of empty droplets
+
+-   Number and proportion of cells (non-empty droplets), everything above knee is retained.
+
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+empty_count <- function(df) {
+  # Count the TRUE and FALSE values in the empty_droplet column
+  tibble <- df %>%
+    group_by(sample_name) %>%
+    summarise(
+      Empty_count = sum(empty == TRUE),
+      Cell_count = sum(empty == FALSE)
+    )
+  return(tibble)
+}
+
+# Apply the function to the combined_df
+empty_count_results <- empty_count(combined_df)
+empty_count_results
+```
+
+Number of non-empty droplets
+
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+# Number of non-empty droplets -------------------------------------------------
+empty_table <- function(df) {
+  # Count the TRUE and FALSE values in the empty_droplet column
+  tibble <- df %>%
+    group_by(sample_name) %>%
+    summarise(
+     "Number: True cells (FDR<0.001)" = sum(FDR < 0.001, na.rm = TRUE),  # Count of FDR values less than 0.001
+     "Proportion: True cells (FDR<0.001)" = mean(FDR < 0.001, na.rm = TRUE)  # Proportion of FDR values less than 0.001
+    )
+  return(tibble)
+}
+empty_count_results <- empty_table(combined_df)
+empty_count_results
+```
+
+Count of cells vs empty droplets
+
+```{r,  warning=FALSE, message=FALSE, echo=FALSE}
+count <- function(df) {
+  # is.cell <- df$FDR <= 0.001
+  tibble<- df %>%
+  group_by(sample_name) %>%
+  summarise(
+    Cells = sum(FDR, na.rm = TRUE),      # Count of TRUE values, NA values removed
+    Empty_droplets = sum(!FDR, na.rm = TRUE)   # Count of FALSE values, NA values removed
+  )
+  return(tibble)
+}
+count_results <- count(combined_df)
+count_results
+```
+
+Histogram of p-values
+
+-   Shows the distribution of p-values for droplets in the lower 10 percentile of total within each tissue
+-   A low p-value signifies significance therefore we would reject those droplets as empty
+
+```{r,  echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=7}
+hist_p_val <- function(df) {
+  if(df |> dplyr::filter(empty) |> nrow() != 0){
+  df_filtered <- df %>%
+  group_by(sample_name) %>%
+  dplyr::filter(empty) %>%
+  mutate(Total_quantile = quantile(Total[Total > 0], 0.1)) %>%
+  dplyr::filter(Total <= Total_quantile & Total > 0) %>%
+  ungroup()
+
+plot_hist <- ggplot(df_filtered, aes(x = PValue)) +
+  geom_histogram(binwidth = 0.2, fill = "cornflowerblue", color = "grey") +
+  facet_wrap(~ sample_name) +
+  labs(x = "P-value", y = "Frequency") +
+  ggtitle("Droplets with 0 < libsize <= 10th Percentile of Total per Tissue") + 
+  theme_minimal()
+}}
+
+plot_hist <- hist_p_val(combined_df)
+plot_hist
+```
+
+Mitochondrial gene expression and ribosomal protein expression across samples
+
+-   UMAP plots constructed from barcodes that were detected with EmptyDrops
+-   Each point represents a barcode and is colored based on its Mitochondrial/ Ribosomal percentage
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, fig.width=20, fig.height=10}
+merge_umap_with_metadata <- function(umap_data, metadata, sample) {
+  umap_data |>
+    dplyr::select(.cell, umap_1, umap_2) |>
+    left_join(metadata, by = ".cell") |> 
+    mutate(sample = sample)  # Merge with metadata
+}
+
+# Merge UMAP data with combined_merged_alive and add sample names
+umap_merged_data <- map2(calc_UMAP_dbl_report, sample_name, ~ merge_umap_with_metadata(.x, combined_merged_alive, .y))
+
+combined_umap_merged <- bind_rows(umap_merged_data)
+
+# Plot for mitochondrial gene expression
+plot_mito <- ggplot(combined_umap_merged, aes(x = umap_1, y = umap_2, color = subsets_Mito_percent)) +
+  geom_point(alpha = 0.6) +  # Add transparency for better visualization
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(title = "Mitochondrial Gene Expression", x = "UMAP1", y = "UMAP2") +
+  theme_minimal() +
+  facet_wrap(~ sample)
+
+# Plot for ribosomal gene expression
+plot_ribo <- ggplot(combined_umap_merged, aes(x = umap_1, y = umap_2, color = subsets_Ribo_percent)) +
+  geom_point(alpha = 0.6) +  # Add transparency for better visualization
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(title = "Ribosomal Protein Expression", x = "UMAP1", y = "UMAP2") +
+  theme_minimal() +
+  facet_wrap(~ sample)
+
+# combined_plot <- grid.arrange(plot_mito, plot_ribo, ncol = 2)
+
+combined_plot <- plot_mito + plot_ribo
+
+# Show the combined plot
+combined_plot
+```
