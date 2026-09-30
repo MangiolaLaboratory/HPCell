@@ -3,13 +3,25 @@ library(tidyverse)
 data(HCAO_celltype_unification_maps)
 data(HCAO_graph)
 
-source("~/git_control/HPCell/R/functions_consensus.R")
+source(here::here("R/functions_consensus.R"))
 
 # load cellNexus metadata and only keep high quality cells
 ### This will download ~1GB of data
 cellNexus_metadata = cellNexus::get_metadata() |> 
-  cellNexus::join_census_table() |> 
   cellNexus::keep_quality_cells()
+
+# load census cell_type ontology
+census_metadata = cellNexus:::get_census_metadata("2024-07-01")
+con = dbplyr::remote_con(cellNexus_metadata)
+
+duckdb::duckdb_register_arrow(con, "census_metadata", census_metadata)
+
+# join census cell type ontology label back to cellnexus
+cellNexus_metadata = cellNexus_metadata |>
+  dplyr::left_join(tbl(con, "census_metadata") |> 
+                     dplyr::select(observation_joinid, dataset_id, 
+                                   cell_type, cell_type_ontology_term_id))
+
 
 # unify cell types
 HCAO_celltype_unification_maps$cellxgene = 
@@ -20,7 +32,7 @@ cellNexus_metadata = cellNexus_metadata |>
   left_join(HCAO_celltype_unification_maps$azimuth, by = join_by(cell_annotation_azimuth_l2==azimuth_predicted_celltype_l2), copy = TRUE) |>
   left_join(HCAO_celltype_unification_maps$blueprint, by = join_by(cell_annotation_blueprint_singler==blueprint_first_labels_fine), copy = TRUE) |>
   left_join(HCAO_celltype_unification_maps$monaco, by = join_by(cell_annotation_monaco_singler==monaco_first_labels_fine), copy = TRUE) |>
-  left_join(HCAO_celltype_unification_maps$cellxgene,copy=TRUE)|>
+  left_join(HCAO_celltype_unification_maps$cellxgene, by = join_by(cell_type_ontology_term_id), copy=TRUE)|>
   mutate(cellxgene = case_when(
     is.na(cellxgene) ~ "not hematopoietic",
     .default = cellxgene
@@ -62,4 +74,10 @@ df_map = df_map |>
 
 # use map to perform cell type ensemble
 cellNexus_metadata = cellNexus_metadata |>
-  left_join(df_map, by = join_by(ensemble_joinid), copy = TRUE)
+  left_join(df_map |>
+              select(ensemble_joinid,
+                     NCells,
+                     data_driven_ensemble,
+                     cell_type_unified_ensemble_HCAO,
+                     is_immune_HCAO), 
+            by = join_by(ensemble_joinid), copy = TRUE)
