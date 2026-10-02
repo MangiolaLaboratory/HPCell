@@ -46,7 +46,6 @@ Imports:
   rlang, 
   S4Vectors, 
   AnnotationDbi, 
-  broom,
   digest, 
   igraph, 
   callr, 

@@ -15,6 +15,18 @@ map2_test_differential_abundance_hpc(
   append = FALSE,
   ...
 )
+
+map2_test_differential_abundance_hpc(
+  data_list,
+  formula_list,
+  .abundance = NULL,
+  store = tempfile(tmpdir = "."),
+  computing_resources = crew_controller_local(workers = 1),
+  cpus_per_task = 1,
+  debug_job_id = NULL,
+  append = FALSE,
+  ...
+)
 }
 \arguments{
 \item{data_list}{list of dataframes to be processed}
@@ -37,7 +49,11 @@ map2_test_differential_abundance_hpc(
 }
 \value{
 A \code{targets} pipeline output, typically a nested tibble with differential abundance estimates.
+
+A \code{targets} pipeline output, typically a nested tibble with differential abundance estimates.
 }
 \description{
+This function prepares and runs a differential abundance test pipeline using the 'targets' package. It sets up necessary files, appends scripts, and executes the pipeline.
+
 This function prepares and runs a differential abundance test pipeline using the 'targets' package. It sets up necessary files, appends scripts, and executes the pipeline.
 }
