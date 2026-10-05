@@ -89,10 +89,10 @@ test_that("Full HPCell pipeline runs on small Seurat dataset", {
     ) |>
     remove_empty_DropletUtils() |>
     annotate_cell_type()        |>
-    remove_dead_scuttle()       |>
+    remove_dead_scuttle(group_by = "Cell_type_in_each_tissue")       |>
     score_cell_cycle_seurat()   |>
     remove_doublets_scDblFinder() |>
-    calculate_pseudobulk()      |>
+    calculate_pseudobulk(group_by = "Cell_type_in_each_tissue")      |>
     evaluate_hpc()
 
   expect_true(!is.null(result))

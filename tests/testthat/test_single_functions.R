@@ -106,10 +106,19 @@ test_that("cell_cycle_scoring returns a tibble with Phase column", {
   skip_on_cran()
 
   set.seed(1)
+  # Guarantee cell cycle markers are present, then pad with random genes
+  ref_genes <- rownames(celldex::BlueprintEncodeData())
+  marker_genes <- intersect(
+    c(Seurat::cc.genes.updated.2019$s.genes, Seurat::cc.genes.updated.2019$g2m.genes),
+    ref_genes
+  )
+  genes <- c(marker_genes, sample(setdiff(ref_genes, marker_genes), 1500))
+  
+  cells <- paste0("Cell", seq_len(80))
   counts <- matrix(
-    rpois(300 * 80, lambda = 2),
-    nrow = 300, ncol = 80,
-    dimnames = list(paste0("Gene", seq_len(300)), paste0("Cell", seq_len(80)))
+    rpois(length(genes) * 80, lambda = 2),
+    nrow = length(genes), ncol = 80,
+    dimnames = list(genes, cells)
   )
   obj <- Seurat::CreateSeuratObject(counts = counts)
 
@@ -133,10 +142,13 @@ test_that("annotation_label_transfer returns a tibble", {
   skip_on_cran()
 
   set.seed(1)
+  
+  ref_genes <- rownames(celldex::BlueprintEncodeData())
+  genes <- sample(ref_genes, 500)
   counts <- matrix(
     rpois(500 * 80, lambda = 2),
     nrow = 500, ncol = 80,
-    dimnames = list(paste0("Gene", seq_len(500)), paste0("Cell", seq_len(80)))
+    dimnames = list(genes, paste0("Cell", seq_len(80)))
   )
   obj <- Seurat::CreateSeuratObject(counts = counts)
 
@@ -158,16 +170,27 @@ test_that("alive_identification returns a tibble with mitochondrial columns", {
   skip_on_cran()
 
   set.seed(1)
+  
+  ref_genes <- rownames(celldex::BlueprintEncodeData())
+  genes <- sample(ref_genes, 500)
+  cells <- paste0("Cell", seq_len(80))
   counts <- matrix(
     rpois(500 * 80, lambda = 2),
     nrow = 500, ncol = 80,
-    dimnames = list(paste0("Gene", seq_len(500)), paste0("Cell", seq_len(80)))
+    dimnames = list(genes, paste0("Cell", seq_len(80)))
   )
-  obj <- Seurat::CreateSeuratObject(counts = counts)
+  
+  meta <- data.frame(
+    cell_type = sample(c("T cell", "B cell", "Monocyte", "NK cell"), 80, replace = TRUE),
+    row.names = cells
+  )
+  
+  obj <- Seurat::CreateSeuratObject(counts = counts, meta.data = meta)
 
   result <- HPCell:::alive_identification(
     obj,
-    feature_nomenclature = "symbol"
+    feature_nomenclature = "symbol",
+    cell_type_column = "cell_type"
   )
 
   expect_s3_class(result, "tbl_df")

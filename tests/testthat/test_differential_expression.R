@@ -1,5 +1,6 @@
 library(testthat)
 library(HPCell)
+library(targets)
 
 # ---------------------------------------------------------------------------
 # Differential expression tests

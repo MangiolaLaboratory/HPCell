@@ -13,6 +13,16 @@ test_differential_abundance_hpc(
   append = FALSE,
   ...
 )
+
+test_differential_abundance_hpc(
+  .data,
+  formula,
+  store = tempfile(tmpdir = "."),
+  computing_resources = crew_controller_local(workers = 1),
+  debug_job_id = NULL,
+  append = FALSE,
+  ...
+)
 }
 \arguments{
 \item{.data}{A data frame or \code{SummarizedExperiment}-like object for analysis.}
@@ -34,7 +44,11 @@ rather than overwriting it.}
 }
 \value{
 A \code{targets} pipeline output, typically a nested tibble with differential abundance estimates.
+
+A \code{targets} pipeline output, typically a nested tibble with differential abundance estimates.
 }
 \description{
+A wrapper function that formats data into a tibble and calls \code{map2_test_differential_abundance_hpc} for differential abundance testing.
+
 A wrapper function that formats data into a tibble and calls \code{map2_test_differential_abundance_hpc} for differential abundance testing.
 }

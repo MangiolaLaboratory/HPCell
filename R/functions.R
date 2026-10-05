@@ -978,12 +978,12 @@ cell_cycle_scoring <- function(input_read_RNA_assay,
   
   # avoid small number of cells 
   if (!is.null(empty_droplets_tbl)) {
-    filtered_counts <- input_read_RNA_assay |>
+    input_read_RNA_assay <- input_read_RNA_assay |>
       left_join(empty_droplets_tbl, by = ".cell") |>
       dplyr::filter(!empty_droplet)
   } 
   
-  counts <- filtered_counts |>
+  counts <- input_read_RNA_assay |>
     # Normalise needed
     NormalizeData() |>
     
@@ -1967,12 +1967,11 @@ create_pseudobulk <- function(input_read_RNA_assay,
   # In rare cases, empty droplets observed across cells in a sample
   if (ncol(preprocessing_output_S) == 0) return(NULL)
   
-  if(assays |> is.null()){
-    if(preprocessing_output_S |> is("Seurat"))
-      assays = Seurat::Assays(preprocessing_output_S)
-    else if(preprocessing_output_S |> is("SingleCellExperiment"))
-      assays = preprocessing_output_S@assays |> names()
-    
+  is_seurat <- preprocessing_output_S |> is("Seurat")
+  
+  if (assays |> is.null()) {
+    assays <- if (is_seurat) Seurat::Assays(preprocessing_output_S)
+    else if (preprocessing_output_S |> is("SingleCellExperiment")) SummarizedExperiment::assayNames(preprocessing_output_S)
   }
   
   # Aggregate cells
@@ -1986,17 +1985,28 @@ create_pseudobulk <- function(input_read_RNA_assay,
     mutate(aggregated_cells = paste(.data$sample_hpc, .data[[x]], sep = "___")) |> 
     pull(aggregated_cells)
   
+  if (is_seurat) {
+    pseudobulk <- Seurat::as.SingleCellExperiment(pseudobulk, assay = assays[1])
+    use_assay <- "counts"
+  } else {
+    use_assay <- assays
+  }
+  
   # Aggregate
   pseudobulk <- scuttle::aggregateAcrossCells(
       pseudobulk,
       ids     = ids,
-      use.assay.type = assays,
+      use.assay.type = use_assay,
       BPPARAM = BiocParallel::MulticoreParam(workers = 2),
       store_number = "aggregated_cells"
-    ) |> 
-    mutate(assays = assays)
+    ) 
   
-  # If I start from Seurat
+  # Restore the original assay name so downstream code (any_of(assays)) still matches
+  if (is_seurat) 
+    SummarizedExperiment::assayNames(pseudobulk) <- assays[1]
+  
+  pseudobulk <- pseudobulk |> mutate(assays = assays)
+
   if(pseudobulk |> is("data.frame"))
     pseudobulk = pseudobulk |>
     tidybulk::as_SummarizedExperiment(.sample, .feature, any_of(assays)) 

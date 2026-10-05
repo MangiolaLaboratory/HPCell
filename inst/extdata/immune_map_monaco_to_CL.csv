@@ -1,0 +1,30 @@
+from,to,is_immune
+Central memory CD8 T cells,CL_0000907,TRUE
+Classical monocytes,CL_0000860,TRUE
+Effector memory CD8 T cells,CL_0000913,TRUE
+Exhausted B cells,CL_0000236,TRUE
+Follicular helper T cells,CL_0002038,TRUE
+Intermediate monocytes,CL_0002393,TRUE
+Low-density basophils,CL_0000043,TRUE
+Low-density neutrophils,CL_0000096,TRUE
+MAIT cells,CL_0000940,TRUE
+Myeloid dendritic cells,CL_0000782,TRUE
+Naive B cells,CL_0000788,TRUE
+Naive CD4 T cells,CL_0000895,TRUE
+Naive CD8 T cells,CL_0000900,TRUE
+Natural killer cells,CL_0000623,TRUE
+Non classical monocytes,CL_0000875,TRUE
+Non-switched memory B cells,CL_0000970,TRUE
+Non-Vd2 gd T cells,CL_0000798,TRUE
+Plasmablasts,CL_0000980,TRUE
+Plasmacytoid dendritic cells,CL_0000784,TRUE
+Progenitor cells,CL_0002043,TRUE
+Switched memory B cells,CL_0000972,TRUE
+T regulatory cells,CL_0000815,TRUE
+Terminal effector CD4 T cells,CL_0001044,TRUE
+Terminal effector CD8 T cells,CL_0001062,TRUE
+Th1 cells,CL_0000545,TRUE
+Th1/Th17 cells,CL_0000899,TRUE
+Th17 cells,CL_0000899,TRUE
+Th2 cells,CL_0000546,TRUE
+Vd2 gd T cells,CL_0000798,TRUE
