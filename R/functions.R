@@ -62,34 +62,31 @@ empty_droplet_id <- function(input_read_RNA_assay,
   }
   
   ref_species = switch(species_db, human = EnsDb.Hsapiens.v86, mouse = EnsDb.Mmusculus.v79)
-  mt_pattern = switch(species_db, human = "MT-", mouse = "mt-")
   ribosome_pattern = switch(species_db, human = "^(RPL|RPS)", mouse = "^(Rpl|Rps)")
   
-  # Genes to exclude
+  # Mitochondrial genes by chromosome. Human and mouse EnsDb both use
+  # SEQNAME "MT", which is the match used on master.
+  location <- mapIds(
+    ref_species,
+    keys = rownames(input_read_RNA_assay),
+    column = "SEQNAME",
+    keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID",
+    multiVals = "first"
+  )
+  mitochondrial_genes = which(location == "MT") |> names()
+  
   if (feature_nomenclature == "symbol") {
-    location <- mapIds(
-      ref_species,
-      keys=rownames(input_read_RNA_assay),
-      column="SEQNAME",
-      keytype="SYMBOL",
-      multiVals = "first"
-    )
-    
+    ribosome_genes = rownames(input_read_RNA_assay) |> str_subset(ribosome_pattern)
   } else if (feature_nomenclature == "ensembl") {
-    
-    # Map Ensembl to Symbol
-    location <- mapIds(
+    gene_symbols <- mapIds(
       ref_species,
       keys = rownames(input_read_RNA_assay),
       column = "SYMBOL",
       keytype = "GENEID",
       multiVals = "first"
     )
+    ribosome_genes = rownames(input_read_RNA_assay)[which(str_detect(gene_symbols, ribosome_pattern))]
   }
-  
-  mitochondrial_genes =  rownames(input_read_RNA_assay)[which(str_detect(location, mt_pattern))]
-  
-  ribosome_genes = rownames(input_read_RNA_assay)[which(str_detect(location, ribosome_pattern))]
   
   # Calculate bar-codes ranks
   barcode_ranks = barcodeRanks(counts[!rownames(counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
@@ -273,35 +270,31 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
   # 
   
   ref_species = switch(species_db, human = EnsDb.Hsapiens.v86, mouse = EnsDb.Mmusculus.v79)
-  mt_pattern = switch(species_db, human = "MT-", mouse = "mt-")
   ribosome_pattern = switch(species_db, human = "^(RPL|RPS)", mouse = "^(Rpl|Rps)")
   
-  # Genes to exclude
+  # Mitochondrial genes by chromosome. Human and mouse EnsDb both use
+  # SEQNAME "MT", which is the match used on master.
+  location <- mapIds(
+    ref_species,
+    keys = rownames(input_read_RNA_assay),
+    column = "SEQNAME",
+    keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID",
+    multiVals = "first"
+  )
+  mitochondrial_genes = which(location == "MT") |> names()
+  
   if (feature_nomenclature == "symbol") {
-    location <- mapIds(
-      ref_species,
-      keys=rownames(input_read_RNA_assay),
-      column="SEQNAME",
-      keytype="SYMBOL"
-    )
-    
-    mitochondrial_genes = which(location=="MT") |> names()
-    ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
-    
+    ribosome_genes = rownames(input_read_RNA_assay) |> str_subset(ribosome_pattern)
   } else if (feature_nomenclature == "ensembl") {
-    # all_genes are saved in data/all_genes.rda to avoid recursively accessing biomaRt backend for potential timeout error
-    data(ensembl_genes_biomart)
-    all_mitochondrial_genes <- ensembl_genes_biomart[grep("MT", ensembl_genes_biomart$chromosome_name), ] 
-    all_ribosome_genes <- ensembl_genes_biomart[grep("^(RPL|RPS)", ensembl_genes_biomart$external_gene_name), ]
-    
-    mitochondrial_genes <- all_mitochondrial_genes |> 
-      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
-    ribosome_genes <- all_ribosome_genes |> 
-      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+    gene_symbols <- mapIds(
+      ref_species,
+      keys = rownames(input_read_RNA_assay),
+      column = "SYMBOL",
+      keytype = "GENEID",
+      multiVals = "first"
+    )
+    ribosome_genes = rownames(input_read_RNA_assay)[which(str_detect(gene_symbols, ribosome_pattern))]
   }
-  mitochondrial_genes =  rownames(input_read_RNA_assay)[which(str_detect(location, mt_pattern))]
-    
-  ribosome_genes = rownames(input_read_RNA_assay)[which(str_detect(location, ribosome_pattern))]
   
   
   # Get counts
@@ -724,37 +717,18 @@ alive_identification <- function(input_read_RNA_assay,
   
   
   ref_species = switch(species_db, human = EnsDb.Hsapiens.v86, mouse = EnsDb.Mmusculus.v79)
-  mt_pattern = switch(species_db, human = "MT-", mouse = "mt-")
   ribosome_pattern = switch(species_db, human = "^(RPL|RPS)", mouse = "^(Rpl|Rps)")
   
-  
-  # Genes to exclude
-  if (feature_nomenclature == "symbol") {
-    gene_symbols <- mapIds(
-      ref_species,
-      keys=rownames(input_read_RNA_assay),
-      column="SEQNAME",
-      keytype="SYMBOL"
-    )
-    which_mito =  rownames(input_read_RNA_assay)[
-      which(str_detect(gene_symbols, mt_pattern))
-    ]
-    
-  } else if (feature_nomenclature == "ensembl") {
-    
-    # Map Ensembl to Symbol
-    gene_symbols <- mapIds(
-      ref_species,
-      keys = rownames(input_read_RNA_assay),
-      column = "SYMBOL",
-      keytype = "GENEID",
-      multiVals = "first"
-    )
-    which_mito =  rownames(input_read_RNA_assay)[
-      which(str_detect(gene_symbols, mt_pattern))
-    ]
-    
-  }
+  # Mitochondrial genes by chromosome. Human and mouse EnsDb both use
+  # SEQNAME "MT", which is the match used on master.
+  location <- mapIds(
+    ref_species,
+    keys = rownames(input_read_RNA_assay),
+    column = "SEQNAME",
+    keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID",
+    multiVals = "first"
+  )
+  which_mito = which(location == "MT")
   
   # mitochondrion =
   #   input_read_RNA_assay |>
