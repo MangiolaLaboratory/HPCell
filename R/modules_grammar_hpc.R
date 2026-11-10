@@ -32,6 +32,8 @@
 #'   collection is triggered during the pipeline run. Default: `0` (disabled).
 #' @param workspace_on_error Logical; if `TRUE`, saves a workspace snapshot when
 #'   a target errors. Default: `FALSE`.
+#' @param species Species used for gene annotation, QC, and CellChat. One of
+#'   `"human"` or `"mouse"`. Default: `"human"`.
 #' @return An `HPCell` S3 object containing the initialisation arguments, ready
 #'   to be extended with pipeline step functions.
 #'
@@ -665,8 +667,6 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input 
 #' @param target_doublet_tbl Name of the targets target with doublet calls.
 #' @param target_cell_type Name of the targets target with consensus cell-type
 #'   annotation.
-#' @param species_db Species database to use for CellChat interactions.
-#'   One of `"human"` or `"mouse"`.
 #' @param group_by Column name in the cell metadata used to define cell groups
 #'   for communication inference. Default: `"cell_type"`.
 #' @param ... Additional arguments (unused; for method dispatch).

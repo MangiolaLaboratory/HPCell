@@ -49,9 +49,6 @@ annotation.}
 for communication inference. Default: \code{"cell_type"}.}
 
 \item{...}{Additional arguments (unused; for method dispatch).}
-
-\item{species_db}{Species database to use for CellChat interactions.
-One of \code{"human"} or \code{"mouse"}.}
 }
 \value{
 The updated \code{HPCell} object with the CellChat step appended.

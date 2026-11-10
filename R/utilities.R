@@ -162,6 +162,8 @@ duplicate_single_column_assay <- function(data) {
 #' 
 #' @param id Character vector of gene names
 #' @param current_nomenclature Character vector of input gene nomenclature
+#' @param species Species database to convert against. One of `"human"` or
+#'   `"mouse"`.
 #' @return A data frame of gene name before and after conversion
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
 #' @importFrom EnsDb.Mmusculus.v79 EnsDb.Mmusculus.v79
