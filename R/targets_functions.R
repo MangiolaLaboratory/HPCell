@@ -235,10 +235,11 @@ map2_test_differential_abundance_hpc = function(
     tar_read(estimates_chunk, store = store) |> 
     nest(my_group = -name) |> 
     pull(my_group) |> 
-    map(~ do.call(
-      rbind, 
-      pull(.x, data) 
-    ))
+    map(function(chunk_tbl) {
+      pieces <- pull(chunk_tbl, data)
+      if (length(pieces) == 1) return(pieces[[1]])
+      do.call(rbind, pieces)
+    })
   
   # Return
   if(!append)
@@ -246,7 +247,13 @@ map2_test_differential_abundance_hpc = function(
       data_list,
       estimates,
       ~ {
-        rowData(.x) = rowData(.x) |> cbind(.y)
+        # tidybulk returns the SummarizedExperiment with statistics already
+        # in rowData. A table of columns is the older result shape.
+        if (inherits(.y, "SummarizedExperiment")) return(.y)
+        rowData(.x) <- S4Vectors::cbind(
+          rowData(.x),
+          S4Vectors::DataFrame(as.data.frame(.y), row.names = rownames(.x))
+        )
         .x
       }
     )
@@ -545,10 +552,11 @@ map2_test_differential_abundance_hpc = function(
     tar_read(estimates_chunk, store = store) |> 
     nest(my_group = -name) |> 
     pull(my_group) |> 
-    map(~ do.call(
-      rbind, 
-      pull(.x, data) 
-    ))
+    map(function(chunk_tbl) {
+      pieces <- pull(chunk_tbl, data)
+      if (length(pieces) == 1) return(pieces[[1]])
+      do.call(rbind, pieces)
+    })
   
   # Return
   if(!append)
@@ -556,7 +564,13 @@ map2_test_differential_abundance_hpc = function(
       data_list,
       estimates,
       ~ {
-        rowData(.x) = rowData(.x) |> cbind(.y)
+        # tidybulk returns the SummarizedExperiment with statistics already
+        # in rowData. A table of columns is the older result shape.
+        if (inherits(.y, "SummarizedExperiment")) return(.y)
+        rowData(.x) <- S4Vectors::cbind(
+          rowData(.x),
+          S4Vectors::DataFrame(as.data.frame(.y), row.names = rownames(.x))
+        )
         .x
       }
     )

@@ -32,6 +32,8 @@
 #'   collection is triggered during the pipeline run. Default: `0` (disabled).
 #' @param workspace_on_error Logical; if `TRUE`, saves a workspace snapshot when
 #'   a target errors. Default: `FALSE`.
+#' @param species Species used for gene annotation, QC, and CellChat. One of
+#'   `"human"` or `"mouse"`. Default: `"human"`.
 #' @return An `HPCell` S3 object containing the initialisation arguments, ready
 #'   to be extended with pipeline step functions.
 #'
@@ -60,7 +62,8 @@ initialise_hpc <- function(input_hpc,
                            error = NULL,
                            update = "thorough",
                            garbage_collection = 0,
-                           workspace_on_error = FALSE
+                           workspace_on_error = FALSE,
+                           species = "human"
                           ) {
   
   # Capture all arguments including defaults
@@ -85,7 +88,8 @@ initialise_hpc <- function(input_hpc,
   gene_nomenclature |> saveRDS("temp_gene_nomenclature.rds")
   data_container_type |> saveRDS("data_container_type.rds")
   computing_resources |> saveRDS("temp_computing_resources.rds")
-  # Get the index of jobs of different priority 
+  species |> saveRDS("temp_species.rds")
+  
   tiers = tier |> 
     get_positions() 
   
@@ -137,6 +141,16 @@ initialise_hpc <- function(input_hpc,
       target_output = "gene_nomenclature", 
       user_function = readRDS |> quote(),
       file = "temp_gene_nomenclature_file" |> is_target(), 
+      deployment = "main"
+    ) |>
+    
+    # Species
+    hpc_single("temp_species_file", "temp_species.rds", format = "file") |> 
+    
+    hpc_single(
+      target_output = "species", 
+      user_function = readRDS |> quote(),
+      file = "temp_species_file" |> is_target(), 
       deployment = "main"
     ) |>
     
@@ -227,7 +241,8 @@ remove_empty_DropletUtils.HPCell = function(input_hpc, total_RNA_count_check = N
       user_function = empty_droplet_id |> quote() , 
       input_read_RNA_assay = target_input |> is_target(),
       total_RNA_count_check = total_RNA_count_check,
-      feature_nomenclature = "gene_nomenclature" |> is_target()
+      feature_nomenclature = "gene_nomenclature" |> is_target(),
+      species_db = "species" |> is_target()
     )
   
 }
@@ -287,7 +302,8 @@ remove_empty_threshold.HPCell = function(input_hpc,  RNA_feature_threshold = inp
       user_function = empty_droplet_threshold |> quote() , 
       input_read_RNA_assay = target_input |> is_target(),
       RNA_feature_threshold = "RNA_feature_thresh" |> is_target(),
-      feature_nomenclature = "gene_nomenclature" |> is_target()
+      feature_nomenclature = "gene_nomenclature" |> is_target(),
+      species_db = "species" |> is_target()
     )
   
   
@@ -350,7 +366,8 @@ remove_dead_scuttle.HPCell = function(
       empty_droplets_tbl = target_empty_droplets |> safe_as_name() ,
       cell_type_ensembl_harmonised_tbl = target_annotation |> safe_as_name() ,
       cell_type_column = group_by,
-      feature_nomenclature = "gene_nomenclature" |> is_target() 
+      feature_nomenclature = "gene_nomenclature" |> is_target(),
+      species_db = "species" |> is_target()
     )
   
 }
@@ -464,7 +481,8 @@ annotate_cell_type.HPCell = function(input_hpc, azimuth_reference = NULL, target
       input_read_RNA_assay = target_input |> is_target(), 
       empty_droplets_tbl = target_empty_droplets |> safe_as_name() ,
       reference_azimuth = azimuth_reference,
-      feature_nomenclature = "gene_nomenclature" |> is_target() 
+      feature_nomenclature = "gene_nomenclature" |> is_target() ,
+      species_db = "species" |> is_target()
     )
   
 }
@@ -649,8 +667,6 @@ calculate_pseudobulk.HPCell = function(input_hpc, group_by = NULL, target_input 
 #' @param target_doublet_tbl Name of the targets target with doublet calls.
 #' @param target_cell_type Name of the targets target with consensus cell-type
 #'   annotation.
-#' @param species_db Species database to use for CellChat interactions.
-#'   One of `"human"` or `"mouse"`.
 #' @param group_by Column name in the cell metadata used to define cell groups
 #'   for communication inference. Default: `"cell_type"`.
 #' @param ... Additional arguments (unused; for method dispatch).
@@ -660,7 +676,7 @@ ligand_receptor_cellchat <- function(
     input_hpc, target_input = "data_object", target_output = "ligand_receptor_tbl",  
     target_empty_droplets = "empty_tbl",  target_alive_tbl = "alive_tbl", 
     target_doublet_tbl = "doublet_tbl", target_cell_type = "cell_type_concensus_tbl", 
-    species_db = "human", group_by = "cell_type", ...) {
+    group_by = "cell_type", ...) {
   UseMethod("ligand_receptor_cellchat")
 }
 
@@ -670,7 +686,7 @@ ligand_receptor_cellchat.HPCell = function(
     input_hpc, target_input = "data_object", target_output = "ligand_receptor_tbl", 
     target_empty_droplets = "empty_tbl", target_alive_tbl = "alive_tbl", 
     target_doublet_tbl = "doublet_tbl", target_cell_type = "cell_type_concensus_tbl", 
-    species_db = "human", group_by = "cell_type", ...) {
+    group_by = "cell_type", ...) {
   
   input_hpc |> 
     hpc_iterate(
@@ -683,7 +699,7 @@ ligand_receptor_cellchat.HPCell = function(
       cell_type_tbl = target_cell_type |> is_target(),
       cell_type_column = group_by,
       feature_nomenclature = "gene_nomenclature" |> is_target(),
-      reference_db = species_db,
+      species_db = "species" |> is_target(),
       ...
     )
   

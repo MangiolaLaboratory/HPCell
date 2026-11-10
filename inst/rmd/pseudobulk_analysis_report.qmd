@@ -59,6 +59,7 @@ library(magrittr)
 library(here)
 ```
 
+
 ```{r, include=FALSE}
 preprocessing_output <- function(input_read_RNA_assay,
                                  empty_droplets_tbl,
@@ -240,11 +241,13 @@ data_for_pca <-
 
 This density plot compares the distribution of library sizes across samples after TMM normalization. This helps assess global sequencing-depth differences between samples before PCA is applied.
 
+
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
 
 data_for_pca |> 
   ggplot(aes(count_scaled + 1, color=.sample)) + geom_density(alpha=0.3) + scale_x_log10() + guides(color="none")
 ```
+
 
 ```{r, echo=FALSE,results='hide', warning=FALSE, message=FALSE}
 metadata =
@@ -269,7 +272,9 @@ cum_var_explained <- cumsum(var_explained)
 
 # Find the number of components that explain at least 90% of the variance
 num_components <- which(cum_var_explained >= 0.9)[1]
+
 # num_components <- 20
+
 ## Without metadata 
 # my_pca =
 #   data_for_pca@assays@data$count_scaled |>
@@ -279,9 +284,11 @@ num_components <- which(cum_var_explained >= 0.9)[1]
 
 ```
 
+
 ## Scree Plot
 
 This scree plot shows the proportion of variance explained by each principal component. Components contributing significantly to total variance are prioritized in interpretation of downstream analysis steps.
+
 
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
 library(ggplot2)
@@ -302,9 +309,11 @@ ggplot(scree_data, aes(x = PC, y = Variance)) +
     labs(title = "Scree Plot", x = "Principal Component", y = "Proportion of Variance Explained")
 ```
 
+
 ## PCA Plot (By Sample)
 
 Principal component projection of samples, colored by sample identity. Distance reflects similarity in gene expression profiles, and clustering indicates shared variance structure.
+
 
 ```{r, out.width='100%', fig.width=15, fig.height=10, warning=FALSE, message=FALSE, echo=FALSE}
 # x<- plot(my_pca$rotated[, "PC1"], my_pca$rotated[, "PC2"],
@@ -313,27 +322,33 @@ Principal component projection of samples, colored by sample identity. Distance 
 #      asp = 1)
 # x
 
+
 x<- ggplot(my_pca$metadata, aes(x = my_pca$rotated[, "PC1"], y = my_pca$rotated[, "PC2"], color = my_pca$metadata |> rownames()))  +
   geom_point() +
   theme_minimal() +
   labs(title = "PCA Plot Colored by sample Type",
+
        x = "Principal Component 1",
        y = "Principal Component 2") +
   scale_color_discrete(name = "Tissue Type")
 x
 ```
 
+
 ## Cell Type Clustering via PCA
 
 Samples are grouped based on PCA of their pseudobulk profiles. Color represents number of aggregated cells contributing to each pseudobulk profile.
+
 
 ```{r, out.width='100%',  warning=FALSE, message=FALSE, echo=FALSE}
 data_for_pca |>
 tidybulk::reduce_dimensions(method="PCA") |>
 tidybulk::pivot_sample() |>
+
 ggplot(aes(PC1, PC2, color=data_for_pca$.aggregated_cells)) +
 geom_point() +
   theme_minimal() +
+
   theme(
     legend.position = "right", # or choose "bottom" if you prefer
     legend.key.size = unit(0.2, "cm"), # Adjust the size of the legend keys
@@ -342,6 +357,7 @@ geom_point() +
   )
 ```
 
+
 :::
 
 # Session Info
@@ -349,3 +365,4 @@ geom_point() +
 ```{r}
 sessionInfo()
 ```
+

@@ -17,7 +17,8 @@ initialise_hpc(
   error = NULL,
   update = "thorough",
   garbage_collection = 0,
-  workspace_on_error = FALSE
+  workspace_on_error = FALSE,
+  species = "human"
 )
 }
 \arguments{
@@ -59,6 +60,9 @@ collection is triggered during the pipeline run. Default: \code{0} (disabled).}
 
 \item{workspace_on_error}{Logical; if \code{TRUE}, saves a workspace snapshot when
 a target errors. Default: \code{FALSE}.}
+
+\item{species}{Species used for gene annotation, QC, and CellChat. One of
+\code{"human"} or \code{"mouse"}. Default: \code{"human"}.}
 }
 \value{
 An \code{HPCell} S3 object containing the initialisation arguments, ready

@@ -8,7 +8,8 @@ empty_droplet_id(
   input_read_RNA_assay,
   total_RNA_count_check = -Inf,
   assay = NULL,
-  feature_nomenclature
+  feature_nomenclature,
+  species_db = "human"
 )
 }
 \arguments{
@@ -23,6 +24,8 @@ assay.}
 
 \item{feature_nomenclature}{Character scalar indicating gene identifier type.
 One of \code{"symbol"} or \code{"ensembl"}.}
+
+\item{species_db}{Character string specifying the species reference database to use. Whether its \code{human} or \code{mouse}}
 }
 \value{
 A tibble with columns: \code{.cell}, \code{logProb}, \code{FDR}, \code{empty_droplet}

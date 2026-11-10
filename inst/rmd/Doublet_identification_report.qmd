@@ -87,7 +87,7 @@ calc_UMAP <- function(input_seurat) {
   # Ensure that there are variable features before proceeding
   if (length(var_genes) > 0) {
     # Scale data and run PCA on variable genes
-    x <- ScaleData(input_seurat) |>
+    x <- input_seurat |> NormalizeData |> ScaleData() |>
       RunPCA(features = var_genes) |>
       FindNeighbors(dims = 1:30) |>
       FindClusters(resolution = 0.5) |>

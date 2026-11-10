@@ -9,6 +9,7 @@ annotation_label_transfer(
   empty_droplets_tbl = NULL,
   reference_azimuth = NULL,
   assay = NULL,
+  species_db = "human",
   feature_nomenclature
 )
 }
@@ -25,6 +26,8 @@ Requires the \pkg{Azimuth} package (GitHub-only:
 \code{remotes::install_github("satijalab/azimuth@master")}).}
 
 \item{assay}{Name of the assay to use. \code{NULL} uses the first assay.}
+
+\item{species_db}{Character string specifying the species reference database to use. Whether its \code{human} or \code{mouse}}
 
 \item{feature_nomenclature}{Character scalar indicating gene identifier type.
 One of \code{"symbol"} or \code{"ensembl"}.}

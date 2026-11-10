@@ -194,14 +194,14 @@ map_de = function(se, my_formula, assay, method, max_rows_for_matrix_multiplicat
     if(ncol(se) == 0) return(se)
     
     # Use fast method but does not have dispersion
-    if(ncol(se) > 2000 & method |> str_detect("glmmseq")) method = "glmmseq_glmmTMB"
+    if(ncol(se) > 2000 & method |> str_detect("glmmseq")) method = "glmmseq_glmmtmb"
     
     se = se |>
       
       # Test
       test_differential_abundance_safe(
         as.formula(my_formula),
-        .abundance = !!sym(assay),
+        abundance = assay,
         method = method,
         cores = min(nrow(se), cores),
         max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,

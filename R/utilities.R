@@ -162,21 +162,27 @@ duplicate_single_column_assay <- function(data) {
 #' 
 #' @param id Character vector of gene names
 #' @param current_nomenclature Character vector of input gene nomenclature
+#' @param species Species database to convert against. One of `"human"` or
+#'   `"mouse"`.
 #' @return A data frame of gene name before and after conversion
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importFrom EnsDb.Mmusculus.v79 EnsDb.Mmusculus.v79
 #' @importMethodsFrom ensembldb genes   
 #' @export
 convert_gene_names <- function(id,
-                               current_nomenclature) {
+                               current_nomenclature,
+                               species) {
+  ref_species = switch(species, human = EnsDb.Hsapiens.v86, mouse = EnsDb.Mmusculus.v79)
+  
   if (current_nomenclature == "symbol"){
-    edb <- EnsDb.Hsapiens.v86
+    edb <- ref_species
     edb_df <- genes(edb,
                     columns = c("gene_name", "entrezid", "gene_biotype"),
                     filter = AnnotationFilter::GeneNameFilter(id),
                     return.type = "data.frame")   
   } 
   else if (current_nomenclature == "ensembl") {
-    edb <- EnsDb.Hsapiens.v86
+    edb <- ref_species
     edb_df <- genes(edb,
                     columns = c("gene_name", "entrezid", "gene_biotype"),
                     filter = AnnotationFilter::GeneIdFilter(id),

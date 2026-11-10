@@ -13,7 +13,7 @@ cell_communication(
   assay = NULL,
   cell_type_column = NULL,
   feature_nomenclature,
-  reference_db = "human",
+  species_db,
   ...
 )
 }
@@ -34,7 +34,7 @@ cell_communication(
 
 \item{feature_nomenclature}{Character vector specifying gene in Symbol or Ensemble format}
 
-\item{reference_db}{The ligand-receptor interaction database curated in CellChat tool. Choose between human or mouse.}
+\item{species_db}{Character string specifying the species reference database to use. Whether its \code{human} or \code{mouse}}
 
 \item{...}{Additional arguments passed to \code{CellChat::subsetDB}}
 }

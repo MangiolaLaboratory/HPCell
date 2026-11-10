@@ -6,7 +6,7 @@ params:
   empty_tbl: "NA"
   data_object: "NA"
   alive_tbl: "NA"
-  sample_name: "NA"
+  sample_names: "NA"
 ---
 
 ## Empty Droplet Report
@@ -53,6 +53,7 @@ library(gridExtra)
 
 # Calculate_UMAP
 calc_UMAP <- function(input_seurat) {
+  
   assay_name <- input_seurat@assays |> names() |> extract2(1)
   
   # Check if variable features are already present, if not calculate them
@@ -66,7 +67,8 @@ calc_UMAP <- function(input_seurat) {
   # Ensure that there are variable features before proceeding
   if (length(var_genes) > 0) {
     # Scale data and run PCA on variable genes
-    x <- ScaleData(input_seurat) |>
+    x <- input_seurat |> NormalizeData() |> 
+      ScaleData() |>
       RunPCA(features = var_genes) |>
       FindNeighbors(dims = 1:30) |>
       FindClusters(resolution = 0.5) |>
@@ -126,8 +128,12 @@ empty_df <- function(input_metadata, empty_droplets_tbl, sample_name) {
 }
 
 process_empty_droplet_list <- purrr::pmap(
+  
   list(meta_data_list, empty_tbl, sample_name), 
-  ~ empty_df(..1, ..2, ..3)
+  ~ {
+    browser()
+    empty_df(..1, ..2, ..3)
+  }
 )
 
 # Combined tibble with an identifier for each tissue/sample

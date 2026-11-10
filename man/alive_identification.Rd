@@ -10,7 +10,8 @@ alive_identification(
   cell_type_ensembl_harmonised_tbl = NULL,
   cell_type_column = NULL,
   assay = NULL,
-  feature_nomenclature
+  feature_nomenclature,
+  species_db = "human"
 )
 }
 \arguments{
@@ -30,6 +31,8 @@ per cell type. \code{NULL} applies global thresholds.}
 
 \item{feature_nomenclature}{Character scalar indicating gene identifier type.
 One of \code{"symbol"} or \code{"ensembl"}.}
+
+\item{species_db}{Character string specifying the species reference database to use. Whether its \code{human} or \code{mouse}}
 }
 \value{
 A tibble identifying alive cells.

@@ -13,7 +13,6 @@ ligand_receptor_cellchat(
   target_alive_tbl = "alive_tbl",
   target_doublet_tbl = "doublet_tbl",
   target_cell_type = "cell_type_concensus_tbl",
-  species_db = "human",
   group_by = "cell_type",
   ...
 )
@@ -26,7 +25,6 @@ ligand_receptor_cellchat(
   target_alive_tbl = "alive_tbl",
   target_doublet_tbl = "doublet_tbl",
   target_cell_type = "cell_type_concensus_tbl",
-  species_db = "human",
   group_by = "cell_type",
   ...
 )
@@ -46,9 +44,6 @@ ligand_receptor_cellchat(
 
 \item{target_cell_type}{Name of the targets target with consensus cell-type
 annotation.}
-
-\item{species_db}{Species database to use for CellChat interactions.
-One of \code{"human"} or \code{"mouse"}.}
 
 \item{group_by}{Column name in the cell metadata used to define cell groups
 for communication inference. Default: \code{"cell_type"}.}

@@ -4,12 +4,15 @@
 \alias{convert_gene_names}
 \title{Gene name conversion using ensembl database}
 \usage{
-convert_gene_names(id, current_nomenclature)
+convert_gene_names(id, current_nomenclature, species)
 }
 \arguments{
 \item{id}{Character vector of gene names}
 
 \item{current_nomenclature}{Character vector of input gene nomenclature}
+
+\item{species}{Species database to convert against. One of \code{"human"} or
+\code{"mouse"}.}
 }
 \value{
 A data frame of gene name before and after conversion

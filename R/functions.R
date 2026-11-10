@@ -17,6 +17,7 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(c("."))
 #'   assay.
 #' @param feature_nomenclature Character scalar indicating gene identifier type.
 #'   One of `"symbol"` or `"ensembl"`.
+#' @param species_db Character string specifying the species reference database to use. Whether its `human` or `mouse`
 #'
 #' @return A tibble with columns: `.cell`, `logProb`, `FDR`, `empty_droplet`
 #'   (logical classification).
@@ -28,13 +29,15 @@ if(getRversion() >= "2.15.1")  utils::globalVariables(c("."))
 #' @importFrom DropletUtils emptyDrops barcodeRanks
 #' @importFrom S4Vectors metadata
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importFrom EnsDb.Mmusculus.v79 EnsDb.Mmusculus.v79
 #' @importFrom biomaRt useMart getBM
 #' 
 #' @export
 empty_droplet_id <- function(input_read_RNA_assay,
                              total_RNA_count_check  = -Inf,
                              assay = NULL,
-                             feature_nomenclature){
+                             feature_nomenclature,
+                             species_db = "human"){
   
   if(input_read_RNA_assay |> is.null()) return(NULL)
   if(ncol(input_read_RNA_assay) == 0) return(NULL)
@@ -46,6 +49,18 @@ empty_droplet_id <- function(input_read_RNA_assay,
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
+  
+  # # Check if empty droplets have been identified
+  # if (any(input_read_RNA_assay$nFeature_RNA < total_RNA_count_check)) {
+  #   
+  filter_empty_droplets <- TRUE
+  # }
+  # else {
+  #   filter_empty_droplets <- "FALSE"
+  # }
+  
+  significance_threshold = 0.001
+  
   # Get counts
   if (inherits(input_read_RNA_assay, "Seurat")) {
     counts <- GetAssayData(input_read_RNA_assay, assay, layer = "counts")
@@ -53,32 +68,41 @@ empty_droplet_id <- function(input_read_RNA_assay,
     counts <- assay(input_read_RNA_assay, assay)
   }
   
+  ref_species = switch(species_db, human = EnsDb.Hsapiens.v86, mouse = EnsDb.Mmusculus.v79)
+  ribosome_pattern = switch(species_db, human = "^(RPL|RPS)", mouse = "^(Rpl|Rps)")
   
-  significance_threshold = 0.001
+  # Mitochondrial genes by chromosome. Human and mouse EnsDb both use
+  # SEQNAME "MT", which is the match used on master.
+  location <- mapIds(
+    ref_species,
+    keys = rownames(input_read_RNA_assay),
+    column = "SEQNAME",
+    keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID",
+    multiVals = "first"
+  )
+  mitochondrial_genes = which(location == "MT") |> names()
   
-  # Genes to exclude
   if (feature_nomenclature == "symbol") {
-    location <- mapIds(
-      EnsDb.Hsapiens.v86,
-      keys=rownames(input_read_RNA_assay),
-      column="SEQNAME",
-      keytype="SYMBOL"
-    )
-    mitochondrial_genes = which(location=="MT") |> names()
-    ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
-    
+    ribosome_genes = rownames(input_read_RNA_assay) |> str_subset(ribosome_pattern)
   } else if (feature_nomenclature == "ensembl") {
-    # all_genes are saved in data/all_genes.rda to avoid recursively accessing biomaRt backend for potential timeout error
-    data(ensembl_genes_biomart)
-    all_mitochondrial_genes <- ensembl_genes_biomart[grep("MT", ensembl_genes_biomart$chromosome_name), ] 
-    all_ribosome_genes <- ensembl_genes_biomart[grep("^(RPL|RPS)", ensembl_genes_biomart$external_gene_name), ]
-    mitochondrial_genes <- all_mitochondrial_genes |> 
-      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
-    ribosome_genes <- all_ribosome_genes |> 
-      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+    gene_symbols <- mapIds(
+      ref_species,
+      keys = rownames(input_read_RNA_assay),
+      column = "SYMBOL",
+      keytype = "GENEID",
+      multiVals = "first"
+    )
+    ribosome_genes = rownames(input_read_RNA_assay)[which(str_detect(gene_symbols, ribosome_pattern))]
   }
   
+  # Calculate bar-codes ranks
+  barcode_ranks = barcodeRanks(counts[!rownames(counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
   
+  # Set the minimum total RNA per cell for ambient RNA
+  if(min(barcode_ranks$total) < 100) { lower = 100 } else {
+    lower = quantile(barcode_ranks$total, 0.05)
+  }
+    
   # if ("originalexp" %in% names(input_file@assays)) {
   #   barcode_ranks <- barcodeRanks(input_file@assays$originalexp@counts[!rownames(input_file@assays$originalexp@counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE])
   # } else if ("RNA" %in% names(input_file@assays)) {
@@ -86,19 +110,33 @@ empty_droplet_id <- function(input_read_RNA_assay,
   # }
   
   
-  filtered_counts <- counts[!(rownames(counts) %in% c(mitochondrial_genes, ribosome_genes)),, drop=FALSE ]
+  # Remove genes from input
+  if (filter_empty_droplets) {
+    barcode_table <- counts[!rownames(counts) %in% c(mitochondrial_genes, ribosome_genes),, drop=FALSE] |>
+      emptyDrops( test.ambient = TRUE, lower=lower) |>
+      as_tibble(rownames = ".cell") |>
+      mutate(empty_droplet = FDR >= significance_threshold) |>
+      replace_na(list(empty_droplet = TRUE))
+  }
+  else {
+    barcode_table <- input_read_RNA_assay |>
+      as_tibble() |>
+      select(.cell) |>
+      mutate( empty_droplet = FALSE)
+  } 
   
-  n_expressed_genes_non_zero = (filtered_counts > 0) |> colSums()
-  
-  filter_empty_droplets = n_expressed_genes_non_zero |> min() < 200
-  
-  if(!filter_empty_droplets)
-    return(  input_read_RNA_assay |> 
-               as_tibble() |> 
-               select(.cell) |>
-               mutate( empty_droplet = FALSE))
-  
-  quantile_expressed_genes = n_expressed_genes_non_zero |> quantile(0.05)
+  # barcode ranks
+  barcode_table <- barcode_table |>
+    left_join(
+      barcode_ranks |>
+        as_tibble(rownames = ".cell") |>
+        mutate(
+          knee =  metadata(barcode_ranks)$knee,
+          inflection =  metadata(barcode_ranks)$inflection
+        )
+    )
+
+  barcode_table
   
   # Check if empty droplets have been identified
   # nFeature_name <- paste0("nFeature_", assay)
@@ -111,37 +149,36 @@ empty_droplet_id <- function(input_read_RNA_assay,
   # }
   
   # Attempt to run emptyDrops() and handle potential errors
-  tryCatch({
-    # WE CANNOT USE AMBIENT PARAMETER BECAUSE WITH PERCULIAR DATASETS WITH 
-    # cells with more zeros have also more total RNA counts dysfunction stalls 
-    # for example for this sample
-    #.cell                                                   dataset_id                           sample_id 
-    #AAACCCAAGCTAATCC___eec804b9-2ae5-44f0-a1b5-d721e21257de eec804b9-2ae5-44f0-a1b5-d721e21257de 485c0dac47c6bd0b91fd3ae9d7de7385
-    
-    emptyDrops(filtered_counts) |> 
-      as_tibble(rownames = ".cell") |>
-      mutate(empty_droplet = FDR >= significance_threshold) |>
-      replace_na(list(empty_droplet = TRUE)) |> 
-      mutate(filter_empty_method = "emptyDrops")
-    
-  }, error = function(e) {
-    # Check if the error message matches the specific error
-    if (grepl("no counts available to estimate the ambient profile", e$message)) {
-      # You can also print a message if you like
-      message("Error encountered: ", e$message)
-      message("Setting do_filter to FALSE.")
-      
-      # Return NULL or an empty object as appropriate
-      input_read_RNA_assay |> 
-        as_tibble() |> 
-        select(.cell) |>
-        mutate( empty_droplet = n_expressed_genes_non_zero < 200)  |> 
-        mutate(filter_empty_method = "expressed_genes_more_than_200")
-    } else {
-      # For other errors, re-throw the error
-      stop(e)
-    }
-  })
+  # tryCatch({
+  #   # WE CANNOT USE AMBIENT PARAMETER BECAUSE WITH PERCULIAR DATASETS WITH 
+  #   # cells with more zeros have also more total RNA counts dysfunction stalls 
+  #   # for example for this sample
+  #   #.cell                                                   dataset_id                           sample_id 
+  #   #AAACCCAAGCTAATCC___eec804b9-2ae5-44f0-a1b5-d721e21257de eec804b9-2ae5-44f0-a1b5-d721e21257de 485c0dac47c6bd0b91fd3ae9d7de7385
+  #   
+  #   emptyDrops(filtered_counts) |> 
+  #     as_tibble(rownames = ".cell") |>
+  #     mutate(empty_droplet = FDR >= significance_threshold) |>
+  #     replace_na(list(empty_droplet = TRUE)) |> 
+  #     mutate(filter_empty_method = "emptyDrops")
+  #   
+  # }, error = function(e) {
+  #   # Check if the error message matches the specific error
+  #   if (grepl("no counts available to estimate the ambient profile", e$message)) {
+  #     # You can also print a message if you like
+  #     message("Error encountered: ", e$message)
+  #     message("Setting do_filter to FALSE.")
+  #     
+  #     # Return NULL or an empty object as appropriate
+  #     input_read_RNA_assay |> 
+  #       as_tibble() |> 
+  #       select(.cell) |>
+  #       mutate( empty_droplet = n_expressed_genes_non_zero < 200)  |> 
+  #       mutate(filter_empty_method = "expressed_genes_more_than_200")
+  #   } else {
+  #     # For other errors, re-throw the error
+  #     stop(e)
+  #   }
   
   
   # barcode ranks
@@ -207,6 +244,7 @@ empty_droplet_id <- function(input_read_RNA_assay,
 #'   assay.
 #' @param feature_nomenclature Character scalar indicating gene identifier type.
 #'   One of `"symbol"` or `"ensembl"`.
+#' @param species_db Character string specifying the species reference database to use. Whether its `human` or `mouse`
 #' @param RNA_feature_threshold Integer minimum number of expressed genes; cells
 #'   with fewer expressed genes are classified as empty.
 #'
@@ -227,6 +265,7 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
                                    total_RNA_count_check  = -Inf,
                                    assay = NULL,
                                    feature_nomenclature,
+                                   species_db = "human",
                                    RNA_feature_threshold){
   if(input_read_RNA_assay |> is.null()) return(NULL)
   if(ncol(input_read_RNA_assay) == 0) return(NULL)
@@ -234,7 +273,7 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
   #Fix GChecks 
   FDR = NULL 
   .cell = NULL 
-  
+
   # Get assay
   if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
   
@@ -244,28 +283,34 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
   # expressed_genes_threshold = 0.025
   # if (is.null(RNA_feature_threshold)) RNA_feature_threshold = min(floor(dim(input_read_RNA_assay)[1]*expressed_genes_threshold), 500)
   # 
-  # Genes to exclude
+  
+  ref_species = switch(species_db, human = EnsDb.Hsapiens.v86, mouse = EnsDb.Mmusculus.v79)
+  ribosome_pattern = switch(species_db, human = "^(RPL|RPS)", mouse = "^(Rpl|Rps)")
+  
+  # Mitochondrial genes by chromosome. Human and mouse EnsDb both use
+  # SEQNAME "MT", which is the match used on master.
+  location <- mapIds(
+    ref_species,
+    keys = rownames(input_read_RNA_assay),
+    column = "SEQNAME",
+    keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID",
+    multiVals = "first"
+  )
+  mitochondrial_genes = which(location == "MT") |> names()
+  
   if (feature_nomenclature == "symbol") {
-    location <- mapIds(
-      EnsDb.Hsapiens.v86,
-      keys=rownames(input_read_RNA_assay),
-      column="SEQNAME",
-      keytype="SYMBOL"
-    )
-    mitochondrial_genes = which(location=="MT") |> names()
-    ribosome_genes = rownames(input_read_RNA_assay) |> str_subset("^RPS|^RPL")
-    
+    ribosome_genes = rownames(input_read_RNA_assay) |> str_subset(ribosome_pattern)
   } else if (feature_nomenclature == "ensembl") {
-    # all_genes are saved in data/all_genes.rda to avoid recursively accessing biomaRt backend for potential timeout error
-    data(ensembl_genes_biomart)
-    all_mitochondrial_genes <- ensembl_genes_biomart[grep("MT", ensembl_genes_biomart$chromosome_name), ] 
-    all_ribosome_genes <- ensembl_genes_biomart[grep("^(RPL|RPS)", ensembl_genes_biomart$external_gene_name), ]
-    
-    mitochondrial_genes <- all_mitochondrial_genes |> 
-      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
-    ribosome_genes <- all_ribosome_genes |> 
-      filter(ensembl_gene_id %in% rownames(input_read_RNA_assay)) |> pull(ensembl_gene_id)
+    gene_symbols <- mapIds(
+      ref_species,
+      keys = rownames(input_read_RNA_assay),
+      column = "SYMBOL",
+      keytype = "GENEID",
+      multiVals = "first"
+    )
+    ribosome_genes = rownames(input_read_RNA_assay)[which(str_detect(gene_symbols, ribosome_pattern))]
   }
+  
   
   # Get counts
   if (inherits(input_read_RNA_assay, "Seurat")) {
@@ -307,12 +352,12 @@ empty_droplet_threshold<- function(input_read_RNA_assay,
 #'   Requires the \pkg{Azimuth} package (GitHub-only:
 #'   `remotes::install_github("satijalab/azimuth@master")`).
 #' @param assay Name of the assay to use. `NULL` uses the first assay.
+#' @param species_db Character string specifying the species reference database to use. Whether its `human` or `mouse`
 #' @param feature_nomenclature Character scalar indicating gene identifier type.
 #'   One of `"symbol"` or `"ensembl"`.
 #'
 #' @return A tibble with cell-type annotation data.
 #'
-#' 
 #' @importFrom Seurat CreateAssayObject
 #' @importFrom Seurat SCTransform
 #' @importFrom Seurat CreateSeuratObject
@@ -345,6 +390,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
                                       empty_droplets_tbl = NULL, 
                                       reference_azimuth = NULL,
                                       assay = NULL,
+                                      species_db = "human",
                                       feature_nomenclature
 ){
   # Fix github checks 
@@ -395,6 +441,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
     )
   
   #snapshotDate(): 2025-10-29
+  if (species_db == "human") {
   blueprint <- celldex::BlueprintEncodeData(
     ensembl = feature_nomenclature == "ensembl"
     #legacy = TRUE
@@ -548,11 +595,47 @@ annotation_label_transfer <- function(input_read_RNA_assay,
       })
     
     # Save
-    data_annotated  |>
+    data_annotated = data_annotated  |>
       left_join(azimuth_annotation, by = dplyr::join_by(.cell)	)
     
 
   }
+  
+  } else if (species_db == "mouse") {
+    mousernaseq <- celldex::MouseRNAseqData(
+      ensembl = feature_nomenclature == "ensembl"
+    )
+    
+    data_annotated = input_read_RNA_assay |>
+      SingleR(
+        ref = mousernaseq,
+        assay.type.test= 1,
+        labels = mousernaseq$label.fine
+      )  |>
+      as_tibble(rownames=".cell") |>
+      nest(mouserna_scores_fine = starts_with("score")) |>
+      dplyr::select(-one_of("delta.next"),- pruned.labels) |>
+      dplyr::rename(mouserna.labels.fine = labels) |>
+      
+      left_join(
+        
+        input_read_RNA_assay |>
+          SingleR(
+            ref = mousernaseq,
+            assay.type.test= 1,
+            labels = mousernaseq$label.main
+          )  |>
+          as_tibble(rownames=".cell") |>
+          nest(mouserna_scores_coarse = starts_with("score")) |>
+          dplyr::select(-one_of("delta.next"),- pruned.labels) |>
+          dplyr::rename( mouserna.labels.coarse = labels)
+      )
+    
+    rm(mousernaseq)
+    gc()
+  }
+  
+  data_annotated
 }
 
 #' Alive Cell Identification
@@ -571,6 +654,7 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' @param assay Name of the assay to use. `NULL` uses the first assay.
 #' @param feature_nomenclature Character scalar indicating gene identifier type.
 #'   One of `"symbol"` or `"ensembl"`.
+#' @param species_db Character string specifying the species reference database to use. Whether its `human` or `mouse`
 #'
 #' @return A tibble identifying alive cells.
 #'
@@ -584,8 +668,10 @@ annotation_label_transfer <- function(input_read_RNA_assay,
 #' @importFrom stringr str_which
 #' @importFrom Seurat GetAssayData
 #' @importFrom Seurat PercentageFeatureSet
+#' @importFrom Seurat CreateSeuratObject
 #' @importFrom scater isOutlier
 #' @importFrom EnsDb.Hsapiens.v86 EnsDb.Hsapiens.v86
+#' @importFrom EnsDb.Mmusculus.v79 EnsDb.Mmusculus.v79
 #' @importFrom purrr map
 #' @importFrom magrittr not
 #' @importFrom Matrix colSums
@@ -600,7 +686,8 @@ alive_identification <- function(input_read_RNA_assay,
                                  cell_type_ensembl_harmonised_tbl = NULL,
                                  cell_type_column = NULL,
                                  assay = NULL,
-                                 feature_nomenclature) {
+                                 feature_nomenclature,
+                                 species_db = "human") {
   
   # Fix GCHECK notes
   empty_droplet = NULL
@@ -617,7 +704,7 @@ alive_identification <- function(input_read_RNA_assay,
     stop("HPCell says: Your `group_by` columns are not present in your data. Please run annotate_cell_type_hpc() to get the cell type annotation that you can use as grouping for the cell-type-specific quality control and removal of dead cells.")
   
   # Get assay
-  if(is.null(assay)) assay = input_read_RNA_assay@assays |> names() |> extract2(1)
+  if (is.null(assay)) assay_name = input_read_RNA_assay@assays |> names() |> extract2(1) else assay_name = assay
   
   if (!is.null(empty_droplets_tbl)) {
     input_read_RNA_assay =
@@ -633,12 +720,12 @@ alive_identification <- function(input_read_RNA_assay,
   if (ncol(input_read_RNA_assay) == 1) input_read_RNA_assay = input_read_RNA_assay |> duplicate_single_column_assay()
   
   # Calculate nFeature_RNA and nCount_RNA if not exist in the data
-  nFeature_name <- paste0("nFeature_", assay)
-  nCount_name <- paste0("nCount_", assay)
+  nFeature_name <- paste0("nFeature_", assay_name)
+  nCount_name <- paste0("nCount_", assay_name)
   
   
   if (inherits(input_read_RNA_assay, "Seurat")) {
-    counts <- GetAssayData(input_read_RNA_assay, assay = assay, layer = "counts")
+    counts <- GetAssayData(input_read_RNA_assay, assay = assay_name, layer = "counts")
     if (!any(str_which(colnames(input_read_RNA_assay[[]]), nFeature_name)) ||
         !any(str_which(colnames(input_read_RNA_assay[[]]), nCount_name))) {
       input_read_RNA_assay[[nFeature_name]] <-
@@ -649,7 +736,7 @@ alive_identification <- function(input_read_RNA_assay,
       input_read_RNA_assay
     }
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
-    counts <- assay(input_read_RNA_assay, assay = assay)
+    counts <- assay(input_read_RNA_assay, assay = assay_name)
     if (!any(str_which(colnames(colData(input_read_RNA_assay)), nFeature_name)) ||
         !any(str_which(colnames(colData(input_read_RNA_assay)), nCount_name))) {
       colData(input_read_RNA_assay)[[nFeature_name]] <- Matrix::colSums(counts > 0)
@@ -657,21 +744,19 @@ alive_identification <- function(input_read_RNA_assay,
     }
   }
   
-  # input_read_RNA_assay <- input_read_RNA_assay %>%
-  #   AddMetaData(
-  #     metadata = PercentageFeatureSet(input_read_RNA_assay, pattern = "^MT-", assay = assay), 
-  #     col.name = "percent.mt"
-  #   )
   
-  # Returns a named vector of IDs
-  # Matches the gene id's row by row and inserts NA when it can't find gene names
+  ref_species = switch(species_db, human = EnsDb.Hsapiens.v86, mouse = EnsDb.Mmusculus.v79)
+  ribosome_pattern = switch(species_db, human = "^(RPL|RPS)", mouse = "^(Rpl|Rps)")
+  
+  # Mitochondrial genes by chromosome. Human and mouse EnsDb both use
+  # SEQNAME "MT", which is the match used on master.
   location <- mapIds(
-    EnsDb.Hsapiens.v86,
+    ref_species,
     keys = rownames(input_read_RNA_assay),
     column = "SEQNAME",
-    keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID"
+    keytype = if (feature_nomenclature == "symbol") "SYMBOL" else "GENEID",
+    multiVals = "first"
   )
-  
   which_mito = which(location == "MT")
   
   # mitochondrion =
@@ -707,19 +792,21 @@ alive_identification <- function(input_read_RNA_assay,
   
   #Extract counts for RNA assay
   if (inherits(input_read_RNA_assay, "Seurat")){
-    rna_counts <- GetAssayData(input_read_RNA_assay, layer = "counts", assay=assay)
+    rna_counts <- GetAssayData(input_read_RNA_assay, layer = "counts", assay=assay_name)
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
-    rna_counts <- assay(input_read_RNA_assay, assay=assay)
-    assay(input_read_RNA_assay, assay) <- assay(input_read_RNA_assay, assay) |> as("dgCMatrix")
+    rna_counts <- assay(input_read_RNA_assay, assay=assay_name) |> as("dgCMatrix")
+    # as.Seurat() calls as.sparse() on the assay. DelayedMatrix has no
+    # as.sparse method, so replace the assay with the in-memory matrix first.
+    assay(input_read_RNA_assay, assay_name) <- rna_counts
     
-    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, counts = assay) 
+    input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, counts = assay_name) 
     
     # Rename assay
     assay_name_old = input_read_RNA_assay |> Assays() |> _[[1]]
     input_read_RNA_assay = input_read_RNA_assay |>
       RenameAssays(
         assay.name = assay_name_old,
-        new.assay.name = assay)
+        new.assay.name = assay_name)
   }
   
   # Compute per-cell QC metrics
@@ -727,19 +814,26 @@ alive_identification <- function(input_read_RNA_assay,
     as_tibble(rownames = ".cell") %>%
     dplyr::select(-sum, -detected)
   
+  # I HAVE TO DROP UNIQUE, AS SOON AS THE BUG IN SEURAT IS RESOLVED. UNIQUE IS BUG PRONE HERE.
   if (feature_nomenclature == "symbol") {
-    percentage_output = PercentageFeatureSet(input_read_RNA_assay, pattern = "^RPS|^RPL", assay = assay)
+    percentage_output = PercentageFeatureSet(
+      input_read_RNA_assay, pattern = ribosome_pattern, assay = assay_name
+    )
   } else {
-    # Ensembl IDs: resolve ribo gene IDs from biomart reference
-    data(ensembl_genes_biomart)
-    ribosome_ensembl_ids <- ensembl_genes_biomart[
-      grep("^(RPL|RPS)", ensembl_genes_biomart$external_gene_name), "ensembl_gene_id"
-    ]
-    ribosome_features <- intersect(ribosome_ensembl_ids, rownames(input_read_RNA_assay))
+    # Ensembl IDs do not match RPL/RPS or Rpl/Rps. Map them to symbols with the
+    # species EnsDb, then pass the matching Ensembl IDs as features.
+    gene_symbols <- mapIds(
+      ref_species,
+      keys = rownames(input_read_RNA_assay),
+      column = "SYMBOL",
+      keytype = "GENEID",
+      multiVals = "first"
+    )
+    ribosome_features <- rownames(input_read_RNA_assay)[which(str_detect(gene_symbols, ribosome_pattern))]
     percentage_output = PercentageFeatureSet(
       input_read_RNA_assay,
       features = if (length(ribosome_features) > 0) ribosome_features else character(0),
-      assay = assay
+      assay = assay_name
     )
   }
   percentage_output = percentage_output[!duplicated(names(percentage_output))]
@@ -853,7 +947,7 @@ doublet_identification <- function(input_read_RNA_assay,
                                    # reference_label_fine,
                                    assay = NULL){
   
-  # Make doublet assignment reproducible across runs 
+  # THIS IS IMPORTANT. Make doublet assignment reproducible across runs 
   set.seed(123)
   
   # Fix GChecks 
@@ -2213,7 +2307,7 @@ map_add_dispersion_to_se = function(se_df, .col, formula = NULL, abundance = NUL
 #' @param assay Character string specifying which assay to use
 #' @param cell_type_column Character string specifying the column name containing cell type annotations
 #' @param feature_nomenclature Character vector specifying gene in Symbol or Ensemble format
-#' @param reference_db The ligand-receptor interaction database curated in CellChat tool. Choose between human or mouse.
+#' @param species_db Character string specifying the species reference database to use. Whether its `human` or `mouse`
 #' @param ... Additional arguments passed to \code{CellChat::subsetDB}
 #' @return A CellChat tibble containing the inferred communication at the level of 
 #'     ligands/receptors
@@ -2228,7 +2322,7 @@ cell_communication <- function(input_read_RNA_assay,
                                assay = NULL,
                                cell_type_column = NULL,
                                feature_nomenclature,
-                               reference_db = "human",
+                               species_db,
                                ...){
   
   # Input should not be NULL
@@ -2301,10 +2395,14 @@ cell_communication <- function(input_read_RNA_assay,
   # CellChat identifyOverExpressedGenes() would only support at least 2 groups
   if (meta |> distinct(.data[[cell_type_column]]) |> pull() |> length() <= 1) return(NULL)
 
+  
+  # Generalise sample column
+  sample_col <- colnames(meta) |> stringr::str_subset("(?i)sample") |> first()
+  
   # Choose cellchat reference
-  DB <- switch(reference_db, human = CellChat::CellChatDB.human, mouse = CellChat::CellChatDB.mouse)
-  projectionDB <- switch(reference_db, human = CellChat::PPI.human, mouse = CellChat::PPI.mouse)
-
+  DB <- switch(species_db, human = CellChat::CellChatDB.human, mouse = CellChat::CellChatDB.mouse)
+  projectionDB <- switch(species_db, human = CellChat::PPI.human, mouse = CellChat::PPI.mouse)
+    
   CellChatDB <- DB
 
   CellChatDB.use <- CellChat::subsetDB(CellChatDB, search = c("Secreted Signaling", "ECM-Receptor", "Cell-Cell Contact"), key = c("annotation"))
@@ -2326,9 +2424,12 @@ cell_communication <- function(input_read_RNA_assay,
 
   # Return NULL when none of LR pairs are found
   if (nrow(cellchat@LR$LRsig) == 0) return(NULL)
-
-  cellchat = cellchat |>
-
+    
+  # Drop unused levels 
+  cellchat@idents <- droplevels(cellchat@idents)
+  
+  cellchat = cellchat |> 
+    
     # Use projected data
     CellChat::computeCommunProb(raw.use = FALSE) |>
 
@@ -2372,7 +2473,7 @@ cell_communication <- function(input_read_RNA_assay,
     pivot_longer(-source, names_to = "target", values_to = "interaction_weight")
   
   result = lr_tbl |> left_join(pathway_tbl,  by = c("source", "target", "pathway_name")) |>
-      mutate(sample_id = unique(cellchat@meta$sample_id)) |>
+      mutate(sample_id = unique(meta[[sample_col]])  ) |>
       left_join(cell_interaction_count) |> left_join(cell_interaction_weight) |>
       as_tibble()
 }
@@ -2411,20 +2512,20 @@ map_test_differential_abundance = function(
     !!.col, !!.formula,
     ~ {
       
-      if(ncol(.x) > 2000) method = "glmmseq_glmmTMB"
-      else method = "glmmSeq_lme4"
+      if(ncol(.x) > 2000) method = "glmmseq_glmmtmb"
+      else method = "glmmseq_lme4"
       
-      
-      # Test
+      # abundance is an assay name. Pass it as a string; the old
+      # `.abundance = !!as.symbol(.abundance)` lookup resolves `counts`
+      # to BiocGenerics::counts and shifts the tidybulk arguments.
       test_differential_abundance(
         .x,
-        .y, 
-        .abundance = !!as.symbol(.abundance),
+        .y,
+        abundance = .abundance,
         method = method,
         cores = cores,
         max_rows_for_matrix_multiplication = max_rows_for_matrix_multiplication,
-        .dispersion = dispersion,
-        ...
+        .dispersion = dispersion
       )
     },
     ...
