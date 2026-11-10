@@ -1,5 +1,20 @@
 # HPCell NEWS
 
+## HPCell 0.6.0
+
+### New features
+
+* Added a `species` argument to `initialise_hpc()` (`"human"` by default) and
+  threaded it through empty-droplet filtering, live-cell QC, cell-type
+  annotation, and CellChat.
+* Mitochondrial genes are now resolved from the species Ensembl database
+  (`EnsDb.Hsapiens.v86` or `EnsDb.Mmusculus.v79`) by chromosome `MT`, for both
+  gene symbols and Ensembl IDs. Ribosome genes are matched with `^(RPL|RPS)`
+  for human and `^(Rpl|Rps)` for mouse, mapping Ensembl IDs to symbols first.
+* Human cells are annotated with Blueprint, Monaco, and optional Azimuth.
+  Mouse cells are annotated with `celldex::MouseRNAseqData` (fine and coarse
+  labels). CellChat uses `CellChatDB` and `PPI` for the selected species.
+
 ## HPCell 0.5.3
 
 ### Bug fixes
