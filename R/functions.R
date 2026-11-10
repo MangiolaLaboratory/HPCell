@@ -795,6 +795,9 @@ alive_identification <- function(input_read_RNA_assay,
     rna_counts <- GetAssayData(input_read_RNA_assay, layer = "counts", assay=assay_name)
   } else if (inherits(input_read_RNA_assay, "SingleCellExperiment")) {
     rna_counts <- assay(input_read_RNA_assay, assay=assay_name) |> as("dgCMatrix")
+    # as.Seurat() calls as.sparse() on the assay. DelayedMatrix has no
+    # as.sparse method, so replace the assay with the in-memory matrix first.
+    assay(input_read_RNA_assay, assay_name) <- rna_counts
     
     input_read_RNA_assay <- input_read_RNA_assay |> as.Seurat(data = NULL, counts = assay_name) 
     
