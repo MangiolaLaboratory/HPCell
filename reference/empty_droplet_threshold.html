@@ -21,7 +21,7 @@ total RNA count for each cell, and a logical annotation indicating whether the d
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">HPCell</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.5.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.6.0</span>
       </span>
     </div>
 
@@ -60,6 +60,7 @@ total RNA count for each cell, and a logical annotation indicating whether the d
 <span>  total_RNA_count_check <span class="op">=</span> <span class="op">-</span><span class="cn">Inf</span>,</span>
 <span>  assay <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">feature_nomenclature</span>,</span>
+<span>  species_db <span class="op">=</span> <span class="st">"human"</span>,</span>
 <span>  <span class="va">RNA_feature_threshold</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -86,6 +87,10 @@ assay.</p></dd>
 <dt id="arg-feature-nomenclature">feature_nomenclature<a class="anchor" aria-label="anchor" href="#arg-feature-nomenclature"></a></dt>
 <dd><p>Character scalar indicating gene identifier type.
 One of <code>"symbol"</code> or <code>"ensembl"</code>.</p></dd>
+
+
+<dt id="arg-species-db">species_db<a class="anchor" aria-label="anchor" href="#arg-species-db"></a></dt>
+<dd><p>Character string specifying the species reference database to use. Whether its <code>human</code> or <code>mouse</code></p></dd>
 
 
 <dt id="arg-rna-feature-threshold">RNA_feature_threshold<a class="anchor" aria-label="anchor" href="#arg-rna-feature-threshold"></a></dt>

@@ -20,7 +20,7 @@ indicating whether cells are empty droplets."><!-- mathjax --><script src="https
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">HPCell</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.5.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.6.0</span>
       </span>
     </div>
 
@@ -57,7 +57,8 @@ indicating whether cells are empty droplets.</p>
 <span>  <span class="va">input_read_RNA_assay</span>,</span>
 <span>  total_RNA_count_check <span class="op">=</span> <span class="op">-</span><span class="cn">Inf</span>,</span>
 <span>  assay <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  <span class="va">feature_nomenclature</span></span>
+<span>  <span class="va">feature_nomenclature</span>,</span>
+<span>  species_db <span class="op">=</span> <span class="st">"human"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -83,6 +84,10 @@ assay.</p></dd>
 <dt id="arg-feature-nomenclature">feature_nomenclature<a class="anchor" aria-label="anchor" href="#arg-feature-nomenclature"></a></dt>
 <dd><p>Character scalar indicating gene identifier type.
 One of <code>"symbol"</code> or <code>"ensembl"</code>.</p></dd>
+
+
+<dt id="arg-species-db">species_db<a class="anchor" aria-label="anchor" href="#arg-species-db"></a></dt>
+<dd><p>Character string specifying the species reference database to use. Whether its <code>human</code> or <code>mouse</code></p></dd>
 
 </dl></div>
     <div id="value">

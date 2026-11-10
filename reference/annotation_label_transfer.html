@@ -19,7 +19,7 @@ is provided."><!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/lib
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">HPCell</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.5.3</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.6.0</span>
       </span>
     </div>
 
@@ -56,6 +56,7 @@ is provided.</p>
 <span>  empty_droplets_tbl <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  reference_azimuth <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  assay <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  species_db <span class="op">=</span> <span class="st">"human"</span>,</span>
 <span>  <span class="va">feature_nomenclature</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -83,6 +84,10 @@ Requires the <span class="pkg">Azimuth</span> package (GitHub-only:
 
 <dt id="arg-assay">assay<a class="anchor" aria-label="anchor" href="#arg-assay"></a></dt>
 <dd><p>Name of the assay to use. <code>NULL</code> uses the first assay.</p></dd>
+
+
+<dt id="arg-species-db">species_db<a class="anchor" aria-label="anchor" href="#arg-species-db"></a></dt>
+<dd><p>Character string specifying the species reference database to use. Whether its <code>human</code> or <code>mouse</code></p></dd>
 
 
 <dt id="arg-feature-nomenclature">feature_nomenclature<a class="anchor" aria-label="anchor" href="#arg-feature-nomenclature"></a></dt>
