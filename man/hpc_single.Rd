@@ -2,7 +2,7 @@
 % Please edit documentation in R/factories.R
 \name{hpc_single}
 \alias{hpc_single}
-\title{Add HPC step to pipeline}
+\title{Add a Single (Non-Iterated) Step to the HPCell Pipeline}
 \usage{
 hpc_single(
   input_hpc,
@@ -14,16 +14,21 @@ hpc_single(
 )
 }
 \arguments{
-\item{input_hpc}{The input HPC object.}
+\item{input_hpc}{An \code{HPCell} object.}
 
-\item{target_output}{The output target name (default: NULL).}
+\item{target_output}{Character name of the output target.}
 
-\item{user_function}{A custom function provided by the user (default: NULL).}
+\item{user_function}{A quoted function call or function object to execute.}
 
-\item{...}{Additional arguments to pass to the internal functions.}
+\item{user_function_source_path}{Optional character path to an R script to
+source in the worker before calling \code{user_function}. \code{NULL} sources nothing.}
+
+\item{iterate}{Iteration mode string. \code{"none"} disables iteration; \code{"map"}
+maps over input values.}
+
+\item{...}{Named arguments passed as target inputs.}
 }
 \description{
-This function adds a new step to the HPC pipeline by appending the appropriate
-targets to the target script. It allows the user to specify the input and output
-targets, as well as a custom user function to be applied.
+Appends a single, non-parallelised targets step to the HPCell pipeline script.
+Use \code{hpc_iterate()} instead when the step should be mapped over all samples.
 }

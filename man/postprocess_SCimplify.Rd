@@ -34,7 +34,7 @@ PCA results, and kNN graph.}
 
 \item{return.hierarchical.structure}{whether return hierarchical structure of metacell}
 
-\item{...}{other parameters of \link{build_knn_graph} function}
+\item{...}{other parameters of \link[SuperCell]{build_knn_graph} function}
 }
 \value{
 A tibble with column 'cell' and 'membership' indicating which metacell cluster each cell belongs to.

@@ -12,14 +12,20 @@ cell_cycle_scoring(
 )
 }
 \arguments{
-\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object containing RNA assay data.}
+\item{input_read_RNA_assay}{A \code{SingleCellExperiment} or \code{Seurat} object
+containing RNA assay data.}
 
-\item{empty_droplets_tbl}{A tibble identifying empty droplets.}
+\item{empty_droplets_tbl}{A tibble identifying empty droplets (output of
+\code{empty_droplet_id()}). \code{NULL} skips filtering.}
 
-\item{assay}{Name of the assay to use.}
+\item{feature_nomenclature}{Character scalar indicating gene identifier type.
+One of \code{"symbol"} or \code{"ensembl"}.}
+
+\item{assay}{Name of the assay to use. \code{NULL} uses the first assay.}
 }
 \value{
-A tibble with cell identifiers and their cell cycle phase classifications.
+A tibble with cell identifiers and their cell cycle phase classifications
+(G1, S, or G2M).
 }
 \description{
 Applies cell cycle scoring based on the expression of G2/M and S phase markers.

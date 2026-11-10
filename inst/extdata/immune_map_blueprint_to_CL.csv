@@ -1,0 +1,44 @@
+from,to,is_immune
+Adipocytes,not hematopoietic,TRUE
+Astrocytes,not hematopoietic,TRUE
+CD4+ T-cells,CL_0000624,TRUE
+CD4+ Tcm,CL_0000904,TRUE
+CD4+ Tem,CL_0000905,TRUE
+CD8+ T-cells,CL_0000625,TRUE
+CD8+ Tcm,CL_0000907,TRUE
+CD8+ Tem,CL_0000913,TRUE
+Chondrocytes,not hematopoietic,TRUE
+Class-switched memory B-cells,CL_0000972,TRUE
+CLP,CL_0000051,TRUE
+CMP,CL_0000049,TRUE
+DC,CL_0000451,TRUE
+Endothelial cells,not hematopoietic,TRUE
+Eosinophils,CL_0000771,TRUE
+Epithelial cells,not hematopoietic,TRUE
+Erythrocytes,CL_0000232,TRUE
+Fibroblasts,not hematopoietic,TRUE
+GMP,CL_0000557,TRUE
+HSC,CL_0000037,TRUE
+Keratinocytes,not hematopoietic,TRUE
+Macrophages,CL_0000235,TRUE
+Macrophages M1,CL_0000863,TRUE
+Macrophages M2,CL_0000890,TRUE
+Megakaryocytes,CL_0000556,TRUE
+Melanocytes,not hematopoietic,TRUE
+Memory B-cells,CL_0000787,TRUE
+MEP,CL_0000050,TRUE
+Mesangial cells,not hematopoietic,TRUE
+Monocytes,CL_0000576,TRUE
+MPP,CL_0000837,TRUE
+mv Endothelial cells,not hematopoietic,TRUE
+Myocytes,not hematopoietic,TRUE
+naive B-cells,CL_0000788,TRUE
+Neurons,not hematopoietic,TRUE
+Neutrophils,CL_0000775,TRUE
+NK cells,CL_0000623,TRUE
+Pericytes,not hematopoietic,TRUE
+Plasma cells,CL_0000786,TRUE
+Preadipocytes,not hematopoietic,TRUE
+Skeletal muscle,not hematopoietic,TRUE
+Smooth muscle,not hematopoietic,TRUE
+Tregs,CL_0000815,TRUE

@@ -132,3 +132,116 @@ add_celltype_level <- function(.data, id_col, level = 0, celltype_tree = NULL) {
   .data |>
     dplyr::left_join(map_df, copy = TRUE)
 }
+
+ensemble_annotation2 <- function(celltype_matrix,celltype_tree = NULL,
+                                 local_conservative_node_index=numeric(0),
+                                 global_conservative_node_list=character(0),
+                                 reference_overide = character(0),
+                                 non_consensus_label = "not hematopoietic",
+                                 return_uncertainty=FALSE){
+  # prepare immune graph
+  if (is.null(celltype_tree)) {
+    celltype_tree  = data(HCAO_graph)
+  }
+  node_names = igraph::V(celltype_tree)$name
+  path_to_root = lapply(node_names,function(x){
+    igraph::as_ids(igraph::ego(celltype_tree,nodes = x,order = -1,mode = "in")[[1]])
+  })
+  names(path_to_root) = node_names
+  
+  # check celltype_matrix
+  if (ncol(celltype_matrix) <= 1) {
+    # no ensemble required
+    return(celltype_matrix[,1,drop=TRUE])
+  } else {
+    celltype_matrix = as.matrix(celltype_matrix)
+    invalid_types = setdiff(celltype_matrix, c(node_names, NA))
+    if (length(invalid_types) > 0) {
+      warning(sprintf("the following cell types in 'celltype_matrix' are not in the graph and will be set to NA:\n"), utils::capture.output(utils::str(invalid_types)))
+    }
+    celltype_matrix[celltype_matrix %in% invalid_types] = NA
+  }
+  
+  # get consensus label
+  consensus_label = do.call(rbind,apply(celltype_matrix,1,function(x){
+    # check for NAs in the label
+    valid_labels = x[!is.na(x)]
+    num_valid_labels = length(valid_labels)
+    if(num_valid_labels<=0) return(data.frame(label=NA,uncertainty=1))
+    if(num_valid_labels<=1) return(data.frame(label=valid_labels[1],uncertainty=1))
+    
+    # generate local conservative node list
+    local_conservative_node_list = x[local_conservative_node_index]
+    local_conservative_node_list = local_conservative_node_list[!is.na(local_conservative_node_list)]
+    
+    # find lowest common ancestor
+    common_ancestors = Reduce(intersect,path_to_root[valid_labels])
+    common_ancestor_length = length(common_ancestors)
+    if(common_ancestor_length<=0) return(data.frame(label=non_consensus_label,uncertainty=1))
+    lca = common_ancestors[1]
+    
+    # check if path to LCA overlapped
+    paths_to_lca = lapply(path_to_root[valid_labels],function(xx){
+      c(setdiff(xx,common_ancestors),lca)
+    })
+    subset_ca = do.call(c,lapply(1:(num_valid_labels-1),function(subset_size){
+      these_subset = combn(valid_labels,m = subset_size,simplify = FALSE)
+      these_ca = sapply(these_subset,function(nn){
+        Reduce(intersect,paths_to_lca[nn])[1]
+        })
+      these_path_to_lca = lapply(path_to_root[these_ca],function(xx){
+        c(setdiff(xx,common_ancestors),lca)
+      })
+      these_path_cover_other_vertex = mapply(FUN = function(xx,vv){
+        all(setdiff(valid_labels,vv)%in%xx)
+      },these_path_to_lca,these_subset,SIMPLIFY = TRUE)
+      if(any(these_path_cover_other_vertex)) return(these_ca[which(these_path_cover_other_vertex)[1]])
+      return(character(0))
+    }))
+    
+    # calculate uncertainty score
+    lca_path_length = sapply(paths_to_lca,length)-1
+    ave_lca_path_length = length(lca_path_length)/sum(1/(lca_path_length))
+    uncertainty_score = ave_lca_path_length/(ave_lca_path_length+common_ancestor_length)
+    
+    # return consensus label based on option arguments
+    if(sum(valid_labels%in%reference_overide)==1) return(data.frame(label=valid_labels[valid_labels%in%reference_overide],uncertainty=1))
+    if(lca%in%c(global_conservative_node_list,local_conservative_node_list)) return(data.frame(label=lca,uncertainty=uncertainty_score))
+    if(length(subset_ca)<=0) subset_ca = lca
+    return(data.frame(label=subset_ca[1],uncertainty=uncertainty_score))
+  },simplify = FALSE))
+  
+  #
+  if(return_uncertainty) return(consensus_label)
+  return(consensus_label$label)
+}
+
+check_improvement = function(original_label,new_label,celltype_tree = NULL){
+  if (is.null(celltype_tree)) {
+    celltype_tree  = data(immune_graph)
+  }
+  node_names = igraph::V(celltype_tree)$name
+  path_to_root = lapply(node_names,function(x){
+    igraph::as_ids(igraph::ego(celltype_tree,nodes = x,order = -1,mode = "in")[[1]])
+  })
+  names(path_to_root) = node_names
+  improvement_status = mapply(FUN = function(ori.lab,new.lab){
+    this_distance=NA
+    if(ori.lab==new.lab){
+      this_distance = 0
+    }else{
+      if(new.lab%in%path_to_root[[ori.lab]]){
+        this_distance = which(path_to_root[[ori.lab]]==new.lab)-1
+      }else{
+        if(ori.lab%in%path_to_root[[new.lab]]){
+          this_distance = 1-which(path_to_root[[new.lab]]==ori.lab)
+        }
+      } 
+    }
+    return(this_distance)
+  },original_label,new_label)
+}
+  
+  
+  
+  

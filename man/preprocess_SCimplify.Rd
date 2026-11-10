@@ -46,7 +46,7 @@ for approximation to capture biological meaningful result.}
 
 \item{seed}{seed to use to subsample cells for an approximate approach}
 
-\item{...}{other parameters of \link{build_knn_graph} function}
+\item{...}{other parameters of \link[SuperCell]{build_knn_graph} function}
 }
 \value{
 A list of variables to be passed to the \code{SuperCell::SCimplify} gamma involved function.

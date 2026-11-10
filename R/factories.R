@@ -38,6 +38,27 @@ parse_function_call <- function(command) {
 }
 
 
+#' Internal Factory for Iterating Targets
+#'
+#' @description
+#' Low-level factory that builds `tar_target_raw()` calls for each tier in the
+#' HPCell pipeline. Not intended to be called by end users directly.
+#'
+#' @param tiers Named integer list of tier indices (output of `get_positions()`).
+#'   `NULL` or length-1 produces a single, non-tiered target.
+#' @param target_output Character name of the output target.
+#' @param user_function A quoted function call to execute for this target.
+#' @param arguments_to_tier Character vector of argument names that should be
+#'   tiered (suffixed with the tier index).
+#' @param arguments_already_tiered Character vector of argument names that have
+#'   already been tiered in a prior call.
+#' @param other_arguments_to_map Character vector of argument names that should
+#'   be mapped over without tiering.
+#' @param packages Character vector of R packages to load in the worker.
+#' @param deployment Deployment strategy string (e.g. `"worker"` or `"main"`).
+#' @param format Storage format string for the target value.
+#' @param ... Additional named arguments passed as target inputs.
+#' @return A `tar_target` object or a list of `tar_target` objects (one per tier).
 #' @export
 hpc_internal = function(
     tiers = NULL, 
@@ -117,6 +138,27 @@ hpc_internal = function(
    
 }
 
+#' Internal Factory for Report Targets
+#'
+#' @description
+#' Low-level factory that builds `tarchetypes::tar_quarto_raw()` calls for
+#' pipeline report targets. Not intended to be called by end users directly.
+#'
+#' @param tiers Named integer list of tier indices. `NULL` or length-1 produces
+#'   a single, non-tiered target.
+#' @param target_output Character name of the output target.
+#' @param rmd_path Character path to the Quarto (`.qmd`) or R Markdown (`.Rmd`)
+#'   report file.
+#' @param render_arguments A quoted `list()` of parameters passed to the report
+#'   at render time.
+#' @param output_file Optional character name for the rendered output file.
+#' @param arguments_to_tier Character vector of argument names to tier.
+#' @param arguments_already_tiered Character vector of already-tiered arguments.
+#' @param other_arguments_to_map Character vector of arguments to map over.
+#' @param packages Character vector of R packages to load in the worker.
+#' @param deployment Deployment strategy string.
+#' @param ... Additional named arguments.
+#' @return A `tar_target` object or a list of `tar_target` objects.
 #' @export
 hpc_internal_report = function(
     tiers = NULL, 
@@ -190,10 +232,15 @@ hpc_internal_report = function(
 #' targets to the target script. It allows the user to specify the input and output
 #' targets, as well as a custom user function to be applied.
 #'
-#' @param input_hpc The input HPC object.
-#' @param target_output The output target name (default: NULL).
-#' @param user_function A custom function provided by the user (default: NULL).
-#' @param ... Additional arguments to pass to the internal functions.
+#' @param input_hpc An `HPCell` object.
+#' @param target_output Character name of the output target. `NULL` uses an
+#'   auto-generated name.
+#' @param user_function A quoted function call to execute per iteration.
+#' @param user_function_source_path Optional character path to an R script that
+#'   should be sourced in the worker before calling `user_function`. `NULL`
+#'   sources nothing.
+#' @param ... Named arguments passed as target inputs; use `is_target()` to
+#'   reference upstream targets by name.
 #'
 #' @importFrom glue glue
 #' @importFrom magrittr %>%
@@ -268,16 +315,20 @@ hpc_iterate =
     
   }
 
-#' Add HPC step to pipeline
+#' Add a Single (Non-Iterated) Step to the HPCell Pipeline
 #'
-#' This function adds a new step to the HPC pipeline by appending the appropriate
-#' targets to the target script. It allows the user to specify the input and output
-#' targets, as well as a custom user function to be applied.
+#' @description
+#' Appends a single, non-parallelised targets step to the HPCell pipeline script.
+#' Use `hpc_iterate()` instead when the step should be mapped over all samples.
 #'
-#' @param input_hpc The input HPC object.
-#' @param target_output The output target name (default: NULL).
-#' @param user_function A custom function provided by the user (default: NULL).
-#' @param ... Additional arguments to pass to the internal functions.
+#' @param input_hpc An `HPCell` object.
+#' @param target_output Character name of the output target.
+#' @param user_function A quoted function call or function object to execute.
+#' @param user_function_source_path Optional character path to an R script to
+#'   source in the worker before calling `user_function`. `NULL` sources nothing.
+#' @param iterate Iteration mode string. `"none"` disables iteration; `"map"`
+#'   maps over input values.
+#' @param ... Named arguments passed as target inputs.
 #'
 #' @importFrom glue glue
 #' @importFrom magrittr %>%
@@ -323,16 +374,18 @@ hpc_single =
     
   }
 
-#' Add HPC step to pipeline
+#' Add a Merge Step to the HPCell Pipeline
 #'
-#' This function adds a new step to the HPC pipeline by appending the appropriate
-#' targets to the target script. It allows the user to specify the input and output
-#' targets, as well as a custom user function to be applied.
+#' @description
+#' Appends a targets step that collects and merges results from all iterated
+#' upstream targets (e.g. per-sample pseudobulk) into a single aggregate object.
 #'
-#' @param input_hpc The input HPC object.
-#' @param target_output The output target name (default: NULL).
-#' @param user_function A custom function provided by the user (default: NULL).
-#' @param ... Additional arguments to pass to the internal functions.
+#' @param input_hpc An `HPCell` object.
+#' @param target_output Character name of the output target.
+#' @param user_function A quoted function call to execute for the merge.
+#' @param user_function_source_path Optional character path to an R script to
+#'   source in the worker. `NULL` sources nothing.
+#' @param ... Named arguments passed as target inputs.
 #'
 #' @importFrom glue glue
 #' @importFrom magrittr %>%
@@ -409,23 +462,21 @@ hpc_merge =
     
   }
 
-#' Add HPC step to pipeline
+#' Add a Report Step to the HPCell Pipeline
 #'
-#' This function adds a new step to the HPC pipeline by appending the appropriate
-#' targets to the target script. It allows the user to specify the input and output
-#' targets, as well as a custom user function to be applied.
+#' @description
+#' Appends a Quarto/R Markdown rendering step to the HPCell pipeline, which
+#' generates an HTML report using `tarchetypes::tar_quarto_raw()`.
 #'
-#' @param input_hpc The input HPC object.
-#' @param target_output The output target name (default: NULL).
-#' @param user_function A custom function provided by the user (default: NULL).
-#' @param ... Additional arguments to pass to the internal functions.
+#' @param input_hpc An `HPCell` object.
+#' @param target_output Character name of the output target for the rendered report.
+#' @param rmd_path Character path to the `.qmd` or `.Rmd` report file.
+#' @param ... Named arguments passed as report parameters.
 #'
 #' @importFrom glue glue
 #' @importFrom magrittr %>%
 #' @importFrom purrr set_names
 #' @importFrom here here
-#' 
-#' 
 #' @export
 hpc_report = function(input_hpc, target_output = NULL, rmd_path = NULL, ...) {
     

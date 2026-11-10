@@ -13,25 +13,42 @@ test_differential_abundance_hpc(
   append = FALSE,
   ...
 )
+
+test_differential_abundance_hpc(
+  .data,
+  formula,
+  store = tempfile(tmpdir = "."),
+  computing_resources = crew_controller_local(workers = 1),
+  debug_job_id = NULL,
+  append = FALSE,
+  ...
+)
 }
 \arguments{
-\item{.data}{Data frame or similar object for analysis.}
+\item{.data}{A data frame or \code{SummarizedExperiment}-like object for analysis.}
 
-\item{formula}{Formula for the differential abundance test.}
+\item{formula}{A formula describing the differential abundance model.}
 
-\item{store}{File path for temporary storage.}
+\item{store}{Character path used as the targets store directory. Defaults to
+a temporary directory.}
 
-\item{computing_resources}{Computing resources configuration.}
+\item{computing_resources}{A \code{crew} controller specifying the computing
+back-end. Defaults to a local single-worker controller.}
 
-\item{debug_job_id}{Optional job ID for debugging.}
+\item{debug_job_id}{Optional character job ID for debugging. \code{NULL} disables.}
 
-\item{append}{Flag to append to existing script.}
+\item{append}{Logical; if \code{TRUE}, appends to an existing targets script
+rather than overwriting it.}
 
-\item{...}{additional arguments}
+\item{...}{Additional arguments passed to the underlying pipeline functions.}
 }
 \value{
 A \code{targets} pipeline output, typically a nested tibble with differential abundance estimates.
+
+A \code{targets} pipeline output, typically a nested tibble with differential abundance estimates.
 }
 \description{
+A wrapper function that formats data into a tibble and calls \code{map2_test_differential_abundance_hpc} for differential abundance testing.
+
 A wrapper function that formats data into a tibble and calls \code{map2_test_differential_abundance_hpc} for differential abundance testing.
 }

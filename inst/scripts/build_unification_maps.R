@@ -1,7 +1,9 @@
 library(tidyverse)
 
 # load mappings between predictions and our dictionary
-map_files = list.files("inst/extdata", pattern = "immune_map.+.csv", full.names = TRUE)
+map_files = grep(
+  x = list.files("inst/extdata", pattern = "immune_map.+.csv", full.names = TRUE),
+  pattern="to_CL",invert = TRUE,value = TRUE)
 names(map_files) = gsub("immune_map_(.+).csv", "\\1", basename(map_files))
 celltype_unification_maps = map_files |>
   lapply(read.csv)
